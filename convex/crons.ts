@@ -1,21 +1,29 @@
 import { cronJobs } from "convex/server";
-import { internal } from "./_generated/api";
+import { api } from "./_generated/api";
 
 const crons = cronJobs();
 
-// Sync trending data every 30 minutes
-crons.interval(
-  "sync trending data",
-  { minutes: 30 },
-  internal.sync.startTrendingSync,
+// Sync artists from Spotify every 6 hours
+crons.cron(
+  "sync-spotify-artists",
+  "0 */6 * * *", // Every 6 hours
+  api.sync.syncSpotifyArtists,
   {}
 );
 
-// Check for completed shows and sync setlists every hour
-crons.interval(
-  "check completed shows",
-  { hours: 1 },
-  internal.setlistfm.checkCompletedShows,
+// Sync shows from Ticketmaster daily at 2 AM UTC
+crons.daily(
+  "sync-ticketmaster-shows",
+  { hourUTC: 2, minuteUTC: 0 }, // 2 AM UTC daily
+  api.sync.syncTicketmasterShows,
+  {}
+);
+
+// Sync setlists from Setlist.fm every 2 hours
+crons.cron(
+  "sync-setlistfm",
+  "0 */2 * * *", // Every 2 hours
+  api.sync.syncSetlistFm,
   {}
 );
 
