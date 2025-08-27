@@ -36,83 +36,90 @@ export function ArtistCard({
     onFollow?.(artist._id)
   }
 
+  const formatFollowers = (count: number) => {
+    if (count >= 1000000) {
+      return `${(count / 1000000).toFixed(1)}M`
+    }
+    if (count >= 1000) {
+      return `${(count / 1000).toFixed(1)}K`
+    }
+    return count.toString()
+  }
+
   return (
     <div 
-      className="group cursor-pointer bg-zinc-900/50 border border-zinc-800 rounded-lg hover:bg-zinc-800/50 transition-all duration-200 hover:scale-[1.02] p-4"
+      className="group cursor-pointer bg-card border border-border rounded-xl hover:bg-accent/30 transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl p-6"
       onClick={handleClick}
     >
-      <div className="flex items-start gap-4">
-        <div className="w-16 h-16 rounded-full ring-2 ring-zinc-700 group-hover:ring-zinc-600 transition-colors overflow-hidden bg-gradient-to-br from-zinc-700 to-zinc-800 flex items-center justify-center">
-          {artist.images?.[0] ? (
-            <img 
-              src={artist.images[0]} 
-              alt={artist.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <span className="text-white font-semibold text-sm">
-              {artist.name.slice(0, 2).toUpperCase()}
-            </span>
+      <div className="flex items-start gap-5">
+        <div className="relative">
+          <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+            {artist.images?.[0] ? (
+              <img 
+                src={artist.images[0]} 
+                alt={artist.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-white font-semibold text-lg">
+                {artist.name.slice(0, 2).toUpperCase()}
+              </span>
+            )}
+          </div>
+          
+          {artist.trendingScore && artist.trendingScore > 0 && (
+            <div className="absolute -top-1 -right-1 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+              <div className="w-2 h-2 bg-background rounded-full animate-pulse" />
+            </div>
           )}
         </div>
         
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between mb-2">
-            <h3 className="font-semibold text-white text-lg truncate group-hover:text-zinc-300 transition-colors">
-              {artist.name}
-            </h3>
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-white text-xl truncate group-hover:text-gray-300 transition-colors mb-1">
+                {artist.name}
+              </h3>
+              {artist.genres && artist.genres.length > 0 && (
+                <p className="text-muted-foreground text-sm truncate">
+                  {artist.genres.slice(0, 2).join(', ')}
+                  {artist.genres.length > 2 && ` +${artist.genres.length - 2}`}
+                </p>
+              )}
+            </div>
+            
             {showFollowButton && (
               <button
                 onClick={handleFollowClick}
-                className={`ml-2 shrink-0 px-3 py-1 rounded text-sm font-medium transition-colors flex items-center gap-1 ${
+                className={`ml-4 shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
                   isFollowing 
-                    ? 'bg-zinc-600 hover:bg-zinc-700 text-white border border-zinc-600' 
-                    : 'border border-zinc-600 text-zinc-300 hover:border-zinc-500 hover:text-zinc-200 bg-transparent'
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
+                    : 'border border-border text-foreground hover:bg-accent hover:border-gray-600'
                 }`}
               >
-                <span className={`text-xs ${isFollowing ? '❤️' : '🤍'}`}></span>
+                <div className={`w-1.5 h-1.5 rounded-full ${isFollowing ? 'bg-primary-foreground' : 'bg-primary'}`} />
                 {isFollowing ? 'Following' : 'Follow'}
               </button>
             )}
           </div>
           
-          {artist.genres && artist.genres.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-3">
-              {artist.genres.slice(0, 3).map((genre) => (
-                <span 
-                  key={genre} 
-                  className="text-xs bg-zinc-800 text-zinc-300 hover:bg-zinc-700 px-2 py-1 rounded"
-                >
-                  {genre}
-                </span>
-              ))}
-              {artist.genres.length > 3 && (
-                <span className="text-xs bg-zinc-800 text-zinc-400 px-2 py-1 rounded">
-                  +{artist.genres.length - 3}
-                </span>
-              )}
-            </div>
-          )}
-          
-          <div className="flex items-center gap-4 text-sm text-zinc-400">
+          <div className="flex items-center gap-6 text-sm text-muted-foreground">
             {artist.followers && (
-              <div className="flex items-center gap-1">
-                <span>👥</span>
-                <span>{artist.followers.toLocaleString()}</span>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full bg-gray-700 flex items-center justify-center">
+                  <div className="w-2 h-2 rounded-full bg-gray-400" />
+                </div>
+                <span className="font-medium">{formatFollowers(artist.followers)} followers</span>
               </div>
             )}
             
             {artist.popularity && (
-              <div className="flex items-center gap-1">
-                <span>🎵</span>
-                <span>{artist.popularity}% popular</span>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-gray-700 flex items-center justify-center">
+                  <div className="w-2 h-1 rounded-full bg-gray-400" />
+                </div>
+                <span className="font-medium">{artist.popularity}% popular</span>
               </div>
-            )}
-            
-            {artist.trendingScore && artist.trendingScore > 0 && (
-              <span className="bg-gradient-to-r from-orange-500/20 to-red-500/20 text-orange-400 border border-orange-500/30 px-2 py-1 rounded text-xs">
-                🔥 Trending
-              </span>
             )}
           </div>
         </div>

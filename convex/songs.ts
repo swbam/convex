@@ -116,3 +116,37 @@ export const cleanupOrphanedSongs = internalMutation({
     }
   },
 });
+
+// Required functions for sync operations
+export const getBySpotifyId = query({
+  args: { spotifyId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("songs")
+      .withIndex("spotifyId", (q) => q.eq("spotifyId", args.spotifyId))
+      .first();
+  },
+});
+
+export const create = internalMutation({
+  args: {
+    name: v.string(),
+    artist: v.string(),
+    album: v.optional(v.string()),
+    duration: v.optional(v.number()),
+    spotifyId: v.optional(v.string()),
+    popularity: v.optional(v.number()),
+    isStudio: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("songs", {
+      name: args.name,
+      artist: args.artist,
+      album: args.album,
+      duration: args.duration,
+      spotifyId: args.spotifyId,
+      popularity: args.popularity || 0,
+      isStudio: args.isStudio,
+    });
+  },
+});
