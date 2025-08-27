@@ -1,0 +1,97 @@
+import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
+import { v } from "convex/values";
+
+export const getByArtist = query({
+  args: { 
+    artistId: v.id("artists"),
+    limit: v.optional(v.number())
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 20;
+    
+    // Get artist-song relationships
+    const artistSongs = await ctx.db
+      .query("artistSongs")
+      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
+      .take(limit);
+
+    // Get the actual songs
+    const songs = await Promise.all(
+      artistSongs.map(async (artistSong) => {
+        return await ctx.db.get(artistSong.songId);
+      })
+    );
+
+    return songs.filter(Boolean).sort((a, b) => (b?.popularity || 0) - (a?.popularity || 0));
+  },
+});
+
+export const createFromSpotify = internalMutation({
+  args: {
+    title: v.string(),
+    album: v.optional(v.string()),
+    spotifyId: v.string(),
+    durationMs: v.optional(v.number()),
+    popularity: v.optional(v.number()),
+    trackNo: v.optional(v.number()),
+    isLive: v.optional(v.boolean()),
+    isRemix: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    // Check if song already exists
+    const existing = await ctx.db
+      .query("songs")
+      .filter((q) => q.eq(q.field("spotifyId"), args.spotifyId))
+      .first();
+
+    if (existing) {
+      return existing._id;
+    }
+
+    return await ctx.db.insert("songs", {
+      title: args.title,
+      album: args.album,
+      spotifyId: args.spotifyId,
+      durationMs: args.durationMs,
+      popularity: args.popularity || 0,
+      trackNo: args.trackNo,
+      isLive: args.isLive || false,
+      isRemix: args.isRemix || false,
+    });
+  },
+});
+
+export const getBySpotifyIdInternal = internalQuery({
+  args: { spotifyId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("songs")
+      .filter((q) => q.eq(q.field("spotifyId"), args.spotifyId))
+      .first();
+  },
+});
+
+export const createInternal = internalMutation({
+  args: {
+    title: v.string(),
+    album: v.optional(v.string()),
+    spotifyId: v.optional(v.string()),
+    durationMs: v.optional(v.number()),
+    popularity: v.optional(v.number()),
+    trackNo: v.optional(v.number()),
+    isLive: v.optional(v.boolean()),
+    isRemix: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("songs", {
+      title: args.title,
+      album: args.album,
+      spotifyId: args.spotifyId,
+      durationMs: args.durationMs,
+      popularity: args.popularity || 0,
+      trackNo: args.trackNo,
+      isLive: args.isLive || false,
+      isRemix: args.isRemix || false,
+    });
+  },
+});
