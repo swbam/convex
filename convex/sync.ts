@@ -373,3 +373,92 @@ async function syncEventFromTicketmaster(ctx: any, event: any) {
     console.error("Error syncing Ticketmaster event:", error);
   }
 }
+
+export const deepCatalogSync = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    console.log("Starting deep catalog sync...");
+    
+    // Update sync status
+    await ctx.runMutation(internal.syncStatus.updateStatus, {
+      isActive: true,
+      currentPhase: "deep_catalog_sync",
+    });
+
+    try {
+      // Get all artists and refresh their complete catalogs
+      const artists = await ctx.runQuery(internal.artists.getAllInternal, {});
+      
+      for (const artist of artists) {
+        if (artist.spotifyId) {
+          // Get fresh Spotify token
+          const clientId = process.env.SPOTIFY_CLIENT_ID;
+          const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+          
+          if (clientId && clientSecret) {
+            const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+              },
+              body: 'grant_type=client_credentials',
+            });
+
+            if (tokenResponse.ok) {
+              const tokenData = await tokenResponse.json();
+              await syncArtistCompleteCatalog(ctx, artist._id, artist.spotifyId, tokenData.access_token);
+            }
+          }
+        }
+        
+        // Rate limiting between artists
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      // Mark sync as complete
+      await ctx.runMutation(internal.syncStatus.updateStatus, {
+        isActive: false,
+        currentPhase: "idle",
+        lastSync: Date.now(),
+      });
+      
+      console.log("Deep catalog sync completed successfully");
+    } catch (error) {
+      console.error("Deep catalog sync failed:", error);
+      await ctx.runMutation(internal.syncStatus.updateStatus, {
+        isActive: false,
+        currentPhase: "error",
+        lastSync: Date.now(),
+      });
+    }
+  },
+});
+
+export const cleanupOldData = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    console.log("Starting monthly cleanup...");
+    
+    try {
+      // Clean up old shows (older than 1 year)
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      const cutoffDate = oneYearAgo.toISOString().split('T')[0];
+      
+      await ctx.runMutation(internal.shows.cleanupOldShows, {
+        cutoffDate,
+      });
+      
+      // Clean up orphaned songs (not linked to any artist)
+      await ctx.runMutation(internal.songs.cleanupOrphanedSongs, {});
+      
+      // Reset trending scores for inactive artists
+      await ctx.runMutation(internal.artists.resetInactiveTrendingScores, {});
+      
+      console.log("Monthly cleanup completed successfully");
+    } catch (error) {
+      console.error("Monthly cleanup failed:", error);
+    }
+  },
+});

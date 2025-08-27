@@ -100,11 +100,12 @@ export function AppLayout({ children }: AppLayoutProps) {
               {trendingArtists.map((artist: any) => (
                 <a
                   key={artist._id}
-                  href={`/artists/${artist._id}`}
+                  href={`/artists/${artist.slug || artist._id}`}
                   className="block px-3 py-2 text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
                   onClick={(e) => {
                      e.preventDefault()
-                     void navigate(`/artists/${artist._id}`)
+                     const urlParam = artist.slug || artist._id;
+                     void navigate(`/artists/${urlParam}`)
                      setSidebarOpen(false)
                    }}
                 >
@@ -156,11 +157,13 @@ export function AppLayout({ children }: AppLayoutProps) {
             </button>
             
             <div className="flex-1 max-w-lg mx-4">
-              <SearchBar onResultClick={(type: string, id: string) => {
+              <SearchBar onResultClick={(type: string, id: string, slug?: string) => {
                  if (type === 'artist') {
-                   void navigate(`/artists/${id}`)
+                   const urlParam = slug || id;
+                   void navigate(`/artists/${urlParam}`)
                  } else if (type === 'show') {
-                   void navigate(`/shows/${id}`)
+                   const urlParam = slug || id;
+                   void navigate(`/shows/${urlParam}`)
                  }
                }} />
             </div>
@@ -177,11 +180,13 @@ export function AppLayout({ children }: AppLayoutProps) {
         <main className="flex-1 overflow-y-auto bg-black">
           <div className="p-6">
             {location.pathname === '/' ? (
-              <DashboardGrid onViewChange={(view: string, id?: string) => {
+              <DashboardGrid onViewChange={(view: string, id?: string, slug?: string) => {
                  if (view === 'artist' && id) {
-                   void navigate(`/artists/${id}`)
+                   const urlParam = slug || id;
+                   void navigate(`/artists/${urlParam}`)
                  } else if (view === 'show' && id) {
-                   void navigate(`/shows/${id}`)
+                   const urlParam = slug || id;
+                   void navigate(`/shows/${urlParam}`)
                  }
                }} />
             ) : (
@@ -191,9 +196,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </main>
       </div>
       
-      <div style={{ position: 'fixed', bottom: 0, right: 0, zIndex: 9999 }}>
-         {React.createElement(Toaster as any)}
-       </div>
+      <Toaster />
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useQuery } from 'convex/react'
+import { useQuery, useAction } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { Id } from '../../convex/_generated/dataModel'
 
@@ -13,10 +13,11 @@ interface SearchResult {
   subtitle?: string
   image?: string
   metadata?: string
+  slug?: string
 }
 
 interface SearchBarProps {
-  onResultClick: (type: 'artist' | 'show' | 'venue', id: Id<'artists'> | Id<'shows'> | Id<'venues'>) => void
+  onResultClick: (type: 'artist' | 'show' | 'venue', id: Id<'artists'> | Id<'shows'> | Id<'venues'>, slug?: string) => void
   placeholder?: string
   className?: string
 }
@@ -42,32 +43,77 @@ export function SearchBar({
     return () => clearTimeout(timer)
   }, [query])
 
-  // Search queries
-  const artistResults = useQuery(
+  // State for Ticketmaster search results
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  
+  // Ticketmaster search action
+  const searchTicketmasterArtists = useAction(api.ticketmaster.searchArtists)
+  
+  // Local artist search as fallback
+  const localArtistResults = useQuery(
     api.artists.search,
     debouncedQuery.length >= 2 && (searchType === 'all' || searchType === 'artists')
       ? { query: debouncedQuery, limit: 5 }
       : 'skip'
   )
 
-  // Note: Show search not implemented yet
-  const showResults = null
+  // Search effect for Ticketmaster API
+  useEffect(() => {
+    const searchArtists = async () => {
+      if (debouncedQuery.length < 2) {
+        setSearchResults([])
+        return
+      }
 
-  // Transform results
-  const searchResults: SearchResult[] = []
+      if (searchType !== 'all' && searchType !== 'artists') {
+        setSearchResults([])
+        return
+      }
 
-  if (artistResults) {
-    artistResults.forEach(artist => {
-      searchResults.push({
-        type: 'artist',
-        id: artist._id,
-        title: artist.name,
-        subtitle: artist.genres?.slice(0, 2).join(', '),
-        image: artist.images?.[0],
-        metadata: artist.followers ? `${artist.followers.toLocaleString()} followers` : undefined
-      })
-    })
-  }
+      setIsSearching(true)
+      try {
+        // Search Ticketmaster API for artists
+        const ticketmasterResults = await searchTicketmasterArtists({ 
+          query: debouncedQuery, 
+          limit: 10 
+        })
+        
+        const transformedResults: SearchResult[] = ticketmasterResults.map((artist: any) => ({
+          type: 'artist' as const,
+          id: artist.ticketmasterId,
+          title: artist.name,
+          subtitle: artist.genres?.slice(0, 2).join(', '),
+          image: artist.images?.[0],
+          metadata: artist.upcomingEvents ? `${artist.upcomingEvents} upcoming shows` : undefined,
+          slug: undefined // Ticketmaster results don't have slugs
+        }))
+        
+        setSearchResults(transformedResults)
+      } catch (error) {
+        console.error('Ticketmaster search failed:', error)
+        // Fallback to local search
+        if (localArtistResults) {
+          const fallbackResults: SearchResult[] = localArtistResults.map(artist => ({
+            type: 'artist' as const,
+            id: artist._id,
+            title: artist.name,
+            subtitle: artist.genres?.slice(0, 2).join(', '),
+            image: artist.images?.[0],
+            metadata: artist.followers ? `${artist.followers.toLocaleString()} followers` : undefined,
+            slug: artist.slug
+          }))
+          setSearchResults(fallbackResults)
+        } else {
+          setSearchResults([])
+        }
+      } finally {
+        setIsSearching(false)
+      }
+    }
+
+    void searchArtists()
+  }, [debouncedQuery, searchType, searchTicketmasterArtists, localArtistResults])
 
   // Sort results
   const sortedResults = [...searchResults].sort((a, b) => {
@@ -85,7 +131,7 @@ export function SearchBar({
   })
 
   const handleResultClick = (result: SearchResult) => {
-    onResultClick(result.type, result.id as any)
+    onResultClick(result.type, result.id as any, result.slug)
     setIsOpen(false)
     setQuery('')
   }

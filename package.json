@@ -11,6 +11,8 @@
     "lint": "tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false && convex dev --once && vite build"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.45.0",
+    "@clerk/nextjs": "^6.31.6",
     "@convex-dev/auth": "^0.0.80",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.15",

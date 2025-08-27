@@ -16,6 +16,7 @@ import type {
 import type * as artistSongs from "../artistSongs.js";
 import type * as artists from "../artists.js";
 import type * as auth from "../auth.js";
+import type * as cron from "../cron.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
 import type * as http from "../http.js";
@@ -30,6 +31,7 @@ import type * as sync from "../sync.js";
 import type * as syncJobs from "../syncJobs.js";
 import type * as syncStatus from "../syncStatus.js";
 import type * as ticketmaster from "../ticketmaster.js";
+import type * as users from "../users.js";
 import type * as venues from "../venues.js";
 
 /**
@@ -44,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   artistSongs: typeof artistSongs;
   artists: typeof artists;
   auth: typeof auth;
+  cron: typeof cron;
   crons: typeof crons;
   dashboard: typeof dashboard;
   http: typeof http;
@@ -58,6 +61,7 @@ declare const fullApi: ApiFromModules<{
   syncJobs: typeof syncJobs;
   syncStatus: typeof syncStatus;
   ticketmaster: typeof ticketmaster;
+  users: typeof users;
   venues: typeof venues;
 }>;
 export declare const api: FilterApi<

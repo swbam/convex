@@ -7,10 +7,11 @@ import { Authenticated, Unauthenticated } from "convex/react";
 import { SignInForm } from "./SignInForm";
 import { ArtistDetail } from "./components/ArtistDetail";
 import { ShowDetail } from "./components/ShowDetail";
+import { Artists } from "./components/Artists";
 import { PublicDashboard } from "./components/PublicDashboard";
 import { AppLayout } from "./components/AppLayout";
 import { toast, Toaster } from "sonner";
-import { Search, Music, Calendar, MapPin, Heart } from "lucide-react";
+import { Search, Calendar, MapPin, Heart } from "lucide-react";
 
 type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "venues" | "library" | "signin" | "trending" | "profile" | "following" | "predictions";
 
@@ -34,6 +35,17 @@ export default function App() {
     }
   }, [user, createAppUser]);
 
+  // Queries to resolve slugs to IDs
+  const artistBySlug = useQuery(api.artists.getBySlug, 
+    location.pathname.startsWith('/artists/') ? 
+    { slug: location.pathname.split('/')[2] } : 'skip'
+  );
+  
+  const showBySlug = useQuery(api.shows.getBySlug,
+    location.pathname.startsWith('/shows/') ?
+    { slug: location.pathname.split('/')[2] } : 'skip'
+  );
+
   // Update view based on current route
   useEffect(() => {
     const path = location.pathname;
@@ -41,10 +53,20 @@ export default function App() {
       setCurrentView('home');
     } else if (path.startsWith('/artists/')) {
       setCurrentView('artist');
-      // Extract artist ID from slug if needed
+      if (artistBySlug) {
+        setSelectedArtistId(artistBySlug._id);
+      } else if (artistBySlug === null) {
+        // Artist not found, reset to avoid showing "No artist selected"
+        setSelectedArtistId(null);
+      }
     } else if (path.startsWith('/shows/')) {
       setCurrentView('show');
-      // Extract show ID from slug if needed
+      if (showBySlug) {
+        setSelectedShowId(showBySlug._id);
+      } else if (showBySlug === null) {
+        // Show not found, reset to avoid showing "No show selected"
+        setSelectedShowId(null);
+      }
     } else if (path === '/search') {
       setCurrentView('search');
     } else if (path === '/artists') {
@@ -58,17 +80,21 @@ export default function App() {
     } else if (path === '/profile') {
       setCurrentView('profile');
     }
-  }, [location.pathname]);
+  }, [location.pathname, artistBySlug, showBySlug]);
 
-  const handleViewChange = (view: string, id?: Id<"artists"> | Id<"shows">) => {
+  const handleViewChange = (view: string, id?: Id<"artists"> | Id<"shows">, slug?: string) => {
     if (view === "artist" && id) {
       setSelectedArtistId(id as Id<"artists">);
       setSelectedShowId(null);
-      void navigate(`/artists/${id}`);
+      // Use slug if provided, otherwise use ID as fallback
+      const urlParam = slug || id;
+      void navigate(`/artists/${urlParam}`);
     } else if (view === "show" && id) {
       setSelectedShowId(id as Id<"shows">);
       setSelectedArtistId(null);
-      void navigate(`/shows/${id}`);
+      // Use slug if provided, otherwise use ID as fallback
+      const urlParam = slug || id;
+      void navigate(`/shows/${urlParam}`);
     } else if (view === "signin") {
       setShowSignIn(true);
     } else {
@@ -78,12 +104,12 @@ export default function App() {
     }
   };
 
-  const handleArtistClick = (artistId: Id<"artists">) => {
-    handleViewChange("artist", artistId);
+  const handleArtistClick = (artistId: Id<"artists">, slug?: string) => {
+    handleViewChange("artist", artistId, slug);
   };
 
-  const handleShowClick = (showId: Id<"shows">) => {
-    handleViewChange("show", showId);
+  const handleShowClick = (showId: Id<"shows">, slug?: string) => {
+    handleViewChange("show", showId, slug);
   };
 
   const handleSignInRequired = () => {
@@ -98,6 +124,32 @@ export default function App() {
   const renderMainContent = () => {
     switch (currentView) {
       case "artist":
+        // Show loading state while query is pending
+        if (location.pathname.startsWith('/artists/') && artistBySlug === undefined) {
+          return (
+            <div className="text-center py-8">
+              <div className="animate-pulse space-y-4">
+                <div className="h-8 bg-muted rounded w-48 mx-auto"></div>
+                <div className="h-4 bg-muted rounded w-32 mx-auto"></div>
+              </div>
+            </div>
+          );
+        }
+        // Show not found if query returned null
+        if (location.pathname.startsWith('/artists/') && artistBySlug === null) {
+          return (
+            <div className="text-center py-8">
+              <h2 className="text-2xl font-bold mb-4">Artist Not Found</h2>
+              <p className="text-muted-foreground mb-4">The artist you're looking for doesn't exist.</p>
+              <button 
+                onClick={() => handleViewChange("home")}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                Back to Home
+              </button>
+            </div>
+          );
+        }
         return selectedArtistId ? (
           <ArtistDetail
             artistId={selectedArtistId}
@@ -111,6 +163,32 @@ export default function App() {
           </div>
         );
       case "show":
+        // Show loading state while query is pending
+        if (location.pathname.startsWith('/shows/') && showBySlug === undefined) {
+          return (
+            <div className="text-center py-8">
+              <div className="animate-pulse space-y-4">
+                <div className="h-8 bg-muted rounded w-48 mx-auto"></div>
+                <div className="h-4 bg-muted rounded w-32 mx-auto"></div>
+              </div>
+            </div>
+          );
+        }
+        // Show not found if query returned null
+        if (location.pathname.startsWith('/shows/') && showBySlug === null) {
+          return (
+            <div className="text-center py-8">
+              <h2 className="text-2xl font-bold mb-4">Show Not Found</h2>
+              <p className="text-muted-foreground mb-4">The show you're looking for doesn't exist.</p>
+              <button 
+                onClick={() => handleViewChange("home")}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                Back to Home
+              </button>
+            </div>
+          );
+        }
         return selectedShowId ? (
           <ShowDetail
             showId={selectedShowId}
@@ -126,35 +204,32 @@ export default function App() {
       case "search":
         return (
           <div className="text-center text-zinc-400 py-12">
-            <Search className="w-16 h-16 mx-auto mb-4 opacity-50" size={64} />
+            <Search className="mx-auto mb-4 opacity-50 w-16 h-16" />
             <p className="text-lg">Use the search bar above to find artists, shows, and venues</p>
           </div>
         );
       case "artists":
         return (
-          <div className="text-center text-zinc-400 py-12">
-            <Music className="w-16 h-16 mx-auto mb-4 opacity-50" size={64} />
-            <p className="text-lg">Artists page coming soon...</p>
-          </div>
+          <Artists onArtistClick={handleArtistClick} />
         );
       case "shows":
         return (
           <div className="text-center text-zinc-400 py-12">
-            <Calendar className="w-16 h-16 mx-auto mb-4 opacity-50" size={64} />
+            <Calendar className="mx-auto mb-4 opacity-50 w-16 h-16" />
             <p className="text-lg">Shows page coming soon...</p>
           </div>
         );
       case "venues":
         return (
           <div className="text-center text-zinc-400 py-12">
-            <MapPin className="w-16 h-16 mx-auto mb-4 opacity-50" size={64} />
+            <MapPin className="mx-auto mb-4 opacity-50 w-16 h-16" />
             <p className="text-lg">Venues page coming soon...</p>
           </div>
         );
       case "library":
         return (
           <div className="text-center text-zinc-400 py-12">
-            <Heart className="w-16 h-16 mx-auto mb-4 opacity-50" size={64} />
+            <Heart className="mx-auto mb-4 opacity-50 w-16 h-16" />
             <p className="text-lg">Your library coming soon...</p>
           </div>
         );
@@ -188,9 +263,7 @@ export default function App() {
         }}
       />
       
-      <AppLayout
-        user={user?.appUser}
-      >
+      <AppLayout>
         {renderMainContent()}
       </AppLayout>
 

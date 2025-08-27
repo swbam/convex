@@ -1,49 +1,46 @@
-import { convexAuth, getAuthUserId } from "@convex-dev/auth/server";
-import { Password } from "@convex-dev/auth/providers/Password";
-import { Anonymous } from "@convex-dev/auth/providers/Anonymous";
 import { query, mutation } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 
-export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
-  providers: [Password, Anonymous],
-});
+// Helper function to get authenticated user ID from Clerk
+export const getAuthUserId = async (ctx: any): Promise<Id<"users"> | null> => {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    return null;
+  }
+  return identity.subject as Id<"users">;
+};
 
 export const loggedInUser = query({
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      return null;
-    }
-    const authUser = await ctx.db.get(userId);
-    if (!authUser) {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       return null;
     }
     
     // Check if app user exists
     const appUser = await ctx.db
       .query("users")
-      .withIndex("by_auth_id", (q) => q.eq("authId", userId))
+      .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
       .first();
     
-    return { ...authUser, appUser };
+    return {
+      identity,
+      appUser
+    };
   },
 });
 
 export const createAppUser = mutation({
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Must be logged in");
-    }
-    
-    const user = await ctx.db.get(userId);
-    if (!user) {
-      throw new Error("User not found");
     }
     
     // Check if app user already exists
     const existingAppUser = await ctx.db
       .query("users")
-      .withIndex("by_auth_id", (q) => q.eq("authId", userId))
+      .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
       .first();
     
     if (existingAppUser) {
@@ -52,8 +49,8 @@ export const createAppUser = mutation({
     
     // Create app user
     return await ctx.db.insert("users", {
-      authId: userId,
-      username: (user as any).name || (user as any).email || "Anonymous",
+      authId: identity.subject,
+      username: identity.name || identity.email || "Anonymous",
       bio: undefined,
       role: "user",
     });
