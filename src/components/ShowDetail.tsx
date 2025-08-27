@@ -252,9 +252,9 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                   <p className="text-sm mt-1">Songs will be imported automatically</p>
                 </div>
               ) : (
-                // Song selection interface
+                // Song selection interface - filter for studio songs only
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {songs.filter(Boolean).map((song, index) => {
+                  {songs.filter(Boolean).filter(song => song && !song.isLive && !song.isRemix).map((song, index) => {
                     if (!song) return null;
                     const isPredicted = predictedSongs.includes(song.title);
                     return (

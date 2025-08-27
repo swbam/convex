@@ -1,99 +1,178 @@
 "use node";
 
-import { query, mutation, action, internalMutation, internalAction } from "./_generated/server";
+import { action, internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
-export const triggerSync = action({
+export const syncSpotifyArtists = action({
   args: {},
   handler: async (ctx) => {
-    await ctx.runAction(internal.sync.startTrendingSync, {});
-    return "Sync triggered successfully";
-  },
-});
-
-export const startTrendingSync = internalAction({
-  args: {},
-  handler: async (ctx) => {
-    console.log("Starting trending sync...");
+    const clientId = process.env.SPOTIFY_CLIENT_ID;
+    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
     
-    // Update sync status
-    await ctx.runMutation(internal.syncStatus.updateStatus, {
-      isActive: true,
-      currentPhase: "trending_artists",
-    });
+    if (!clientId || !clientSecret) {
+      console.log("Spotify credentials not configured");
+      return { synced: 0 };
+    }
 
     try {
-      // Sync trending artists from Spotify - NO SAMPLE DATA
-      await syncSpotifyTrending(ctx);
-      
-      // Sync trending shows from Ticketmaster
-      await syncTicketmasterShows(ctx);
-      
-      // Check for completed shows and sync setlists
-      await ctx.runAction(internal.setlistfm.checkCompletedShows, {});
-      
-      // Update trending scores
-      await ctx.runMutation(internal.syncStatus.updateTrendingScores, {});
-      
-      // Mark sync as complete
-      await ctx.runMutation(internal.syncStatus.updateStatus, {
-        isActive: false,
-        currentPhase: "idle",
-        lastSync: Date.now(),
+      // Get Spotify access token
+      const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+        },
+        body: 'grant_type=client_credentials',
       });
-      
-      console.log("Trending sync completed successfully");
+
+      if (!tokenResponse.ok) {
+        throw new Error('Failed to get Spotify token');
+      }
+
+      const tokenData = await tokenResponse.json();
+
+      // Get artists that need updating (haven't been synced in 24 hours)
+      const staleArtists = await ctx.runQuery(internal.artists.getStaleArtists, {
+        olderThan: Date.now() - 24 * 60 * 60 * 1000,
+      });
+
+      for (const artist of staleArtists) {
+        try {
+          // Get updated artist data from Spotify
+          const spotifyResponse = await fetch(
+            `https://api.spotify.com/v1/artists/${artist.spotifyId}`,
+            {
+              headers: { 'Authorization': `Bearer ${tokenData.access_token}` },
+            }
+          );
+
+          if (spotifyResponse.ok) {
+            const spotifyData = await spotifyResponse.json();
+            
+            await ctx.runMutation(internal.artists.updateArtist, {
+              artistId: artist._id,
+              name: spotifyData.name,
+              image: spotifyData.images?.[0]?.url,
+              genres: spotifyData.genres || [],
+              popularity: spotifyData.popularity || 0,
+              followers: spotifyData.followers?.total || 0,
+              lastSynced: Date.now(),
+            });
+
+            // Sync complete catalog for this artist
+            await syncArtistCompleteCatalog(ctx, artist._id, artist.spotifyId, tokenData.access_token);
+          }
+        } catch (error) {
+          console.error(`Failed to sync artist ${artist.spotifyId}:`, error);
+        }
+      }
+
+      // Also discover new trending artists
+      await discoverTrendingArtists(ctx, tokenData.access_token);
+
+      return { synced: staleArtists.length };
     } catch (error) {
-      console.error("Trending sync failed:", error);
-      await ctx.runMutation(internal.syncStatus.updateStatus, {
-        isActive: false,
-        currentPhase: "error",
-        lastSync: Date.now(),
-      });
+      console.error("Spotify sync error:", error);
+      return { synced: 0 };
     }
   },
 });
 
-async function syncSpotifyTrending(ctx: any) {
-  const clientId = process.env.SPOTIFY_CLIENT_ID;
-  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-  
-  if (!clientId || !clientSecret) {
-    console.log("Spotify credentials not configured - NO DATA WILL BE AVAILABLE");
-    return;
-  }
-
-  try {
-    // Get Spotify access token
-    const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
-      },
-      body: 'grant_type=client_credentials',
-    });
-
-    if (!tokenResponse.ok) {
-      throw new Error('Failed to get Spotify token');
+export const syncTicketmasterShows = action({
+  args: {},
+  handler: async (ctx) => {
+    const apiKey = process.env.TICKETMASTER_API_KEY;
+    if (!apiKey) {
+      console.log("Ticketmaster API key not configured");
+      return { synced: 0 };
     }
 
-    const tokenData = await tokenResponse.json();
+    try {
+      let syncedCount = 0;
+      
+      // Get upcoming music events
+      const response = await fetch(
+        `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=200&sort=date,asc&apikey=${apiKey}`
+      );
 
+      if (!response.ok) {
+        throw new Error('Failed to fetch Ticketmaster events');
+      }
+
+      const data = await response.json();
+      const events = data._embedded?.events || [];
+
+      for (const event of events) {
+        const synced = await syncEventFromTicketmaster(ctx, event);
+        if (synced) syncedCount++;
+      }
+
+      return { synced: syncedCount };
+    } catch (error) {
+      console.error("Ticketmaster sync error:", error);
+      return { synced: 0 };
+    }
+  },
+});
+
+export const syncSetlistFm = action({
+  args: {},
+  handler: async (ctx) => {
+    const apiKey = process.env.SETLISTFM_API_KEY;
+    if (!apiKey) {
+      console.log("Setlist.fm API key not configured");
+      return { synced: 0 };
+    }
+
+    try {
+      let syncedCount = 0;
+
+      // Get recent setlists from setlist.fm
+      const response = await fetch(
+        `https://api.setlist.fm/rest/1.0/search/setlists?p=1`,
+        {
+          headers: {
+            'x-api-key': apiKey,
+            'Accept': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch setlists from setlist.fm');
+      }
+
+      const data = await response.json();
+      const setlists = data.setlist || [];
+
+      for (const setlist of setlists) {
+        const synced = await syncSetlistFromSetlistFm(ctx, setlist);
+        if (synced) syncedCount++;
+      }
+
+      return { synced: syncedCount };
+    } catch (error) {
+      console.error("Setlist.fm sync error:", error);
+      return { synced: 0 };
+    }
+  },
+});
+
+// Helper functions
+async function discoverTrendingArtists(ctx: any, accessToken: string) {
+  try {
     // Get trending playlists to find popular artists
     const playlistResponse = await fetch(
       'https://api.spotify.com/v1/browse/featured-playlists?limit=10',
       {
         headers: {
-          'Authorization': `Bearer ${tokenData.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
       }
     );
 
-    if (!playlistResponse.ok) {
-      throw new Error('Failed to fetch Spotify playlists');
-    }
+    if (!playlistResponse.ok) return;
 
     const playlistData = await playlistResponse.json();
     const playlists = playlistData.playlists?.items || [];
@@ -104,7 +183,7 @@ async function syncSpotifyTrending(ctx: any) {
         `https://api.spotify.com/v1/playlists/${playlist.id}/tracks?limit=50`,
         {
           headers: {
-            'Authorization': `Bearer ${tokenData.access_token}`,
+            'Authorization': `Bearer ${accessToken}`,
           },
         }
       );
@@ -116,57 +195,54 @@ async function syncSpotifyTrending(ctx: any) {
         for (const item of tracks) {
           if (item.track?.artists) {
             for (const artist of item.track.artists) {
-              await syncArtistFromSpotify(ctx, artist, tokenData.access_token);
+              await syncArtistFromSpotify(ctx, artist, accessToken);
             }
           }
         }
       }
     }
   } catch (error) {
-    console.error("Spotify sync error:", error);
-    // NO FALLBACK TO SAMPLE DATA
+    console.error("Error discovering trending artists:", error);
   }
 }
 
 async function syncArtistFromSpotify(ctx: any, spotifyArtist: any, accessToken: string) {
-  const slug = spotifyArtist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  
-  // Check if artist already exists
-  let artist = await ctx.runQuery(internal.artists.getBySlugInternal, { slug });
-  
-  if (!artist) {
-    // Get full artist details
-    const artistResponse = await fetch(
-      `https://api.spotify.com/v1/artists/${spotifyArtist.id}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      }
-    );
-
-    if (artistResponse.ok) {
-      const fullArtist = await artistResponse.json();
-      
-      const artistId = await ctx.runMutation(internal.artists.createInternal, {
-        slug,
-        name: fullArtist.name,
-        spotifyId: fullArtist.id,
-        genres: fullArtist.genres || [],
-        images: fullArtist.images?.map((img: any) => img.url) || [],
-        popularity: fullArtist.popularity || 0,
-        followers: fullArtist.followers?.total || 0,
-      });
-
-      // Sync artist's COMPLETE STUDIO CATALOG
-      await syncArtistCompleteCatalog(ctx, artistId, fullArtist.id, accessToken);
-    }
-  } else {
-    // Update existing artist's trending score
-    await ctx.runMutation(internal.artists.updateTrendingScore, {
-      artistId: artist._id,
-      score: (artist.trendingScore || 0) + 1,
+  try {
+    // Check if artist already exists by Spotify ID
+    const existingArtist = await ctx.runQuery(internal.artists.getBySpotifyId, { 
+      spotifyId: spotifyArtist.id 
     });
+    
+    if (!existingArtist) {
+      // Get full artist details
+      const artistResponse = await fetch(
+        `https://api.spotify.com/v1/artists/${spotifyArtist.id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (artistResponse.ok) {
+        const fullArtist = await artistResponse.json();
+        
+        const artistId = await ctx.runMutation(internal.artists.create, {
+          name: fullArtist.name,
+          spotifyId: fullArtist.id,
+          image: fullArtist.images?.[0]?.url,
+          genres: fullArtist.genres || [],
+          popularity: fullArtist.popularity || 0,
+          followers: fullArtist.followers?.total || 0,
+          lastSynced: Date.now(),
+        });
+
+        // Sync artist's complete studio catalog
+        await syncArtistCompleteCatalog(ctx, artistId, fullArtist.id, accessToken);
+      }
+    }
+  } catch (error) {
+    console.error("Error syncing artist from Spotify:", error);
   }
 }
 
@@ -214,40 +290,31 @@ async function syncArtistCompleteCatalog(ctx: any, artistId: string, spotifyId: 
           const tracks = tracksData.tracks?.items || [];
 
           for (const track of tracks) {
-            // ONLY STUDIO SONGS - NO LIVE, NO REMIXES
-            const isLive = track.name.toLowerCase().includes('live') || 
-                          track.name.toLowerCase().includes('concert') ||
-                          album.name.toLowerCase().includes('live');
-            
-            const isRemix = track.name.toLowerCase().includes('remix') ||
-                           track.name.toLowerCase().includes('mix)') ||
-                           track.name.toLowerCase().includes('version');
-
-            if (isLive || isRemix) continue;
-
-            // Check if song already exists by Spotify ID
-            const existingSong = await ctx.runQuery(internal.songs.getBySpotifyIdInternal, { 
-              spotifyId: track.id 
-            });
-
-            if (!existingSong) {
-              const songId = await ctx.runMutation(internal.songs.createInternal, {
-                title: track.name,
-                album: album.name,
-                spotifyId: track.id,
-                durationMs: track.duration_ms,
-                popularity: track.popularity || 0,
-                trackNo: track.track_number,
-                isLive: false,
-                isRemix: false,
+            // ONLY STUDIO SONGS - COMPREHENSIVE FILTERING
+            if (isStudioSong(track.name, album.name)) {
+              // Check if song already exists by Spotify ID
+              const existingSong = await ctx.runQuery(internal.songs.getBySpotifyId, { 
+                spotifyId: track.id 
               });
 
-              // Create artist-song relationship
-              await ctx.runMutation(internal.artistSongs.create, {
-                artistId,
-                songId,
-                isPrimaryArtist: true,
-              });
+              if (!existingSong) {
+                const songId = await ctx.runMutation(internal.songs.create, {
+                  name: track.name,
+                  artist: album.artists?.[0]?.name || "",
+                  album: album.name,
+                  duration: track.duration_ms,
+                  spotifyId: track.id,
+                  popularity: track.popularity || 0,
+                  isStudio: true,
+                });
+
+                // Create artist-song relationship
+                await ctx.runMutation(internal.artistSongs.create, {
+                  artistId,
+                  songId,
+                  isPrimaryArtist: true,
+                });
+              }
             }
           }
         }
@@ -271,194 +338,204 @@ async function syncArtistCompleteCatalog(ctx: any, artistId: string, spotifyId: 
   }
 }
 
-async function syncTicketmasterShows(ctx: any) {
-  const apiKey = process.env.TICKETMASTER_API_KEY;
-  if (!apiKey) {
-    console.log("Ticketmaster API key not configured");
-    return;
+function isStudioSong(trackTitle: string, albumTitle: string): boolean {
+  const trackTitleLower = trackTitle.toLowerCase();
+  const albumTitleLower = albumTitle.toLowerCase();
+  
+  // Exclude live recordings
+  if (trackTitleLower.includes('live') || 
+      trackTitleLower.includes('concert') ||
+      albumTitleLower.includes('live') ||
+      albumTitleLower.includes('concert')) {
+    return false;
   }
-
-  try {
-    // Get upcoming music events
-    const response = await fetch(
-      `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=50&sort=date,asc&apikey=${apiKey}`
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch Ticketmaster events');
-    }
-
-    const data = await response.json();
-    const events = data._embedded?.events || [];
-
-    for (const event of events) {
-      await syncEventFromTicketmaster(ctx, event);
-    }
-  } catch (error) {
-    console.error("Ticketmaster sync error:", error);
+  
+  // Exclude remixes
+  if (trackTitleLower.includes('remix') ||
+      trackTitleLower.includes('mix)') ||
+      trackTitleLower.includes('radio edit') ||
+      trackTitleLower.includes('club mix') ||
+      trackTitleLower.includes('dance mix')) {
+    return false;
   }
+  
+  // Exclude acoustic versions
+  if (trackTitleLower.includes('acoustic') ||
+      trackTitleLower.includes('unplugged') ||
+      trackTitleLower.includes('stripped')) {
+    return false;
+  }
+  
+  // Exclude demos and outtakes
+  if (trackTitleLower.includes('demo') ||
+      trackTitleLower.includes('rough') ||
+      trackTitleLower.includes('sketch') ||
+      trackTitleLower.includes('outtake') ||
+      trackTitleLower.includes('alternate') ||
+      trackTitleLower.includes('alternative')) {
+    return false;
+  }
+  
+  // Exclude remasters and deluxe editions bonus tracks
+  if (trackTitleLower.includes('bonus') ||
+      trackTitleLower.includes('b-side') ||
+      (albumTitleLower.includes('deluxe') && trackTitleLower.includes('bonus'))) {
+    return false;
+  }
+  
+  return true;
 }
 
-async function syncEventFromTicketmaster(ctx: any, event: any) {
+async function syncEventFromTicketmaster(ctx: any, event: any): Promise<boolean> {
   try {
     // Extract artist info
     const attraction = event._embedded?.attractions?.[0];
-    if (!attraction) return;
+    if (!attraction) return false;
 
-    const artistSlug = attraction.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    
     // Get or create artist
-    let artist = await ctx.runQuery(internal.artists.getBySlugInternal, { slug: artistSlug });
+    let artist = await ctx.runQuery(internal.artists.getByTicketmasterId, { 
+      ticketmasterId: attraction.id 
+    });
     
     if (!artist) {
-      const artistId = await ctx.runMutation(internal.artists.createInternal, {
-        slug: artistSlug,
-        name: attraction.name,
-        ticketmasterId: attraction.id,
-        genres: attraction.classifications?.[0]?.genre?.name ? [attraction.classifications[0].genre.name] : [],
-        images: attraction.images?.map((img: any) => img.url) || [],
-      });
-      artist = await ctx.runQuery(internal.artists.getByIdInternal, { id: artistId });
+      // Try to find by name
+      artist = await ctx.runQuery(internal.artists.getByName, { name: attraction.name });
+      
+      if (!artist) {
+        // Create new artist
+        const artistId = await ctx.runMutation(internal.artists.create, {
+          name: attraction.name,
+          spotifyId: "", // Will be filled later by Spotify sync
+          image: attraction.images?.[0]?.url,
+          genres: attraction.classifications?.[0]?.genre?.name ? [attraction.classifications[0].genre.name] : [],
+          popularity: 0,
+          followers: 0,
+          lastSynced: Date.now(),
+        });
+        artist = await ctx.runQuery(internal.artists.getById, { id: artistId });
+      }
     }
 
     // Extract venue info
     const venue = event._embedded?.venues?.[0];
-    if (!venue) return;
+    if (!venue || !artist) return false;
 
-    let venueRecord = await ctx.runQuery(internal.venues.getByTicketmasterIdInternal, { 
+    let venueRecord = await ctx.runQuery(internal.venues.getByTicketmasterId, { 
       ticketmasterId: venue.id 
     });
 
     if (!venueRecord) {
-      const venueId = await ctx.runMutation(internal.venues.createInternal, {
+      const venueId = await ctx.runMutation(internal.venues.create, {
         name: venue.name,
         city: venue.city?.name || "",
+        state: venue.state?.stateCode,
         country: venue.country?.name || "",
-        address: venue.address?.line1,
-        capacity: venue.capacity,
-        lat: venue.location?.latitude ? parseFloat(venue.location.latitude) : undefined,
-        lng: venue.location?.longitude ? parseFloat(venue.location.longitude) : undefined,
-        ticketmasterId: venue.id,
+        coordinates: venue.location?.latitude ? {
+          lat: parseFloat(venue.location.latitude),
+          lng: parseFloat(venue.location.longitude),
+        } : undefined,
       });
-      venueRecord = await ctx.runQuery(internal.venues.getByIdInternal, { id: venueId });
+      venueRecord = await ctx.runQuery(internal.venues.getById, { id: venueId });
     }
 
     // Create show if it doesn't exist
     const eventDate = event.dates?.start?.localDate;
-    if (!eventDate || !artist || !venueRecord) return;
+    if (!eventDate || !venueRecord) return false;
 
-    const existingShow = await ctx.runQuery(internal.shows.getByArtistAndDateInternal, {
+    const existingShow = await ctx.runQuery(internal.shows.getByArtistAndDate, {
       artistId: artist._id,
       date: eventDate,
     });
 
     if (!existingShow) {
-      const showId = await ctx.runMutation(internal.shows.createInternal, {
+      await ctx.runMutation(internal.shows.create, {
         artistId: artist._id,
         venueId: venueRecord._id,
         date: eventDate,
-        startTime: event.dates?.start?.localTime,
-        status: "upcoming",
         ticketmasterId: event.id,
-        ticketUrl: event.url,
+        setlistfmId: undefined,
+        status: "upcoming",
+        lastSynced: Date.now(),
       });
-
-      // Auto-generate initial setlist for the new show
-      await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
-        showId,
-        artistId: artist._id,
-      });
+      return true;
     }
+
+    return false;
   } catch (error) {
     console.error("Error syncing Ticketmaster event:", error);
+    return false;
   }
 }
 
-export const deepCatalogSync = internalAction({
-  args: {},
-  handler: async (ctx) => {
-    console.log("Starting deep catalog sync...");
+async function syncSetlistFromSetlistFm(ctx: any, setlist: any): Promise<boolean> {
+  try {
+    // Find matching show by artist name and date
+    const artistName = setlist.artist?.name;
+    const eventDate = setlist.eventDate;
     
-    // Update sync status
-    await ctx.runMutation(internal.syncStatus.updateStatus, {
-      isActive: true,
-      currentPhase: "deep_catalog_sync",
+    if (!artistName || !eventDate) return false;
+
+    // Find artist
+    const artist = await ctx.runQuery(internal.artists.getByName, { name: artistName });
+    if (!artist) return false;
+
+    // Find show
+    const show = await ctx.runQuery(internal.shows.getByArtistAndDate, {
+      artistId: artist._id,
+      date: eventDate,
     });
 
-    try {
-      // Get all artists and refresh their complete catalogs
-      const artists = await ctx.runQuery(internal.artists.getAllInternal, {});
-      
-      for (const artist of artists) {
-        if (artist.spotifyId) {
-          // Get fresh Spotify token
-          const clientId = process.env.SPOTIFY_CLIENT_ID;
-          const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-          
-          if (clientId && clientSecret) {
-            const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
-              },
-              body: 'grant_type=client_credentials',
-            });
+    if (!show) return false;
 
-            if (tokenResponse.ok) {
-              const tokenData = await tokenResponse.json();
-              await syncArtistCompleteCatalog(ctx, artist._id, artist.spotifyId, tokenData.access_token);
-            }
+    // Check if setlist already exists
+    const existingSetlist = await ctx.runQuery(internal.setlists.getByShow, { 
+      showId: show._id 
+    });
+
+    // Parse songs from setlist
+    const songs = [];
+    let order = 1;
+
+    if (setlist.sets?.set) {
+      for (const set of setlist.sets.set) {
+        if (set.song) {
+          for (const song of set.song) {
+            songs.push({
+              name: song.name,
+              artist: song.cover?.name || undefined,
+              encore: set.encore || false,
+              order: order++,
+            });
           }
         }
-        
-        // Rate limiting between artists
-        await new Promise(resolve => setTimeout(resolve, 1000));
       }
-      
-      // Mark sync as complete
-      await ctx.runMutation(internal.syncStatus.updateStatus, {
-        isActive: false,
-        currentPhase: "idle",
-        lastSync: Date.now(),
-      });
-      
-      console.log("Deep catalog sync completed successfully");
-    } catch (error) {
-      console.error("Deep catalog sync failed:", error);
-      await ctx.runMutation(internal.syncStatus.updateStatus, {
-        isActive: false,
-        currentPhase: "error",
-        lastSync: Date.now(),
-      });
     }
-  },
-});
 
-export const cleanupOldData = internalAction({
-  args: {},
-  handler: async (ctx) => {
-    console.log("Starting monthly cleanup...");
-    
-    try {
-      // Clean up old shows (older than 1 year)
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-      const cutoffDate = oneYearAgo.toISOString().split('T')[0];
-      
-      await ctx.runMutation(internal.shows.cleanupOldShows, {
-        cutoffDate,
+    if (songs.length === 0) return false;
+
+    if (existingSetlist) {
+      // Update existing setlist
+      await ctx.runMutation(internal.setlists.update, {
+        setlistId: existingSetlist._id,
+        songs,
+        verified: true,
+        source: "setlistfm",
+        lastUpdated: Date.now(),
       });
-      
-      // Clean up orphaned songs (not linked to any artist)
-      await ctx.runMutation(internal.songs.cleanupOrphanedSongs, {});
-      
-      // Reset trending scores for inactive artists
-      await ctx.runMutation(internal.artists.resetInactiveTrendingScores, {});
-      
-      console.log("Monthly cleanup completed successfully");
-    } catch (error) {
-      console.error("Monthly cleanup failed:", error);
+    } else {
+      // Create new setlist
+      await ctx.runMutation(internal.setlists.create, {
+        showId: show._id,
+        songs,
+        verified: true,
+        source: "setlistfm",
+        lastUpdated: Date.now(),
+      });
     }
-  },
-});
+
+    return true;
+  } catch (error) {
+    console.error("Error syncing setlist from setlist.fm:", error);
+    return false;
+  }
+}

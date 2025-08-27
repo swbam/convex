@@ -1,10 +1,12 @@
 import React, { useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from 'convex/react'
+import { useUser } from '@clerk/clerk-react'
 import { api } from '../../convex/_generated/api'
 import { SearchBar } from '@/components/SearchBar'
 import { DashboardGrid } from '@/components/DashboardGrid'
 import { Toaster } from '@/components/ui/sonner'
+import { SignOutButton } from '../SignOutButton'
 
 interface AppLayoutProps {
   children?: React.ReactNode
@@ -21,13 +23,9 @@ export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { user, isSignedIn } = useUser()
   
   const trendingArtists = useQuery(api.artists.getTrending, { limit: 5 })
-  
-  const handleSignOut = () => {
-    // TODO: Implement sign out
-    console.log('Sign out clicked')
-  }
   
   const handleSignUp = () => {
     void navigate('/signup')
@@ -118,29 +116,37 @@ export function AppLayout({ children }: AppLayoutProps) {
         
         {/* User Section */}
         <div className="p-4 border-t border-zinc-800">
-          <div className="flex items-center space-x-3 mb-3">
-            <div className="w-8 h-8 bg-zinc-700 rounded-full flex items-center justify-center text-sm font-medium">
-              U
+          {isSignedIn && user ? (
+            <>
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-8 h-8 bg-zinc-700 rounded-full flex items-center justify-center text-sm font-medium">
+                  {user.firstName?.[0] || user.emailAddresses[0]?.emailAddress[0]?.toUpperCase() || 'U'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">
+                    {user.firstName && user.lastName 
+                      ? `${user.firstName} ${user.lastName}`
+                      : user.emailAddresses[0]?.emailAddress || 'User'}
+                  </p>
+                  <p className="text-xs text-zinc-400 truncate">
+                    {user.emailAddresses[0]?.emailAddress}
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <SignOutButton />
+              </div>
+            </>
+          ) : (
+            <div className="space-y-2">
+              <button 
+                onClick={handleSignUp}
+                className="w-full px-3 py-2 text-sm bg-white text-black hover:bg-zinc-200 rounded-md transition-colors"
+              >
+                Sign In
+              </button>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">User</p>
-              <p className="text-xs text-zinc-400 truncate">user@example.com</p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <button 
-              onClick={handleSignOut}
-              className="w-full px-3 py-2 text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-md transition-colors text-left"
-            >
-              Sign Out
-            </button>
-            <button 
-              onClick={handleSignUp}
-              className="w-full px-3 py-2 text-sm bg-white text-black hover:bg-zinc-200 rounded-md transition-colors"
-            >
-              Sign Up
-            </button>
-          </div>
+          )}
         </div>
       </div>
       

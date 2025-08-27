@@ -1,6 +1,5 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { authTables } from "@convex-dev/auth/server";
 
 const applicationTables = {
   // Custom users table for app-specific data
@@ -77,7 +76,12 @@ const applicationTables = {
   setlists: defineTable({
     showId: v.id("shows"),
     userId: v.optional(v.id("users")),
-    songs: v.array(v.string()),
+    songs: v.array(v.object({
+      title: v.string(),
+      album: v.optional(v.string()),
+      duration: v.optional(v.number()),
+      songId: v.optional(v.id("songs")),
+    })),
     isOfficial: v.boolean(),
     confidence: v.optional(v.number()),
     upvotes: v.optional(v.number()),
@@ -147,6 +151,5 @@ const applicationTables = {
 };
 
 export default defineSchema({
-  ...authTables,
   ...applicationTables,
 });

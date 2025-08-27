@@ -275,3 +275,10 @@ export const cleanupOldShows = internalMutation({
     console.log(`Cleaned up ${oldShows.length} old shows`);
   },
 });
+
+export const getByIdInternal = internalQuery({
+  args: { id: v.id("shows") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
