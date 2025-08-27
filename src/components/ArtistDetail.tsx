@@ -4,6 +4,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import { ArrowLeft, Heart, Play, Calendar, MapPin, Users, Music, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { AddToSetlistModal } from "./AddToSetlistModal";
 
 interface ArtistDetailProps {
   artistId: Id<"artists">;
@@ -20,6 +21,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   const user = useQuery(api.auth.loggedInUser);
 
   const [anonymousActions, setAnonymousActions] = useState(0);
+  const [addToSetlistModal, setAddToSetlistModal] = useState<{ isOpen: boolean; songTitle: string }>({ isOpen: false, songTitle: "" });
   const followArtist = useMutation(api.artists.followArtist);
 
   const handleAnonymousAction = () => {
@@ -47,13 +49,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   };
 
   const handleAddToSetlist = (songTitle: string) => {
-    if (!user && !handleAnonymousAction()) return;
-    
-    if (user) {
-      toast.success(`Added "${songTitle}" to setlist`);
-    } else {
-      toast.success(`Added "${songTitle}" to your prediction (1 free action used)`);
-    }
+    setAddToSetlistModal({ isOpen: true, songTitle });
   };
 
   if (!artist) {
@@ -280,7 +276,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
               </div>
             ) : (
               <div className="space-y-2">
-                {songs.filter(Boolean).slice(0, 10).map((song, index) => {
+                {songs.filter(Boolean).filter(song => song && !song.isLive && !song.isRemix).slice(0, 10).map((song, index) => {
                   if (!song) return null;
                   return (
                     <div
@@ -348,6 +344,15 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
           </div>
         </div>
       </div>
+
+      {/* Add to Setlist Modal */}
+      <AddToSetlistModal
+        isOpen={addToSetlistModal.isOpen}
+        onClose={() => setAddToSetlistModal({ isOpen: false, songTitle: "" })}
+        artistId={artistId}
+        songTitle={addToSetlistModal.songTitle}
+        onSignInRequired={onSignInRequired}
+      />
     </div>
   );
 }

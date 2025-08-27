@@ -1,16 +1,24 @@
 import { query, mutation } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
-// Helper function to get authenticated user ID from Clerk
+// Helper function to get authenticated user ID from app users table
 export const getAuthUserId = async (ctx: any): Promise<Id<"users"> | null> => {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {
     return null;
   }
-  return identity.subject as Id<"users">;
+  
+  // Find the corresponding app user by auth ID (Clerk subject)
+  const appUser = await ctx.db
+    .query("users")
+    .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
+    .first();
+  
+  return appUser?._id || null;
 };
 
 export const loggedInUser = query({
+  args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
@@ -31,6 +39,7 @@ export const loggedInUser = query({
 });
 
 export const createAppUser = mutation({
+  args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {

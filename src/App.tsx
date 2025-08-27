@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
-import { Authenticated, Unauthenticated } from "convex/react";
+import { SignedIn, SignedOut } from "@clerk/clerk-react";
 import { SignInForm } from "./SignInForm";
 import { ArtistDetail } from "./components/ArtistDetail";
 import { ShowDetail } from "./components/ShowDetail";
@@ -35,15 +35,27 @@ export default function App() {
     }
   }, [user, createAppUser]);
 
+  // Extract slug from URL safely
+  const getSlugFromPath = (path: string, prefix: string) => {
+    const segments = path.split('/');
+    if (segments.length >= 3 && segments[1] === prefix.slice(1)) {
+      return decodeURIComponent(segments[2]);
+    }
+    return null;
+  };
+
+  const artistSlug = location.pathname.startsWith('/artists/') ? 
+    getSlugFromPath(location.pathname, '/artists/') : null;
+  const showSlug = location.pathname.startsWith('/shows/') ? 
+    getSlugFromPath(location.pathname, '/shows/') : null;
+
   // Queries to resolve slugs to IDs
   const artistBySlug = useQuery(api.artists.getBySlug, 
-    location.pathname.startsWith('/artists/') ? 
-    { slug: location.pathname.split('/')[2] } : 'skip'
+    artistSlug ? { slug: artistSlug } : 'skip'
   );
   
   const showBySlug = useQuery(api.shows.getBySlug,
-    location.pathname.startsWith('/shows/') ?
-    { slug: location.pathname.split('/')[2] } : 'skip'
+    showSlug ? { slug: showSlug } : 'skip'
   );
 
   // Update view based on current route

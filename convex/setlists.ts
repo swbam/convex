@@ -5,7 +5,12 @@ import { getAuthUserId } from "./auth";
 export const create = mutation({
   args: {
     showId: v.id("shows"),
-    songs: v.array(v.string()),
+    songs: v.array(v.object({
+      title: v.string(),
+      album: v.optional(v.string()),
+      duration: v.optional(v.number()),
+      songId: v.optional(v.id("songs")),
+    })),
     isOfficial: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -41,10 +46,63 @@ export const create = mutation({
   },
 });
 
+export const addSongToSetlist = mutation({
+  args: {
+    showId: v.id("shows"),
+    song: v.object({
+      title: v.string(),
+      album: v.optional(v.string()),
+      duration: v.optional(v.number()),
+      songId: v.optional(v.id("songs")),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Must be logged in to add songs to setlist");
+    }
+    
+    // Check if user already has a setlist for this show
+    const existing = await ctx.db
+      .query("setlists")
+      .withIndex("by_show_and_user", (q) => 
+        q.eq("showId", args.showId).eq("userId", userId)
+      )
+      .first();
+    
+    if (existing) {
+      // Add song if not already present
+      const songExists = existing.songs.some(s => s.title === args.song.title);
+      if (!songExists) {
+        await ctx.db.patch(existing._id, {
+          songs: [...existing.songs, args.song],
+        });
+      }
+      return existing._id;
+    } else {
+      // Create new setlist with just this song
+      return await ctx.db.insert("setlists", {
+        showId: args.showId,
+        userId: userId,
+        songs: [args.song],
+        isOfficial: false,
+        confidence: 0.5,
+        upvotes: 0,
+        downvotes: 0,
+      });
+    }
+  },
+});
+
 export const createOfficial = internalMutation({
   args: {
     showId: v.id("shows"),
-    songs: v.array(v.string()),
+    songs: v.array(v.object({
+      title: v.string(),
+      album: v.optional(v.string()),
+      duration: v.optional(v.number()),
+      songId: v.optional(v.id("songs")),
+    })),
     setlistfmId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -304,7 +362,7 @@ export const autoGenerateSetlist = internalMutation({
     }
 
     // Select 5 random songs from the catalog, weighted towards more popular songs
-    const selectedSongs: string[] = [];
+    const selectedSongs: Array<{title: string, album?: string, duration?: number, songId?: string}> = [];
     const songsToChooseFrom = [...studioSongs];
     const numSongs = Math.min(5, songsToChooseFrom.length);
 
@@ -322,7 +380,13 @@ export const autoGenerateSetlist = internalMutation({
         }
       }
 
-      selectedSongs.push(songsToChooseFrom[selectedIndex].title);
+      const selectedSong = songsToChooseFrom[selectedIndex];
+      selectedSongs.push({
+        title: selectedSong.title,
+        album: selectedSong.album,
+        duration: selectedSong.durationMs,
+        songId: selectedSong._id,
+      });
       songsToChooseFrom.splice(selectedIndex, 1); // Remove to avoid duplicates
     }
 

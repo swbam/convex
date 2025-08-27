@@ -1,6 +1,6 @@
 import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "./auth";
 
 export const getById = query({
   args: { id: v.id("artists") },
@@ -231,5 +231,93 @@ export const resetInactiveTrendingScores = internalMutation({
         });
       }
     }
+  },
+});
+
+// Required functions from CONVEX.md specification
+export const getStaleArtists = query({
+  args: { olderThan: v.number() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("artists")
+      .filter((q) => q.lt(q.field("lastSynced"), args.olderThan))
+      .collect();
+  },
+});
+
+export const updateArtist = mutation({
+  args: { 
+    artistId: v.id("artists"),
+    name: v.string(),
+    image: v.optional(v.string()),
+    genres: v.array(v.string()),
+    popularity: v.number(),
+    followers: v.number(),
+    lastSynced: v.number(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.artistId, {
+      name: args.name,
+      image: args.image,
+      genres: args.genres,
+      popularity: args.popularity,
+      followers: args.followers,
+      lastSynced: args.lastSynced,
+    });
+  },
+});
+
+// Additional required queries referenced in sync.ts
+export const getBySpotifyId = query({
+  args: { spotifyId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("artists")
+      .withIndex("spotifyId", (q) => q.eq("spotifyId", args.spotifyId))
+      .first();
+  },
+});
+
+export const getByName = query({
+  args: { name: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("artists")
+      .filter((q) => q.eq(q.field("name"), args.name))
+      .first();
+  },
+});
+
+export const getByTicketmasterId = query({
+  args: { ticketmasterId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("artists")
+      .filter((q) => q.eq(q.field("ticketmasterId"), args.ticketmasterId))
+      .first();
+  },
+});
+
+// Internal mutations for sync operations
+export const create = internalMutation({
+  args: {
+    name: v.string(),
+    spotifyId: v.string(),
+    image: v.optional(v.string()),
+    genres: v.array(v.string()),
+    popularity: v.number(),
+    followers: v.number(),
+    lastSynced: v.number(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("artists", {
+      name: args.name,
+      spotifyId: args.spotifyId,
+      image: args.image,
+      genres: args.genres,
+      popularity: args.popularity,
+      followers: args.followers,
+      lastSynced: args.lastSynced,
+    });
   },
 });
