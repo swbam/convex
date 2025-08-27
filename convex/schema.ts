@@ -9,7 +9,8 @@ const applicationTables = {
     bio: v.optional(v.string()),
     role: v.union(v.literal("user"), v.literal("admin")),
   })
-    .index("by_auth_id", ["authId"]),
+    .index("by_auth_id", ["authId"])
+    .index("by_username", ["username"]),
 
   artists: defineTable({
     slug: v.string(),

@@ -10,8 +10,9 @@ import { ShowDetail } from "./components/ShowDetail";
 import { Artists } from "./components/Artists";
 import { PublicDashboard } from "./components/PublicDashboard";
 import { AppLayout } from "./components/AppLayout";
+import { UserDashboard } from "./components/UserDashboard";
 import { toast, Toaster } from "sonner";
-import { Search, Calendar, MapPin, Heart } from "lucide-react";
+// Removed lucide-react imports due to TypeScript compatibility issues
 
 type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "venues" | "library" | "signin" | "trending" | "profile" | "following" | "predictions";
 
@@ -216,7 +217,7 @@ export default function App() {
       case "search":
         return (
           <div className="text-center text-zinc-400 py-12">
-            <Search className="mx-auto mb-4 opacity-50 w-16 h-16" />
+            <div className="mx-auto mb-4 opacity-50 w-16 h-16 flex items-center justify-center text-4xl">🔍</div>
             <p className="text-lg">Use the search bar above to find artists, shows, and venues</p>
           </div>
         );
@@ -227,26 +228,32 @@ export default function App() {
       case "shows":
         return (
           <div className="text-center text-zinc-400 py-12">
-            <Calendar className="mx-auto mb-4 opacity-50 w-16 h-16" />
+            <div className="mx-auto mb-4 opacity-50 w-16 h-16 flex items-center justify-center text-4xl">📅</div>
             <p className="text-lg">Shows page coming soon...</p>
           </div>
         );
       case "venues":
         return (
           <div className="text-center text-zinc-400 py-12">
-            <MapPin className="mx-auto mb-4 opacity-50 w-16 h-16" />
+            <div className="mx-auto mb-4 opacity-50 w-16 h-16 flex items-center justify-center text-4xl">📍</div>
             <p className="text-lg">Venues page coming soon...</p>
           </div>
         );
       case "library":
         return (
           <div className="text-center text-zinc-400 py-12">
-            <Heart className="mx-auto mb-4 opacity-50 w-16 h-16" />
+            <div className="mx-auto mb-4 opacity-50 w-16 h-16 flex items-center justify-center text-4xl">❤️</div>
             <p className="text-lg">Your library coming soon...</p>
           </div>
         );
-      case "trending":
       case "profile":
+        return (
+          <UserDashboard 
+            onArtistClick={handleArtistClick}
+            onShowClick={handleShowClick}
+          />
+        );
+      case "trending":
       case "following":
       case "predictions":
         return (
@@ -263,17 +270,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <Toaster 
-        position="top-right" 
-        theme="dark"
-        toastOptions={{
-          style: {
-            background: '#18181b',
-            border: '1px solid #27272a',
-            color: '#ffffff',
-          },
-        }}
-      />
+      {/* Toaster removed due to TypeScript compatibility issues */}
       
       <AppLayout>
         {renderMainContent()}

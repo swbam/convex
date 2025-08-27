@@ -45,7 +45,7 @@ export const updateProfile = mutation({
     if (args.username && args.username !== user.username) {
       const existingUser = await ctx.db
         .query("users")
-        .withIndex("by_username", (q) => q.eq("username", args.username))
+        .withIndex("by_username", (q) => q.eq("username", args.username!))
         .first();
       
       if (existingUser) {
@@ -109,5 +109,82 @@ export const getUserStats = query({
       totalSetlists: setlists.length,
       joinedAt: user._creationTime,
     };
+  },
+});
+
+// Get user's followed artists
+export const getUserFollows = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth_id", (q) => q.eq("authId", userId))
+      .first();
+
+    if (!user) {
+      return [];
+    }
+
+    const follows = await ctx.db
+      .query("follows")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+
+    // Populate artist data
+    const followsWithArtists = await Promise.all(
+      follows.map(async (follow) => {
+        const artist = await ctx.db.get(follow.artistId);
+        return { ...follow, artist };
+      })
+    );
+
+    return followsWithArtists.filter(f => f.artist);
+  },
+});
+
+// Get user's setlists
+export const getUserSetlists = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth_id", (q) => q.eq("authId", userId))
+      .first();
+
+    if (!user) {
+      return [];
+    }
+
+    const setlists = await ctx.db
+      .query("setlists")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+
+    // Populate show and artist data
+    const setlistsWithDetails = await Promise.all(
+      setlists.map(async (setlist) => {
+        const show = await ctx.db.get(setlist.showId);
+        if (!show) return null;
+        
+        const [artist, venue] = await Promise.all([
+          ctx.db.get(show.artistId),
+          ctx.db.get(show.venueId),
+        ]);
+        
+        return { ...setlist, show: { ...show, artist, venue } };
+      })
+    );
+
+    return setlistsWithDetails.filter(Boolean);
   },
 });
