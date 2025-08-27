@@ -1,6 +1,6 @@
 "use node";
 
-import { internalAction, internalMutation } from "./_generated/server";
+import { action, internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
@@ -108,5 +108,26 @@ export const checkCompletedShows = internalAction({
         }
       }
     }
+  },
+});
+
+// Public actions for external use
+export const triggerSetlistSync = action({
+  args: {
+    showId: v.id("shows"),
+    artistName: v.string(),
+    venueCity: v.string(),
+    showDate: v.string(),
+  },
+  handler: async (ctx, args): Promise<string | null> => {
+    return await ctx.runAction(internal.setlistfm.syncActualSetlist, args);
+  },
+});
+
+export const triggerCompletedShowsCheck = action({
+  args: {},
+  handler: async (ctx): Promise<{ success: boolean; message: string }> => {
+    await ctx.runAction(internal.setlistfm.checkCompletedShows, {});
+    return { success: true, message: "Completed shows check triggered successfully" };
   },
 });

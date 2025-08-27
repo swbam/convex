@@ -9,11 +9,12 @@ interface Artist {
   followers?: number
   popularity?: number
   trendingScore?: number
+  slug?: string
 }
 
 interface ArtistCardProps {
   artist: Artist
-  onClick: (artistId: Id<'artists'>) => void
+  onClick: (artistId: Id<'artists'>, slug?: string) => void
   onFollow?: (artistId: Id<'artists'>) => void
   isFollowing?: boolean
   showFollowButton?: boolean
@@ -27,7 +28,7 @@ export function ArtistCard({
   showFollowButton = false 
 }: ArtistCardProps) {
   const handleClick = () => {
-    onClick(artist._id)
+    onClick(artist._id, artist.slug)
   }
 
   const handleFollowClick = (e: React.MouseEvent) => {

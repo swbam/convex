@@ -21,11 +21,12 @@ interface Show {
   }
   setlistCount?: number
   voteCount?: number
+  slug?: string
 }
 
 interface ShowCardProps {
   show: Show
-  onClick: (showId: Id<'shows'>) => void
+  onClick: (showId: Id<'shows'>, slug?: string) => void
   showArtist?: boolean
   compact?: boolean
 }
@@ -37,7 +38,7 @@ export function ShowCard({
   compact = false 
 }: ShowCardProps) {
   const handleClick = () => {
-    onClick(show._id)
+    onClick(show._id, show.slug)
   }
 
   const formatDate = (dateString: string) => {

@@ -9,6 +9,16 @@ export const getById = query({
   },
 });
 
+export const getBySlug = query({
+  args: { slug: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("artists")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .unique();
+  },
+});
+
 export const getTrending = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
@@ -198,5 +208,28 @@ export const updateTrendingScore = internalMutation({
     await ctx.db.patch(args.artistId, {
       trendingScore: args.score,
     });
+  },
+});
+
+export const getAllInternal = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("artists").collect();
+  },
+});
+
+export const resetInactiveTrendingScores = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const artists = await ctx.db.query("artists").collect();
+    
+    for (const artist of artists) {
+      // Reset trending score to 0 for artists with low activity
+      if ((artist.trendingScore || 0) < 5) {
+        await ctx.db.patch(artist._id, {
+          trendingScore: 0,
+        });
+      }
+    }
   },
 });

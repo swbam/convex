@@ -95,3 +95,24 @@ export const createInternal = internalMutation({
     });
   },
 });
+
+export const cleanupOrphanedSongs = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    // Get all songs
+    const songs = await ctx.db.query("songs").collect();
+    
+    for (const song of songs) {
+      // Check if song has any artist relationships
+      const artistSong = await ctx.db
+        .query("artistSongs")
+        .filter((q) => q.eq(q.field("songId"), song._id))
+        .first();
+      
+      // If no artist relationship exists, delete the song
+      if (!artistSong) {
+        await ctx.db.delete(song._id);
+      }
+    }
+  },
+});

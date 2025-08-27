@@ -125,3 +125,21 @@ export const syncArtistShows = internalAction({
     }
   },
 });
+
+// Public action to trigger full artist sync
+export const triggerFullArtistSync = action({
+  args: {
+    ticketmasterId: v.string(),
+    artistName: v.string(),
+    genres: v.optional(v.array(v.string())),
+    images: v.optional(v.array(v.string()))
+  },
+  handler: async (ctx, args): Promise<Id<"artists">> => {
+    return await ctx.runAction(internal.ticketmaster.startFullArtistSync, {
+      ticketmasterId: args.ticketmasterId,
+      artistName: args.artistName,
+      genres: args.genres,
+      images: args.images
+    });
+  },
+});

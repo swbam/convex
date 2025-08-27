@@ -5,7 +5,7 @@ import { authTables } from "@convex-dev/auth/server";
 const applicationTables = {
   // Custom users table for app-specific data
   users: defineTable({
-    authId: v.id("users"),
+    authId: v.string(), // Clerk user ID (string)
     username: v.string(),
     bio: v.optional(v.string()),
     role: v.union(v.literal("user"), v.literal("admin")),
@@ -40,6 +40,7 @@ const applicationTables = {
   }),
 
   shows: defineTable({
+    slug: v.optional(v.string()),
     artistId: v.id("artists"),
     venueId: v.id("venues"),
     date: v.string(),
@@ -48,6 +49,7 @@ const applicationTables = {
     ticketmasterId: v.optional(v.string()),
     ticketUrl: v.optional(v.string()),
   })
+    .index("by_slug", ["slug"])
     .index("by_artist", ["artistId"])
     .index("by_venue", ["venueId"])
     .index("by_status", ["status"])
@@ -131,6 +133,14 @@ const applicationTables = {
     startedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
     errorMessage: v.optional(v.string()),
+    // Progress tracking fields
+    currentPhase: v.optional(v.string()),
+    totalSteps: v.optional(v.number()),
+    completedSteps: v.optional(v.number()),
+    currentStep: v.optional(v.string()),
+    itemsProcessed: v.optional(v.number()),
+    totalItems: v.optional(v.number()),
+    progressPercentage: v.optional(v.number()),
   })
     .index("by_status", ["status"])
     .index("by_priority", ["priority"]),

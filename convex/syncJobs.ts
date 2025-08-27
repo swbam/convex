@@ -86,11 +86,20 @@ export const startFullSync = mutation({
 export const processFullSync = internalAction({
   args: { jobId: v.id("syncJobs") },
   handler: async (ctx, args) => {
-    // Mark job as running
+    // Mark job as running and initialize progress
     await ctx.runMutation(internal.syncJobs.updateJobStatus, {
       jobId: args.jobId,
       status: "running",
       startedAt: Date.now(),
+    });
+
+    await ctx.runMutation(internal.syncJobs.updateJobProgress, {
+      jobId: args.jobId,
+      currentPhase: "Initializing",
+      totalSteps: 4,
+      completedSteps: 0,
+      currentStep: "Preparing sync job",
+      progressPercentage: 0,
     });
 
     try {
@@ -105,6 +114,14 @@ export const processFullSync = internalAction({
       const entityData = JSON.parse(job.entityId);
       
       // Step 1: Create or get artist
+      await ctx.runMutation(internal.syncJobs.updateJobProgress, {
+        jobId: args.jobId,
+        currentPhase: "Artist Setup",
+        completedSteps: 1,
+        currentStep: "Creating or retrieving artist profile",
+        progressPercentage: 25,
+      });
+
       const artistSlug = entityData.artistName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       
       let artist = await ctx.runQuery(internal.artists.getBySlugInternal, { slug: artistSlug });
@@ -125,10 +142,35 @@ export const processFullSync = internalAction({
       }
 
       // Step 2: Sync shows from Ticketmaster
-      await syncArtistShows(ctx, artist, entityData.ticketmasterId);
+      await ctx.runMutation(internal.syncJobs.updateJobProgress, {
+        jobId: args.jobId,
+        currentPhase: "Show Import",
+        completedSteps: 2,
+        currentStep: "Fetching shows from Ticketmaster",
+        progressPercentage: 50,
+      });
+
+      await syncArtistShows(ctx, artist, entityData.ticketmasterId, args.jobId);
       
-      // Step 3: Sync catalog from Spotify (if available)
-      await syncArtistCatalog(ctx, artist, entityData.artistName);
+      // Step 3: Sync catalog from Spotify
+      await ctx.runMutation(internal.syncJobs.updateJobProgress, {
+        jobId: args.jobId,
+        currentPhase: "Catalog Import",
+        completedSteps: 3,
+        currentStep: "Syncing music catalog from Spotify",
+        progressPercentage: 75,
+      });
+
+      await syncArtistCatalog(ctx, artist, entityData.artistName, args.jobId);
+
+      // Step 4: Finalization
+      await ctx.runMutation(internal.syncJobs.updateJobProgress, {
+        jobId: args.jobId,
+        currentPhase: "Finalizing",
+        completedSteps: 4,
+        currentStep: "Completing sync process",
+        progressPercentage: 100,
+      });
 
       // Mark job as completed
       await ctx.runMutation(internal.syncJobs.updateJobStatus, {
@@ -169,7 +211,7 @@ export const processFullSync = internalAction({
   },
 });
 
-async function syncArtistShows(ctx: any, artist: any, ticketmasterId?: string) {
+async function syncArtistShows(ctx: any, artist: any, ticketmasterId?: string, jobId?: string) {
   const apiKey = process.env.TICKETMASTER_API_KEY;
   if (!apiKey) {
     console.log("Ticketmaster API key not configured");
@@ -198,7 +240,7 @@ async function syncArtistShows(ctx: any, artist: any, ticketmasterId?: string) {
   }
 }
 
-async function syncArtistCatalog(ctx: any, artist: any, artistName: string) {
+async function syncArtistCatalog(ctx: any, artist: any, artistName: string, jobId?: string) {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
   
@@ -393,5 +435,53 @@ export const updateJobStatus = internalMutation({
     if (args.errorMessage !== undefined) updates.errorMessage = args.errorMessage;
     
     await ctx.db.patch(args.jobId, updates);
+  },
+});
+
+export const updateJobProgress = internalMutation({
+  args: {
+    jobId: v.id("syncJobs"),
+    currentPhase: v.optional(v.string()),
+    totalSteps: v.optional(v.number()),
+    completedSteps: v.optional(v.number()),
+    currentStep: v.optional(v.string()),
+    itemsProcessed: v.optional(v.number()),
+    totalItems: v.optional(v.number()),
+    progressPercentage: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const updates: any = {};
+    
+    if (args.currentPhase !== undefined) updates.currentPhase = args.currentPhase;
+    if (args.totalSteps !== undefined) updates.totalSteps = args.totalSteps;
+    if (args.completedSteps !== undefined) updates.completedSteps = args.completedSteps;
+    if (args.currentStep !== undefined) updates.currentStep = args.currentStep;
+    if (args.itemsProcessed !== undefined) updates.itemsProcessed = args.itemsProcessed;
+    if (args.totalItems !== undefined) updates.totalItems = args.totalItems;
+    if (args.progressPercentage !== undefined) updates.progressPercentage = args.progressPercentage;
+    
+    await ctx.db.patch(args.jobId, updates);
+  },
+});
+
+export const getJobProgress = query({
+  args: { jobId: v.id("syncJobs") },
+  handler: async (ctx, args) => {
+    const job = await ctx.db.get(args.jobId);
+    if (!job) return null;
+    
+    return {
+      status: job.status,
+      currentPhase: job.currentPhase,
+      totalSteps: job.totalSteps,
+      completedSteps: job.completedSteps,
+      currentStep: job.currentStep,
+      itemsProcessed: job.itemsProcessed,
+      totalItems: job.totalItems,
+      progressPercentage: job.progressPercentage,
+      startedAt: job.startedAt,
+      completedAt: job.completedAt,
+      errorMessage: job.errorMessage,
+    };
   },
 });

@@ -67,6 +67,25 @@ export const getById = query({
   },
 });
 
+export const getBySlug = query({
+  args: { slug: v.string() },
+  handler: async (ctx, args) => {
+    const show = await ctx.db
+      .query("shows")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .unique();
+    
+    if (!show || !show.slug) return null;
+    
+    const [artist, venue] = await Promise.all([
+      ctx.db.get(show.artistId),
+      ctx.db.get(show.venueId),
+    ]);
+    
+    return { ...show, artist, venue };
+  },
+});
+
 export const getByArtist = query({
   args: { 
     artistId: v.id("artists"),
@@ -148,7 +167,26 @@ export const createInternal = internalMutation({
     ticketUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("shows", args);
+    // Get artist and venue data to generate slug
+    const [artist, venue] = await Promise.all([
+      ctx.db.get(args.artistId),
+      ctx.db.get(args.venueId),
+    ]);
+    
+    if (!artist || !venue) {
+      throw new Error("Artist or venue not found");
+    }
+    
+    // Generate slug: artist-name-venue-name-city-date
+    const slug = `${artist.name}-${venue.name}-${venue.city}-${args.date}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    
+    return await ctx.db.insert("shows", {
+      ...args,
+      slug,
+    });
   },
 });
 
@@ -171,6 +209,22 @@ export const createFromTicketmaster = internalMutation({
 
     if (existing) return existing._id;
 
+    // Get artist and venue data to generate slug
+    const [artist, venue] = await Promise.all([
+      ctx.db.get(args.artistId),
+      ctx.db.get(args.venueId),
+    ]);
+    
+    if (!artist || !venue) {
+      throw new Error("Artist or venue not found");
+    }
+    
+    // Generate slug: artist-name-venue-name-city-date
+    const slug = `${artist.name}-${venue.name}-${venue.city}-${args.date}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    
     const showId = await ctx.db.insert("shows", {
       artistId: args.artistId,
       venueId: args.venueId,
@@ -179,6 +233,7 @@ export const createFromTicketmaster = internalMutation({
       status: args.status,
       ticketmasterId: args.ticketmasterId,
       ticketUrl: args.ticketUrl,
+      slug,
     });
 
     // Auto-generate initial setlist for the new show
@@ -188,5 +243,35 @@ export const createFromTicketmaster = internalMutation({
     });
 
     return showId;
+  },
+});
+
+export const cleanupOldShows = internalMutation({
+  args: {
+    cutoffDate: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Get shows older than the cutoff date
+    const oldShows = await ctx.db
+      .query("shows")
+      .filter((q) => q.lt(q.field("date"), args.cutoffDate))
+      .collect();
+    
+    for (const show of oldShows) {
+      // Delete associated setlists first
+      const setlists = await ctx.db
+        .query("setlists")
+        .withIndex("by_show", (q) => q.eq("showId", show._id))
+        .collect();
+      
+      for (const setlist of setlists) {
+        await ctx.db.delete(setlist._id);
+      }
+      
+      // Delete the show
+      await ctx.db.delete(show._id);
+    }
+    
+    console.log(`Cleaned up ${oldShows.length} old shows`);
   },
 });

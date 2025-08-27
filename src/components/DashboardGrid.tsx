@@ -6,7 +6,7 @@ import { ShowCard } from './ShowCard'
 import { Id } from '../../convex/_generated/dataModel'
 
 interface DashboardGridProps {
-  onViewChange: (view: string, id?: Id<'artists'> | Id<'shows'>) => void
+  onViewChange: (view: string, id?: Id<'artists'> | Id<'shows'>, slug?: string) => void
 }
 
 // Type for enriched show data from Convex queries
@@ -42,12 +42,12 @@ export function DashboardGrid({ onViewChange }: DashboardGridProps) {
   const upcomingShows = useQuery(api.shows.getUpcoming, { limit: 6 })
   const recentShows = useQuery(api.shows.getRecent, { limit: 4 })
 
-  const handleArtistClick = (artistId: Id<'artists'>) => {
-    onViewChange('artist', artistId)
+  const handleArtistClick = (artistId: Id<'artists'>, slug?: string) => {
+    onViewChange('artist', artistId, slug)
   }
 
-  const handleShowClick = (showId: Id<'shows'>) => {
-    onViewChange('show', showId)
+  const handleShowClick = (showId: Id<'shows'>, slug?: string) => {
+    onViewChange('show', showId, slug)
   }
 
   return (
