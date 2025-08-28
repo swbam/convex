@@ -53,8 +53,8 @@ export default function App() {
     getSlugFromPath(location.pathname, '/shows/') : null;
 
   // Queries to resolve slugs to IDs
-  const artistBySlug = useQuery(api.artists.getBySlug, 
-    artistSlug ? { slug: artistSlug } : 'skip'
+  const artistBySlug = useQuery(api.artists.getBySlugOrId, 
+    artistSlug ? { key: artistSlug } : 'skip'
   );
   
   // Be resilient: accept slug or fallback to id string
@@ -196,7 +196,7 @@ export default function App() {
         );
       case "show":
         // Show loading state while query is pending
-        if (location.pathname.startsWith('/shows/') && showBySlug === undefined) {
+        if (location.pathname.startsWith('/shows/') && showBySlugOrId === undefined) {
           return (
             <div className="text-center py-8">
               <div className="animate-pulse space-y-4">
@@ -207,7 +207,7 @@ export default function App() {
           );
         }
         // Show not found if query returned null
-        if (location.pathname.startsWith('/shows/') && showBySlug === null) {
+        if (location.pathname.startsWith('/shows/') && showBySlugOrId === null) {
           return (
             <div className="text-center py-8">
               <h2 className="text-2xl font-bold mb-4">Show Not Found</h2>

@@ -33,38 +33,30 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
 
     setIsSearching(true);
     try {
-      // Search Ticketmaster API for artists
-      const response = await fetch(`https://app.ticketmaster.com/discovery/v2/attractions.json?keyword=${encodeURIComponent(query)}&classificationName=music&size=10&apikey=${process.env.TICKETMASTER_API_KEY || ''}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        const attractions = data._embedded?.attractions || [];
-        setSearchResults(attractions);
-      } else {
-        // Fallback to local search if API fails
-        const filtered = trendingArtists?.filter(artist => 
-          artist.name.toLowerCase().includes(query.toLowerCase())
-        ) || [];
-        setSearchResults(filtered.map(artist => ({
-          id: artist._id,
-          name: artist.name,
-          images: artist.images,
-          genres: artist.genres,
-          isLocal: true
-        })));
-      }
+      // Use Convex action for secure API calls
+      const searchArtists = useMutation(api.ticketmaster.searchArtists);
+      const results = await searchArtists({ query, limit: 10 });
+      setSearchResults(results.map(artist => ({
+        ticketmasterId: artist.ticketmasterId,
+        name: artist.name,
+        images: artist.images?.length ? [{ url: artist.images[0] }] : [],
+        genres: artist.genres,
+        url: artist.url,
+        upcomingEvents: { ticketmaster: artist.upcomingEvents },
+      })));
     } catch (error) {
       console.error("Search failed:", error);
-      // Fallback to local search
-      const filtered = trendingArtists?.filter(artist => 
+      // Fallback to local search if API fails
+      const filtered = trendingArtists?.filter(artist =>
         artist.name.toLowerCase().includes(query.toLowerCase())
       ) || [];
       setSearchResults(filtered.map(artist => ({
-        id: artist._id,
+        ticketmasterId: artist.ticketmasterId || artist._id,
         name: artist.name,
-        images: artist.images,
-        genres: artist.genres,
-        isLocal: true
+        images: artist.image ? [{ url: artist.image }] : [],
+        genres: artist.genres || [],
+        url: undefined,
+        upcomingEvents: { ticketmaster: 0 },
       })));
     } finally {
       setIsSearching(false);
@@ -92,11 +84,11 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
       toast.info(`Starting full import for ${result.name}...`);
       await startFullSync({ 
         artistName: result.name,
-        ticketmasterId: result.id,
+        ticketmasterId: result.ticketmasterId,
         artistData: {
           name: result.name,
           images: result.images?.map((img: any) => img.url) || [],
-          genres: result.classifications?.[0]?.genre?.name ? [result.classifications[0].genre.name] : []
+          genres: result.genres || []
         }
       });
       

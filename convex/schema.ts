@@ -23,9 +23,7 @@ const applicationTables = {
     followers: v.optional(v.number()),
     trendingScore: v.optional(v.number()),
     isActive: v.boolean(),
-    // Standardize to lastSynced to match code usage; keep lastSyncAt for back-compat
     lastSynced: v.optional(v.number()),
-    lastSyncAt: v.optional(v.number()),
   })
     .index("by_slug", ["slug"])
     .index("by_trending_score", ["trendingScore"])

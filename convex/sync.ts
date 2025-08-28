@@ -1,15 +1,17 @@
 "use node";
 
-import { action, internalAction, internalMutation } from "./_generated/server";
+import { action, internalAction, internalMutation, ActionCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 export const syncSpotifyArtists = action({
   args: {},
-  handler: async (ctx) => {
+  returns: v.object({ synced: v.number() }),
+  handler: async (ctx: ActionCtx) => {
     const clientId = process.env.SPOTIFY_CLIENT_ID;
     const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-    
+
     if (!clientId || !clientSecret) {
       console.log("Spotify credentials not configured");
       return { synced: 0 };
@@ -33,7 +35,7 @@ export const syncSpotifyArtists = action({
       const tokenData = await tokenResponse.json();
 
       // Get artists that need updating (haven't been synced in 24 hours)
-      const staleArtists = await ctx.runQuery(internal.artists.getStaleArtists, {
+      const staleArtists: any[] = await ctx.runQuery(api.artists.getStaleArtists, {
         olderThan: Date.now() - 24 * 60 * 60 * 1000,
       });
 
@@ -50,7 +52,7 @@ export const syncSpotifyArtists = action({
           if (spotifyResponse.ok) {
             const spotifyData = await spotifyResponse.json();
             
-            await ctx.runMutation(internal.artists.updateArtist, {
+            await ctx.runMutation(api.artists.updateArtist, {
               artistId: artist._id,
               name: spotifyData.name,
               image: spotifyData.images?.[0]?.url,
@@ -66,6 +68,9 @@ export const syncSpotifyArtists = action({
         } catch (error) {
           console.error(`Failed to sync artist ${artist.spotifyId}:`, error);
         }
+
+        // Rate limiting: wait 1 second between artists to respect API limits
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
       // Also discover new trending artists
@@ -81,7 +86,8 @@ export const syncSpotifyArtists = action({
 
 export const syncTicketmasterShows = action({
   args: {},
-  handler: async (ctx) => {
+  returns: v.object({ synced: v.number() }),
+  handler: async (ctx: ActionCtx) => {
     const apiKey = process.env.TICKETMASTER_API_KEY;
     if (!apiKey) {
       console.log("Ticketmaster API key not configured");
@@ -106,6 +112,9 @@ export const syncTicketmasterShows = action({
       for (const event of events) {
         const synced = await syncEventFromTicketmaster(ctx, event);
         if (synced) syncedCount++;
+
+        // Rate limiting: wait 500ms between events to respect API limits
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
 
       return { synced: syncedCount };
@@ -118,7 +127,8 @@ export const syncTicketmasterShows = action({
 
 export const syncSetlistFm = action({
   args: {},
-  handler: async (ctx) => {
+  returns: v.object({ synced: v.number() }),
+  handler: async (ctx: ActionCtx) => {
     const apiKey = process.env.SETLISTFM_API_KEY;
     if (!apiKey) {
       console.log("Setlist.fm API key not configured");
@@ -149,6 +159,9 @@ export const syncSetlistFm = action({
       for (const setlist of setlists) {
         const synced = await syncSetlistFromSetlistFm(ctx, setlist);
         if (synced) syncedCount++;
+
+        // Rate limiting: wait 200ms between setlists to respect API limits
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
 
       return { synced: syncedCount };
@@ -160,7 +173,7 @@ export const syncSetlistFm = action({
 });
 
 // Helper functions
-async function discoverTrendingArtists(ctx: any, accessToken: string) {
+async function discoverTrendingArtists(ctx: ActionCtx, accessToken: string) {
   try {
     // Get trending playlists to find popular artists
     const playlistResponse = await fetch(
@@ -206,10 +219,10 @@ async function discoverTrendingArtists(ctx: any, accessToken: string) {
   }
 }
 
-async function syncArtistFromSpotify(ctx: any, spotifyArtist: any, accessToken: string) {
+async function syncArtistFromSpotify(ctx: ActionCtx, spotifyArtist: any, accessToken: string) {
   try {
     // Check if artist already exists by Spotify ID
-    const existingArtist = await ctx.runQuery(internal.artists.getBySpotifyId, { 
+    const existingArtist = await ctx.runQuery(api.artists.getBySpotifyId, { 
       spotifyId: spotifyArtist.id 
     });
     
@@ -246,7 +259,7 @@ async function syncArtistFromSpotify(ctx: any, spotifyArtist: any, accessToken: 
   }
 }
 
-async function syncArtistCompleteCatalog(ctx: any, artistId: string, spotifyId: string, accessToken: string) {
+async function syncArtistCompleteCatalog(ctx: ActionCtx, artistId: string, spotifyId: string, accessToken: string) {
   try {
     // Get ALL albums for the artist
     let offset = 0;
@@ -293,7 +306,7 @@ async function syncArtistCompleteCatalog(ctx: any, artistId: string, spotifyId: 
             // ONLY STUDIO SONGS - COMPREHENSIVE FILTERING
             if (isStudioSong(track.name, album.name)) {
               // Check if song already exists by Spotify ID
-              const existingSong = await ctx.runQuery(internal.songs.getBySpotifyId, { 
+              const existingSong = await ctx.runQuery(api.songs.getBySpotifyId, { 
                 spotifyId: track.id 
               });
 
@@ -310,7 +323,7 @@ async function syncArtistCompleteCatalog(ctx: any, artistId: string, spotifyId: 
 
                 // Create artist-song relationship
                 await ctx.runMutation(internal.artistSongs.create, {
-                  artistId,
+                  artistId: artistId as Id<"artists">,
                   songId,
                   isPrimaryArtist: true,
                 });
@@ -386,20 +399,20 @@ function isStudioSong(trackTitle: string, albumTitle: string): boolean {
   return true;
 }
 
-async function syncEventFromTicketmaster(ctx: any, event: any): Promise<boolean> {
+async function syncEventFromTicketmaster(ctx: ActionCtx, event: any): Promise<boolean> {
   try {
     // Extract artist info
     const attraction = event._embedded?.attractions?.[0];
     if (!attraction) return false;
 
     // Get or create artist
-    let artist = await ctx.runQuery(internal.artists.getByTicketmasterId, { 
+    let artist = await ctx.runQuery(api.artists.getByTicketmasterId, { 
       ticketmasterId: attraction.id 
     });
     
     if (!artist) {
       // Try to find by name
-      artist = await ctx.runQuery(internal.artists.getByName, { name: attraction.name });
+      artist = await ctx.runQuery(api.artists.getByName, { name: attraction.name });
       
       if (!artist) {
         // Create new artist
@@ -412,7 +425,7 @@ async function syncEventFromTicketmaster(ctx: any, event: any): Promise<boolean>
           followers: 0,
           lastSynced: Date.now(),
         });
-        artist = await ctx.runQuery(internal.artists.getById, { id: artistId });
+        artist = await ctx.runQuery(api.artists.getById, { id: artistId });
       }
     }
 
@@ -420,42 +433,43 @@ async function syncEventFromTicketmaster(ctx: any, event: any): Promise<boolean>
     const venue = event._embedded?.venues?.[0];
     if (!venue || !artist) return false;
 
-    let venueRecord = await ctx.runQuery(internal.venues.getByTicketmasterId, { 
+    let venueRecord = await ctx.runQuery(internal.venues.getByTicketmasterIdInternal, { 
       ticketmasterId: venue.id 
     });
 
     if (!venueRecord) {
-      const venueId = await ctx.runMutation(internal.venues.create, {
+      const venueId = await ctx.runMutation(internal.venues.createInternal, {
         name: venue.name,
         city: venue.city?.name || "",
         state: venue.state?.stateCode,
         country: venue.country?.name || "",
-        coordinates: venue.location?.latitude ? {
-          lat: parseFloat(venue.location.latitude),
-          lng: parseFloat(venue.location.longitude),
-        } : undefined,
+        address: venue.address?.line1,
+        capacity: venue.capacity,
+        lat: venue.location?.latitude ? parseFloat(venue.location.latitude) : undefined,
+        lng: venue.location?.longitude ? parseFloat(venue.location.longitude) : undefined,
+        ticketmasterId: venue.id,
       });
-      venueRecord = await ctx.runQuery(internal.venues.getById, { id: venueId });
+      venueRecord = await ctx.runQuery(internal.venues.getByIdInternal, { id: venueId });
     }
 
     // Create show if it doesn't exist
     const eventDate = event.dates?.start?.localDate;
     if (!eventDate || !venueRecord) return false;
 
-    const existingShow = await ctx.runQuery(internal.shows.getByArtistAndDate, {
+    const existingShow = await ctx.runQuery(internal.shows.getByArtistAndDateInternal, {
       artistId: artist._id,
       date: eventDate,
     });
 
     if (!existingShow) {
-      await ctx.runMutation(internal.shows.create, {
+      await ctx.runMutation(internal.shows.createInternal, {
         artistId: artist._id,
         venueId: venueRecord._id,
         date: eventDate,
-        ticketmasterId: event.id,
-        setlistfmId: undefined,
+        startTime: event.dates?.start?.localTime,
         status: "upcoming",
-        lastSynced: Date.now(),
+        ticketmasterId: event.id,
+        ticketUrl: event.url,
       });
       return true;
     }
@@ -467,7 +481,7 @@ async function syncEventFromTicketmaster(ctx: any, event: any): Promise<boolean>
   }
 }
 
-async function syncSetlistFromSetlistFm(ctx: any, setlist: any): Promise<boolean> {
+async function syncSetlistFromSetlistFm(ctx: ActionCtx, setlist: any): Promise<boolean> {
   try {
     // Find matching show by artist name and date
     const artistName = setlist.artist?.name;
@@ -476,11 +490,11 @@ async function syncSetlistFromSetlistFm(ctx: any, setlist: any): Promise<boolean
     if (!artistName || !eventDate) return false;
 
     // Find artist
-    const artist = await ctx.runQuery(internal.artists.getByName, { name: artistName });
+    const artist = await ctx.runQuery(api.artists.getByName, { name: artistName });
     if (!artist) return false;
 
     // Find show
-    const show = await ctx.runQuery(internal.shows.getByArtistAndDate, {
+    const show = await ctx.runQuery(internal.shows.getByArtistAndDateInternal, {
       artistId: artist._id,
       date: eventDate,
     });
@@ -488,7 +502,7 @@ async function syncSetlistFromSetlistFm(ctx: any, setlist: any): Promise<boolean
     if (!show) return false;
 
     // Check if setlist already exists
-    const existingSetlist = await ctx.runQuery(internal.setlists.getByShow, { 
+    const existingSetlists = await ctx.runQuery(api.setlists.getByShow, { 
       showId: show._id 
     });
 
@@ -513,23 +527,20 @@ async function syncSetlistFromSetlistFm(ctx: any, setlist: any): Promise<boolean
 
     if (songs.length === 0) return false;
 
-    if (existingSetlist) {
+    if (existingSetlists && existingSetlists.length > 0) {
       // Update existing setlist
-      await ctx.runMutation(internal.setlists.update, {
-        setlistId: existingSetlist._id,
-        songs,
-        verified: true,
-        source: "setlistfm",
-        lastUpdated: Date.now(),
+      // Replace official setlist via createOfficial
+      await ctx.runMutation(internal.setlists.createOfficial, {
+        showId: show._id,
+        songs: songs.map((s: any) => ({ title: s.name })),
+        setlistfmId: setlist.id,
       });
     } else {
       // Create new setlist
-      await ctx.runMutation(internal.setlists.create, {
+      await ctx.runMutation(internal.setlists.createOfficial, {
         showId: show._id,
-        songs,
-        verified: true,
-        source: "setlistfm",
-        lastUpdated: Date.now(),
+        songs: songs.map((s: any) => ({ title: s.name })),
+        setlistfmId: setlist.id,
       });
     }
 

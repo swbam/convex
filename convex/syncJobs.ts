@@ -1,6 +1,7 @@
-import { query, mutation, internalQuery, internalMutation, internalAction } from "./_generated/server";
+import { query, mutation, internalQuery, internalMutation, internalAction, ActionCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 export const create = mutation({
   args: {
@@ -85,7 +86,7 @@ export const startFullSync = mutation({
 
 export const processFullSync = internalAction({
   args: { jobId: v.id("syncJobs") },
-  handler: async (ctx, args) => {
+  handler: async (ctx: ActionCtx, args) => {
     // Mark job as running and initialize progress
     await ctx.runMutation(internal.syncJobs.updateJobStatus, {
       jobId: args.jobId,
@@ -166,7 +167,7 @@ export const processFullSync = internalAction({
       // Step 3b: Auto-generate setlists for upcoming shows with none
       const allShows = await ctx.runQuery(internal.shows.getAllByArtistInternal, { artistId: artist._id });
       for (const show of allShows) {
-        const existingSetlists = await ctx.runQuery(internal.setlists.getByShow, { showId: show._id });
+        const existingSetlists = await ctx.runQuery(api.setlists.getByShow, { showId: show._id });
         if ((existingSetlists || []).length === 0) {
           await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
             showId: show._id,
@@ -225,7 +226,7 @@ export const processFullSync = internalAction({
   },
 });
 
-async function syncArtistShows(ctx: any, artist: any, ticketmasterId?: string, jobId?: string) {
+async function syncArtistShows(ctx: ActionCtx, artist: any, ticketmasterId?: string, jobId?: string) {
   const apiKey = process.env.TICKETMASTER_API_KEY;
   if (!apiKey) {
     console.log("Ticketmaster API key not configured");
@@ -254,7 +255,7 @@ async function syncArtistShows(ctx: any, artist: any, ticketmasterId?: string, j
   }
 }
 
-async function syncArtistCatalog(ctx: any, artist: any, artistName: string, jobId?: string) {
+async function syncArtistCatalog(ctx: ActionCtx, artist: any, artistName: string, jobId?: string) {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
   
@@ -314,7 +315,7 @@ async function syncArtistCatalog(ctx: any, artist: any, artistName: string, jobI
   }
 }
 
-async function syncArtistTopTracks(ctx: any, artistId: string, spotifyId: string, accessToken: string) {
+async function syncArtistTopTracks(ctx: ActionCtx, artistId: string, spotifyId: string, accessToken: string) {
   try {
     const tracksResponse = await fetch(
       `https://api.spotify.com/v1/artists/${spotifyId}/top-tracks?market=US`,
@@ -349,7 +350,7 @@ async function syncArtistTopTracks(ctx: any, artistId: string, spotifyId: string
 
           // Create artist-song relationship
           await ctx.runMutation(internal.artistSongs.create, {
-            artistId,
+            artistId: artistId as Id<"artists">,
             songId,
             isPrimaryArtist: true,
           });
@@ -361,7 +362,7 @@ async function syncArtistTopTracks(ctx: any, artistId: string, spotifyId: string
   }
 }
 
-async function syncEventFromTicketmaster(ctx: any, event: any, artistId: string) {
+async function syncEventFromTicketmaster(ctx: ActionCtx, event: any, artistId: string) {
   try {
     // Extract venue info
     const venue = event._embedded?.venues?.[0];
@@ -390,13 +391,13 @@ async function syncEventFromTicketmaster(ctx: any, event: any, artistId: string)
     if (!eventDate || !venueRecord) return;
 
     const existingShow = await ctx.runQuery(internal.shows.getByArtistAndDateInternal, {
-      artistId,
+      artistId: artistId as Id<"artists">,
       date: eventDate,
     });
 
     if (!existingShow) {
       const showId = await ctx.runMutation(internal.shows.createInternal, {
-        artistId,
+        artistId: artistId as Id<"artists">,
         venueId: venueRecord._id,
         date: eventDate,
         startTime: event.dates?.start?.localTime,
@@ -408,7 +409,7 @@ async function syncEventFromTicketmaster(ctx: any, event: any, artistId: string)
       // Auto-generate initial setlist for the new show
       await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
         showId,
-        artistId,
+        artistId: artistId as Id<"artists">,
       });
     }
   } catch (error) {

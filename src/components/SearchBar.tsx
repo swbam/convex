@@ -29,6 +29,7 @@ export function SearchBar({
   const [query, setQuery] = useState('')
   // Global search limited to artists only per PRD
   const [sortBy, setSortBy] = useState<SortBy>('relevance')
+  const [searchType, setSearchType] = useState<'all' | 'artists' | 'shows'>('artists')
   const [isOpen, setIsOpen] = useState(false)
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false)
