@@ -32,6 +32,7 @@ import type * as syncStatus from "../syncStatus.js";
 import type * as ticketmaster from "../ticketmaster.js";
 import type * as users from "../users.js";
 import type * as venues from "../venues.js";
+import type * as votes from "../votes.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -61,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   ticketmaster: typeof ticketmaster;
   users: typeof users;
   venues: typeof venues;
+  votes: typeof votes;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

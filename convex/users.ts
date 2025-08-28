@@ -24,7 +24,10 @@ export const getCurrentUser = query({
 export const updateProfile = mutation({
   args: {
     username: v.optional(v.string()),
-    bio: v.optional(v.string()),
+    preferences: v.optional(v.object({
+      emailNotifications: v.boolean(),
+      favoriteGenres: v.array(v.string()),
+    })),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -57,8 +60,8 @@ export const updateProfile = mutation({
     if (args.username !== undefined) {
       updateData.username = args.username;
     }
-    if (args.bio !== undefined) {
-      updateData.bio = args.bio;
+    if (args.preferences !== undefined) {
+      updateData.preferences = args.preferences;
     }
 
     await ctx.db.patch(user._id, updateData);
@@ -87,13 +90,13 @@ export const getUserStats = query({
 
     // Count user's votes
     const votes = await ctx.db
-      .query("setlistVotes")
+      .query("votes")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
       .collect();
 
     // Count user's follows
     const follows = await ctx.db
-      .query("follows")
+      .query("userFollows")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
       .collect();
 
@@ -131,7 +134,7 @@ export const getUserFollows = query({
     }
 
     const follows = await ctx.db
-      .query("follows")
+      .query("userFollows")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
       .collect();
 

@@ -2,6 +2,29 @@ import { query, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
+// Helper function to create SEO-friendly slugs
+function createSEOSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    // Handle special characters and accents
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    // Replace spaces and special characters with hyphens
+    .replace(/[^\w\s-]/g, '') // Remove special chars except spaces and hyphens
+    .replace(/\s+/g, '-')     // Replace spaces with hyphens
+    .replace(/-+/g, '-')      // Replace multiple hyphens with single hyphen
+    .replace(/^-|-$/g, '')    // Remove leading/trailing hyphens
+    .substring(0, 100);       // Limit length for SEO
+}
+
+// Helper function to create descriptive show slugs
+function createShowSlug(artistName: string, venueName: string, venueCity: string, date: string): string {
+  // Format: artist-name-venue-name-city-yyyy-mm-dd
+  const datePart = date; // Already in YYYY-MM-DD format
+  return `${createSEOSlug(artistName)}-${createSEOSlug(venueName)}-${createSEOSlug(venueCity)}-${datePart}`;
+}
+
 export const getUpcoming = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
@@ -223,11 +246,8 @@ export const createInternal = internalMutation({
       throw new Error("Artist or venue not found");
     }
     
-    // Generate slug: artist-name-venue-name-city-date
-    const slug = `${artist.name}-${venue.name}-${venue.city}-${args.date}`
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
+    // Generate SEO-friendly slug: artist-name-venue-name-city-date
+    const slug = createShowSlug(artist.name, venue.name, venue.city, args.date);
     
     return await ctx.db.insert("shows", {
       ...args,
@@ -265,11 +285,8 @@ export const createFromTicketmaster = internalMutation({
       throw new Error("Artist or venue not found");
     }
     
-    // Generate slug: artist-name-venue-name-city-date
-    const slug = `${artist.name}-${venue.name}-${venue.city}-${args.date}`
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
+    // Generate SEO-friendly slug: artist-name-venue-name-city-date
+    const slug = createShowSlug(artist.name, venue.name, venue.city, args.date);
     
     const showId = await ctx.db.insert("shows", {
       artistId: args.artistId,

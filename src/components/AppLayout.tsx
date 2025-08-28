@@ -141,7 +141,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           ) : (
             <div className="space-y-2">
               <button 
-                onClick={handleSignUp}
+                onClick={() => { void navigate('/signin'); setSidebarOpen(false); }}
                 className="w-full px-3 py-2 text-sm bg-white text-black hover:bg-zinc-200 rounded-md transition-colors"
               >
                 Sign In

@@ -261,7 +261,15 @@ async function syncArtistFromSpotify(ctx: ActionCtx, spotifyArtist: any, accessT
 
 async function syncArtistCompleteCatalog(ctx: ActionCtx, artistId: string, spotifyId: string, accessToken: string) {
   try {
-    // Get ALL albums for the artist
+    console.log(`Starting complete catalog sync for artist ${artistId}`);
+    
+    // Track imported songs to avoid duplicates within this sync
+    const importedSongs = new Map<string, boolean>();
+    let totalProcessed = 0;
+    let totalImported = 0;
+    let totalSkipped = 0;
+
+    // Get ALL albums for the artist (studio albums and singles only)
     let offset = 0;
     const limit = 50;
     let hasMore = true;
@@ -276,7 +284,10 @@ async function syncArtistCompleteCatalog(ctx: ActionCtx, artistId: string, spoti
         }
       );
 
-      if (!albumsResponse.ok) break;
+      if (!albumsResponse.ok) {
+        console.error(`Failed to fetch albums for artist ${spotifyId}`);
+        break;
+      }
 
       const albumsData = await albumsResponse.json();
       const albums = albumsData.items || [];
@@ -286,11 +297,19 @@ async function syncArtistCompleteCatalog(ctx: ActionCtx, artistId: string, spoti
         break;
       }
 
+      console.log(`Processing ${albums.length} albums for artist ${artistId}`);
+
       // Process each album
       for (const album of albums) {
-        // Get tracks for this album
-        const tracksResponse = await fetch(
-          `https://api.spotify.com/v1/albums/${album.id}/tracks?limit=50`,
+        // Skip if album type suggests non-studio content
+        if (!isStudioAlbum(album.name, album.album_type)) {
+          console.log(`Skipping non-studio album: ${album.name}`);
+          continue;
+        }
+
+        // Get detailed album info including full track data
+        const albumDetailResponse = await fetch(
+          `https://api.spotify.com/v1/albums/${album.id}?market=US`,
           {
             headers: {
               'Authorization': `Bearer ${accessToken}`,
@@ -298,41 +317,95 @@ async function syncArtistCompleteCatalog(ctx: ActionCtx, artistId: string, spoti
           }
         );
 
-        if (tracksResponse.ok) {
-          const tracksData = await tracksResponse.json();
-          const tracks = tracksData.tracks?.items || [];
+        if (!albumDetailResponse.ok) {
+          console.error(`Failed to fetch album details for ${album.id}`);
+          continue;
+        }
 
-          for (const track of tracks) {
-            // ONLY STUDIO SONGS - COMPREHENSIVE FILTERING
-            if (isStudioSong(track.name, album.name)) {
-              // Check if song already exists by Spotify ID
-              const existingSong = await ctx.runQuery(api.songs.getBySpotifyId, { 
-                spotifyId: track.id 
-              });
+        const albumDetail = await albumDetailResponse.json();
+        const tracks = albumDetail.tracks?.items || [];
 
-              if (!existingSong) {
-                const songId = await ctx.runMutation(internal.songs.create, {
-                  name: track.name,
-                  artist: album.artists?.[0]?.name || "",
-                  album: album.name,
-                  duration: track.duration_ms,
-                  spotifyId: track.id,
-                  popularity: track.popularity || 0,
-                  isStudio: true,
-                });
+        for (const track of tracks) {
+          totalProcessed++;
 
-                // Create artist-song relationship
-                await ctx.runMutation(internal.artistSongs.create, {
-                  artistId: artistId as Id<"artists">,
-                  songId,
-                  isPrimaryArtist: true,
-                });
-              }
+          // COMPREHENSIVE STUDIO SONG FILTERING
+          if (!isStudioSong(track.name, album.name)) {
+            totalSkipped++;
+            continue;
+          }
+
+          // DUPLICATE DETECTION - Multiple strategies
+          const songFingerprint = createSongFingerprint(track.name, album.artists?.[0]?.name || "");
+          
+          // Skip if we already processed this song in this sync (by fingerprint)
+          if (importedSongs.has(songFingerprint)) {
+            totalSkipped++;
+            console.log(`Skipping duplicate song by fingerprint: ${track.name}`);
+            continue;
+          }
+
+          // Check if song already exists by Spotify ID (most reliable)
+          const existingBySpotifyId = await ctx.runQuery(api.songs.getBySpotifyId, {
+            spotifyId: track.id
+          });
+
+          if (existingBySpotifyId) {
+            totalSkipped++;
+            importedSongs.set(songFingerprint, true);
+            continue;
+          }
+
+          // Additional duplicate check by song fingerprint (catches different Spotify IDs for same song)
+          const potentialDuplicates = await ctx.runQuery(api.songs.getByArtist, {
+            artistId: artistId as Id<"artists">,
+            limit: 200 // Get more songs to check for duplicates
+          });
+
+          let isDuplicate = false;
+          for (const existingSong of potentialDuplicates) {
+            if (existingSong && areSongsEquivalent(track.name, existingSong.title)) {
+              totalSkipped++;
+              isDuplicate = true;
+              console.log(`Skipping duplicate song by title similarity: ${track.name} ≈ ${existingSong.title}`);
+              break;
             }
+          }
+
+          if (isDuplicate) {
+            importedSongs.set(songFingerprint, true);
+            continue;
+          }
+
+          try {
+            // Import the song (isStudio=true means it's a studio recording)
+            const songId = await ctx.runMutation(internal.songs.create, {
+              name: track.name,
+              artist: album.artists?.[0]?.name || "",
+              album: album.name,
+              duration: track.duration_ms,
+              spotifyId: track.id,
+              popularity: track.popularity || 0,
+              isStudio: true, // This ensures isLive=false in the song record
+            });
+
+            // Create artist-song relationship
+            await ctx.runMutation(internal.artistSongs.create, {
+              artistId: artistId as Id<"artists">,
+              songId,
+              isPrimaryArtist: true,
+            });
+
+            totalImported++;
+            importedSongs.set(songFingerprint, true);
+            
+            console.log(`✅ Imported studio song: ${track.name} from ${album.name} (popularity: ${track.popularity || 0})`);
+          } catch (error) {
+            console.error(`❌ Failed to import song ${track.name}:`, error);
+            totalSkipped++;
           }
         }
 
-        // Rate limiting
+        // Rate limiting between tracks
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
@@ -345,57 +418,230 @@ async function syncArtistCompleteCatalog(ctx: ActionCtx, artistId: string, spoti
       await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    console.log(`Synced complete catalog for artist ${artistId}`);
+    console.log(`Catalog sync completed for artist ${artistId}: ${totalImported} imported, ${totalSkipped} skipped, ${totalProcessed} total processed`);
   } catch (error) {
     console.error("Error syncing artist complete catalog:", error);
   }
+}
+
+// Helper function to determine if an album is likely to contain studio recordings
+function isStudioAlbum(albumName: string, albumType: string): boolean {
+  const albumNameLower = albumName.toLowerCase();
+  
+  // Always exclude live albums, compilations, etc.
+  const excludedTypes = [
+    'live', 'concert', 'unplugged', 'acoustic', 'greatest hits', 'best of',
+    'collection', 'compilation', 'anthology', 'rarities', 'b-sides',
+    'singles collection', 'remix', 'demo', 'bootleg', 'live from', 'live at',
+    'mtv unplugged', 'bbc sessions', 'radio sessions'
+  ];
+  
+  if (excludedTypes.some(type => albumNameLower.includes(type))) {
+    return false;
+  }
+  
+  // Prefer album and single types
+  if (albumType === 'album' || albumType === 'single') {
+    return true;
+  }
+  
+  // Default: allow if not explicitly excluded
+  return true;
+}
+
+// Create a fingerprint for duplicate detection
+function createSongFingerprint(title: string, artist: string): string {
+  // Normalize title and artist for comparison
+  const normalizedTitle = title
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '') // Remove punctuation
+    .replace(/\s+/g, ' ')    // Normalize whitespace
+    .trim();
+  
+  const normalizedArtist = artist
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  return `${normalizedArtist}:${normalizedTitle}`;
+}
+
+// Check if two songs are equivalent (same song, possibly different versions)
+function areSongsEquivalent(title1: string, title2: string): boolean {
+  const normalize = (str: string) => str
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  const norm1 = normalize(title1);
+  const norm2 = normalize(title2);
+  
+  // Exact match
+  if (norm1 === norm2) return true;
+  
+  // Check if one is a substring of the other (handles "Song" vs "Song (Radio Edit)")
+  if (norm1.includes(norm2) || norm2.includes(norm1)) {
+    // But make sure it's not a coincidence (must be at least 70% similar)
+    const similarity = Math.min(norm1.length, norm2.length) / Math.max(norm1.length, norm2.length);
+    return similarity > 0.7;
+  }
+  
+  // Calculate Levenshtein distance for fuzzy matching
+  const distance = calculateLevenshteinDistance(norm1, norm2);
+  const maxLength = Math.max(norm1.length, norm2.length);
+  const similarity = 1 - distance / maxLength;
+  
+  // Consider songs equivalent if they're more than 85% similar
+  return similarity > 0.85;
+}
+
+// Simple Levenshtein distance calculation
+function calculateLevenshteinDistance(str1: string, str2: string): number {
+  const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+  
+  for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+  for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+  
+  for (let j = 1; j <= str2.length; j++) {
+    for (let i = 1; i <= str1.length; i++) {
+      const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1,     // deletion
+        matrix[j - 1][i] + 1,     // insertion
+        matrix[j - 1][i - 1] + indicator // substitution
+      );
+    }
+  }
+  
+  return matrix[str2.length][str1.length];
 }
 
 function isStudioSong(trackTitle: string, albumTitle: string): boolean {
   const trackTitleLower = trackTitle.toLowerCase();
   const albumTitleLower = albumTitle.toLowerCase();
   
-  // Exclude live recordings
-  if (trackTitleLower.includes('live') || 
-      trackTitleLower.includes('concert') ||
-      albumTitleLower.includes('live') ||
-      albumTitleLower.includes('concert')) {
+  // COMPREHENSIVE EXCLUSION FILTERS FOR STUDIO-ONLY SONGS
+  
+  // 1. Live recordings (most common exclusions)
+  const liveKeywords = [
+    'live', 'concert', 'tour', 'festival', 'session', 'performance',
+    'recorded live', 'live at', 'live from', 'live in', 'live on',
+    'mtv unplugged', 'bbc session', 'radio session', 'live session'
+  ];
+  
+  if (liveKeywords.some(keyword =>
+    trackTitleLower.includes(keyword) || albumTitleLower.includes(keyword)
+  )) {
     return false;
   }
   
-  // Exclude remixes
-  if (trackTitleLower.includes('remix') ||
-      trackTitleLower.includes('mix)') ||
-      trackTitleLower.includes('radio edit') ||
-      trackTitleLower.includes('club mix') ||
-      trackTitleLower.includes('dance mix')) {
+  // 2. Remixes and alternate versions
+  const remixKeywords = [
+    'remix', 'mix)', 'radio edit', 'radio version', 'club mix', 'dance mix',
+    'extended mix', 'dub mix', 'instrumental', 'karaoke', 'backing track',
+    'club version', 'dance version', 'disco version', 'house mix',
+    'techno mix', 'trance mix', 'dubstep', 'electronic version'
+  ];
+  
+  if (remixKeywords.some(keyword => trackTitleLower.includes(keyword))) {
     return false;
   }
   
-  // Exclude acoustic versions
-  if (trackTitleLower.includes('acoustic') ||
-      trackTitleLower.includes('unplugged') ||
-      trackTitleLower.includes('stripped')) {
+  // 3. Acoustic and stripped versions
+  const acousticKeywords = [
+    'acoustic', 'unplugged', 'stripped', 'piano version', 'solo version',
+    'bare', 'intimate', 'coffeehouse', 'storytellers'
+  ];
+  
+  if (acousticKeywords.some(keyword => trackTitleLower.includes(keyword))) {
     return false;
   }
   
-  // Exclude demos and outtakes
-  if (trackTitleLower.includes('demo') ||
-      trackTitleLower.includes('rough') ||
-      trackTitleLower.includes('sketch') ||
-      trackTitleLower.includes('outtake') ||
-      trackTitleLower.includes('alternate') ||
-      trackTitleLower.includes('alternative')) {
+  // 4. Demos, outtakes, and unreleased material
+  const demoKeywords = [
+    'demo', 'rough', 'sketch', 'work tape', 'outtake', 'alternate',
+    'alternative', 'take ', 'version', 'cut', 'unreleased', 'bootleg',
+    'rarities', 'b-side', 'single version', 'album version', 'edit'
+  ];
+  
+  if (demoKeywords.some(keyword => trackTitleLower.includes(keyword))) {
+    // Exception: "single version" and "album version" are often the studio versions
+    if (trackTitleLower.includes('single version') || trackTitleLower.includes('album version')) {
+      // Only exclude if it's explicitly different (has other keywords)
+      if (!trackTitleLower.includes('extended') && !trackTitleLower.includes('radio')) {
+        return true; // Keep single/album versions
+      }
+    }
     return false;
   }
   
-  // Exclude remasters and deluxe editions bonus tracks
-  if (trackTitleLower.includes('bonus') ||
-      trackTitleLower.includes('b-side') ||
-      (albumTitleLower.includes('deluxe') && trackTitleLower.includes('bonus'))) {
+  // 5. Bonus tracks and special editions
+  const bonusKeywords = [
+    'bonus', 'hidden track', 'secret track', 'extra', 'special edition',
+    'collector', 'limited edition', 'anniversary', 'reissue', 'remastered'
+  ];
+  
+  // Only exclude bonus tracks, not remastered originals
+  if (bonusKeywords.some(keyword => {
+    if (keyword === 'remastered') {
+      // Keep remastered versions unless they're explicitly bonus
+      return trackTitleLower.includes('bonus') && trackTitleLower.includes(keyword);
+    }
+    return trackTitleLower.includes(keyword) ||
+           (albumTitleLower.includes('deluxe') && trackTitleLower.includes('bonus'));
+  })) {
     return false;
   }
   
+  // 6. Cover versions and collaborations (optional exclusion)
+  const coverKeywords = [
+    'feat.', 'featuring', 'ft.', 'with ', '& ', 'vs.', 'versus',
+    'cover', 'tribute', 'in the style of'
+  ];
+  
+  // Only exclude obvious covers, keep main artist collaborations
+  if (trackTitleLower.includes('cover of') ||
+      trackTitleLower.includes('tribute to') ||
+      trackTitleLower.includes('in the style of')) {
+    return false;
+  }
+  
+  // 7. Language and format indicators that suggest non-studio
+  const formatKeywords = [
+    'mono', 'stereo', '(live)', '(demo)', '(acoustic)', '(remix)',
+    '(radio)', '(club)', '(extended)', '(instrumental)', '(karaoke)'
+  ];
+  
+  if (formatKeywords.some(keyword => trackTitleLower.includes(keyword))) {
+    return false;
+  }
+  
+  // 8. Album type exclusions (live albums, compilation albums, etc.)
+  const excludedAlbumTypes = [
+    'live', 'concert', 'unplugged', 'greatest hits', 'best of', 'collection',
+    'compilation', 'anthology', 'rarities', 'b-sides', 'singles',
+    'remix', 'acoustic', 'demo', 'bootleg', 'live from', 'live at'
+  ];
+  
+  if (excludedAlbumTypes.some(type => albumTitleLower.includes(type))) {
+    return false;
+  }
+  
+  // 9. Duration-based filtering (exclude very short intros/outros or very long jams)
+  // This would need duration data, so we'll skip for now
+  
+  // 10. Explicit studio indicators (these should be kept)
+  const studioKeywords = [
+    'studio version', 'original version', 'album cut', 'studio recording'
+  ];
+  
+  if (studioKeywords.some(keyword => trackTitleLower.includes(keyword))) {
+    return true;
+  }
+  
+  // Default: if no exclusion criteria matched, assume it's a studio song
   return true;
 }
 
@@ -403,7 +649,7 @@ async function syncEventFromTicketmaster(ctx: ActionCtx, event: any): Promise<bo
   try {
     // Extract artist info
     const attraction = event._embedded?.attractions?.[0];
-    if (!attraction) return false;
+    if (!attraction || !attraction.name) return false;
 
     // Get or create artist
     let artist = await ctx.runQuery(api.artists.getByTicketmasterId, { 
@@ -439,7 +685,7 @@ async function syncEventFromTicketmaster(ctx: ActionCtx, event: any): Promise<bo
 
     if (!venueRecord) {
       const venueId = await ctx.runMutation(internal.venues.createInternal, {
-        name: venue.name,
+        name: venue.name || venue.city?.name || "Unknown Venue",
         city: venue.city?.name || "",
         state: venue.state?.stateCode,
         country: venue.country?.name || "",
@@ -527,21 +773,30 @@ async function syncSetlistFromSetlistFm(ctx: ActionCtx, setlist: any): Promise<b
 
     if (songs.length === 0) return false;
 
+    // Format songs to match the expected interface
+    const formattedSongs = songs.map((s: any) => ({
+      title: s.name,
+      album: undefined as string | undefined,
+      duration: undefined as number | undefined,
+      songId: undefined,
+    }));
+
     if (existingSetlists && existingSetlists.length > 0) {
       // Update existing setlist
-      // Replace official setlist via createOfficial
       await ctx.runMutation(internal.setlists.createOfficial, {
         showId: show._id,
-        songs: songs.map((s: any) => ({ title: s.name })),
+        songs: formattedSongs,
         setlistfmId: setlist.id,
       });
+      console.log(`✅ Updated official setlist for show ${show._id} with ${songs.length} songs`);
     } else {
       // Create new setlist
       await ctx.runMutation(internal.setlists.createOfficial, {
         showId: show._id,
-        songs: songs.map((s: any) => ({ title: s.name })),
+        songs: formattedSongs,
         setlistfmId: setlist.id,
       });
+      console.log(`✅ Created official setlist for show ${show._id} with ${songs.length} songs`);
     }
 
     return true;

@@ -11,6 +11,7 @@ import { Artists } from "./components/Artists";
 import { PublicDashboard } from "./components/PublicDashboard";
 import { AppLayout } from "./components/AppLayout";
 import { UserDashboard } from "./components/UserDashboard";
+import { Venues } from "./components/Venues";
 import { toast, Toaster } from "sonner";
 // Removed lucide-react imports due to TypeScript compatibility issues
 
@@ -74,8 +75,8 @@ export default function App() {
       setCurrentView('home');
     } else if (path.startsWith('/artists/')) {
       setCurrentView('artist');
-      if (artistBySlug) {
-        setSelectedArtistId(artistBySlug._id);
+      if (artistBySlug && 'name' in artistBySlug) {
+        setSelectedArtistId(artistBySlug._id as Id<"artists">);
         document.title = `${artistBySlug.name} – Artist | TheSet`;
       } else if (artistBySlug === null) {
         // Artist not found, reset to avoid showing "No artist selected"
@@ -108,6 +109,10 @@ export default function App() {
     } else if (path === '/library') {
       setCurrentView('library');
       document.title = 'Library – TheSet';
+    } else if (path === '/signin') {
+      setCurrentView('signin');
+      setShowSignIn(true);
+      document.title = 'Sign In – TheSet';
     } else if (path === '/profile') {
       setCurrentView('profile');
       document.title = 'Profile – TheSet';
@@ -253,10 +258,7 @@ export default function App() {
         );
       case "venues":
         return (
-          <div className="text-center text-zinc-400 py-12">
-            <div className="mx-auto mb-4 opacity-50 w-16 h-16 flex items-center justify-center text-4xl">📍</div>
-            <p className="text-lg">Venues page coming soon...</p>
-          </div>
+          <Venues />
         );
       case "library":
         return (

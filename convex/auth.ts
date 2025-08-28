@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
 // Helper function to get authenticated user ID from app users table
-export const getAuthUserId = async (ctx: QueryCtx): Promise<Id<"users"> | null> => {
+export const getAuthUserId = async (ctx: QueryCtx | MutationCtx): Promise<Id<"users"> | null> => {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {
     return null;
@@ -17,6 +17,14 @@ export const getAuthUserId = async (ctx: QueryCtx): Promise<Id<"users"> | null> 
   
   return appUser?._id || null;
 };
+
+export async function requireUserId(ctx: QueryCtx | MutationCtx): Promise<Id<"users">> {
+  const userId = await getAuthUserId(ctx);
+  if (userId === null) {
+    throw new Error("Unauthorized");
+  }
+  return userId;
+}
 
 export const loggedInUser = query({
   args: {},
@@ -69,8 +77,12 @@ export const createAppUser = mutation({
     return await ctx.db.insert("users", {
       authId: identity.subject,
       username: identity.name || identity.email || "Anonymous",
-      bio: undefined,
       role: "user",
+      preferences: {
+        emailNotifications: true,
+        favoriteGenres: [],
+      },
+      createdAt: Date.now(),
     });
   },
 });
