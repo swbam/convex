@@ -63,16 +63,16 @@ export function DashboardGrid({ onViewChange }: DashboardGridProps) {
           </p>
           <div className="flex items-center gap-4">
             <button 
-              className="px-6 py-3 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+              className="px-6 py-3 bg-white hover:bg-gray-200 text-black rounded-lg font-medium transition-colors flex items-center gap-2"
               onClick={() => onViewChange('search')}
             >
-              🎵 Explore Artists
+              Explore Artists
             </button>
             <button 
-              className="px-6 py-3 border border-zinc-600 text-zinc-300 hover:bg-zinc-800 rounded-lg font-medium transition-colors flex items-center gap-2"
+              className="px-6 py-3 border border-gray-700 text-gray-200 hover:bg-gray-900 rounded-lg font-medium transition-colors flex items-center gap-2"
               onClick={() => onViewChange('shows')}
             >
-              📅 Browse Shows
+              Browse Shows
             </button>
           </div>
         </div>

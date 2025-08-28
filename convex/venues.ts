@@ -44,6 +44,7 @@ export const createInternal = internalMutation({
   args: {
     name: v.string(),
     city: v.string(),
+    state: v.optional(v.string()),
     country: v.string(),
     address: v.optional(v.string()),
     capacity: v.optional(v.number()),
@@ -61,6 +62,7 @@ export const createFromTicketmaster = internalMutation({
     ticketmasterId: v.optional(v.string()),
     name: v.string(),
     city: v.string(),
+    state: v.optional(v.string()),
     country: v.string(),
     address: v.optional(v.string()),
     capacity: v.optional(v.number()),
@@ -82,6 +84,7 @@ export const createFromTicketmaster = internalMutation({
     return await ctx.db.insert("venues", {
       name: args.name,
       city: args.city,
+      state: args.state,
       country: args.country,
       address: args.address,
       capacity: args.capacity,

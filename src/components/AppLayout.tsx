@@ -4,6 +4,7 @@ import { useQuery } from 'convex/react'
 import { useUser } from '@clerk/clerk-react'
 import { api } from '../../convex/_generated/api'
 import { SearchBar } from '@/components/SearchBar'
+import { SyncProgress } from '@/components/SyncProgress'
 import { DashboardGrid } from '@/components/DashboardGrid'
 import { Toaster } from '@/components/ui/sonner'
 import { SignOutButton } from '../SignOutButton'
@@ -50,7 +51,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         {/* Sidebar Header */}
         <div className="flex items-center justify-between p-4 border-b border-zinc-800">
           <a href="/" className="flex items-center space-x-2" onClick={(e) => { e.preventDefault(); void navigate('/') }}>
-            <span className="text-xl font-bold">MySetlist</span>
+            <span className="text-xl font-bold">TheSet</span>
           </a>
           <button 
             className="lg:hidden p-2 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800"
@@ -185,6 +186,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto bg-black">
           <div className="p-6">
+            <SyncProgress />
             {location.pathname === '/' ? (
               <DashboardGrid onViewChange={(view: string, id?: string, slug?: string) => {
                  if (view === 'artist' && id) {

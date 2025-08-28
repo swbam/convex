@@ -163,6 +163,20 @@ export const processFullSync = internalAction({
 
       await syncArtistCatalog(ctx, artist, entityData.artistName, args.jobId);
 
+      // Step 3b: Auto-generate setlists for upcoming shows with none
+      const allShows = await ctx.runQuery(internal.shows.getAllByArtistInternal, { artistId: artist._id });
+      for (const show of allShows) {
+        const existingSetlists = await ctx.runQuery(internal.setlists.getByShow, { showId: show._id });
+        if ((existingSetlists || []).length === 0) {
+          await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+            showId: show._id,
+            artistId: artist._id,
+          });
+          // brief backoff to avoid bursts
+          await new Promise(r => setTimeout(r, 50));
+        }
+      }
+
       // Step 4: Finalization
       await ctx.runMutation(internal.syncJobs.updateJobProgress, {
         jobId: args.jobId,

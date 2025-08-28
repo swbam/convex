@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { ArrowLeft, Heart, Play, Calendar, MapPin, Users, Music, Plus } from "lucide-react";
+import { ArrowLeft, Heart, Calendar, MapPin, Users, Music, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AddToSetlistModal } from "./AddToSetlistModal";
@@ -131,10 +131,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 {isFollowing ? "Following" : "Follow"}
               </button>
               
-              <button className="flex items-center gap-2 px-6 py-3 rounded-lg border border-border hover:bg-accent transition-colors">
-                <Play className="h-4 w-4" />
-                Play
-              </button>
+              {/* Removed audio playback UI per spec */}
             </div>
           </div>
         </div>
@@ -169,7 +166,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                   <div
                     key={show._id}
                     className="p-6 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors"
-                    onClick={() => onShowClick(show._id)}
+                    onClick={() => onShowClick(show._id, (show as any).slug)}
                   >
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex-1">
@@ -226,7 +223,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                     <div
                       key={show._id}
                       className="p-4 rounded-lg border bg-muted/20 hover:bg-muted/40 cursor-pointer transition-colors"
-                      onClick={() => onShowClick(show._id)}
+                      onClick={() => onShowClick(show._id, (show as any).slug)}
                     >
                       <div className="flex justify-between items-center">
                         <div>

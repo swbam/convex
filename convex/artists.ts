@@ -256,14 +256,17 @@ export const updateArtist = mutation({
     lastSynced: v.number(),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.artistId, {
+    const updates: any = {
       name: args.name,
-      image: args.image,
       genres: args.genres,
       popularity: args.popularity,
       followers: args.followers,
       lastSynced: args.lastSynced,
-    });
+    };
+    if (args.image) {
+      updates.images = [args.image];
+    }
+    await ctx.db.patch(args.artistId, updates);
   },
 });
 
@@ -273,7 +276,7 @@ export const getBySpotifyId = query({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("artists")
-      .withIndex("spotifyId", (q) => q.eq("spotifyId", args.spotifyId))
+      .withIndex("by_spotify_id", (q) => q.eq("spotifyId", args.spotifyId))
       .first();
   },
 });
@@ -310,14 +313,19 @@ export const create = internalMutation({
     lastSynced: v.number(),
   },
   handler: async (ctx, args) => {
+    const slug = args.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const images = args.image ? [args.image] : [];
     return await ctx.db.insert("artists", {
+      slug,
       name: args.name,
       spotifyId: args.spotifyId,
-      image: args.image,
+      images,
       genres: args.genres,
       popularity: args.popularity,
       followers: args.followers,
       lastSynced: args.lastSynced,
+      isActive: true,
+      trendingScore: 1,
     });
   },
 });

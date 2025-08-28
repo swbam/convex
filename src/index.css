@@ -6,40 +6,49 @@
 
 @layer base {
   :root {
-    /* Pure black & white design system */
-    --background: 0 0% 0%; /* Pure black */
-    --foreground: 0 0% 100%; /* Pure white */
-    --card: 0 0% 9%; /* #171717 */
+    /* Pure black & white (grayscale only) */
+    --background: 0 0% 0%;      /* black */
+    --foreground: 0 0% 100%;    /* white */
+
+    --card: 0 0% 9%;
     --card-foreground: 0 0% 100%;
+
     --popover: 0 0% 9%;
     --popover-foreground: 0 0% 100%;
-    --primary: 0 0% 100%; /* Pure white */
-    --primary-foreground: 0 0% 0%; /* Pure black */
-    --secondary: 0 0% 15%; /* #262626 */
+
+    --primary: 0 0% 100%;       /* white */
+    --primary-foreground: 0 0% 0%;
+
+    --secondary: 0 0% 15%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 0 0% 15%; /* #262626 */
-    --muted-foreground: 0 0% 64%; /* #a3a3a3 */
-    --accent: 0 0% 25%; /* #404040 */
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 64%;
+
+    --accent: 0 0% 25%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 15%; /* #262626 */
+
+    /* Destructive stays grayscale (no red) */
+    --destructive: 0 0% 35%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 15%;
     --input: 0 0% 15%;
     --ring: 0 0% 64%;
-    
-    /* Gray scale variants */
+
+    /* Grayscale scale */
     --gray-50: 0 0% 98%;
     --gray-100: 0 0% 96%;
     --gray-200: 0 0% 89%;
     --gray-300: 0 0% 83%;
-    --gray-400: 0 0% 64%; /* #a3a3a3 */
-    --gray-500: 0 0% 45%; /* #737373 */
-    --gray-600: 0 0% 32%; /* #525252 */
-    --gray-700: 0 0% 25%; /* #404040 */
-    --gray-800: 0 0% 15%; /* #262626 */
-    --gray-900: 0 0% 9%; /* #171717 */
+    --gray-400: 0 0% 64%;
+    --gray-500: 0 0% 45%;
+    --gray-600: 0 0% 32%;
+    --gray-700: 0 0% 25%;
+    --gray-800: 0 0% 15%;
+    --gray-900: 0 0% 9%;
     --gray-950: 0 0% 4%;
-    
+
     --radius: 0.5rem;
   }
 }
@@ -56,7 +65,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  
+
   /* Typography hierarchy */
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Overpass', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -64,7 +73,7 @@
     line-height: 1.2;
     letter-spacing: -0.025em;
   }
-  
+
   .font-light { font-weight: 300; }
   .font-normal { font-weight: 400; }
   .font-medium { font-weight: 500; }
@@ -76,19 +85,19 @@
   .gap-form-field {
     @apply gap-4;
   }
-  
+
   .auth-input-field {
     @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50;
   }
-  
+
   .auth-button {
     @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full disabled:pointer-events-none disabled:opacity-50;
   }
-  
+
   .text-secondary {
     @apply text-muted-foreground;
   }
-  
+
   .text-primary-hover {
     @apply text-primary/80;
   }
@@ -110,36 +119,28 @@
   }
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar (grayscale) */
 ::-webkit-scrollbar {
   width: 8px;
 }
-
 ::-webkit-scrollbar-track {
   background: hsl(var(--background));
 }
-
 ::-webkit-scrollbar-thumb {
   background: hsl(var(--border));
   border-radius: 4px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground));
 }
 
-/* Loading animations */
+/* Loading animations (grayscale friendly) */
 @keyframes shimmer {
-  0% {
-    background-position: -200px 0;
-  }
-  100% {
-    background-position: calc(200px + 100%) 0;
-  }
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
 }
-
 .shimmer {
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
   background-size: 200px 100%;
   animation: shimmer 1.5s infinite;
 }

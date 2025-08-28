@@ -86,6 +86,38 @@ export const getBySlug = query({
   },
 });
 
+// Accepts either a SEO slug or a document id string and returns enriched show
+export const getBySlugOrId = query({
+  args: { key: v.string() },
+  handler: async (ctx, args) => {
+    // Try by slug first
+    const bySlug = await ctx.db
+      .query("shows")
+      .withIndex("by_slug", (q) => q.eq("slug", args.key))
+      .unique();
+
+    let showDoc = bySlug;
+    if (!showDoc) {
+      // Fallback: try by id
+      try {
+        // Cast is safe at runtime; Convex ids are strings
+        const possible = await ctx.db.get(args.key as any);
+        if (possible) showDoc = possible as any;
+      } catch {
+        // ignore invalid id format
+      }
+    }
+
+    if (!showDoc) return null;
+
+    const [artist, venue] = await Promise.all([
+      ctx.db.get(showDoc.artistId),
+      ctx.db.get(showDoc.venueId),
+    ]);
+    return { ...showDoc, artist, venue };
+  },
+});
+
 export const getByArtist = query({
   args: { 
     artistId: v.id("artists"),
@@ -108,6 +140,17 @@ export const getByArtist = query({
     );
     
     return enrichedShows;
+  },
+});
+
+// Internal: list all shows for an artist (no limit)
+export const getAllByArtistInternal = internalQuery({
+  args: { artistId: v.id("artists") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("shows")
+      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
+      .collect();
   },
 });
 
@@ -155,6 +198,9 @@ export const getByArtistAndDateInternal = internalQuery({
       .first();
   },
 });
+
+// Back-compat alias for callers expecting `getByArtistAndDate`
+export const getByArtistAndDate = getByArtistAndDateInternal;
 
 export const createInternal = internalMutation({
   args: {

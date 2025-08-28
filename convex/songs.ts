@@ -123,7 +123,7 @@ export const getBySpotifyId = query({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("songs")
-      .withIndex("spotifyId", (q) => q.eq("spotifyId", args.spotifyId))
+      .withIndex("by_spotify_id", (q) => q.eq("spotifyId", args.spotifyId))
       .first();
   },
 });
@@ -139,14 +139,16 @@ export const create = internalMutation({
     isStudio: v.boolean(),
   },
   handler: async (ctx, args) => {
+    // Map legacy shape to current schema
     return await ctx.db.insert("songs", {
-      name: args.name,
-      artist: args.artist,
+      title: args.name,
       album: args.album,
-      duration: args.duration,
       spotifyId: args.spotifyId,
+      durationMs: args.duration,
       popularity: args.popularity || 0,
-      isStudio: args.isStudio,
+      trackNo: undefined,
+      isLive: args.isStudio ? false : false,
+      isRemix: false,
     });
   },
 });

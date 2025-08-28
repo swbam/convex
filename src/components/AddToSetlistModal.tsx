@@ -39,7 +39,9 @@ export function AddToSetlistModal({
     try {
       await addSongToSetlist({
         showId,
-        songTitle,
+        song: {
+          title: songTitle,
+        },
       });
 
       toast.success(`Added "${songTitle}" to your setlist prediction`);

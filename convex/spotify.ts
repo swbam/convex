@@ -9,6 +9,7 @@ export const syncArtistCatalog = internalAction({
     artistId: v.id("artists"),
     artistName: v.string(),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const clientId = process.env.SPOTIFY_CLIENT_ID;
     const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
@@ -92,24 +93,47 @@ export const syncArtistCatalog = internalAction({
 
         const tracksData = await tracksResponse.json();
         
-        for (const track of tracksData.items || []) {
-          // Filter out live and remix tracks for cleaner catalog
-          const isLive = track.name.toLowerCase().includes('live') || 
-                        track.name.toLowerCase().includes('concert');
-          const isRemix = track.name.toLowerCase().includes('remix') || 
-                         track.name.toLowerCase().includes('mix)');
+        const albumTitleLower: string = (album.name || '').toLowerCase();
+        const albumIsLive = albumTitleLower.includes('live') || albumTitleLower.includes('concert');
+        const albumIsAcoustic = albumTitleLower.includes('acoustic') || albumTitleLower.includes('unplugged');
+        const albumIsRemix = albumTitleLower.includes('remix') || albumTitleLower.includes('mix)');
+        const albumIsLocalhost = albumTitleLower.includes('localhost:3001');
 
-          // Create song
-          const songId = await ctx.runMutation(internal.songs.createFromSpotify, {
-            title: track.name,
-            album: album.name,
-            spotifyId: track.id,
-            durationMs: track.duration_ms,
-            popularity: track.popularity || 0,
-            trackNo: track.track_number,
-            isLive,
-            isRemix,
-          });
+        for (const track of tracksData.items || []) {
+          const trackTitleLower: string = (track.name || '').toLowerCase();
+
+          // Comprehensive studio-only filter
+          const isLiveTitleVariant = trackTitleLower.includes('(live') || trackTitleLower.includes(' - live');
+          const isLive = isLiveTitleVariant || trackTitleLower.includes('live') || trackTitleLower.includes('concert') || albumIsLive;
+          const isRemix = trackTitleLower.includes('remix') || trackTitleLower.includes('mix)') || albumIsRemix;
+          const isAcoustic = trackTitleLower.includes('acoustic') || trackTitleLower.includes('unplugged') || albumIsAcoustic;
+          const isDemo = trackTitleLower.includes('demo') || trackTitleLower.includes('rough') || trackTitleLower.includes('sketch') || trackTitleLower.includes('outtake') || trackTitleLower.includes('alternate') || trackTitleLower.includes('alternative');
+          const isBonus = trackTitleLower.includes('bonus') || trackTitleLower.includes('b-side');
+          const isRadioEdit = trackTitleLower.includes('radio edit');
+          const isInstrumental = trackTitleLower.includes('instrumental');
+
+          // Skip non-studio material entirely
+          if (isLive || isRemix || isAcoustic || isDemo || isBonus || isRadioEdit || isInstrumental || albumIsLocalhost) {
+            continue;
+          }
+
+          // Deduplicate by Spotify ID before creating
+          const existing = await ctx.runQuery(internal.songs.getBySpotifyIdInternal, { spotifyId: track.id });
+          let songId;
+          if (existing) {
+            songId = existing._id;
+          } else {
+            songId = await ctx.runMutation(internal.songs.createFromSpotify, {
+              title: track.name,
+              album: album.name,
+              spotifyId: track.id,
+              durationMs: track.duration_ms,
+              popularity: (track as any).popularity || 0,
+              trackNo: track.track_number,
+              isLive: false,
+              isRemix: false,
+            });
+          }
 
           // Link to artist
           await ctx.runMutation(internal.artistSongs.create, {
@@ -126,5 +150,6 @@ export const syncArtistCatalog = internalAction({
     } catch (error) {
       console.error("Failed to sync Spotify catalog:", error);
     }
+    return null;
   },
 });
