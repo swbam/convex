@@ -7,6 +7,10 @@ export const router = createBrowserRouter([
     element: <App />,
   },
   {
+    path: '/signin',
+    element: <App />,
+  },
+  {
     path: '/artists/:artistSlug',
     element: <App />,
   },

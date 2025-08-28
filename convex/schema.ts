@@ -5,12 +5,21 @@ const applicationTables = {
   // Custom users table for app-specific data
   users: defineTable({
     authId: v.string(), // Clerk user ID (string)
+    email: v.optional(v.string()),
+    name: v.optional(v.string()),
+    spotifyId: v.optional(v.string()),
+    avatar: v.optional(v.string()),
     username: v.string(),
-    bio: v.optional(v.string()),
     role: v.union(v.literal("user"), v.literal("admin")),
+    preferences: v.optional(v.object({
+      emailNotifications: v.boolean(),
+      favoriteGenres: v.array(v.string()),
+    })),
+    createdAt: v.number(),
   })
     .index("by_auth_id", ["authId"])
-    .index("by_username", ["username"]),
+    .index("by_username", ["username"])
+    .index("by_email", ["email"]),
 
   artists: defineTable({
     slug: v.string(),
@@ -39,7 +48,8 @@ const applicationTables = {
     lat: v.optional(v.number()),
     lng: v.optional(v.number()),
     ticketmasterId: v.optional(v.string()),
-  }),
+  })
+    .index("by_location", ["city", "country"]),
 
   shows: defineTable({
     slug: v.optional(v.string()),
@@ -50,6 +60,8 @@ const applicationTables = {
     status: v.union(v.literal("upcoming"), v.literal("completed"), v.literal("cancelled")),
     ticketmasterId: v.optional(v.string()),
     ticketUrl: v.optional(v.string()),
+    setlistfmId: v.optional(v.string()),
+    lastSynced: v.optional(v.number()),
   })
     .index("by_slug", ["slug"])
     .index("by_artist", ["artistId"])
@@ -86,7 +98,10 @@ const applicationTables = {
       duration: v.optional(v.number()),
       songId: v.optional(v.id("songs")),
     })),
-    isOfficial: v.boolean(),
+    verified: v.boolean(),
+    source: v.union(v.literal("setlistfm"), v.literal("user_submitted")),
+    lastUpdated: v.number(),
+    isOfficial: v.optional(v.boolean()),
     confidence: v.optional(v.number()),
     upvotes: v.optional(v.number()),
     downvotes: v.optional(v.number()),
@@ -96,18 +111,26 @@ const applicationTables = {
     .index("by_user", ["userId"])
     .index("by_show_and_user", ["showId", "userId"]),
 
-  setlistVotes: defineTable({
+  // Votes system per CONVEX.md specification
+  votes: defineTable({
     userId: v.id("users"),
     setlistId: v.id("setlists"),
-    voteType: v.union(v.literal("up"), v.literal("down")),
+    voteType: v.union(v.literal("accurate"), v.literal("inaccurate")),
+    songVotes: v.optional(v.array(v.object({
+      songName: v.string(),
+      vote: v.union(v.literal("correct"), v.literal("incorrect"), v.literal("missing")),
+    }))),
+    createdAt: v.number(),
   })
-    .index("by_user", ["userId"])
     .index("by_setlist", ["setlistId"])
+    .index("by_user", ["userId"])
     .index("by_user_and_setlist", ["userId", "setlistId"]),
 
-  follows: defineTable({
+
+  userFollows: defineTable({
     userId: v.id("users"),
     artistId: v.id("artists"),
+    createdAt: v.number(),
   })
     .index("by_user", ["userId"])
     .index("by_artist", ["artistId"])

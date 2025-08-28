@@ -139,7 +139,19 @@ export const create = internalMutation({
     isStudio: v.boolean(),
   },
   handler: async (ctx, args) => {
-    // Map legacy shape to current schema
+    // Check if song already exists by Spotify ID first
+    if (args.spotifyId) {
+      const existing = await ctx.db
+        .query("songs")
+        .withIndex("by_spotify_id", (q) => q.eq("spotifyId", args.spotifyId))
+        .first();
+      
+      if (existing) {
+        return existing._id;
+      }
+    }
+
+    // Create new song - map isStudio to isLive (inverted)
     return await ctx.db.insert("songs", {
       title: args.name,
       album: args.album,
@@ -147,7 +159,7 @@ export const create = internalMutation({
       durationMs: args.duration,
       popularity: args.popularity || 0,
       trackNo: undefined,
-      isLive: args.isStudio ? false : false,
+      isLive: !args.isStudio, // Studio songs are NOT live
       isRemix: false,
     });
   },

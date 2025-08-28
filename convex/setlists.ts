@@ -213,8 +213,8 @@ export const vote = mutation({
 
     // Check if user already voted
     const existingVote = await ctx.db
-      .query("setlistVotes")
-      .withIndex("by_user_and_setlist", (q) => 
+      .query("votes")
+      .withIndex("by_user_and_setlist", (q) =>
         q.eq("userId", userId).eq("setlistId", args.setlistId)
       )
       .first();
@@ -229,10 +229,11 @@ export const vote = mutation({
     }
 
     // New upvote
-    await ctx.db.insert("setlistVotes", {
+    await ctx.db.insert("votes", {
       userId,
       setlistId: args.setlistId,
-      voteType: "up",
+      voteType: "accurate",
+      createdAt: Date.now(),
     });
     await ctx.db.patch(args.setlistId, {
       upvotes: (setlist.upvotes || 0) + 1,
@@ -248,8 +249,8 @@ export const getUserVote = query({
     if (!userId) return null;
     
     const vote = await ctx.db
-      .query("setlistVotes")
-      .withIndex("by_user_and_setlist", (q) => 
+      .query("votes")
+      .withIndex("by_user_and_setlist", (q) =>
         q.eq("userId", userId).eq("setlistId", args.setlistId)
       )
       .first();
