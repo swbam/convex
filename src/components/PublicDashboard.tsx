@@ -1,8 +1,8 @@
-import { useQuery, useMutation } from "convex/react";
+import React, { useState, useEffect } from "react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { TrendingUp, Calendar, Music, Play, Users, MapPin, Clock, Plus, Heart, Star } from "lucide-react";
-import { useState } from "react";
+import { TrendingUp, Calendar, Music, Users, MapPin, Clock, Plus, Heart, Star, ExternalLink, Ticket } from "lucide-react";
 import { toast } from "sonner";
 
 interface PublicDashboardProps {
@@ -12,14 +12,34 @@ interface PublicDashboardProps {
 }
 
 export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired }: PublicDashboardProps) {
-  const trendingArtists = useQuery(api.artists.getTrending, { limit: 20 });
-  const upcomingShows = useQuery(api.shows.getUpcoming, { limit: 15 });
-  const recentShows = useQuery(api.shows.getRecent, { limit: 10 });
-  const stats = useQuery(api.dashboard.getStats);
   const user = useQuery(api.auth.loggedInUser);
+  
+  // State for Ticketmaster trending data
+  const [trendingShows, setTrendingShows] = useState<any[]>([]);
+  const [trendingArtists, setTrendingArtists] = useState<any[]>([]);
+  const [isLoadingShows, setIsLoadingShows] = useState(false);
+  const [isLoadingArtists, setIsLoadingArtists] = useState(false);
+
+  // Actions to fetch live Ticketmaster data
+
+  const triggerFullSync = useAction(api.ticketmaster.triggerFullArtistSync);
 
   const [anonymousActions, setAnonymousActions] = useState(0);
-  const followArtist = useMutation(api.artists.followArtist);
+
+  // Load trending data from database (updated by cron jobs every 3 hours)
+  const dbTrendingShows = useQuery(api.trending.getTrendingShows, { limit: 20 });
+  const dbTrendingArtists = useQuery(api.trending.getTrendingArtists, { limit: 20 });
+
+  useEffect(() => {
+    if (dbTrendingShows) {
+      setTrendingShows(dbTrendingShows);
+      setIsLoadingShows(false);
+    }
+    if (dbTrendingArtists) {
+      setTrendingArtists(dbTrendingArtists);
+      setIsLoadingArtists(false);
+    }
+  }, [dbTrendingShows, dbTrendingArtists]);
 
   const handleAnonymousAction = () => {
     if (anonymousActions >= 1) {
@@ -30,341 +50,392 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired }
     return true;
   };
 
-  const handleFollowArtist = async (artistId: Id<"artists">, artistName: string) => {
-    if (!user && !handleAnonymousAction()) return;
-    
+  const handleArtistClick = async (ticketmasterId: string, artistName: string, genres?: string[], images?: string[]) => {
     try {
-      if (user) {
-        const isFollowing = await followArtist({ artistId });
-        toast.success(isFollowing ? `Following ${artistName}` : `Unfollowed ${artistName}`);
-      } else {
-        toast.success(`Added ${artistName} to your interests`);
-      }
+      // Trigger full sync to create artist in DB
+      const artistId = await triggerFullSync({
+        ticketmasterId,
+        artistName,
+        genres,
+        images,
+      });
+      
+      // Navigate to artist page
+      const slug = artistName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      onArtistClick(artistId);
     } catch (error) {
-      toast.error("Failed to follow artist");
+      console.error("Failed to sync artist:", error);
+      toast.error("Failed to load artist");
     }
   };
 
   return (
-    <div className="container mx-auto px-6 py-8 space-y-8">
+    <div className="container mx-auto px-6 py-8 space-y-10">
       {/* Hero Section */}
-      <div className="text-center py-12">
-        <h1 className="text-5xl font-bold gradient-text mb-4">
-          Discover Live Music
+      <div className="text-center py-16">
+        <h1 className="text-6xl font-bold gradient-text mb-6 leading-tight">
+          Live Music Discovery
         </h1>
-        <p className="text-xl text-muted-foreground mb-2">
-          Real-time trending artists, upcoming shows, and setlist predictions
+        <p className="text-xl text-muted-foreground mb-4 max-w-2xl mx-auto">
+          Trending artists and shows from Ticketmaster. Predict setlists, vote on accuracy, and discover your next favorite concert.
         </p>
         <p className="text-muted-foreground/60">
-          Powered by Spotify, Ticketmaster, and community data
+          Updated live every 3 hours from Ticketmaster API
         </p>
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <StatCard
-          icon={<Music className="h-6 w-6" />}
-          title="Artists"
-          value={stats?.totalArtists || 0}
-          subtitle="tracked"
-        />
-        <StatCard
-          icon={<Calendar className="h-6 w-6" />}
-          title="Shows"
-          value={stats?.totalShows || 0}
-          subtitle="upcoming"
-        />
-        <StatCard
-          icon={<Users className="h-6 w-6" />}
-          title="Setlists"
-          value={stats?.totalSetlists || 0}
-          subtitle="predicted"
-        />
-        <StatCard
-          icon={<TrendingUp className="h-6 w-6" />}
-          title="Active"
-          value={stats?.activeUsers || 0}
-          subtitle="users"
-        />
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Trending Artists - Takes up 2 columns */}
-        <div className="lg:col-span-2">
-          <div className="dashboard-card h-full">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <TrendingUp className="h-6 w-6 text-primary" />
-                <h2 className="text-2xl font-bold">Trending Artists</h2>
-                <div className="pulse-dot ml-2"></div>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Updated every 30 minutes
-              </div>
-            </div>
-            
-            {!trendingArtists ? (
-              <TrendingArtistsLoading />
-            ) : trendingArtists.length === 0 ? (
-              <EmptyState 
-                icon={<TrendingUp className="h-12 w-12" />}
-                title="Loading trending artists..."
-                subtitle="Our sync system is importing the latest data"
-              />
-            ) : (
-              <div className="space-y-3">
-                {trendingArtists.map((artist, index) => (
-                  <TrendingArtistCard
-                    key={artist._id}
-                    artist={artist}
-                    rank={index + 1}
-                    onClick={() => onArtistClick(artist._id)}
-                    onFollow={() => handleFollowArtist(artist._id, artist.name)}
-                    isAuthenticated={!!user}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Upcoming Shows */}
+      {/* Horizontal Scrolling Sections */}
+      <div className="space-y-16">
+        {/* Trending Shows - Scrolling Left */}
         <div>
-          <div className="dashboard-card h-full">
-            <div className="flex items-center gap-3 mb-6">
-              <Calendar className="h-6 w-6 text-primary" />
-              <h2 className="text-xl font-bold">Upcoming Shows</h2>
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-12 h-12 bg-gradient-to-br from-white to-gray-400 rounded-2xl flex items-center justify-center">
+              <Calendar className="h-6 w-6 text-black" />
             </div>
-            
-            {!upcomingShows ? (
-              <UpcomingShowsLoading />
-            ) : upcomingShows.length === 0 ? (
-              <EmptyState 
-                icon={<Calendar className="h-8 w-8" />}
-                title="Loading shows..."
-                subtitle="Importing from Ticketmaster"
-              />
-            ) : (
-              <div className="space-y-3">
-                {upcomingShows.slice(0, 8).map((show) => (
-                  <UpcomingShowCard
-                    key={show._id}
-                    show={show}
-                    onClick={() => onShowClick(show._id)}
-                    onArtistClick={onArtistClick}
-                  />
-                ))}
-              </div>
-            )}
+            <div>
+              <h2 className="text-4xl font-bold">Trending Shows</h2>
+              <p className="text-muted-foreground text-lg">Popular concerts happening now</p>
+            </div>
+            <div className="pulse-dot ml-4"></div>
           </div>
-        </div>
-      </div>
-
-      {/* Recent Shows */}
-      <div className="dashboard-card">
-        <div className="flex items-center gap-3 mb-6">
-          <Clock className="h-6 w-6 text-primary" />
-          <h2 className="text-2xl font-bold">Recent Shows</h2>
-        </div>
-        
-        {!recentShows ? (
-          <RecentShowsLoading />
-        ) : recentShows.length === 0 ? (
-          <EmptyState 
-            icon={<Clock className="h-12 w-12" />}
-            title="Loading recent shows..."
-            subtitle="Building show history database"
-          />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {recentShows.map((show) => (
-              <RecentShowCard
-                key={show._id}
+          
+          <HorizontalScrollingSection
+            direction="left"
+            isLoading={isLoadingShows}
+            emptyTitle="Loading trending shows..."
+            emptySubtitle="Fetching live data from Ticketmaster"
+          >
+            {trendingShows.map((show, index) => (
+              <PremiumShowCard
+                key={`${show.ticketmasterId}-${index}`}
                 show={show}
-                onClick={() => onShowClick(show._id)}
-                onArtistClick={onArtistClick}
+                rank={index + 1}
+                onArtistClick={(artistTicketmasterId: string, artistName: string, genres?: string[], images?: string[]) => handleArtistClick(artistTicketmasterId, artistName, genres, images)}
+                onTicketClick={(url) => window.open(url, '_blank')}
               />
             ))}
+          </HorizontalScrollingSection>
+        </div>
+
+        {/* Trending Artists - Scrolling Right */}
+        <div>
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-12 h-12 bg-gradient-to-br from-white to-gray-400 rounded-2xl flex items-center justify-center">
+              <TrendingUp className="h-6 w-6 text-black" />
+            </div>
+            <div>
+              <h2 className="text-4xl font-bold">Trending Artists</h2>
+              <p className="text-muted-foreground text-lg">Hot artists with upcoming tours</p>
+            </div>
+            <div className="pulse-dot ml-4"></div>
           </div>
-        )}
+          
+          <HorizontalScrollingSection
+            direction="right"
+            isLoading={isLoadingArtists}
+            emptyTitle="Loading trending artists..."
+            emptySubtitle="Fetching live data from Ticketmaster"
+          >
+            {trendingArtists.map((artist, index) => (
+              <PremiumArtistCard
+                key={`${artist.ticketmasterId}-${index}`}
+                artist={artist}
+                rank={index + 1}
+                onClick={() => handleArtistClick(artist.ticketmasterId, artist.name, artist.genres, artist.images)}
+              />
+            ))}
+          </HorizontalScrollingSection>
+        </div>
       </div>
 
       {/* Call to Action */}
-      <div className="dashboard-card text-center py-12">
-        <h3 className="text-2xl font-bold mb-4">Join the Community</h3>
-        <p className="text-muted-foreground mb-6">
-          Create setlist predictions, vote on songs, and compete with other music fans
-        </p>
-        <button
-          onClick={onSignInRequired}
-          className="px-8 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
-        >
-          Get Started
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function StatCard({ icon, title, value, subtitle }: {
-  icon: React.ReactNode;
-  title: string;
-  value: number;
-  subtitle: string;
-}) {
-  return (
-    <div className="dashboard-card">
-      <div className="flex items-center gap-3">
-        <div className="text-primary">{icon}</div>
-        <div>
-          <div className="text-2xl font-bold">{value.toLocaleString()}</div>
-          <div className="text-sm text-muted-foreground">{title} {subtitle}</div>
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-gray-900 to-black border border-gray-800 p-12 text-center">
+        <div className="relative z-10">
+          <h3 className="text-4xl font-bold mb-6">Join the Prediction Game</h3>
+          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            Create setlist predictions, vote on accuracy, and compete with music fans worldwide
+          </p>
+          <button
+            onClick={onSignInRequired}
+            className="px-12 py-4 bg-white text-black rounded-2xl hover:bg-gray-200 transition-all duration-300 font-semibold text-lg shadow-2xl hover:shadow-white/20"
+          >
+            Start Predicting
+          </button>
+        </div>
+        {/* Background pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-10 left-10 w-20 h-20 border border-white rounded-full"></div>
+          <div className="absolute top-20 right-20 w-16 h-16 border border-white rounded-full"></div>
+          <div className="absolute bottom-10 left-20 w-12 h-12 border border-white rounded-full"></div>
+          <div className="absolute bottom-20 right-10 w-24 h-24 border border-white rounded-full"></div>
         </div>
       </div>
     </div>
   );
 }
 
-function TrendingArtistCard({ artist, rank, onClick, onFollow, isAuthenticated }: {
-  artist: any;
-  rank: number;
-  onClick: () => void;
-  onFollow: () => void;
-  isAuthenticated: boolean;
+// Horizontal Scrolling Container Component
+function HorizontalScrollingSection({ 
+  children, 
+  direction, 
+  isLoading, 
+  emptyTitle, 
+  emptySubtitle 
+}: {
+  children: React.ReactNode;
+  direction: 'left' | 'right';
+  isLoading: boolean;
+  emptyTitle: string;
+  emptySubtitle: string;
 }) {
-  return (
-    <div className="group flex items-center gap-4 p-4 rounded-lg hover:bg-accent/50 cursor-pointer transition-all duration-200">
-      <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold">
-        {rank}
-      </div>
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [isPaused, setIsPaused] = React.useState(false);
+
+  useEffect(() => {
+    const scrollElement = scrollRef.current;
+    if (!scrollElement || isPaused || isLoading) return;
+
+    const scroll = () => {
+      const maxScroll = scrollElement.scrollWidth - scrollElement.clientWidth;
+      const currentScroll = scrollElement.scrollLeft;
       
-      <div className="flex items-center gap-4 flex-1" onClick={onClick}>
-        {artist.images?.[0] && (
-          <img
-            src={artist.images[0]}
-            alt={artist.name}
-            className="w-16 h-16 rounded-lg object-cover"
-          />
-        )}
-        
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-lg truncate">{artist.name}</h3>
-          {artist.genres && artist.genres.length > 0 && (
-            <p className="text-muted-foreground text-sm truncate">
-              {artist.genres.slice(0, 2).join(", ")}
-            </p>
-          )}
-          <div className="flex items-center gap-4 mt-1">
-            <div className="text-xs text-muted-foreground">
-              {artist.followers?.toLocaleString()} followers
+      if (direction === 'right') {
+        if (currentScroll >= maxScroll) {
+          scrollElement.scrollLeft = 0;
+        } else {
+          scrollElement.scrollLeft += 1;
+        }
+      } else {
+        if (currentScroll <= 0) {
+          scrollElement.scrollLeft = maxScroll;
+        } else {
+          scrollElement.scrollLeft -= 1;
+        }
+      }
+    };
+
+    const interval = setInterval(scroll, 50); // Smooth 50ms intervals
+    return () => clearInterval(interval);
+  }, [direction, isPaused, isLoading]);
+
+  if (isLoading) {
+    return (
+      <div className="flex gap-6 overflow-hidden pb-4">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="flex-shrink-0 w-96 h-80 bg-gradient-to-br from-gray-950 to-black border border-gray-800 rounded-3xl p-8 animate-pulse">
+            <div className="w-10 h-10 bg-gray-800 rounded-full mb-6"></div>
+            <div className="space-y-4">
+              <div className="h-8 bg-gray-800 rounded-lg shimmer"></div>
+              <div className="h-5 bg-gray-800 rounded w-3/4 shimmer"></div>
+              <div className="h-5 bg-gray-800 rounded w-1/2 shimmer"></div>
             </div>
-            <div className="text-xs text-primary font-medium">
-              {artist.trendingScore || 0} trending
+            <div className="mt-8 space-y-3">
+              <div className="h-12 bg-gray-800 rounded-2xl shimmer"></div>
+              <div className="h-12 bg-gray-800 rounded-2xl shimmer"></div>
             </div>
           </div>
-        </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (!children || React.Children.count(children) === 0) {
+    return (
+      <EmptyState 
+        icon={<TrendingUp className="h-16 w-16" />}
+        title={emptyTitle}
+        subtitle={emptySubtitle}
+      />
+    );
+  }
+
+  return (
+    <div 
+      className="relative"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      <div 
+        ref={scrollRef}
+        className="flex gap-8 overflow-x-hidden scrollbar-hide pb-6"
+        style={{ 
+          width: '100vw', 
+          marginLeft: 'calc(-50vw + 50%)',
+          paddingLeft: 'calc(50vw - 50%)',
+          paddingRight: 'calc(50vw - 50%)'
+        }}
+      >
+        {children}
       </div>
       
-      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onFollow();
-          }}
-          className="p-2 rounded-full hover:bg-accent transition-colors"
-          title={isAuthenticated ? "Follow artist" : "Add to interests (1 free action)"}
-        >
-          <Heart className="h-4 w-4" />
-        </button>
-        <Play className="h-5 w-5 text-muted-foreground" />
-      </div>
+      {/* Gradient Overlays */}
+      <div className="absolute top-0 left-0 w-40 h-full bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
+      <div className="absolute top-0 right-0 w-40 h-full bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
     </div>
   );
 }
 
-function UpcomingShowCard({ show, onClick, onArtistClick }: {
+// Optimized Show Card for horizontal scrolling
+function PremiumShowCard({ show, rank, onArtistClick, onTicketClick }: {
   show: any;
-  onClick: () => void;
-  onArtistClick: (artistId: Id<"artists">) => void;
+  rank: number;
+  onArtistClick: (artistTicketmasterId: string, artistName: string, genres?: string[], images?: string[]) => void;
+  onTicketClick: (url: string) => void;
 }) {
   const showDate = new Date(show.date);
   const isToday = showDate.toDateString() === new Date().toDateString();
   const isTomorrow = showDate.toDateString() === new Date(Date.now() + 86400000).toDateString();
   
-  let dateText = showDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  let dateText = showDate.toLocaleDateString('en-US', { 
+    weekday: 'short',
+    month: 'short', 
+    day: 'numeric'
+  });
   if (isToday) dateText = "Today";
   else if (isTomorrow) dateText = "Tomorrow";
 
   return (
-    <div className="trending-item" onClick={onClick}>
-      <div className="flex-1">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onArtistClick(show.artistId);
-          }}
-          className="font-medium text-primary hover:underline text-left"
-        >
-          {show.artist?.name}
-        </button>
-        <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-          <MapPin className="h-3 w-3" />
-          <span className="truncate">{show.venue?.name}</span>
-        </div>
-        <div className="text-xs text-muted-foreground">
-          {show.venue?.city}
-        </div>
+    <div className="flex-shrink-0 w-96 group relative bg-gradient-to-br from-gray-950 to-black border border-gray-800 rounded-3xl overflow-hidden hover:border-gray-600 transition-all duration-500 hover:scale-[1.05] hover:shadow-2xl cursor-pointer">
+      {/* Rank Badge */}
+      <div className="absolute top-6 left-6 z-20 w-12 h-12 bg-white text-black rounded-full flex items-center justify-center text-xl font-bold shadow-xl">
+        {rank}
       </div>
-      <div className="text-right">
-        <div className="text-sm font-medium">{dateText}</div>
-        <div className={`text-xs px-2 py-1 rounded-full ${
-          isToday || isTomorrow 
-            ? "bg-primary/20 text-primary" 
-            : "bg-muted text-muted-foreground"
-        }`}>
-          {show.status}
+      
+      {/* Artist Image Background */}
+      {show.artistImage && (
+        <div className="absolute inset-0 z-0">
+          <img 
+            src={show.artistImage} 
+            alt={show.artistName}
+            className="w-full h-full object-cover opacity-30 group-hover:opacity-50 transition-opacity duration-500"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/90 to-black/30" />
+        </div>
+      )}
+      
+      <div className="relative z-10 p-8 h-full flex flex-col justify-between min-h-[350px]">
+        {/* Artist Info */}
+        <div>
+          <h3 className="text-3xl font-bold mb-4 text-white group-hover:text-gray-200 transition-colors leading-tight">
+            {show.artistName}
+          </h3>
+          
+          {/* Show Details */}
+          <div className="space-y-4 mb-8">
+            <div className="flex items-start gap-3 text-gray-300">
+              <MapPin className="h-6 w-6 mt-1 flex-shrink-0" />
+              <div>
+                <div className="font-semibold text-xl">{show.venueName}</div>
+                <div className="text-gray-400 text-lg">{show.venueCity}, {show.venueCountry}</div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3 text-gray-300">
+              <Calendar className="h-6 w-6" />
+              <span className="font-semibold text-xl">{dateText}</span>
+              {show.startTime && (
+                <>
+                  <Clock className="h-5 w-5 ml-3" />
+                  <span className="text-lg">{show.startTime}</span>
+                </>
+              )}
+            </div>
+            
+            {show.priceRange && (
+              <div className="flex items-center gap-3 text-green-400">
+                <Ticket className="h-6 w-6" />
+                <span className="font-bold text-xl">{show.priceRange}</span>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Action Buttons */}
+        <div className="flex flex-col gap-4">
+          <button
+            onClick={() => onArtistClick(show.artistTicketmasterId || show.ticketmasterId, show.artistName, [], show.artistImage ? [show.artistImage] : [])}
+            className="w-full bg-white/10 border border-white/30 text-white rounded-2xl py-4 px-6 font-semibold hover:bg-white/25 transition-all duration-300 backdrop-blur-sm text-lg"
+          >
+            View Artist & Shows
+          </button>
+          {show.ticketUrl && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onTicketClick(show.ticketUrl);
+              }}
+              className="w-full bg-white text-black rounded-2xl py-4 px-6 font-bold hover:bg-gray-200 transition-all duration-300 flex items-center justify-center gap-3 text-lg shadow-lg"
+            >
+              <ExternalLink className="h-5 w-5" />
+              Get Tickets
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function RecentShowCard({ show, onClick, onArtistClick }: {
-  show: any;
+// Optimized Artist Card for horizontal scrolling
+function PremiumArtistCard({ artist, rank, onClick }: {
+  artist: any;
+  rank: number;
   onClick: () => void;
-  onArtistClick: (artistId: Id<"artists">) => void;
 }) {
   return (
-    <div className="trending-item" onClick={onClick}>
-      <div className="flex-1">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onArtistClick(show.artistId);
-          }}
-          className="font-medium text-primary hover:underline text-left"
-        >
-          {show.artist?.name}
-        </button>
-        <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-          <MapPin className="h-3 w-3" />
-          <span className="truncate">{show.venue?.name}</span>
-        </div>
-        <div className="text-xs text-muted-foreground">
-          {new Date(show.date).toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric',
-            year: 'numeric'
-          })}
-        </div>
+    <div 
+      className="flex-shrink-0 w-96 group relative bg-gradient-to-br from-gray-950 to-black border border-gray-800 rounded-3xl overflow-hidden hover:border-gray-600 transition-all duration-500 hover:scale-[1.05] hover:shadow-2xl cursor-pointer"
+      onClick={onClick}
+    >
+      {/* Rank Badge */}
+      <div className="absolute top-6 left-6 z-20 w-12 h-12 bg-white text-black rounded-full flex items-center justify-center text-xl font-bold shadow-xl">
+        {rank}
       </div>
-      <div className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">
-        {show.status}
+      
+      {/* Artist Image Background */}
+      {artist.images?.[0] && (
+        <div className="absolute inset-0 z-0">
+          <img 
+            src={artist.images[0]} 
+            alt={artist.name}
+            className="w-full h-full object-cover opacity-40 group-hover:opacity-60 transition-opacity duration-500"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/90 to-black/30" />
+        </div>
+      )}
+      
+      <div className="relative z-10 p-8 h-full flex flex-col justify-between min-h-[350px]">
+        {/* Artist Info */}
+        <div>
+          <h3 className="text-3xl font-bold mb-4 text-white group-hover:text-gray-200 transition-colors leading-tight">
+            {artist.name}
+          </h3>
+          
+          {artist.genres && artist.genres.length > 0 && (
+            <p className="text-gray-300 font-semibold mb-6 capitalize text-xl">
+              {artist.genres.slice(0, 2).join(" • ")}
+            </p>
+          )}
+          
+          {artist.upcomingEvents > 0 && (
+            <div className="flex items-center gap-3 text-gray-300 mb-8">
+              <Calendar className="h-6 w-6" />
+              <span className="font-bold text-2xl">{artist.upcomingEvents}</span>
+              <span className="text-gray-400 text-lg">upcoming shows</span>
+            </div>
+          )}
+        </div>
+        
+        {/* Action Button */}
+        <button className="w-full bg-white/10 border border-white/30 text-white rounded-2xl py-4 px-6 font-semibold hover:bg-white/25 transition-all duration-300 backdrop-blur-sm text-lg">
+          View Artist & Shows
+        </button>
       </div>
     </div>
   );
 }
+
+
 
 function EmptyState({ icon, title, subtitle }: {
   icon: React.ReactNode;
@@ -380,56 +451,5 @@ function EmptyState({ icon, title, subtitle }: {
   );
 }
 
-function TrendingArtistsLoading() {
-  return (
-    <div className="space-y-3">
-      {[...Array(8)].map((_, i) => (
-        <div key={i} className="flex items-center gap-4 p-4 rounded-lg">
-          <div className="w-8 h-8 bg-muted rounded-full shimmer"></div>
-          <div className="w-16 h-16 bg-muted rounded-lg shimmer"></div>
-          <div className="flex-1 space-y-2">
-            <div className="h-4 bg-muted rounded shimmer"></div>
-            <div className="h-3 bg-muted rounded w-2/3 shimmer"></div>
-            <div className="h-3 bg-muted rounded w-1/2 shimmer"></div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+// Premium Loading Components
 
-function UpcomingShowsLoading() {
-  return (
-    <div className="space-y-3">
-      {[...Array(6)].map((_, i) => (
-        <div key={i} className="flex items-center gap-3 p-3 rounded-lg">
-          <div className="flex-1 space-y-2">
-            <div className="h-4 bg-muted rounded shimmer"></div>
-            <div className="h-3 bg-muted rounded w-2/3 shimmer"></div>
-            <div className="h-3 bg-muted rounded w-1/2 shimmer"></div>
-          </div>
-          <div className="w-16 text-right space-y-1">
-            <div className="h-3 bg-muted rounded shimmer"></div>
-            <div className="h-6 bg-muted rounded shimmer"></div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function RecentShowsLoading() {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {[...Array(6)].map((_, i) => (
-        <div key={i} className="p-3 rounded-lg">
-          <div className="space-y-2">
-            <div className="h-4 bg-muted rounded shimmer"></div>
-            <div className="h-3 bg-muted rounded w-2/3 shimmer"></div>
-            <div className="h-3 bg-muted rounded w-1/2 shimmer"></div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}

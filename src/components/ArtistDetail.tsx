@@ -9,7 +9,7 @@ import { AddToSetlistModal } from "./AddToSetlistModal";
 interface ArtistDetailProps {
   artistId: Id<"artists">;
   onBack: () => void;
-  onShowClick: (showId: Id<"shows">) => void;
+  onShowClick: (showId: Id<"shows">, slug?: string) => void;
   onSignInRequired: () => void;
 }
 

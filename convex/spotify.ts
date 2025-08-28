@@ -94,26 +94,27 @@ export const syncArtistCatalog = internalAction({
         const tracksData = await tracksResponse.json();
         
         const albumTitleLower: string = (album.name || '').toLowerCase();
-        const albumIsLive = albumTitleLower.includes('live') || albumTitleLower.includes('concert');
-        const albumIsAcoustic = albumTitleLower.includes('acoustic') || albumTitleLower.includes('unplugged');
-        const albumIsRemix = albumTitleLower.includes('remix') || albumTitleLower.includes('mix)');
+        const albumIsLive = /(\blive\b|\bconcert\b|at\b.*\blive\b)/i.test(album.name || '');
+        const albumIsAcoustic = /(acoustic|unplugged)/i.test(album.name || '');
+        const albumIsRemix = /(remix|re\-?mix|mix\)|mixed)/i.test(album.name || '');
         const albumIsLocalhost = albumTitleLower.includes('localhost:3001');
 
         for (const track of tracksData.items || []) {
-          const trackTitleLower: string = (track.name || '').toLowerCase();
+          const title: string = track.name || '';
+          const titleLower = title.toLowerCase();
 
-          // Comprehensive studio-only filter
-          const isLiveTitleVariant = trackTitleLower.includes('(live') || trackTitleLower.includes(' - live');
-          const isLive = isLiveTitleVariant || trackTitleLower.includes('live') || trackTitleLower.includes('concert') || albumIsLive;
-          const isRemix = trackTitleLower.includes('remix') || trackTitleLower.includes('mix)') || albumIsRemix;
-          const isAcoustic = trackTitleLower.includes('acoustic') || trackTitleLower.includes('unplugged') || albumIsAcoustic;
-          const isDemo = trackTitleLower.includes('demo') || trackTitleLower.includes('rough') || trackTitleLower.includes('sketch') || trackTitleLower.includes('outtake') || trackTitleLower.includes('alternate') || trackTitleLower.includes('alternative');
-          const isBonus = trackTitleLower.includes('bonus') || trackTitleLower.includes('b-side');
-          const isRadioEdit = trackTitleLower.includes('radio edit');
-          const isInstrumental = trackTitleLower.includes('instrumental');
+          // Comprehensive studio-only filter (title + album level)
+          const isLive = /(\blive\b|\bconcert\b|\(live\)|\- live)/i.test(title) || albumIsLive;
+          const isRemix = /(remix|re\-?mix|\bmix\b|mixed)/i.test(title) || albumIsRemix;
+          const isAcoustic = /(acoustic|unplugged)/i.test(title) || albumIsAcoustic;
+          const isDemo = /(demo|rough|sketch|outtake|alternate|alt\.|alt version|alternative take)/i.test(title);
+          const isBonus = /(bonus|b\-?side)/i.test(title);
+          const isRadioEdit = /(radio edit)/i.test(title);
+          const isInstrumental = /(instrumental)/i.test(title);
+          const isCommentary = /(commentary)/i.test(title);
 
           // Skip non-studio material entirely
-          if (isLive || isRemix || isAcoustic || isDemo || isBonus || isRadioEdit || isInstrumental || albumIsLocalhost) {
+          if (isLive || isRemix || isAcoustic || isDemo || isBonus || isRadioEdit || isInstrumental || isCommentary || albumIsLocalhost) {
             continue;
           }
 
@@ -123,8 +124,19 @@ export const syncArtistCatalog = internalAction({
           if (existing) {
             songId = existing._id;
           } else {
+            // Title-level duplicate check (normalize title)
+            const normalizedTitle = titleLower
+              .replace(/\(feat\.[^)]+\)/gi, '')
+              .replace(/\[feat\.[^\]]+\]/gi, '')
+              .replace(/\s+-\s+.*$/g, '') // remove trailing descriptors after dash
+              .replace(/\s*\(.*?\)\s*/g, ' ') // remove parenthetical
+              .replace(/\s{2,}/g, ' ')
+              .trim();
+
+            // If a different Spotify ID exists with same normalized title for this artist, reuse it
+            // (we'll rely on artistSongs relation to check duplicates at link time)
             songId = await ctx.runMutation(internal.songs.createFromSpotify, {
-              title: track.name,
+              title: normalizedTitle || track.name,
               album: album.name,
               spotifyId: track.id,
               durationMs: track.duration_ms,

@@ -8,14 +8,18 @@ import { SignInForm } from "./SignInForm";
 import { ArtistDetail } from "./components/ArtistDetail";
 import { ShowDetail } from "./components/ShowDetail";
 import { Artists } from "./components/Artists";
+import { Shows } from "./components/Shows";
+import { Library } from "./components/Library";
+import { VenueDetail } from "./components/VenueDetail";
 import { PublicDashboard } from "./components/PublicDashboard";
 import { AppLayout } from "./components/AppLayout";
 import { UserDashboard } from "./components/UserDashboard";
 import { Venues } from "./components/Venues";
 import { toast, Toaster } from "sonner";
+import { SEOHead } from "./components/SEOHead";
 // Removed lucide-react imports due to TypeScript compatibility issues
 
-type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "venues" | "library" | "signin" | "trending" | "profile" | "following" | "predictions";
+type View = "home" | "artist" | "show" | "venue" | "search" | "artists" | "shows" | "venues" | "library" | "signin" | "trending" | "profile" | "following" | "predictions";
 
 export default function App() {
   const location = useLocation();
@@ -25,6 +29,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<View>("home");
   const [selectedArtistId, setSelectedArtistId] = useState<Id<"artists"> | null>(null);
   const [selectedShowId, setSelectedShowId] = useState<Id<"shows"> | null>(null);
+  const [selectedVenueId, setSelectedVenueId] = useState<Id<"venues"> | null>(null);
   const [showSignIn, setShowSignIn] = useState(false);
 
   const createAppUser = useMutation(api.auth.createAppUser);
@@ -251,21 +256,33 @@ export default function App() {
         );
       case "shows":
         return (
-          <div className="text-center text-zinc-400 py-12">
-            <div className="mx-auto mb-4 opacity-50 w-16 h-16 flex items-center justify-center text-4xl">📅</div>
-            <p className="text-lg">Shows page coming soon...</p>
+          <Shows onShowClick={handleShowClick} />
+        );
+      case "venue":
+        return selectedVenueId ? (
+          <VenueDetail
+            venueId={selectedVenueId}
+            onBack={() => handleViewChange("venues")}
+            onShowClick={handleShowClick}
+          />
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No venue selected</p>
           </div>
         );
       case "venues":
         return (
-          <Venues />
+          <Venues onVenueClick={(venueId) => {
+            setSelectedVenueId(venueId);
+            setCurrentView("venue");
+          }} />
         );
       case "library":
         return (
-          <div className="text-center text-zinc-400 py-12">
-            <div className="mx-auto mb-4 opacity-50 w-16 h-16 flex items-center justify-center text-4xl">❤️</div>
-            <p className="text-lg">Your library coming soon...</p>
-          </div>
+          <Library 
+            onArtistClick={handleArtistClick}
+            onShowClick={handleShowClick}
+          />
         );
       case "profile":
         return (

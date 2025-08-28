@@ -129,7 +129,6 @@ export const processFullSync = internalAction({
       
       if (!artist) {
         const artistId = await ctx.runMutation(internal.artists.createInternal, {
-          slug: artistSlug,
           name: entityData.artistName,
           ticketmasterId: entityData.ticketmasterId,
           genres: entityData.artistData?.genres || [],
@@ -226,7 +225,7 @@ export const processFullSync = internalAction({
   },
 });
 
-async function syncArtistShows(ctx: ActionCtx, artist: any, ticketmasterId?: string, jobId?: string) {
+async function syncArtistShows(ctx: ActionCtx, artist: any, ticketmasterId?: string, _jobId?: string) {
   const apiKey = process.env.TICKETMASTER_API_KEY;
   if (!apiKey) {
     console.log("Ticketmaster API key not configured");
@@ -255,7 +254,7 @@ async function syncArtistShows(ctx: ActionCtx, artist: any, ticketmasterId?: str
   }
 }
 
-async function syncArtistCatalog(ctx: ActionCtx, artist: any, artistName: string, jobId?: string) {
+async function syncArtistCatalog(ctx: ActionCtx, artist: any, artistName: string, _jobId?: string) {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
   

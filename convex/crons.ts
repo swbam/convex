@@ -27,4 +27,12 @@ crons.cron(
   {}
 );
 
+// Sync trending data from Ticketmaster every 3 hours
+crons.cron(
+  "sync-trending-data",
+  "0 */3 * * *", // Every 3 hours
+  api.sync.syncTrendingData,
+  {}
+);
+
 export default crons;

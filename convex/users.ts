@@ -11,11 +11,7 @@ export const getCurrentUser = query({
       return null;
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_auth_id", (q) => q.eq("authId", userId))
-      .first();
-
+    const user = await ctx.db.get(userId);
     return user;
   },
 });
@@ -24,6 +20,7 @@ export const getCurrentUser = query({
 export const updateProfile = mutation({
   args: {
     username: v.optional(v.string()),
+    bio: v.optional(v.string()),
     preferences: v.optional(v.object({
       emailNotifications: v.boolean(),
       favoriteGenres: v.array(v.string()),
@@ -35,11 +32,7 @@ export const updateProfile = mutation({
       throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_auth_id", (q) => q.eq("authId", userId))
-      .first();
-
+    const user = await ctx.db.get(userId);
     if (!user) {
       throw new Error("User not found");
     }
@@ -60,6 +53,9 @@ export const updateProfile = mutation({
     if (args.username !== undefined) {
       updateData.username = args.username;
     }
+    if (args.bio !== undefined) {
+      updateData.bio = args.bio;
+    }
     if (args.preferences !== undefined) {
       updateData.preferences = args.preferences;
     }
@@ -79,11 +75,7 @@ export const getUserStats = query({
       return null;
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_auth_id", (q) => q.eq("authId", userId))
-      .first();
-
+    const user = await ctx.db.get(userId);
     if (!user) {
       return null;
     }
@@ -124,11 +116,7 @@ export const getUserFollows = query({
       return [];
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_auth_id", (q) => q.eq("authId", userId))
-      .first();
-
+    const user = await ctx.db.get(userId);
     if (!user) {
       return [];
     }
@@ -159,11 +147,7 @@ export const getUserSetlists = query({
       return [];
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_auth_id", (q) => q.eq("authId", userId))
-      .first();
-
+    const user = await ctx.db.get(userId);
     if (!user) {
       return [];
     }

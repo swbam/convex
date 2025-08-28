@@ -22,7 +22,12 @@ export const getByArtist = query({
       })
     );
 
-    return songs.filter(Boolean).sort((a, b) => (b?.popularity || 0) - (a?.popularity || 0));
+    // Filter to studio songs only: exclude live, remixes, commentary/etc
+    const studioSongs = (songs.filter(Boolean) as Array<any>)
+      .filter((s) => !s.isLive && !s.isRemix)
+      .filter((s) => !/(commentary)/i.test(s.title || ''));
+
+    return studioSongs.sort((a, b) => (b?.popularity || 0) - (a?.popularity || 0));
   },
 });
 
