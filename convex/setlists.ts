@@ -30,6 +30,7 @@ export const create = mutation({
         // Update existing setlist
         await ctx.db.patch(existing._id, {
           songs: args.songs,
+          lastUpdated: Date.now(),
         });
         return existing._id;
       }
@@ -39,6 +40,9 @@ export const create = mutation({
       showId: args.showId,
       userId: userId || undefined,
       songs: args.songs,
+      verified: false,
+      source: "user_submitted",
+      lastUpdated: Date.now(),
       isOfficial: args.isOfficial || false,
       confidence: 0.5,
       upvotes: 0,
@@ -86,6 +90,9 @@ export const addSongToSetlist = mutation({
         showId: args.showId,
         userId: userId,
         songs: [args.song],
+        verified: false,
+        source: "user_submitted",
+        lastUpdated: Date.now(),
         isOfficial: false,
         confidence: 0.5,
         upvotes: 0,
@@ -118,6 +125,7 @@ export const createOfficial = internalMutation({
       // Update existing official setlist
       await ctx.db.patch(existing._id, {
         songs: args.songs,
+        lastUpdated: Date.now(),
         setlistfmId: args.setlistfmId,
       });
       return existing._id;
@@ -127,6 +135,9 @@ export const createOfficial = internalMutation({
       showId: args.showId,
       userId: undefined,
       songs: args.songs,
+      verified: true,
+      source: "setlistfm",
+      lastUpdated: Date.now(),
       isOfficial: true,
       confidence: 1.0,
       upvotes: 0,
@@ -190,6 +201,116 @@ export const getUserSetlistForShow = query({
   },
 });
 
+// Enhanced voting system per CONVEX.md specification
+export const submitVote = mutation({
+  args: {
+    setlistId: v.id("setlists"),
+    voteType: v.union(v.literal("accurate"), v.literal("inaccurate")),
+    songVotes: v.optional(v.array(v.object({
+      songName: v.string(),
+      vote: v.union(v.literal("correct"), v.literal("incorrect"), v.literal("missing")),
+    }))),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Must be logged in to vote");
+    }
+
+    const setlist = await ctx.db.get(args.setlistId);
+    if (!setlist) {
+      throw new Error("Setlist not found");
+    }
+
+    // Can only vote on predicted setlists, not official ones
+    if (setlist.isOfficial) {
+      throw new Error("Cannot vote on official setlists");
+    }
+
+    // Check if user already voted
+    const existingVote = await ctx.db
+      .query("votes")
+      .withIndex("by_user_and_setlist", (q) =>
+        q.eq("userId", userId).eq("setlistId", args.setlistId)
+      )
+      .first();
+
+    const isAccurate = args.voteType === "accurate";
+
+    if (existingVote) {
+      // Update existing vote
+      await ctx.db.patch(existingVote._id, {
+        voteType: args.voteType,
+        songVotes: args.songVotes,
+        createdAt: Date.now(), // Update timestamp
+      });
+
+      // Update setlist vote counts
+      const currentUpvotes = setlist.upvotes || 0;
+      const currentDownvotes = setlist.downvotes || 0;
+      const wasAccurate = existingVote.voteType === "accurate";
+
+      if (wasAccurate && !isAccurate) {
+        // Changed from accurate to inaccurate
+        await ctx.db.patch(args.setlistId, {
+          upvotes: Math.max(0, currentUpvotes - 1),
+          downvotes: currentDownvotes + 1,
+        });
+      } else if (!wasAccurate && isAccurate) {
+        // Changed from inaccurate to accurate
+        await ctx.db.patch(args.setlistId, {
+          upvotes: currentUpvotes + 1,
+          downvotes: Math.max(0, currentDownvotes - 1),
+        });
+      }
+    } else {
+      // Create new vote
+      await ctx.db.insert("votes", {
+        userId,
+        setlistId: args.setlistId,
+        voteType: args.voteType,
+        songVotes: args.songVotes,
+        createdAt: Date.now(),
+      });
+
+      // Update setlist vote counts
+      if (isAccurate) {
+        await ctx.db.patch(args.setlistId, {
+          upvotes: (setlist.upvotes || 0) + 1,
+        });
+      } else {
+        await ctx.db.patch(args.setlistId, {
+          downvotes: (setlist.downvotes || 0) + 1,
+        });
+      }
+    }
+
+    return { success: true };
+  },
+});
+
+export const getSetlistVotes = query({
+  args: { setlistId: v.id("setlists") },
+  handler: async (ctx, args) => {
+    const votes = await ctx.db
+      .query("votes")
+      .withIndex("by_setlist", (q) => q.eq("setlistId", args.setlistId))
+      .collect();
+
+    const totalVotes = votes.length;
+    const accurateVotes = votes.filter(v => v.voteType === "accurate").length;
+    
+    return {
+      total: totalVotes,
+      accurate: accurateVotes,
+      inaccurate: totalVotes - accurateVotes,
+      accuracy: totalVotes > 0 ? (accurateVotes / totalVotes) * 100 : 0,
+      votes: votes, // Real-time updates!
+    };
+  },
+});
+
+// Legacy vote function for backward compatibility
 export const vote = mutation({
   args: {
     setlistId: v.id("setlists"),
@@ -360,6 +481,9 @@ export const autoGenerateSetlist = internalMutation({
       showId: args.showId,
       userId: undefined, // System-generated
       songs: selectedSongs,
+      verified: false,
+      source: "user_submitted",
+      lastUpdated: Date.now(),
       isOfficial: false,
       confidence: 0.3, // Lower confidence for auto-generated
       upvotes: 0,

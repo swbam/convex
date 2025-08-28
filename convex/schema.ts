@@ -10,7 +10,8 @@ const applicationTables = {
     spotifyId: v.optional(v.string()),
     avatar: v.optional(v.string()),
     username: v.string(),
-    role: v.union(v.literal("user"), v.literal("admin")),
+    bio: v.optional(v.string()),
+    role: v.union(v.literal("user"), v.literal("admin"), v.literal("banned")),
     preferences: v.optional(v.object({
       emailNotifications: v.boolean(),
       favoriteGenres: v.array(v.string()),
@@ -175,6 +176,60 @@ const applicationTables = {
   })
     .index("by_status", ["status"])
     .index("by_priority", ["priority"]),
+
+  // Cached trending data from Ticketmaster
+  trendingShows: defineTable({
+    ticketmasterId: v.string(),
+    artistTicketmasterId: v.optional(v.string()),
+    artistName: v.string(),
+    venueName: v.string(),
+    venueCity: v.string(),
+    venueCountry: v.string(),
+    date: v.string(),
+    startTime: v.optional(v.string()),
+    artistImage: v.optional(v.string()),
+    ticketUrl: v.optional(v.string()),
+    priceRange: v.optional(v.string()),
+    status: v.string(),
+    lastUpdated: v.number(),
+  }),
+
+  trendingArtists: defineTable({
+    ticketmasterId: v.string(),
+    name: v.string(),
+    genres: v.array(v.string()),
+    images: v.array(v.string()),
+    upcomingEvents: v.number(),
+    url: v.optional(v.string()),
+    lastUpdated: v.number(),
+  }),
+
+  // Individual song votes within setlists (ProductHunt style)
+  songVotes: defineTable({
+    userId: v.id("users"),
+    setlistId: v.id("setlists"),
+    songTitle: v.string(),
+    voteType: v.literal("upvote"),
+    createdAt: v.number(),
+  })
+    .index("by_user_setlist_song", ["userId", "setlistId", "songTitle"])
+    .index("by_setlist_song", ["setlistId", "songTitle"])
+    .index("by_setlist", ["setlistId"])
+    .index("by_user", ["userId"]),
+
+  // Content flagging for moderation
+  contentFlags: defineTable({
+    reporterId: v.id("users"),
+    contentType: v.union(v.literal("setlist"), v.literal("vote"), v.literal("comment")),
+    contentId: v.string(),
+    reason: v.string(),
+    status: v.union(v.literal("pending"), v.literal("reviewed"), v.literal("dismissed")),
+    createdAt: v.number(),
+    reviewedBy: v.optional(v.id("users")),
+    reviewedAt: v.optional(v.number()),
+  })
+    .index("by_status", ["status"])
+    .index("by_reporter", ["reporterId"]),
 };
 
 export default defineSchema({

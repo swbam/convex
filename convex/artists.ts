@@ -19,16 +19,111 @@ export const getBySlug = query({
   },
 });
 
+// Accepts either a SEO slug or a document id string and returns artist
+export const getBySlugOrId = query({
+  args: { key: v.string() },
+  handler: async (ctx, args) => {
+    // Try by slug first
+    const bySlug = await ctx.db
+      .query("artists")
+      .withIndex("by_slug", (q) => q.eq("slug", args.key))
+      .unique();
+
+    if (bySlug) return bySlug;
+
+    // Fallback: try by id
+    try {
+      // Cast is safe at runtime; Convex ids are strings
+      const possible = await ctx.db.get(args.key as any);
+      if (possible) return possible as any;
+    } catch {
+      // ignore invalid id format
+    }
+
+    return null;
+  },
+});
+
 export const getTrending = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
-    return await ctx.db
+    
+    // Get artists with high activity and recent engagement
+    const artists = await ctx.db
       .query("artists")
-      .withIndex("by_trending_score")
-      .order("desc")
       .filter((q) => q.eq(q.field("isActive"), true))
-      .take(limit);
+      .collect();
+    
+    // Calculate trending score based on multiple factors
+    const now = Date.now();
+    const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
+    
+    const artistsWithScores = await Promise.all(
+      artists.map(async (artist) => {
+        let score = 0;
+        
+        // Base popularity score (0-100 from Spotify)
+        score += (artist.popularity || 0) * 0.3;
+        
+        // Follower count (normalized, max 50 points)
+        const followerScore = Math.min(50, Math.log10((artist.followers || 1) / 1000) * 10);
+        score += Math.max(0, followerScore);
+        
+        // Recent activity boost - shows in the last week
+        const recentShows = await ctx.db
+          .query("shows")
+          .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
+          .filter((q) => q.gt(q.field("lastSynced"), oneWeekAgo))
+          .collect();
+        score += recentShows.length * 15; // 15 points per recent show
+        
+        // Follower engagement - count follows in the last week
+        const recentFollows = await ctx.db
+          .query("userFollows")
+          .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
+          .filter((q) => q.gt(q.field("createdAt"), oneWeekAgo))
+          .collect();
+        score += recentFollows.length * 10; // 10 points per recent follow
+        
+        // Vote activity - recent votes on their setlists
+        const artistShows = await ctx.db
+          .query("shows")
+          .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
+          .collect();
+          
+        let recentVotes = 0;
+        for (const show of artistShows) {
+          const setlists = await ctx.db
+            .query("setlists")
+            .withIndex("by_show", (q) => q.eq("showId", show._id))
+            .collect();
+          
+          for (const setlist of setlists) {
+            const votes = await ctx.db
+              .query("votes")
+              .withIndex("by_setlist", (q) => q.eq("setlistId", setlist._id))
+              .filter((q) => q.gt(q.field("createdAt"), oneWeekAgo))
+              .collect();
+            recentVotes += votes.length;
+          }
+        }
+        score += recentVotes * 5; // 5 points per recent vote
+        
+        // Time decay - older synced artists get slight penalty
+        const daysSinceSync = artist.lastSynced ? 
+          Math.max(0, (now - artist.lastSynced) / (24 * 60 * 60 * 1000)) : 30;
+        const timePenalty = Math.min(20, daysSinceSync * 0.5);
+        score -= timePenalty;
+        
+        return { ...artist, trendingScore: Math.max(0, score) };
+      })
+    );
+    
+    // Sort by trending score and return top results
+    return artistsWithScores
+      .sort((a, b) => (b.trendingScore || 0) - (a.trendingScore || 0))
+      .slice(0, limit);
   },
 });
 
@@ -61,7 +156,7 @@ export const isFollowing = query({
     if (!userId) return false;
 
     const follow = await ctx.db
-      .query("follows")
+      .query("userFollows")
       .withIndex("by_user_and_artist", (q) => 
         q.eq("userId", userId).eq("artistId", args.artistId)
       )
@@ -80,7 +175,7 @@ export const followArtist = mutation({
     }
 
     const existingFollow = await ctx.db
-      .query("follows")
+      .query("userFollows")
       .withIndex("by_user_and_artist", (q) => 
         q.eq("userId", userId).eq("artistId", args.artistId)
       )
@@ -90,9 +185,10 @@ export const followArtist = mutation({
       await ctx.db.delete(existingFollow._id);
       return false; // unfollowed
     } else {
-      await ctx.db.insert("follows", {
+      await ctx.db.insert("userFollows", {
         userId,
         artistId: args.artistId,
+        createdAt: Date.now(),
       });
       return true; // followed
     }
@@ -174,7 +270,6 @@ export const getByIdInternal = internalQuery({
 
 export const createInternal = internalMutation({
   args: {
-    slug: v.string(),
     name: v.string(),
     spotifyId: v.optional(v.string()),
     ticketmasterId: v.optional(v.string()),
@@ -184,8 +279,18 @@ export const createInternal = internalMutation({
     followers: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    // Create SEO-friendly slug
+    const slug = args.name.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove accents
+      .replace(/[^\w\s-]/g, '') // Remove special chars except spaces and hyphens
+      .replace(/\s+/g, '-')     // Replace spaces with hyphens
+      .replace(/-+/g, '-')      // Replace multiple hyphens with single hyphen
+      .replace(/^-|-$/g, '')    // Remove leading/trailing hyphens
+      .substring(0, 100);       // Limit length for SEO
+
     return await ctx.db.insert("artists", {
-      slug: args.slug,
+      slug,
       name: args.name,
       spotifyId: args.spotifyId,
       ticketmasterId: args.ticketmasterId,
@@ -313,7 +418,16 @@ export const create = internalMutation({
     lastSynced: v.number(),
   },
   handler: async (ctx, args) => {
-    const slug = args.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    // Create SEO-friendly slug
+    const slug = args.name.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove accents
+      .replace(/[^\w\s-]/g, '') // Remove special chars except spaces and hyphens
+      .replace(/\s+/g, '-')     // Replace spaces with hyphens
+      .replace(/-+/g, '-')      // Replace multiple hyphens with single hyphen
+      .replace(/^-|-$/g, '')    // Remove leading/trailing hyphens
+      .substring(0, 100);       // Limit length for SEO
+
     const images = args.image ? [args.image] : [];
     return await ctx.db.insert("artists", {
       slug,

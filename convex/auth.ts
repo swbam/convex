@@ -73,9 +73,11 @@ export const createAppUser = mutation({
       return existingAppUser._id;
     }
     
-    // Create app user
+    // Create app user with Clerk data
     return await ctx.db.insert("users", {
       authId: identity.subject,
+      email: identity.email,
+      name: identity.name,
       username: identity.name || identity.email || "Anonymous",
       role: "user",
       preferences: {

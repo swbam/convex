@@ -153,3 +153,107 @@ export const triggerFullArtistSync = action({
     });
   },
 });
+
+// Get trending shows from Ticketmaster API
+export const getTrendingShows = action({
+  args: { limit: v.optional(v.number()) },
+  returns: v.array(v.object({
+    ticketmasterId: v.string(),
+    artistTicketmasterId: v.optional(v.string()),
+    artistName: v.string(),
+    venueName: v.string(),
+    venueCity: v.string(),
+    venueCountry: v.string(),
+    date: v.string(),
+    startTime: v.optional(v.string()),
+    artistImage: v.optional(v.string()),
+    ticketUrl: v.optional(v.string()),
+    priceRange: v.optional(v.string()),
+    status: v.string(),
+  })),
+  handler: async (ctx, args) => {
+    const apiKey = process.env.TICKETMASTER_API_KEY;
+    if (!apiKey) {
+      throw new Error("Ticketmaster API key not configured");
+    }
+
+    const limit = args.limit || 20;
+    
+    // Get popular upcoming music events
+    const url = `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=${limit}&sort=relevance,desc&apikey=${apiKey}`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Ticketmaster API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const events = data._embedded?.events || [];
+
+      return events.map((event: any) => ({
+        ticketmasterId: String(event.id || ''),
+        artistTicketmasterId: event._embedded?.attractions?.[0]?.id ? String(event._embedded.attractions[0].id) : undefined,
+        artistName: String(event._embedded?.attractions?.[0]?.name || 'Unknown Artist'),
+        venueName: String(event._embedded?.venues?.[0]?.name || 'Unknown Venue'),
+        venueCity: String(event._embedded?.venues?.[0]?.city?.name || ''),
+        venueCountry: String(event._embedded?.venues?.[0]?.country?.name || ''),
+        date: String(event.dates?.start?.localDate || ''),
+        startTime: event.dates?.start?.localTime ? String(event.dates.start.localTime) : undefined,
+        artistImage: event._embedded?.attractions?.[0]?.images?.[0]?.url ? String(event._embedded.attractions[0].images[0].url) : undefined,
+        ticketUrl: event.url ? String(event.url) : undefined,
+        priceRange: event.priceRanges?.[0] ? `$${event.priceRanges[0].min}-${event.priceRanges[0].max}` : undefined,
+        status: String(event.dates?.status?.code || 'onsale'),
+      }));
+    } catch (error) {
+      console.error("Failed to fetch trending shows:", error);
+      return [];
+    }
+  },
+});
+
+// Get trending artists from Ticketmaster API
+export const getTrendingArtists = action({
+  args: { limit: v.optional(v.number()) },
+  returns: v.array(v.object({
+    ticketmasterId: v.string(),
+    name: v.string(),
+    genres: v.array(v.string()),
+    images: v.array(v.string()),
+    upcomingEvents: v.number(),
+    url: v.optional(v.string()),
+  })),
+  handler: async (ctx, args) => {
+    const apiKey = process.env.TICKETMASTER_API_KEY;
+    if (!apiKey) {
+      throw new Error("Ticketmaster API key not configured");
+    }
+
+    const limit = args.limit || 20;
+    
+    // Get popular music artists/attractions
+    const url = `https://app.ticketmaster.com/discovery/v2/attractions.json?classificationName=music&size=${limit}&sort=relevance,desc&apikey=${apiKey}`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Ticketmaster API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const attractions = data._embedded?.attractions || [];
+
+      return attractions.map((attraction: any) => ({
+        ticketmasterId: String(attraction.id || ''),
+        name: String(attraction.name || ''),
+        genres: attraction.classifications?.[0]?.genre?.name ? [String(attraction.classifications[0].genre.name)] : [],
+        images: (attraction.images?.map((img: any) => String(img.url)) || []),
+        upcomingEvents: Number(attraction.upcomingEvents?._total || 0),
+        url: attraction.url ? String(attraction.url) : undefined,
+      }));
+    } catch (error) {
+      console.error("Failed to fetch trending artists:", error);
+      return [];
+    }
+  },
+});

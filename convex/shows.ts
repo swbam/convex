@@ -166,6 +166,152 @@ export const getByArtist = query({
   },
 });
 
+// Get all shows with pagination and filtering
+export const getAll = query({
+  args: { 
+    limit: v.optional(v.number()),
+    status: v.optional(v.union(v.literal("upcoming"), v.literal("completed"), v.literal("cancelled")))
+  },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const limit = args.limit || 50;
+    let query = ctx.db.query("shows");
+    
+    if (args.status) {
+      query = query.withIndex("by_status", (q) => q.eq("status", args.status));
+    }
+    
+    const shows = await query
+      .order("desc")
+      .take(limit);
+    
+    // Populate artist and venue data
+    const enrichedShows = await Promise.all(
+      shows.map(async (show) => {
+        const [artist, venue] = await Promise.all([
+          ctx.db.get(show.artistId),
+          ctx.db.get(show.venueId),
+        ]);
+        return { ...show, artist, venue };
+      })
+    );
+    
+    return enrichedShows;
+  },
+});
+
+// Search shows across all fields
+export const searchShows = query({
+  args: { 
+    query: v.string(),
+    limit: v.optional(v.number())
+  },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const limit = args.limit || 20;
+    const searchTerm = args.query.toLowerCase();
+    
+    // Get all shows (we'll filter in memory for simplicity)
+    const shows = await ctx.db
+      .query("shows")
+      .take(100);
+    
+    const enrichedShows = await Promise.all(
+      shows.map(async (show) => {
+        const [artist, venue] = await Promise.all([
+          ctx.db.get(show.artistId),
+          ctx.db.get(show.venueId),
+        ]);
+        return { ...show, artist, venue };
+      })
+    );
+    
+    // Filter by artist name, venue name, or city
+    return enrichedShows
+      .filter(show => 
+        show.artist?.name.toLowerCase().includes(searchTerm) ||
+        show.venue?.name.toLowerCase().includes(searchTerm) ||
+        show.venue?.city.toLowerCase().includes(searchTerm)
+      )
+      .slice(0, limit);
+  },
+});
+
+// Get shows by city
+export const getByCity = query({
+  args: { 
+    city: v.string(),
+    limit: v.optional(v.number())
+  },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const limit = args.limit || 20;
+    
+    // Get venues in the city first
+    const venues = await ctx.db
+      .query("venues")
+      .withIndex("by_location", (q) => q.eq("city", args.city))
+      .collect();
+    
+    const venueIds = venues.map(v => v._id);
+    const shows = [];
+    
+    // Get shows for each venue in the city
+    for (const venueId of venueIds) {
+      const venueShows = await ctx.db
+        .query("shows")
+        .withIndex("by_venue", (q) => q.eq("venueId", venueId))
+        .take(limit);
+      shows.push(...venueShows);
+    }
+    
+    // Sort by date and limit
+    const sortedShows = shows
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, limit);
+    
+    // Populate artist and venue data
+    const enrichedShows = await Promise.all(
+      sortedShows.map(async (show) => {
+        const [artist, venue] = await Promise.all([
+          ctx.db.get(show.artistId),
+          ctx.db.get(show.venueId),
+        ]);
+        return { ...show, artist, venue };
+      })
+    );
+    
+    return enrichedShows;
+  },
+});
+
+// Get shows by venue
+export const getByVenue = query({
+  args: { 
+    venueId: v.id("venues"),
+    limit: v.optional(v.number())
+  },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const limit = args.limit || 50;
+    const shows = await ctx.db
+      .query("shows")
+      .withIndex("by_venue", (q) => q.eq("venueId", args.venueId))
+      .order("desc")
+      .take(limit);
+    
+    // Populate artist data
+    const enrichedShows = await Promise.all(
+      shows.map(async (show) => {
+        const artist = await ctx.db.get(show.artistId);
+        return { ...show, artist };
+      })
+    );
+    
+    return enrichedShows;
+  },
+});
+
 // Internal: list all shows for an artist (no limit)
 export const getAllByArtistInternal = internalQuery({
   args: { artistId: v.id("artists") },

@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { ArrowLeft, MapPin, Calendar, Clock, Users, Music, Plus, TrendingUp, ChevronUp, ChevronDown, Save, X, Search } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Clock, Users, Music, Plus, TrendingUp, ChevronUp } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
@@ -23,13 +23,11 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
   const user = useQuery(api.auth.loggedInUser);
 
   const createSetlist = useMutation(api.setlists.create);
-  const voteOnSetlist = useMutation(api.setlists.vote);
+  const submitVote = useMutation(api.setlists.submitVote);
+  const voteOnSong = useMutation(api.songVotes.voteOnSong);
 
   const [anonymousActions, setAnonymousActions] = useState(0);
   const [predictedSongs, setPredictedSongs] = useState<string[]>([]);
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [songQuery, setSongQuery] = useState("");
 
   // Load user's existing setlist
   useEffect(() => {
@@ -62,45 +60,39 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
         toast.success(`Added "${songTitle}" to your prediction (${anonymousActions + 1}/2 free actions used)`);
       }
     }
-
-    if (!isEditing) {
-      setIsEditing(true);
-    }
   };
 
-  const handleSaveSetlist = async () => {
-    if (!user && !handleAnonymousAction()) return;
+  const handleAutoSave = async (songTitles: string[]) => {
+    if (!user) return;
 
-    setIsSaving(true);
     try {
+      const songObjects = songTitles.map(title => ({
+        title,
+        album: songs?.find(s => s?.title === title)?.album,
+        duration: songs?.find(s => s?.title === title)?.durationMs,
+        songId: songs?.find(s => s?.title === title)?._id,
+      }));
+
       await createSetlist({
         showId,
-        songs: predictedSongs.map((title) => ({ title })),
+        songs: songObjects,
       });
-      setIsEditing(false);
-      toast.success("Setlist prediction saved!");
-    } catch {
-      toast.error("Failed to save setlist");
-    } finally {
-      setIsSaving(false);
+    } catch (error: any) {
+      console.error("Auto-save failed:", error);
     }
   };
 
-  const handleVote = async (setlistId: Id<"setlists">, voteType: "up") => {
+  const handleVote = async (setlistId: Id<"setlists">, voteType: "accurate" | "inaccurate") => {
     if (!user) {
       onSignInRequired();
       return;
     }
 
     try {
-      const result = await voteOnSetlist({ setlistId, voteType });
-      if (result === "added") {
-        toast.success("Upvoted setlist");
-      } else if (result === "removed") {
-        toast.success("Vote removed");
-      } 
-    } catch {
-      toast.error("Failed to vote");
+      await submitVote({ setlistId, voteType });
+      toast.success(`Voted ${voteType} on setlist`);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to vote");
     }
   };
 
@@ -207,153 +199,53 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
             <div className="dashboard-card">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold">Vote on the set</h2>
-                {isEditing && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        const titles = (userSetlist?.songs || []).map((s: any) => (typeof s === "string" ? s : s.title)).filter(Boolean);
-                        setPredictedSongs(titles);
-                        setIsEditing(false);
-                      }}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <X className="h-4 w-4" />
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => { void handleSaveSetlist(); }}
-                      disabled={isSaving}
-                      className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-                    >
-                      <Save className="h-4 w-4" />
-                      {isSaving ? "Saving..." : "Save"}
-                    </button>
-                  </div>
-                )}
               </div>
               
-              {/* Quick add dropdown above the list */}
+              {/* Song Dropdown & Add Interface */}
               {songs && songs.length > 0 && (
-                <div className="mb-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input
-                      type="text"
-                      value={songQuery}
-                      onChange={(e) => setSongQuery(e.target.value)}
-                      placeholder="Type to search songs to add..."
-                      className="w-full pl-10 pr-3 py-2 bg-muted/20 border border-muted rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  {songQuery.trim().length > 0 && (
-                    <div className="mt-2 max-h-60 overflow-y-auto border border-border rounded-lg bg-background">
-                      {(songs || [])
-                        .filter(Boolean)
-                        .filter((s) => s && !s.isLive && !s.isRemix)
-                        .filter((s) => s!.title.toLowerCase().includes(songQuery.toLowerCase()))
-                        .slice(0, 10)
-                        .map((song) => (
-                          <button
-                            key={song!._id}
-                            onClick={() => {
-                              setPredictedSongs((prev) =>
-                                prev.includes(song!.title)
-                                  ? prev
-                                  : [...prev, song!.title]
-                              );
-                              setIsEditing(true);
-                              setSongQuery("");
-                            }}
-                            className="w-full flex items-center justify-between px-3 py-2 hover:bg-accent/50 text-left border-b last:border-b-0"
-                          >
-                            <div className="min-w-0">
-                              <div className="truncate">{song!.title}</div>
-                              {song!.album && (
-                                <div className="text-xs text-muted-foreground truncate">{song!.album}</div>
-                              )}
-                            </div>
-                            <Plus className="h-4 w-4 text-muted-foreground" />
-                          </button>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {songs === undefined ? (
-                // Loading state
-                <div className="space-y-3">
-                  {[...Array(10)].map((_, i) => (
-                    <div key={i} className="flex items-center gap-4 p-3 rounded-lg">
-                      <div className="w-6 h-6 bg-muted rounded shimmer"></div>
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 bg-muted rounded shimmer"></div>
-                        <div className="h-3 bg-muted rounded w-2/3 shimmer"></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : songs.length === 0 ? (
-                // No songs available
-                <div className="text-center py-12 text-muted-foreground">
-                  <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No songs available yet</p>
-                  <p className="text-sm mt-1">Songs will be imported automatically</p>
-                </div>
-              ) : (
-                // Song selection interface - filter for studio songs only
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {(songs || []).filter(Boolean).filter(song => song && !song.isLive && !song.isRemix).map((song, index) => {
-                    if (!song) return null;
-                    const isPredicted = predictedSongs.includes(song.title);
-                    return (
-                      <div
-                        key={song._id}
-                        className={`group flex items-center gap-4 p-3 rounded-lg transition-colors ${
-                          isPredicted 
-                            ? "bg-primary/10 border border-primary/20" 
-                            : "hover:bg-accent/50"
-                        }`}
-                      >
-                        <div className="w-6 text-center text-sm text-muted-foreground">
-                          {isPredicted ? "✓" : index + 1}
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <h3 className={`font-medium truncate ${
-                            isPredicted ? "text-primary" : ""
-                          }`}>
-                            {song.title}
-                          </h3>
-                          {song.album && (
-                            <p className="text-sm text-muted-foreground truncate">
-                              {song.album}
-                            </p>
-                          )}
-                        </div>
-                        
-                        {/* duration removed per spec */}
-                        
-                        <button
-                          onClick={() => handleAddToSetlist(song.title)}
-                          className={`p-2 rounded-full transition-all ${
-                            isPredicted
-                              ? "bg-primary/20 text-primary"
-                              : "opacity-0 group-hover:opacity-100 hover:bg-accent"
-                          }`}
-                          title={
-                            isPredicted 
-                              ? "Remove from prediction" 
-                              : user 
-                                ? "Add to prediction" 
-                                : "Add to prediction (free action)"
-                          }
+                <div className="mb-6 p-4 bg-muted/10 border border-muted/20 rounded-lg">
+                  <h3 className="text-sm font-medium mb-3 text-muted-foreground">Add Songs to Your Prediction</h3>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        const selectedSong = songs.find(s => s?.title === e.target.value);
+                        if (selectedSong && !predictedSongs.includes(selectedSong.title)) {
+                          const newSongs = [...predictedSongs, selectedSong.title];
+                          setPredictedSongs(newSongs);
+                          // Auto-save immediately (no save button)
+                          handleAutoSave(newSongs).catch(console.error);
+                          toast.success(`Added "${selectedSong.title}" to your prediction`);
+                        } else if (selectedSong) {
+                          toast.info(`"${selectedSong.title}" is already in your prediction`);
+                        }
+                        e.target.value = "";
+                      }
+                    }}
+                    className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                  >
+                    <option value="" disabled>Choose a song to add...</option>
+                    {(songs || [])
+                      .filter(Boolean)
+                      .filter((s) => s && !s.isLive && !s.isRemix)
+                      .sort((a, b) => a!.title.localeCompare(b!.title))
+                      .map((song) => (
+                        <option 
+                          key={song!._id} 
+                          value={song!.title}
+                          disabled={predictedSongs.includes(song!.title)}
                         >
-                          <Plus className={`h-4 w-4 ${isPredicted ? "rotate-45" : ""}`} />
-                        </button>
-                      </div>
-                    );
-                  })}
+                          {song!.title} {song!.album ? `• ${song!.album}` : ''}
+                        </option>
+                      ))
+                    }
+                  </select>
+                  <div className="mt-3 text-xs text-muted-foreground">
+                    {user 
+                      ? `${(songs || []).filter(Boolean).filter(s => s && !s.isLive && !s.isRemix).length} studio songs available from ${show?.artist?.name || 'this artist'}`
+                      : "Sign in to add unlimited songs to your prediction"
+                    }
+                  </div>
                 </div>
               )}
             </div>
@@ -394,86 +286,6 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                     </div>
                   </div>
                 ))}
-
-                {/* Comparison with community votes */}
-                {userSetlists.length > 0 && (
-                  <div className="mt-6">
-                    <h3 className="text-lg font-semibold mb-3">How votes matched</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="border rounded-lg p-3">
-                        <div className="text-sm text-muted-foreground mb-2">Top voted songs</div>
-                        {(() => {
-                          const tally = new Map<string, number>();
-                          userSetlists.forEach((sl: any) => {
-                            const weight = (sl.upvotes || 0) + 1;
-                            (sl.songs || []).forEach((t: any) => {
-                              const title = typeof t === 'string' ? t : t?.title;
-                              if (!title) return;
-                              tally.set(title, (tally.get(title) || 0) + weight);
-                            });
-                          });
-                          const top = Array.from(tally.entries())
-                            .sort((a,b) => b[1]-a[1])
-                            .slice(0, 10);
-                          const officialTitles = new Set((officialSetlist.songs as any[]).map((s: any) => typeof s === 'string' ? s : s?.title));
-                          return (
-                            <div className="space-y-1">
-                              {top.map(([title, count], i) => (
-                                <div key={title} className={`flex items-center gap-2 text-sm ${officialTitles.has(title) ? 'text-green-600' : 'text-muted-foreground'}`}>
-                                  <span className="w-6 text-center">{i+1}</span>
-                                  <span className="flex-1 truncate">{title}</span>
-                                  <span className="text-xs">{count}</span>
-                                </div>
-                              ))}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                      <div className="border rounded-lg p-3">
-                        <div className="text-sm text-muted-foreground mb-2">Matches in official set</div>
-                        {(() => {
-                          const officialTitles = new Set((officialSetlist.songs as any[]).map((s: any) => typeof s === 'string' ? s : s?.title));
-                          const predictedSet = new Set<string>();
-                          userSetlists.forEach((sl: any) => (sl.songs || []).forEach((t: any) => {
-                            const title = typeof t === 'string' ? t : t?.title; if (title) predictedSet.add(title);
-                          }));
-                          const matches = Array.from(officialTitles).filter(t => predictedSet.has(t));
-                          return (
-                            <div className="space-y-1">
-                              {matches.length === 0 ? (
-                                <div className="text-sm text-muted-foreground">No overlap with votes yet</div>
-                              ) : (
-                                matches.map((title, i) => (
-                                  <div key={title} className="flex items-center gap-2 text-sm text-green-600">
-                                    <span className="w-6 text-center">{i+1}</span>
-                                    <span className="flex-1 truncate">{title}</span>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : setlists === undefined ? (
-              // Loading state
-              <div className="space-y-4">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="h-4 bg-muted rounded w-24 shimmer"></div>
-                      <div className="h-4 bg-muted rounded w-16 shimmer"></div>
-                    </div>
-                    <div className="space-y-2">
-                      {[...Array(5)].map((_, j) => (
-                        <div key={j} className="h-3 bg-muted rounded shimmer"></div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
               </div>
             ) : userSetlists.length === 0 ? (
               // No predictions yet
@@ -489,7 +301,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                   <SetlistCard
                     key={setlist._id}
                     setlist={setlist}
-                    onVote={(id) => { void handleVote(id, "up"); }}
+                    onVote={handleVote}
                     user={user}
                     onSignInRequired={onSignInRequired}
                   />
@@ -577,6 +389,68 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
   );
 }
 
+// Individual Song Vote Row Component
+function SongVoteRow({ 
+  setlistId, 
+  songTitle, 
+  position, 
+  user, 
+  onSignInRequired 
+}: {
+  setlistId: Id<"setlists">;
+  songTitle: string;
+  position: number;
+  user: any;
+  onSignInRequired: () => void;
+}) {
+  const voteOnSong = useMutation(api.songVotes.voteOnSong);
+  const songVotes = useQuery(api.songVotes.getSongVotes, { 
+    setlistId, 
+    songTitle 
+  });
+
+  const handleSongVote = async () => {
+    if (!user) {
+      onSignInRequired();
+      return;
+    }
+
+    try {
+      await voteOnSong({
+        setlistId,
+        songTitle,
+        voteType: "upvote",
+      });
+      toast.success(songVotes?.userVoted ? "Vote removed!" : "Song upvoted!");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to vote");
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between py-4 px-5 bg-muted/5 rounded-lg hover:bg-muted/10 transition-colors">
+      <div className="flex items-center gap-4">
+        <span className="w-10 h-10 bg-muted/20 text-center rounded-full flex items-center justify-center text-sm font-bold text-muted-foreground">
+          {position}
+        </span>
+        <span className="font-medium text-lg">{songTitle}</span>
+      </div>
+      
+      <button
+        onClick={handleSongVote}
+        className={`flex items-center gap-3 px-4 py-2 rounded-xl border transition-all ${
+          songVotes?.userVoted 
+            ? "bg-primary border-primary text-primary-foreground shadow-lg scale-105" 
+            : "border-border hover:border-primary/50 hover:bg-primary/5 hover:scale-105"
+        }`}
+      >
+        <ChevronUp className="h-5 w-5" />
+        <span className="font-bold text-lg">{songVotes?.upvotes || 0}</span>
+      </button>
+    </div>
+  );
+}
+
 function SetlistCard({ 
   setlist, 
   onVote, 
@@ -584,13 +458,14 @@ function SetlistCard({
   onSignInRequired 
 }: { 
   setlist: any; 
-  onVote: (setlistId: Id<"setlists">) => void;
+  onVote: (setlistId: Id<"setlists">, voteType: "accurate" | "inaccurate") => void;
   user: any;
   onSignInRequired: () => void;
 }) {
   const userVote = useQuery(api.setlists.getUserVote, { setlistId: setlist._id });
+  const setlistVotes = useQuery(api.setlists.getSetlistVotes, { setlistId: setlist._id });
   
-  const handleVote = (voteType: "up" | "down") => {
+  const handleVote = (voteType: "accurate" | "inaccurate") => {
     if (!user) {
       onSignInRequired();
       return;
@@ -609,49 +484,46 @@ function SetlistCard({
           </span>
         </div>
         
-        {/* Upvote only (Reddit-style) */}
+        {/* ProductHunt-style Upvoting */}
         <div className="flex items-center gap-2">
           <button
-            onClick={() => handleVote("up")}
-            className={`p-1 rounded transition-colors ${
-              userVote === "up" 
-                ? "bg-green-500/20 text-green-600" 
-                : "hover:bg-accent text-muted-foreground hover:text-foreground"
+            onClick={() => handleVote("accurate")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+              userVote === "accurate" 
+                ? "bg-primary border-primary text-primary-foreground shadow-lg" 
+                : "border-border hover:border-primary/50 hover:bg-primary/5"
             }`}
-            title="Upvote"
           >
             <ChevronUp className="h-4 w-4" />
+            <span className="font-semibold">{setlistVotes?.accurate || 0}</span>
           </button>
-          <span className={`text-sm font-medium min-w-[2rem] text-center ${
-            (setlist.upvotes || 0) > 0 ? "text-green-600" : "text-muted-foreground"
-          }`}>
-            {setlist.upvotes || 0}
-          </span>
         </div>
       </div>
 
-      {/* Songs */}
-      <div className="space-y-1">
-        {setlist.songs.slice(0, 10).map((songTitle: string, index: number) => (
-          <div key={index} className="flex items-center gap-3 text-sm">
-            <span className="w-6 text-center text-muted-foreground">{index + 1}</span>
-            <span>{songTitle}</span>
-          </div>
+      {/* Songs with ProductHunt-style voting */}
+      <div className="space-y-3">
+        {setlist.songs.slice(0, 20).map((songTitle: string, index: number) => (
+          <SongVoteRow
+            key={`${setlist._id}-${songTitle}-${index}`}
+            setlistId={setlist._id}
+            songTitle={songTitle}
+            position={index + 1}
+            user={user}
+            onSignInRequired={onSignInRequired}
+          />
         ))}
-        {setlist.songs.length > 10 && (
-          <div className="text-sm text-muted-foreground pl-9">
-            +{setlist.songs.length - 10} more songs
+        {setlist.songs.length > 20 && (
+          <div className="text-sm text-muted-foreground text-center py-2">
+            +{setlist.songs.length - 20} more songs
           </div>
         )}
       </div>
 
       {/* Stats */}
-      <div className="flex items-center gap-4 text-sm text-muted-foreground pt-2 border-t">
+      <div className="flex items-center gap-4 text-sm text-muted-foreground pt-4 mt-4 border-t">
         <span>{setlist.songs.length} songs</span>
         <span>•</span>
-        <span>{setlist.upvotes || 0} upvotes</span>
-        <span>•</span>
-        <span>{setlist.downvotes || 0} downvotes</span>
+        <span className="text-primary font-medium">{setlistVotes?.accurate || 0} upvotes</span>
       </div>
     </div>
   );

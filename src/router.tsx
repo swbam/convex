@@ -31,6 +31,10 @@ export const router = createBrowserRouter([
     element: <App />,
   },
   {
+    path: '/venues/:venueId',
+    element: <App />,
+  },
+  {
     path: '/search',
     element: <App />,
   },

@@ -1,14 +1,19 @@
+/* === Base imports (unchanged) === */
 @import url('https://fonts.googleapis.com/css2?family=Overpass:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* =========================================
+   TOKENS — Dark-first grayscale palette
+   + shadcn variable names mapped to your system
+   ========================================= */
 @layer base {
   :root {
     /* Pure black & white (grayscale only) */
-    --background: 0 0% 0%;      /* black */
-    --foreground: 0 0% 100%;    /* white */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
 
     --card: 0 0% 9%;
     --card-foreground: 0 0% 100%;
@@ -16,7 +21,7 @@
     --popover: 0 0% 9%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 0 0% 100%;       /* white */
+    --primary: 0 0% 100%;
     --primary-foreground: 0 0% 0%;
 
     --secondary: 0 0% 15%;
@@ -28,7 +33,6 @@
     --accent: 0 0% 25%;
     --accent-foreground: 0 0% 100%;
 
-    /* Destructive stays grayscale (no red) */
     --destructive: 0 0% 35%;
     --destructive-foreground: 0 0% 100%;
 
@@ -49,14 +53,47 @@
     --gray-900: 0 0% 9%;
     --gray-950: 0 0% 4%;
 
+    /* Radius + shadcn-compatible radii & shadows */
     --radius: 0.5rem;
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+
+    /* shadcn optional tokens mapped to grayscale */
+    --sidebar: hsl(var(--background));
+    --sidebar-foreground: hsl(var(--foreground));
+    --sidebar-primary: hsl(var(--primary));
+    --sidebar-primary-foreground: hsl(var(--primary-foreground));
+    --sidebar-accent: hsl(var(--accent));
+    --sidebar-accent-foreground: hsl(var(--accent-foreground));
+    --sidebar-border: hsl(var(--border));
+    --sidebar-ring: hsl(var(--ring));
+
+    /* Subtle shadow scale (kept very soft for dark UI) */
+    --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.10);
+    --shadow-xs:  0px 1px 2px 0px hsl(0 0% 0% / 0.10);
+    --shadow-sm:  0px 1px 2px 0px hsl(0 0% 0% / 0.16), 0px 1px 2px -1px hsl(0 0% 0% / 0.16);
+    --shadow:     0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 1px 2px -1px hsl(0 0% 0% / 0.18);
+    --shadow-md:  0px 1px 2px 0px hsl(0 0% 0% / 0.20), 0px 2px 4px -1px hsl(0 0% 0% / 0.20);
+    --shadow-lg:  0px 1px 2px 0px hsl(0 0% 0% / 0.22), 0px 4px 6px -1px hsl(0 0% 0% / 0.22);
+    --shadow-xl:  0px 1px 2px 0px hsl(0 0% 0% / 0.24), 0px 8px 10px -1px hsl(0 0% 0% / 0.24);
+    --shadow-2xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.40);
+
+    /* === Gradient tokens (grayscale, subtle) === */
+    --grad-a: 0 0% 10%;  /* near card */
+    --grad-b: 0 0% 6%;   /* deep bg */
+    --grad-c: 0 0% 12%;  /* soft lift */
+    --glow-1: 0 0% 100%; /* white glow for radial accents */
   }
 }
 
+/* =========================================
+   BASE TYPOGRAPHY / RESETS (unchanged)
+   ========================================= */
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
+
   body {
     @apply bg-background text-foreground;
     font-family: 'Overpass', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -64,6 +101,12 @@
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* ultra-subtle page gradient */
+    background-image:
+      radial-gradient(1200px 500px at 15% -10%, hsl(var(--glow-1)/0.05), transparent 60%),
+      radial-gradient(900px 400px at 110% 0%, hsl(var(--glow-1)/0.04), transparent 65%),
+      linear-gradient(180deg, hsl(var(--grad-b)), hsl(0 0% 0%));
+    background-attachment: fixed;
   }
 
   /* Typography hierarchy */
@@ -81,10 +124,11 @@
   .font-bold { font-weight: 700; }
 }
 
+/* =========================================
+   COMPONENTS + GRADIENT SURFACES
+   ========================================= */
 @layer components {
-  .gap-form-field {
-    @apply gap-4;
-  }
+  .gap-form-field { @apply gap-4; }
 
   .auth-input-field {
     @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50;
@@ -94,47 +138,71 @@
     @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full disabled:pointer-events-none disabled:opacity-50;
   }
 
-  .text-secondary {
-    @apply text-muted-foreground;
+  .text-secondary { @apply text-muted-foreground; }
+  .text-primary-hover { @apply text-primary/80; }
+
+  /* === Gradient surfaces === */
+
+  /* Hero/section header gradient — soft vignette + vertical wash */
+  .header-gradient {
+    position: relative;
+    border-radius: var(--radius-xl);
+    background:
+      radial-gradient(1000px 420px at 10% -10%, hsl(var(--glow-1)/0.06), transparent 60%),
+      radial-gradient(800px 360px at 120% 5%, hsl(var(--glow-1)/0.045), transparent 60%),
+      linear-gradient(180deg, hsl(var(--grad-c)), hsl(var(--grad-b)));
+    box-shadow: var(--shadow-lg);
   }
 
-  .text-primary-hover {
-    @apply text-primary/80;
+  /* Reusable card gradient (applied to any container) */
+  .card-gradient {
+    background:
+      radial-gradient(600px 240px at 20% -20%, hsl(var(--glow-1)/0.06), transparent 65%),
+      radial-gradient(500px 200px at 120% 0%, hsl(var(--glow-1)/0.04), transparent 60%),
+      linear-gradient(180deg, hsl(var(--card)), hsl(var(--grad-a)));
   }
 
+  /* Your dashboard card now has a subtle gradient + soft ring on hover */
   .dashboard-card {
-    @apply bg-card border border-border rounded-xl p-8 hover:border-gray-600 transition-all duration-200 hover:shadow-2xl;
+    @apply border border-border rounded-xl p-8 transition-all duration-200;
+    background:
+      radial-gradient(520px 220px at 15% -15%, hsl(var(--glow-1)/0.05), transparent 60%),
+      linear-gradient(180deg, hsl(var(--card)), hsl(var(--grad-a)));
+    box-shadow: var(--shadow);
+  }
+  .dashboard-card:hover {
+    @apply hover:shadow-2xl;
+    box-shadow: var(--shadow-2xl);
+    outline: 1px solid hsl(var(--ring)/0.15);
+    outline-offset: 0px;
   }
 
   .trending-item {
-    @apply flex items-center gap-3 p-4 rounded-lg hover:bg-accent/50 transition-all duration-200 cursor-pointer;
+    @apply flex items-center gap-3 p-4 rounded-lg transition-all duration-200 cursor-pointer;
+    background:
+      linear-gradient(180deg, hsl(var(--gray-900)), hsl(var(--gray-800)));
+  }
+  .trending-item:hover {
+    background:
+      radial-gradient(400px 180px at 20% -30%, hsl(var(--glow-1)/0.05), transparent 55%),
+      linear-gradient(180deg, hsl(var(--gray-900)), hsl(var(--gray-800)));
   }
 
-  .pulse-dot {
-    @apply w-2 h-2 bg-primary rounded-full animate-pulse;
-  }
-
-  .gradient-text {
-    @apply bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent;
-  }
+  .pulse-dot { @apply w-2 h-2 bg-primary rounded-full animate-pulse; }
+  .gradient-text { @apply bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent; }
 }
+
+/* =========================================
+   UTILITIES / SCROLLBAR / EFFECTS
+   ========================================= */
 
 /* Custom scrollbar (grayscale) */
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: hsl(var(--background));
-}
-::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground));
-}
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: hsl(var(--background)); }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
 
-/* Loading animations (grayscale friendly) */
+/* Loading shimmer */
 @keyframes shimmer {
   0% { background-position: -200px 0; }
   100% { background-position: calc(200px + 100%) 0; }
@@ -143,4 +211,43 @@
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
   background-size: 200px 100%;
   animation: shimmer 1.5s infinite;
+}
+
+/* =========================================
+   OPTIONAL: .light theme (kept grayscale)
+   Add class="light" on <html> or <body> to switch
+   ========================================= */
+.light {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 0%;
+
+  --card: 0 0% 98%;
+  --card-foreground: 0 0% 0%;
+
+  --popover: 0 0% 98%;
+  --popover-foreground: 0 0% 0%;
+
+  --primary: 0 0% 0%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 0 0% 92%;
+  --secondary-foreground: 0 0% 0%;
+
+  --muted: 0 0% 94%;
+  --muted-foreground: 0 0% 40%;
+
+  --accent: 0 0% 90%;
+  --accent-foreground: 0 0% 0%;
+
+  --destructive: 0 0% 75%;
+  --destructive-foreground: 0 0% 0%;
+
+  --border: 0 0% 88%;
+  --input: 0 0% 92%;
+  --ring: 0 0% 30%;
+
+  /* gradient stops for light */
+  --grad-a: 0 0% 96%;
+  --grad-b: 0 0% 100%;
+  --grad-c: 0 0% 92%;
 }

@@ -5,7 +5,7 @@ import { useUser } from '@clerk/clerk-react'
 import { api } from '../../convex/_generated/api'
 import { SearchBar } from '@/components/SearchBar'
 import { SyncProgress } from '@/components/SyncProgress'
-import { DashboardGrid } from '@/components/DashboardGrid'
+import { PublicDashboard } from '@/components/PublicDashboard'
 import { Toaster } from '@/components/ui/sonner'
 import { SignOutButton } from '../SignOutButton'
 
@@ -26,7 +26,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { user, isSignedIn } = useUser()
   
-  const trendingArtists = useQuery(api.artists.getTrending, { limit: 5 })
+
   
   const handleSignUp = () => {
     void navigate('/signup')
@@ -91,29 +91,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           })}
         </nav>
         
-        {/* Trending Artists */}
-        {trendingArtists && trendingArtists.length > 0 && (
-          <div className="px-4 py-6 border-t border-zinc-800">
-            <h3 className="text-sm font-medium text-zinc-400 mb-3">Trending Artists</h3>
-            <div className="space-y-2">
-              {trendingArtists.map((artist: any) => (
-                <a
-                  key={artist._id}
-                  href={`/artists/${artist.slug || artist._id}`}
-                  className="block px-3 py-2 text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
-                  onClick={(e) => {
-                     e.preventDefault()
-                     const urlParam = artist.slug || artist._id;
-                     void navigate(`/artists/${urlParam}`)
-                     setSidebarOpen(false)
-                   }}
-                >
-                  {artist.name}
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
+
         
         {/* User Section */}
         <div className="p-4 border-t border-zinc-800">
@@ -188,15 +166,18 @@ export function AppLayout({ children }: AppLayoutProps) {
           <div className="p-6">
             <SyncProgress />
             {location.pathname === '/' ? (
-              <DashboardGrid onViewChange={(view: string, id?: string, slug?: string) => {
-                 if (view === 'artist' && id) {
-                   const urlParam = slug || id;
-                   void navigate(`/artists/${urlParam}`)
-                 } else if (view === 'show' && id) {
-                   const urlParam = slug || id;
-                   void navigate(`/shows/${urlParam}`)
-                 }
-               }} />
+              <PublicDashboard 
+                onArtistClick={(artistId) => {
+                  // Navigate using the artist ID directly since it's from Ticketmaster sync
+                  void navigate(`/artists/${artistId}`)
+                }}
+                onShowClick={(showId) => {
+                  void navigate(`/shows/${showId}`)
+                }}
+                onSignInRequired={() => {
+                  void navigate('/signin')
+                }}
+              />
             ) : (
               children
             )}

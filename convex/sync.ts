@@ -1,6 +1,6 @@
 "use node";
 
-import { action, internalAction, internalMutation, ActionCtx } from "./_generated/server";
+import { action, ActionCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
@@ -358,7 +358,7 @@ async function syncArtistCompleteCatalog(ctx: ActionCtx, artistId: string, spoti
           // Additional duplicate check by song fingerprint (catches different Spotify IDs for same song)
           const potentialDuplicates = await ctx.runQuery(api.songs.getByArtist, {
             artistId: artistId as Id<"artists">,
-            limit: 200 // Get more songs to check for duplicates
+            limit: 500 // Get more songs to check for duplicates properly
           });
 
           let isDuplicate = false;
@@ -366,7 +366,7 @@ async function syncArtistCompleteCatalog(ctx: ActionCtx, artistId: string, spoti
             if (existingSong && areSongsEquivalent(track.name, existingSong.title)) {
               totalSkipped++;
               isDuplicate = true;
-              console.log(`Skipping duplicate song by title similarity: ${track.name} ≈ ${existingSong.title}`);
+              console.log(`✅ Skipping duplicate song by title similarity: ${track.name} ≈ ${existingSong.title}`);
               break;
             }
           }
@@ -595,11 +595,7 @@ function isStudioSong(trackTitle: string, albumTitle: string): boolean {
     return false;
   }
   
-  // 6. Cover versions and collaborations (optional exclusion)
-  const coverKeywords = [
-    'feat.', 'featuring', 'ft.', 'with ', '& ', 'vs.', 'versus',
-    'cover', 'tribute', 'in the style of'
-  ];
+  // 6. Cover versions and collaborations (only exclude obvious covers)
   
   // Only exclude obvious covers, keep main artist collaborations
   if (trackTitleLower.includes('cover of') ||
@@ -662,14 +658,13 @@ async function syncEventFromTicketmaster(ctx: ActionCtx, event: any): Promise<bo
       
       if (!artist) {
         // Create new artist
-        const artistId = await ctx.runMutation(internal.artists.create, {
+        const artistId = await ctx.runMutation(internal.artists.createInternal, {
           name: attraction.name,
           spotifyId: "", // Will be filled later by Spotify sync
-          image: attraction.images?.[0]?.url,
+          images: attraction.images?.[0]?.url ? [attraction.images[0].url] : [],
           genres: attraction.classifications?.[0]?.genre?.name ? [attraction.classifications[0].genre.name] : [],
           popularity: 0,
           followers: 0,
-          lastSynced: Date.now(),
         });
         artist = await ctx.runQuery(api.artists.getById, { id: artistId });
       }
@@ -805,3 +800,105 @@ async function syncSetlistFromSetlistFm(ctx: ActionCtx, setlist: any): Promise<b
     return false;
   }
 }
+
+// Sync trending data from Ticketmaster API
+export const syncTrendingData = action({
+  args: {},
+  returns: v.object({ artistsSynced: v.number(), showsSynced: v.number() }),
+  handler: async (ctx: ActionCtx) => {
+    console.log("🔥 Starting trending data sync from Ticketmaster API");
+    
+    let artistsSynced = 0;
+    let showsSynced = 0;
+
+    try {
+      // Get trending shows from Ticketmaster API
+      const trendingShows = await ctx.runAction(api.ticketmaster.getTrendingShows, { limit: 50 });
+      
+      console.log(`📈 Found ${trendingShows.length} trending shows from Ticketmaster`);
+      
+      // Store trending shows in database for homepage to use
+      await ctx.runMutation(internal.trending.storeTrendingShows, { shows: trendingShows });
+
+      // Process each trending show and create full artist profiles
+      for (const show of trendingShows) {
+        try {
+          // Check if artist exists, if not create with full sync
+          const artist = await ctx.runQuery(api.artists.getByName, { name: show.artistName });
+          
+          if (!artist) {
+            console.log(`✨ Creating new artist: ${show.artistName}`);
+            
+            // Trigger full artist sync which will create artist, sync shows, and import catalog
+            await ctx.runAction(internal.ticketmaster.startFullArtistSync, {
+              ticketmasterId: show.artistTicketmasterId || "",
+              artistName: show.artistName,
+              genres: [],
+              images: show.artistImage ? [show.artistImage] : [],
+            });
+            
+            artistsSynced++;
+          }
+
+          showsSynced++;
+          
+          // Rate limiting to respect API limits
+          await new Promise(resolve => setTimeout(resolve, 200));
+          
+        } catch (error) {
+          console.error(`❌ Failed to sync trending show for ${show.artistName}:`, error);
+        }
+      }
+
+      // Get trending artists from Ticketmaster API
+      const trendingArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 30 });
+      
+      console.log(`🎤 Found ${trendingArtists.length} trending artists from Ticketmaster`);
+      
+      // Store trending artists in database for homepage to use
+      await ctx.runMutation(internal.trending.storeTrendingArtists, { artists: trendingArtists });
+
+      // Process trending artists
+      for (const artistData of trendingArtists) {
+        try {
+          const existingArtist = await ctx.runQuery(api.artists.getByName, { name: artistData.name });
+          
+          if (!existingArtist) {
+            console.log(`✨ Creating new trending artist: ${artistData.name}`);
+            
+            // Trigger full artist sync
+            await ctx.runAction(internal.ticketmaster.startFullArtistSync, {
+              ticketmasterId: artistData.ticketmasterId,
+              artistName: artistData.name,
+              genres: artistData.genres,
+              images: artistData.images,
+            });
+            
+            artistsSynced++;
+          } else {
+            // Update trending score for existing artist
+            const newScore = (existingArtist.trendingScore || 0) + 5 + (artistData.upcomingEvents * 2);
+            await ctx.runMutation(internal.artists.updateTrendingScore, {
+              artistId: existingArtist._id,
+              score: newScore,
+            });
+          }
+          
+          // Rate limiting
+          await new Promise(resolve => setTimeout(resolve, 300));
+          
+        } catch (error) {
+          console.error(`❌ Failed to sync trending artist ${artistData.name}:`, error);
+        }
+      }
+
+      console.log(`🎉 Trending sync completed: ${artistsSynced} new artists, ${showsSynced} shows processed`);
+      
+      return { artistsSynced, showsSynced };
+      
+    } catch (error) {
+      console.error("❌ Trending data sync failed:", error);
+      return { artistsSynced, showsSynced };
+    }
+  },
+});
