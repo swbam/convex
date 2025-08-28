@@ -86,7 +86,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
     }
   };
 
-  const handleVote = async (setlistId: Id<"setlists">, voteType: "up" | "down") => {
+  const handleVote = async (setlistId: Id<"setlists">, voteType: "up") => {
     if (!user) {
       onSignInRequired();
       return;
@@ -95,12 +95,10 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
     try {
       const result = await voteOnSetlist({ setlistId, voteType });
       if (result === "added") {
-        toast.success(`${voteType === "up" ? "Upvoted" : "Downvoted"} setlist`);
+        toast.success("Upvoted setlist");
       } else if (result === "removed") {
         toast.success("Vote removed");
-      } else {
-        toast.success("Vote changed");
-      }
+      } 
     } catch {
       toast.error("Failed to vote");
     }
@@ -208,7 +206,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
           {!officialSetlist && isUpcoming && (
             <div className="dashboard-card">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">Build Your Prediction</h2>
+                <h2 className="text-2xl font-bold">Vote on the set</h2>
                 {isEditing && (
                   <div className="flex items-center gap-2">
                     <button
@@ -334,11 +332,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                           )}
                         </div>
                         
-                        {song.durationMs && (
-                          <div className="text-sm text-muted-foreground">
-                            {Math.floor(song.durationMs / 60000)}:{String(Math.floor((song.durationMs % 60000) / 1000)).padStart(2, '0')}
-                          </div>
-                        )}
+                        {/* duration removed per spec */}
                         
                         <button
                           onClick={() => handleAddToSetlist(song.title)}
@@ -369,7 +363,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
           <div className="dashboard-card">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold">
-                {officialSetlist ? "Official Setlist" : "Setlist Predictions"}
+                {officialSetlist ? "Official Setlist" : (isUpcoming ? "Community votes" : "Predicted Setlists")}
               </h2>
               {userSetlists.length > 0 && (
                 <div className="text-sm text-muted-foreground">
@@ -400,6 +394,69 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                     </div>
                   </div>
                 ))}
+
+                {/* Comparison with community votes */}
+                {userSetlists.length > 0 && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-semibold mb-3">How votes matched</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="border rounded-lg p-3">
+                        <div className="text-sm text-muted-foreground mb-2">Top voted songs</div>
+                        {(() => {
+                          const tally = new Map<string, number>();
+                          userSetlists.forEach((sl: any) => {
+                            const weight = (sl.upvotes || 0) + 1;
+                            (sl.songs || []).forEach((t: any) => {
+                              const title = typeof t === 'string' ? t : t?.title;
+                              if (!title) return;
+                              tally.set(title, (tally.get(title) || 0) + weight);
+                            });
+                          });
+                          const top = Array.from(tally.entries())
+                            .sort((a,b) => b[1]-a[1])
+                            .slice(0, 10);
+                          const officialTitles = new Set((officialSetlist.songs as any[]).map((s: any) => typeof s === 'string' ? s : s?.title));
+                          return (
+                            <div className="space-y-1">
+                              {top.map(([title, count], i) => (
+                                <div key={title} className={`flex items-center gap-2 text-sm ${officialTitles.has(title) ? 'text-green-600' : 'text-muted-foreground'}`}>
+                                  <span className="w-6 text-center">{i+1}</span>
+                                  <span className="flex-1 truncate">{title}</span>
+                                  <span className="text-xs">{count}</span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                      <div className="border rounded-lg p-3">
+                        <div className="text-sm text-muted-foreground mb-2">Matches in official set</div>
+                        {(() => {
+                          const officialTitles = new Set((officialSetlist.songs as any[]).map((s: any) => typeof s === 'string' ? s : s?.title));
+                          const predictedSet = new Set<string>();
+                          userSetlists.forEach((sl: any) => (sl.songs || []).forEach((t: any) => {
+                            const title = typeof t === 'string' ? t : t?.title; if (title) predictedSet.add(title);
+                          }));
+                          const matches = Array.from(officialTitles).filter(t => predictedSet.has(t));
+                          return (
+                            <div className="space-y-1">
+                              {matches.length === 0 ? (
+                                <div className="text-sm text-muted-foreground">No overlap with votes yet</div>
+                              ) : (
+                                matches.map((title, i) => (
+                                  <div key={title} className="flex items-center gap-2 text-sm text-green-600">
+                                    <span className="w-6 text-center">{i+1}</span>
+                                    <span className="flex-1 truncate">{title}</span>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : setlists === undefined ? (
               // Loading state
@@ -432,7 +489,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                   <SetlistCard
                     key={setlist._id}
                     setlist={setlist}
-                    onVote={(id, type) => { void handleVote(id, type); }}
+                    onVote={(id) => { void handleVote(id, "up"); }}
                     user={user}
                     onSignInRequired={onSignInRequired}
                   />
@@ -527,7 +584,7 @@ function SetlistCard({
   onSignInRequired 
 }: { 
   setlist: any; 
-  onVote: (setlistId: Id<"setlists">, voteType: "up" | "down") => void;
+  onVote: (setlistId: Id<"setlists">) => void;
   user: any;
   onSignInRequired: () => void;
 }) {
@@ -552,7 +609,7 @@ function SetlistCard({
           </span>
         </div>
         
-        {/* Voting */}
+        {/* Upvote only (Reddit-style) */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => handleVote("up")}
@@ -565,26 +622,11 @@ function SetlistCard({
           >
             <ChevronUp className="h-4 w-4" />
           </button>
-          
           <span className={`text-sm font-medium min-w-[2rem] text-center ${
-            setlist.score > 0 ? "text-green-600" : 
-            setlist.score < 0 ? "text-red-600" : 
-            "text-muted-foreground"
+            (setlist.upvotes || 0) > 0 ? "text-green-600" : "text-muted-foreground"
           }`}>
-            {setlist.score || 0}
+            {setlist.upvotes || 0}
           </span>
-          
-          <button
-            onClick={() => handleVote("down")}
-            className={`p-1 rounded transition-colors ${
-              userVote === "down" 
-                ? "bg-red-500/20 text-red-600" 
-                : "hover:bg-accent text-muted-foreground hover:text-foreground"
-            }`}
-            title="Downvote"
-          >
-            <ChevronDown className="h-4 w-4" />
-          </button>
         </div>
       </div>
 

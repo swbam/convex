@@ -19,7 +19,6 @@ import type * as auth from "../auth.js";
 import type * as cron from "../cron.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
-import type * as http from "../http.js";
 import type * as router from "../router.js";
 import type * as sampleData from "../sampleData.js";
 import type * as setlistfm from "../setlistfm.js";
@@ -33,7 +32,6 @@ import type * as syncStatus from "../syncStatus.js";
 import type * as ticketmaster from "../ticketmaster.js";
 import type * as users from "../users.js";
 import type * as venues from "../venues.js";
-import type * as votes from "../votes.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -50,7 +48,6 @@ declare const fullApi: ApiFromModules<{
   cron: typeof cron;
   crons: typeof crons;
   dashboard: typeof dashboard;
-  http: typeof http;
   router: typeof router;
   sampleData: typeof sampleData;
   setlistfm: typeof setlistfm;
@@ -64,7 +61,6 @@ declare const fullApi: ApiFromModules<{
   ticketmaster: typeof ticketmaster;
   users: typeof users;
   venues: typeof venues;
-  votes: typeof votes;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

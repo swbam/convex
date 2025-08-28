@@ -45,7 +45,7 @@ export const syncActualSetlist = internalAction({
 
       // Take the first matching setlist
       const setlist = setlists[0];
-      const songs: string[] = [];
+      const songs: { title: string }[] = [];
 
       // Extract songs from sets
       if (setlist.sets && setlist.sets.set) {
@@ -53,7 +53,7 @@ export const syncActualSetlist = internalAction({
           if (set.song) {
             for (const song of set.song) {
               if (song.name && !song.name.includes('(with ') && !song.name.includes('Jam')) {
-                songs.push(song.name);
+                songs.push({ title: song.name });
               }
             }
           }

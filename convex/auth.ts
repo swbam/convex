@@ -1,8 +1,9 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, QueryCtx, MutationCtx } from "./_generated/server";
+import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
 // Helper function to get authenticated user ID from app users table
-export const getAuthUserId = async (ctx: any): Promise<Id<"users"> | null> => {
+export const getAuthUserId = async (ctx: QueryCtx): Promise<Id<"users"> | null> => {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {
     return null;
@@ -19,7 +20,14 @@ export const getAuthUserId = async (ctx: any): Promise<Id<"users"> | null> => {
 
 export const loggedInUser = query({
   args: {},
-  handler: async (ctx) => {
+  returns: v.union(
+    v.object({
+      identity: v.any(), // Clerk identity object
+      appUser: v.optional(v.any()) // User document
+    }),
+    v.null()
+  ),
+  handler: async (ctx: QueryCtx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       return null;
@@ -40,7 +48,8 @@ export const loggedInUser = query({
 
 export const createAppUser = mutation({
   args: {},
-  handler: async (ctx) => {
+  returns: v.id("users"),
+  handler: async (ctx: MutationCtx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Must be logged in");

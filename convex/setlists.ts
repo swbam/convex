@@ -1,5 +1,6 @@
 import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 import { getAuthUserId } from "./auth";
 
 export const create = mutation({
@@ -159,7 +160,7 @@ export const getByShow = query({
         return {
           ...setlist,
           username,
-          score: (setlist.upvotes || 0) - (setlist.downvotes || 0),
+          score: (setlist.upvotes || 0),
         };
       })
     );
@@ -192,7 +193,7 @@ export const getUserSetlistForShow = query({
 export const vote = mutation({
   args: {
     setlistId: v.id("setlists"),
-    voteType: v.union(v.literal("up"), v.literal("down")),
+    voteType: v.literal("up"),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -219,61 +220,24 @@ export const vote = mutation({
       .first();
 
     if (existingVote) {
-      if (existingVote.voteType === args.voteType) {
-        // Remove vote if clicking same button
-        await ctx.db.delete(existingVote._id);
-        
-        // Update setlist counts
-        if (args.voteType === "up") {
-          await ctx.db.patch(args.setlistId, {
-            upvotes: Math.max(0, (setlist.upvotes || 0) - 1),
-          });
-        } else {
-          await ctx.db.patch(args.setlistId, {
-            downvotes: Math.max(0, (setlist.downvotes || 0) - 1),
-          });
-        }
-        return "removed";
-      } else {
-        // Change vote type
-        await ctx.db.patch(existingVote._id, {
-          voteType: args.voteType,
-        });
-        
-        // Update setlist counts
-        if (args.voteType === "up") {
-          await ctx.db.patch(args.setlistId, {
-            upvotes: (setlist.upvotes || 0) + 1,
-            downvotes: Math.max(0, (setlist.downvotes || 0) - 1),
-          });
-        } else {
-          await ctx.db.patch(args.setlistId, {
-            downvotes: (setlist.downvotes || 0) + 1,
-            upvotes: Math.max(0, (setlist.upvotes || 0) - 1),
-          });
-        }
-        return "changed";
-      }
-    } else {
-      // New vote
-      await ctx.db.insert("setlistVotes", {
-        userId,
-        setlistId: args.setlistId,
-        voteType: args.voteType,
+      // Toggle off if already upvoted
+      await ctx.db.delete(existingVote._id);
+      await ctx.db.patch(args.setlistId, {
+        upvotes: Math.max(0, (setlist.upvotes || 0) - 1),
       });
-      
-      // Update setlist counts
-      if (args.voteType === "up") {
-        await ctx.db.patch(args.setlistId, {
-          upvotes: (setlist.upvotes || 0) + 1,
-        });
-      } else {
-        await ctx.db.patch(args.setlistId, {
-          downvotes: (setlist.downvotes || 0) + 1,
-        });
-      }
-      return "added";
+      return "removed";
     }
+
+    // New upvote
+    await ctx.db.insert("setlistVotes", {
+      userId,
+      setlistId: args.setlistId,
+      voteType: "up",
+    });
+    await ctx.db.patch(args.setlistId, {
+      upvotes: (setlist.upvotes || 0) + 1,
+    });
+    return "added";
   },
 });
 
@@ -362,7 +326,7 @@ export const autoGenerateSetlist = internalMutation({
     }
 
     // Select 5 random songs from the catalog, weighted towards more popular songs
-    const selectedSongs: Array<{title: string, album?: string, duration?: number, songId?: string}> = [];
+    const selectedSongs: Array<{title: string, album?: string, duration?: number, songId?: Id<"songs">}> = [];
     const songsToChooseFrom = [...studioSongs];
     const numSongs = Math.min(5, songsToChooseFrom.length);
 

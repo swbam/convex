@@ -19,6 +19,28 @@ export const getBySlug = query({
   },
 });
 
+// Accepts either a SEO slug or a document id string and returns the artist
+export const getBySlugOrId = query({
+  args: { key: v.string() },
+  handler: async (ctx, args) => {
+    // Try by slug first
+    const bySlug = await ctx.db
+      .query("artists")
+      .withIndex("by_slug", (q) => q.eq("slug", args.key))
+      .unique();
+
+    if (bySlug) return bySlug;
+
+    // Fallback: try by id
+    try {
+      const possible = await ctx.db.get(args.key as any);
+      return possible ?? null;
+    } catch {
+      return null;
+    }
+  },
+});
+
 export const getTrending = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
