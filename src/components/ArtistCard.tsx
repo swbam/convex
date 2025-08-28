@@ -53,7 +53,7 @@ export function ArtistCard({
     >
       <div className="flex items-start gap-5">
         <div className="relative">
-          <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+          <div className="w-20 h-20 rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
             {artist.images?.[0] ? (
               <img 
                 src={artist.images[0]} 
@@ -66,12 +66,7 @@ export function ArtistCard({
               </span>
             )}
           </div>
-          
-          {artist.trendingScore && artist.trendingScore > 0 && (
-            <div className="absolute -top-1 -right-1 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-              <div className="w-2 h-2 bg-background rounded-full animate-pulse" />
-            </div>
-          )}
+
         </div>
         
         <div className="flex-1 min-w-0">

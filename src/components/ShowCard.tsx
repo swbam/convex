@@ -16,7 +16,7 @@ interface Show {
   venue?: {
     name: string
     city: string
-    state: string
+    state?: string
     country: string
   }
   setlistCount?: number
@@ -65,18 +65,7 @@ export function ShowCard({
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'upcoming':
-        return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-      case 'completed':
-        return 'bg-green-500/20 text-green-400 border-green-500/30'
-      case 'cancelled':
-        return 'bg-red-500/20 text-red-400 border-red-500/30'
-      default:
-        return 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'
-    }
-  }
+  // Status color removed to enforce strict black/white theme
 
   if (compact) {
     return (
@@ -122,7 +111,7 @@ export function ShowCard({
             </div>
           </div>
           
-          <span className={`text-xs px-2 py-1 rounded border ${getStatusColor(show.status)}`}>
+          <span className={`text-xs px-2 py-1 rounded border border-zinc-700 text-zinc-300`}>
             {show.status}
           </span>
         </div>
@@ -163,13 +152,13 @@ export function ShowCard({
               
               {show.venue && (
                 <p className="text-zinc-400 text-sm">
-                  {show.venue.name} • {show.venue.city}, {show.venue.state}
+                  {show.venue.name} • {show.venue.city}{show.venue.state ? `, ${show.venue.state}` : ''}
                 </p>
               )}
             </div>
           </div>
           
-          <span className={`px-2 py-1 rounded border text-sm ${getStatusColor(show.status)}`}>
+          <span className={`px-2 py-1 rounded border text-sm border-zinc-700 text-zinc-300`}>
             {show.status}
           </span>
         </div>
@@ -192,7 +181,7 @@ export function ShowCard({
           {show.venue && (
             <div className="flex items-center gap-1">
               <span>📍</span>
-              <span className="truncate">{show.venue.city}, {show.venue.state}</span>
+              <span className="truncate">{show.venue.city}{show.venue.state ? `, ${show.venue.state}` : ''}</span>
             </div>
           )}
         </div>

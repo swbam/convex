@@ -11,6 +11,14 @@ export const searchArtists = action({
     query: v.string(),
     limit: v.optional(v.number())
   },
+  returns: v.array(v.object({
+    ticketmasterId: v.string(),
+    name: v.string(),
+    genres: v.array(v.string()),
+    images: v.array(v.string()),
+    url: v.optional(v.string()),
+    upcomingEvents: v.number(),
+  })),
   handler: async (ctx, args) => {
     const apiKey = process.env.TICKETMASTER_API_KEY;
     if (!apiKey) {
@@ -30,12 +38,12 @@ export const searchArtists = action({
       const attractions = data._embedded?.attractions || [];
 
       return attractions.map((attraction: any) => ({
-        ticketmasterId: attraction.id,
-        name: attraction.name,
-        genres: attraction.classifications?.[0]?.genre?.name ? [attraction.classifications[0].genre.name] : [],
-        images: attraction.images?.map((img: any) => img.url) || [],
-        url: attraction.url,
-        upcomingEvents: attraction.upcomingEvents?._total || 0
+        ticketmasterId: String(attraction.id || ''),
+        name: String(attraction.name || ''),
+        genres: attraction.classifications?.[0]?.genre?.name ? [String(attraction.classifications[0].genre.name)] : [],
+        images: (attraction.images?.map((img: any) => String(img.url)) || []),
+        url: attraction.url ? String(attraction.url) : undefined,
+        upcomingEvents: Number(attraction.upcomingEvents?._total || 0)
       }));
     } catch (error) {
       console.error("Ticketmaster search failed:", error);
@@ -62,14 +70,14 @@ export const startFullArtistSync = internalAction({
       images: args.images || [],
     });
 
-    // Phase 2: Sync shows and venues
+    // Phase 2: Sync shows and venues (blocking to populate UI quickly)
     await ctx.runAction(internal.ticketmaster.syncArtistShows, {
       artistId,
       ticketmasterId: args.ticketmasterId,
     });
 
-    // Phase 3: Sync Spotify catalog
-    await ctx.runAction(internal.spotify.syncArtistCatalog, {
+    // Phase 3: Sync Spotify catalog (background)
+    void ctx.runAction(internal.spotify.syncArtistCatalog, {
       artistId,
       artistName: args.artistName,
     });
@@ -119,6 +127,8 @@ export const syncArtistShows = internalAction({
           status: event.dates?.status?.code === "onsale" ? "upcoming" : "upcoming",
           ticketUrl: event.url,
         });
+        // gentle backoff to respect API
+        await new Promise(r => setTimeout(r, 75));
       }
     } catch (error) {
       console.error("Failed to sync artist shows:", error);

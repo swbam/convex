@@ -3,7 +3,6 @@ import { useQuery, useAction } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { Id } from '../../convex/_generated/dataModel'
 
-type SearchType = 'all' | 'artists' | 'shows' | 'venues'
 type SortBy = 'relevance' | 'popularity' | 'recent' | 'alphabetical'
 
 interface SearchResult {
@@ -28,7 +27,7 @@ export function SearchBar({
   className = "" 
 }: SearchBarProps) {
   const [query, setQuery] = useState('')
-  const [searchType, setSearchType] = useState<SearchType>('all')
+  // Global search limited to artists only per PRD
   const [sortBy, setSortBy] = useState<SortBy>('relevance')
   const [isOpen, setIsOpen] = useState(false)
   const [debouncedQuery, setDebouncedQuery] = useState('')
@@ -45,15 +44,16 @@ export function SearchBar({
 
   // State for Ticketmaster search results
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
-  const [isSearching, setIsSearching] = useState(false)
+  const [_isSearching, setIsSearching] = useState(false)
   
   // Ticketmaster search action
   const searchTicketmasterArtists = useAction(api.ticketmaster.searchArtists)
+  const triggerFullArtistSync = useAction(api.ticketmaster.triggerFullArtistSync)
   
   // Local artist search as fallback
   const localArtistResults = useQuery(
     api.artists.search,
-    debouncedQuery.length >= 2 && (searchType === 'all' || searchType === 'artists')
+    debouncedQuery.length >= 2
       ? { query: debouncedQuery, limit: 5 }
       : 'skip'
   )
@@ -62,11 +62,6 @@ export function SearchBar({
   useEffect(() => {
     const searchArtists = async () => {
       if (debouncedQuery.length < 2) {
-        setSearchResults([])
-        return
-      }
-
-      if (searchType !== 'all' && searchType !== 'artists') {
         setSearchResults([])
         return
       }
@@ -130,8 +125,28 @@ export function SearchBar({
     }
   })
 
-  const handleResultClick = (result: SearchResult) => {
-    onResultClick(result.type, result.id as any, result.slug)
+  const handleResultClick = async (result: SearchResult) => {
+    // If this is a Ticketmaster result (no slug), kick off full sync first
+    if (result.type === 'artist' && !result.slug) {
+      try {
+        await triggerFullArtistSync({
+          ticketmasterId: result.id,
+          artistName: result.title,
+          genres: result.subtitle ? result.subtitle.split(', ').filter(Boolean) : undefined,
+          images: result.image ? [result.image] : undefined,
+        })
+      } catch {
+        // Non-blocking
+      }
+      const slug = result.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      onResultClick(result.type, result.id as any, slug as any)
+      // Immediately navigate to the artist page while background sync proceeds
+      setIsOpen(false)
+      setQuery('')
+      return
+    } else {
+      onResultClick(result.type, result.id as any, result.slug)
+    }
     setIsOpen(false)
     setQuery('')
   }
@@ -141,31 +156,9 @@ export function SearchBar({
     setIsOpen(false)
   }
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'artist':
-        return '🎵'
-      case 'show':
-        return '📅'
-      case 'venue':
-        return '📍'
-      default:
-        return '🔍'
-    }
-  }
+  const getTypeIcon = () => '🎵'
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'artist':
-        return 'text-green-400'
-      case 'show':
-        return 'text-blue-400'
-      case 'venue':
-        return 'text-purple-400'
-      default:
-        return 'text-zinc-400'
-    }
-  }
+  const getTypeColor = () => 'text-zinc-400'
 
   return (
     <div className={`relative ${className}`}>
@@ -262,19 +255,12 @@ export function SearchBar({
               {sortedResults.length > 0 ? (
                 <div className="p-2">
                   {/* Active Filters */}
-                  {(searchType !== 'all' || sortBy !== 'relevance') && (
+                  {sortBy !== 'relevance' && (
                     <div className="flex items-center gap-2 mb-3 px-2">
-                      <span className="text-xs text-zinc-400">Filters:</span>
-                      {searchType !== 'all' && (
-                        <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">
-                          {searchType}
-                        </span>
-                      )}
-                      {sortBy !== 'relevance' && (
-                        <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">
-                          {sortBy}
-                        </span>
-                      )}
+                      <span className="text-xs text-zinc-400">Sort:</span>
+                      <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">
+                        {sortBy}
+                      </span>
                     </div>
                   )}
                   
@@ -283,7 +269,7 @@ export function SearchBar({
                     {sortedResults.map((result, index) => (
                       <div key={`${result.type}-${result.id}-${index}`}>
                         <button
-                          onClick={() => handleResultClick(result)}
+                          onClick={() => { void handleResultClick(result) }}
                           className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-zinc-800/50 transition-colors text-left border-none bg-transparent cursor-pointer"
                         >
                           {result.image && (
@@ -295,8 +281,8 @@ export function SearchBar({
                           )}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className={`text-sm ${getTypeColor(result.type)}`}>
-                                {getTypeIcon(result.type)}
+                              <span className={`text-sm ${getTypeColor('artist')}`}>
+                                {getTypeIcon()}
                               </span>
                               <span className="font-medium text-white truncate">
                                 {result.title}

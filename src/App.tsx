@@ -38,9 +38,11 @@ export default function App() {
 
   // Extract slug from URL safely
   const getSlugFromPath = (path: string, prefix: string) => {
-    const segments = path.split('/');
-    if (segments.length >= 3 && segments[1] === prefix.slice(1)) {
-      return decodeURIComponent(segments[2]);
+    // Accept slug or ID, ensure SEO-friendly slugs are decoded
+    const segments = path.split('/').filter(Boolean);
+    const normalizedPrefix = prefix.split('/').filter(Boolean).join('');
+    if (segments[0] === normalizedPrefix) {
+      return decodeURIComponent(segments[1] || "");
     }
     return null;
   };
@@ -55,45 +57,62 @@ export default function App() {
     artistSlug ? { slug: artistSlug } : 'skip'
   );
   
-  const showBySlug = useQuery(api.shows.getBySlug,
-    showSlug ? { slug: showSlug } : 'skip'
+  // Be resilient: accept slug or fallback to id string
+  const showBySlugOrId = useQuery(
+    api.shows.getBySlugOrId,
+    showSlug ? { key: showSlug } : 'skip'
   );
 
   // Update view based on current route
   useEffect(() => {
     const path = location.pathname;
+    // Basic SEO title updates per route
+    if (path === '/') {
+      document.title = 'TheSet – Concert Setlists, Predictions, and Voting';
+    }
     if (path === '/') {
       setCurrentView('home');
     } else if (path.startsWith('/artists/')) {
       setCurrentView('artist');
       if (artistBySlug) {
         setSelectedArtistId(artistBySlug._id);
+        document.title = `${artistBySlug.name} – Artist | TheSet`;
       } else if (artistBySlug === null) {
         // Artist not found, reset to avoid showing "No artist selected"
         setSelectedArtistId(null);
+        document.title = 'Artist Not Found – TheSet';
       }
     } else if (path.startsWith('/shows/')) {
       setCurrentView('show');
-      if (showBySlug) {
-        setSelectedShowId(showBySlug._id);
-      } else if (showBySlug === null) {
+      if (showBySlugOrId) {
+        setSelectedShowId(showBySlugOrId._id);
+        const titleBits = [showBySlugOrId.artist?.name, showBySlugOrId.venue?.name, new Date(showBySlugOrId.date).toLocaleDateString('en-US')].filter(Boolean).join(' @ ');
+        document.title = `${titleBits} – Show | TheSet`;
+      } else if (showBySlugOrId === null) {
         // Show not found, reset to avoid showing "No show selected"
         setSelectedShowId(null);
+        document.title = 'Show Not Found – TheSet';
       }
     } else if (path === '/search') {
       setCurrentView('search');
+      document.title = 'Search – TheSet';
     } else if (path === '/artists') {
       setCurrentView('artists');
+      document.title = 'Artists – TheSet';
     } else if (path === '/shows') {
       setCurrentView('shows');
+      document.title = 'Shows – TheSet';
     } else if (path === '/venues') {
       setCurrentView('venues');
+      document.title = 'Venues – TheSet';
     } else if (path === '/library') {
       setCurrentView('library');
+      document.title = 'Library – TheSet';
     } else if (path === '/profile') {
       setCurrentView('profile');
+      document.title = 'Profile – TheSet';
     }
-  }, [location.pathname, artistBySlug, showBySlug]);
+  }, [location.pathname, artistBySlug, showBySlugOrId]);
 
   const handleViewChange = (view: string, id?: Id<"artists"> | Id<"shows">, slug?: string) => {
     if (view === "artist" && id) {

@@ -3,6 +3,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Search, Music, Calendar, MapPin, TrendingUp, Users } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 interface DashboardHomeProps {
@@ -12,6 +13,7 @@ interface DashboardHomeProps {
 }
 
 export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: DashboardHomeProps) {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -32,7 +34,7 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
     setIsSearching(true);
     try {
       // Search Ticketmaster API for artists
-      const response = await fetch(`https://app.ticketmaster.com/discovery/v2/attractions.json?keyword=${encodeURIComponent(query)}&classificationName=music&size=10&apikey=${process.env.TICKETMASTER_API_KEY || 'demo'}`);
+      const response = await fetch(`https://app.ticketmaster.com/discovery/v2/attractions.json?keyword=${encodeURIComponent(query)}&classificationName=music&size=10&apikey=${process.env.TICKETMASTER_API_KEY || ''}`);
       
       if (response.ok) {
         const data = await response.json();
@@ -86,7 +88,7 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
         return;
       }
 
-      // Start full sync for new artist
+      // Start full sync for new artist: shows first, then catalog in background
       toast.info(`Starting full import for ${result.name}...`);
       await startFullSync({ 
         artistName: result.name,
@@ -98,7 +100,9 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
         }
       });
       
-      toast.success(`Import started for ${result.name}. This may take a few minutes.`);
+      toast.success(`Import started for ${result.name}. Fetching shows now...`);
+      const navigateSlug = result.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      void navigate(`/artists/${navigateSlug}`);
       setSearchQuery("");
       setSearchResults([]);
       
@@ -267,7 +271,7 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
                 <div
                   key={show._id}
                   className="p-4 rounded-lg border bg-card hover:bg-accent cursor-pointer transition-colors"
-                  onClick={() => onShowClick(show._id)}
+                  onClick={() => onShowClick(show._id, (show as any).slug)}
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex-1">

@@ -23,14 +23,18 @@ const applicationTables = {
     followers: v.optional(v.number()),
     trendingScore: v.optional(v.number()),
     isActive: v.boolean(),
+    // Standardize to lastSynced to match code usage; keep lastSyncAt for back-compat
+    lastSynced: v.optional(v.number()),
     lastSyncAt: v.optional(v.number()),
   })
     .index("by_slug", ["slug"])
-    .index("by_trending_score", ["trendingScore"]),
+    .index("by_trending_score", ["trendingScore"])
+    .index("by_spotify_id", ["spotifyId"]),
 
   venues: defineTable({
     name: v.string(),
     city: v.string(),
+    state: v.optional(v.string()),
     country: v.string(),
     address: v.optional(v.string()),
     capacity: v.optional(v.number()),
@@ -64,7 +68,8 @@ const applicationTables = {
     trackNo: v.optional(v.number()),
     isLive: v.boolean(),
     isRemix: v.boolean(),
-  }),
+  })
+    .index("by_spotify_id", ["spotifyId"]),
 
   artistSongs: defineTable({
     artistId: v.id("artists"),

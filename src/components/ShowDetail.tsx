@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { ArrowLeft, MapPin, Calendar, Clock, Users, Music, Plus, TrendingUp, ChevronUp, ChevronDown, Save, X } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Clock, Users, Music, Plus, TrendingUp, ChevronUp, ChevronDown, Save, X, Search } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
@@ -14,9 +14,9 @@ interface ShowDetailProps {
 
 export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: ShowDetailProps) {
   const show = useQuery(api.shows.getById, { id: showId });
-  const songs = useQuery(api.songs.getByArtist, show?.artistId ? { 
+  const songs = useQuery(api.songs.getByArtist, show?.artistId ? {
     artistId: show.artistId,
-    limit: 50 
+    limit: 50
   } : "skip");
   const setlists = useQuery(api.setlists.getByShow, show ? { showId } : "skip");
   const userSetlist = useQuery(api.setlists.getUserSetlistForShow, show ? { showId } : "skip");
@@ -29,11 +29,13 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
   const [predictedSongs, setPredictedSongs] = useState<string[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [songQuery, setSongQuery] = useState("");
 
   // Load user's existing setlist
   useEffect(() => {
     if (userSetlist) {
-      setPredictedSongs(userSetlist.songs);
+      const titles = (userSetlist.songs || []).map((s: any) => (typeof s === "string" ? s : s.title)).filter(Boolean);
+      setPredictedSongs(titles);
     }
   }, [userSetlist]);
 
@@ -48,7 +50,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
 
   const handleAddToSetlist = (songTitle: string) => {
     if (!user && !handleAnonymousAction()) return;
-    
+
     if (predictedSongs.includes(songTitle)) {
       setPredictedSongs(prev => prev.filter(s => s !== songTitle));
       toast.success(`Removed "${songTitle}" from prediction`);
@@ -60,7 +62,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
         toast.success(`Added "${songTitle}" to your prediction (${anonymousActions + 1}/2 free actions used)`);
       }
     }
-    
+
     if (!isEditing) {
       setIsEditing(true);
     }
@@ -68,16 +70,16 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
 
   const handleSaveSetlist = async () => {
     if (!user && !handleAnonymousAction()) return;
-    
+
     setIsSaving(true);
     try {
       await createSetlist({
         showId,
-        songs: predictedSongs,
+        songs: predictedSongs.map((title) => ({ title })),
       });
       setIsEditing(false);
       toast.success("Setlist prediction saved!");
-    } catch (error) {
+    } catch {
       toast.error("Failed to save setlist");
     } finally {
       setIsSaving(false);
@@ -99,7 +101,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
       } else {
         toast.success("Vote changed");
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to vote");
     }
   };
@@ -174,9 +176,9 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
             <div className={`px-3 py-1 rounded-full text-sm font-medium ${
               isUpcoming 
                 ? isToday 
-                  ? "bg-primary/20 text-primary" 
-                  : "bg-blue-500/20 text-blue-400"
-                : "bg-green-500/20 text-green-400"
+                  ? "border border-border text-foreground" 
+                  : "border border-border text-muted-foreground"
+                : "border border-border text-muted-foreground"
             }`}>
               {isToday ? "Tonight" : show.status}
             </div>
@@ -211,7 +213,8 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => {
-                        setPredictedSongs(userSetlist?.songs || []);
+                        const titles = (userSetlist?.songs || []).map((s: any) => (typeof s === "string" ? s : s.title)).filter(Boolean);
+                        setPredictedSongs(titles);
                         setIsEditing(false);
                       }}
                       className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -220,7 +223,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                       Cancel
                     </button>
                     <button
-                      onClick={handleSaveSetlist}
+                      onClick={() => { void handleSaveSetlist(); }}
                       disabled={isSaving}
                       className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
                     >
@@ -231,6 +234,54 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                 )}
               </div>
               
+              {/* Quick add dropdown above the list */}
+              {songs && songs.length > 0 && (
+                <div className="mb-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={songQuery}
+                      onChange={(e) => setSongQuery(e.target.value)}
+                      placeholder="Type to search songs to add..."
+                      className="w-full pl-10 pr-3 py-2 bg-muted/20 border border-muted rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  {songQuery.trim().length > 0 && (
+                    <div className="mt-2 max-h-60 overflow-y-auto border border-border rounded-lg bg-background">
+                      {(songs || [])
+                        .filter(Boolean)
+                        .filter((s) => s && !s.isLive && !s.isRemix)
+                        .filter((s) => s!.title.toLowerCase().includes(songQuery.toLowerCase()))
+                        .slice(0, 10)
+                        .map((song) => (
+                          <button
+                            key={song!._id}
+                            onClick={() => {
+                              setPredictedSongs((prev) =>
+                                prev.includes(song!.title)
+                                  ? prev
+                                  : [...prev, song!.title]
+                              );
+                              setIsEditing(true);
+                              setSongQuery("");
+                            }}
+                            className="w-full flex items-center justify-between px-3 py-2 hover:bg-accent/50 text-left border-b last:border-b-0"
+                          >
+                            <div className="min-w-0">
+                              <div className="truncate">{song!.title}</div>
+                              {song!.album && (
+                                <div className="text-xs text-muted-foreground truncate">{song!.album}</div>
+                              )}
+                            </div>
+                            <Plus className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {songs === undefined ? (
                 // Loading state
                 <div className="space-y-3">
@@ -254,7 +305,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
               ) : (
                 // Song selection interface - filter for studio songs only
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {songs.filter(Boolean).filter(song => song && !song.isLive && !song.isRemix).map((song, index) => {
+                  {(songs || []).filter(Boolean).filter(song => song && !song.isLive && !song.isRemix).map((song, index) => {
                     if (!song) return null;
                     const isPredicted = predictedSongs.includes(song.title);
                     return (
@@ -336,7 +387,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                     <span className="text-sm text-green-600">{officialSetlist.songs.length} songs</span>
                   </div>
                 </div>
-                {officialSetlist.songs.map((songTitle, index) => (
+                {(officialSetlist.songs as any[]).map((songTitle, index) => (
                   <div
                     key={index}
                     className="flex items-center gap-4 p-3 rounded-lg bg-green-500/5 border border-green-500/10"
@@ -345,7 +396,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                       {index + 1}
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-medium text-green-700">{songTitle}</h3>
+                      <h3 className="font-medium text-green-700">{typeof songTitle === 'string' ? songTitle : songTitle?.title}</h3>
                     </div>
                   </div>
                 ))}
@@ -381,7 +432,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                   <SetlistCard
                     key={setlist._id}
                     setlist={setlist}
-                    onVote={handleVote}
+                    onVote={(id, type) => { void handleVote(id, type); }}
                     user={user}
                     onSignInRequired={onSignInRequired}
                   />

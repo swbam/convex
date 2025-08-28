@@ -7,7 +7,11 @@ import { RouterProvider } from "react-router-dom";
 import "./index.css";
 import { router } from "./router";
 
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
+const convexUrl = import.meta.env.VITE_CONVEX_URL as string;
+if (!convexUrl) {
+  console.error("Missing VITE_CONVEX_URL env var");
+}
+const convex = new ConvexReactClient(convexUrl || "");
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 if (!publishableKey) {
