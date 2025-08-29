@@ -19,18 +19,18 @@ crons.daily(
   {}
 );
 
-// Sync setlists from Setlist.fm every 2 hours
+// Sync setlists from Setlist.fm every 6 hours (respect API limits)
 crons.cron(
   "sync-setlistfm",
-  "0 */2 * * *", // Every 2 hours
+  "0 */6 * * *", // Every 6 hours
   api.sync.syncSetlistFm,
   {}
 );
 
-// Sync trending data from Ticketmaster every 3 hours
-crons.cron(
+// Sync trending data from Ticketmaster daily at 02:00 UTC per PRD
+crons.daily(
   "sync-trending-data",
-  "0 */3 * * *", // Every 3 hours
+  { hourUTC: 2, minuteUTC: 0 },
   api.sync.syncTrendingData,
   {}
 );

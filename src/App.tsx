@@ -17,6 +17,7 @@ import { UserDashboard } from "./components/UserDashboard";
 import { Venues } from "./components/Venues";
 import { toast, Toaster } from "sonner";
 import { SEOHead } from "./components/SEOHead";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 // Removed lucide-react imports due to TypeScript compatibility issues
 
 type View = "home" | "artist" | "show" | "venue" | "search" | "artists" | "shows" | "venues" | "library" | "signin" | "trending" | "profile" | "following" | "predictions";
@@ -308,13 +309,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Toaster removed due to TypeScript compatibility issues */}
-      
-      <AppLayout>
-        {renderMainContent()}
-      </AppLayout>
+      <ErrorBoundary>
+        <AppLayout>
+          {renderMainContent()}
+        </AppLayout>
+      </ErrorBoundary>
 
-      {/* Sign In Modal */}
       {showSignIn && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-md">
