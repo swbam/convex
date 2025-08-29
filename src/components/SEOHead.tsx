@@ -15,11 +15,11 @@ export function SEOHead({ title, description, image, url }: SEOHeadProps) {
     // Update meta description
     const metaDescription = document.querySelector('meta[name="description"]');
     if (metaDescription) {
-      metaDescription.setAttribute('content', description || 'Discover, predict, and vote on concert setlists from your favorite artists');
+      metaDescription.setAttribute('content', description || 'Vote on songs you want to hear and discover trending artists and shows');
     } else {
       const meta = document.createElement('meta');
       meta.name = 'description';
-      meta.content = description || 'Discover, predict, and vote on concert setlists from your favorite artists';
+      meta.content = description || 'Vote on songs you want to hear and discover trending artists and shows';
       document.head.appendChild(meta);
     }
     
@@ -37,7 +37,7 @@ export function SEOHead({ title, description, image, url }: SEOHeadProps) {
     };
     
     updateOGTag('og:title', title);
-    updateOGTag('og:description', description || 'Discover, predict, and vote on concert setlists from your favorite artists');
+    updateOGTag('og:description', description || 'Vote on songs you want to hear and discover trending artists and shows');
     updateOGTag('og:type', 'website');
     if (url) updateOGTag('og:url', url);
     if (image) updateOGTag('og:image', image);
@@ -57,7 +57,7 @@ export function SEOHead({ title, description, image, url }: SEOHeadProps) {
     
     updateTwitterTag('twitter:card', 'summary_large_image');
     updateTwitterTag('twitter:title', title);
-    updateTwitterTag('twitter:description', description || 'Discover, predict, and vote on concert setlists from your favorite artists');
+    updateTwitterTag('twitter:description', description || 'Vote on songs you want to hear and discover trending artists and shows');
     if (image) updateTwitterTag('twitter:image', image);
     
   }, [title, description, image, url]);

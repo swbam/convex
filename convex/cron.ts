@@ -19,4 +19,12 @@ crons.interval(
   {}
 );
 
+// Sync trending shows and artists from Ticketmaster every 3 hours
+crons.interval(
+  "sync trending data",
+  { hours: 3 },
+  internal.sync.syncTrendingData,
+  {}
+);
+
 export default crons;

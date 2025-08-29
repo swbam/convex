@@ -49,7 +49,7 @@ export function Library({ onArtistClick, onShowClick }: LibraryProps) {
         <div>
           <h1 className="text-4xl font-bold mb-2">Your Library</h1>
           <p className="text-muted-foreground text-lg">
-            Manage your followed artists and setlist predictions
+            Manage your followed artists and song requests
           </p>
         </div>
         
@@ -140,7 +140,7 @@ export function Library({ onArtistClick, onShowClick }: LibraryProps) {
                   <Music className="h-16 w-16 mx-auto mb-6 opacity-50" />
                   <h3 className="text-2xl font-semibold mb-4">No setlists created yet</h3>
                   <p className="text-muted-foreground text-lg mb-8">
-                    Predict setlists for upcoming shows to see them here
+                    Request songs for upcoming shows to see them here
                   </p>
                 </div>
               ) : (
