@@ -97,17 +97,21 @@ export const getFlaggedContent = query({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
     
-    let query = ctx.db.query("contentFlags");
-    
     if (args.status) {
-      query = query.withIndex("by_status", (q) => q.eq("status", args.status));
+      // Narrowed branch ensures type for withIndex closure
+      const flags = await ctx.db
+        .query("contentFlags")
+        .withIndex("by_status", (q) => q.eq("status", args.status as "pending" | "reviewed" | "dismissed"))
+        .order("desc")
+        .take(50);
+      return flags;
+    } else {
+      const flags = await ctx.db
+        .query("contentFlags")
+        .order("desc")
+        .take(50);
+      return flags;
     }
-    
-    const flags = await query
-      .order("desc")
-      .take(50);
-    
-    return flags;
   },
 });
 
