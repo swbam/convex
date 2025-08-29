@@ -27,13 +27,13 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
   const voteOnSong = useMutation(api.songVotes.voteOnSong);
 
   const [anonymousActions, setAnonymousActions] = useState(0);
-  const [predictedSongs, setPredictedSongs] = useState<string[]>([]);
+  const [requestedSongs, setRequestedSongs] = useState<string[]>([]);
 
   // Load user's existing setlist
   useEffect(() => {
     if (userSetlist) {
       const titles = (userSetlist.songs || []).map((s: any) => (typeof s === "string" ? s : s.title)).filter(Boolean);
-      setPredictedSongs(titles);
+      setRequestedSongs(titles);
     }
   }, [userSetlist]);
 
@@ -49,15 +49,15 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
   const handleAddToSetlist = (songTitle: string) => {
     if (!user && !handleAnonymousAction()) return;
 
-    if (predictedSongs.includes(songTitle)) {
-      setPredictedSongs(prev => prev.filter(s => s !== songTitle));
+    if (requestedSongs.includes(songTitle)) {
+      setRequestedSongs(prev => prev.filter(s => s !== songTitle));
       toast.success(`Removed "${songTitle}" from prediction`);
     } else {
-      setPredictedSongs(prev => [...prev, songTitle]);
+      setRequestedSongs(prev => [...prev, songTitle]);
       if (user) {
-        toast.success(`Added "${songTitle}" to setlist prediction`);
+        toast.success(`Added "${songTitle}" to song request`);
       } else {
-        toast.success(`Added "${songTitle}" to your prediction (${anonymousActions + 1}/2 free actions used)`);
+        toast.success(`Added "${songTitle}" to your requests (${anonymousActions + 1}/2 free actions used)`);
       }
     }
   };
@@ -198,31 +198,31 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
           {!officialSetlist && isUpcoming && (
             <div className="dashboard-card">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">Vote on the set</h2>
+                <h2 className="text-2xl font-bold">Request Songs</h2>
               </div>
               
               {/* Song Dropdown & Add Interface */}
               {songs && songs.length > 0 && (
                 <div className="mb-6 p-4 bg-muted/10 border border-muted/20 rounded-lg">
-                  <h3 className="text-sm font-medium mb-3 text-muted-foreground">Add Songs to Your Prediction</h3>
+                  <h3 className="text-sm font-medium mb-3 text-muted-foreground">Request Songs You Want to Hear</h3>
                   <select
                     value=""
                     onChange={(e) => {
                       if (e.target.value) {
                         const selectedSong = songs.find(s => s?.title === e.target.value);
-                        if (selectedSong && !predictedSongs.includes(selectedSong.title)) {
-                          const newSongs = [...predictedSongs, selectedSong.title];
-                          setPredictedSongs(newSongs);
+                        if (selectedSong && !requestedSongs.includes(selectedSong.title)) {
+                          const newSongs = [...requestedSongs, selectedSong.title];
+                          setRequestedSongs(newSongs);
                           // Auto-save immediately (no save button)
                           handleAutoSave(newSongs).catch(console.error);
-                          toast.success(`Added "${selectedSong.title}" to your prediction`);
+                          toast.success(`Added "${selectedSong.title}" to your requests`);
                         } else if (selectedSong) {
                           toast.info(`"${selectedSong.title}" is already in your prediction`);
                         }
                         e.target.value = "";
                       }
                     }}
-                    className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                    className="w-full px-4 py-3 bg-background border-2 border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-lg"
                   >
                     <option value="" disabled>Choose a song to add...</option>
                     {(songs || [])
@@ -233,18 +233,23 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                         <option 
                           key={song!._id} 
                           value={song!.title}
-                          disabled={predictedSongs.includes(song!.title)}
+                          disabled={requestedSongs.includes(song!.title)}
                         >
                           {song!.title} {song!.album ? `• ${song!.album}` : ''}
                         </option>
                       ))
                     }
                   </select>
-                  <div className="mt-3 text-xs text-muted-foreground">
-                    {user 
-                      ? `${(songs || []).filter(Boolean).filter(s => s && !s.isLive && !s.isRemix).length} studio songs available from ${show?.artist?.name || 'this artist'}`
-                      : "Sign in to add unlimited songs to your prediction"
-                    }
+                  <div className="mt-4 flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {user 
+                        ? `${(songs || []).filter(Boolean).filter(s => s && !s.isLive && !s.isRemix).length} studio songs available`
+                        : "Sign in to request unlimited songs"
+                      }
+                    </span>
+                    <span className="font-medium text-primary">
+                      {requestedSongs.length} selected
+                    </span>
                   </div>
                 </div>
               )}
@@ -255,11 +260,11 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
           <div className="dashboard-card">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold">
-                {officialSetlist ? "Official Setlist" : (isUpcoming ? "Community votes" : "Predicted Setlists")}
+                {officialSetlist ? "Official Setlist" : (isUpcoming ? "Community votes" : "Song Requests")}
               </h2>
               {userSetlists.length > 0 && (
                 <div className="text-sm text-muted-foreground">
-                  {userSetlists.length} prediction{userSetlists.length !== 1 ? 's' : ''}
+                  {userSetlists.length} request{userSetlists.length !== 1 ? 's' : ''}
                 </div>
               )}
             </div>
@@ -292,7 +297,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
               <div className="text-center py-12 text-muted-foreground">
                 <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>No predictions yet</p>
-                <p className="text-sm mt-1">Be the first to predict the setlist!</p>
+                <p className="text-sm mt-1">Be the first to request songs!</p>
               </div>
             ) : (
               // Show user predictions with voting
@@ -339,13 +344,13 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
             </div>
           </div>
 
-          {/* Prediction Stats */}
+          {/* Request Stats */}
           <div className="dashboard-card">
             <h3 className="text-xl font-bold mb-4">Your Stats</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Your predictions</span>
-                <span className="font-medium">{predictedSongs.length}</span>
+                <span className="text-sm text-muted-foreground">Your requests</span>
+                <span className="font-medium">{requestedSongs.length}</span>
               </div>
               
               <div className="flex items-center justify-between">
@@ -354,14 +359,14 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
               </div>
               
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Total predictions</span>
+                <span className="text-sm text-muted-foreground">Total requests</span>
                 <span className="font-medium">{userSetlists.length}</span>
               </div>
               
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Completion</span>
                 <span className="font-medium">
-                  {songs?.length ? Math.round((predictedSongs.length / Math.min(songs.length, 25)) * 100) : 0}%
+                  {songs?.length ? Math.round((requestedSongs.length / Math.min(songs.length, 25)) * 100) : 0}%
                 </span>
               </div>
             </div>
@@ -371,9 +376,9 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
           {!user && (
             <div className="dashboard-card text-center">
               <TrendingUp className="h-8 w-8 mx-auto mb-3 text-primary" />
-              <h3 className="font-bold mb-2">Join the Competition</h3>
+              <h3 className="font-bold mb-2">Join the Voting</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Sign in to create unlimited predictions and vote on others
+                Sign in to request unlimited songs and vote on others
               </p>
               <button
                 onClick={onSignInRequired}

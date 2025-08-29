@@ -14,21 +14,23 @@ export function Artists({ onArtistClick }: ArtistsProps) {
   const [sortBy, setSortBy] = useState<'trending' | 'followers' | 'name'>('trending');
   const [filterGenre, setFilterGenre] = useState<string>('');
 
-  // Fetch all artists
-  const artists = useQuery(api.artists.getTrending, { limit: 100 }) || [];
+  // Fetch trending artists from sync system
+  const trendingArtists = useQuery(api.trending.getTrendingArtists) || [];
+  const allArtists = useQuery(api.artists.getAll, { limit: 50 }) || [];
 
   // Get unique genres for filter
   const genres = React.useMemo(() => {
     const genreSet = new Set<string>();
-    artists.forEach(artist => {
+    const artistsToUse = sortBy === 'trending' ? trendingArtists : allArtists;
+    artistsToUse.forEach(artist => {
       artist.genres?.forEach((genre: string) => genreSet.add(genre));
     });
     return Array.from(genreSet).sort();
-  }, [artists]);
+  }, [trendingArtists, allArtists, sortBy]);
 
   // Filter and sort artists
   const filteredArtists = React.useMemo(() => {
-    let filtered = artists;
+    let filtered = sortBy === 'trending' ? trendingArtists : allArtists;
 
     // Apply search filter
     if (searchQuery) {
@@ -142,7 +144,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
 
       {/* Results */}
       <div className="dashboard-card">
-        {!artists.length ? (
+        {!filteredArtists.length ? (
           // Loading state
           <div className="space-y-4">
             {[...Array(12)].map((_, i) => (

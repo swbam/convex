@@ -77,7 +77,7 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired }
           Live Music Discovery
         </h1>
         <p className="text-xl text-muted-foreground mb-4 max-w-2xl mx-auto">
-          Trending artists and shows from Ticketmaster. Predict setlists, vote on accuracy, and discover your next favorite concert.
+          Trending artists and shows from Ticketmaster. Request songs you want to hear and upvote fan favorites.
         </p>
         <p className="text-muted-foreground/60">
           Updated live every 3 hours from Ticketmaster API
@@ -151,15 +151,15 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired }
       {/* Call to Action */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-gray-900 to-black border border-gray-800 p-12 text-center">
         <div className="relative z-10">
-          <h3 className="text-4xl font-bold mb-6">Join the Prediction Game</h3>
+          <h3 className="text-4xl font-bold mb-6">Join the Voting</h3>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Create setlist predictions, vote on accuracy, and compete with music fans worldwide
+            Request songs for upcoming shows, upvote favorites, and compete with music fans worldwide
           </p>
           <button
             onClick={onSignInRequired}
             className="px-12 py-4 bg-white text-black rounded-2xl hover:bg-gray-200 transition-all duration-300 font-semibold text-lg shadow-2xl hover:shadow-white/20"
           >
-            Start Predicting
+            Start Voting
           </button>
         </div>
         {/* Background pattern */}
