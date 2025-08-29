@@ -23,13 +23,14 @@ interface SearchBarProps {
 
 export function SearchBar({ 
   onResultClick, 
-  placeholder = "Search artists, shows, venues...", 
+  placeholder = "Search artists...", 
   className = "" 
 }: SearchBarProps) {
   const [query, setQuery] = useState('')
   // Global search limited to artists only per PRD
   const [sortBy, setSortBy] = useState<SortBy>('relevance')
-  const [searchType, setSearchType] = useState<'all' | 'artists' | 'shows'>('artists')
+  // Enforce artists-only per PRD
+  const [searchType, setSearchType] = useState<'artists'>('artists')
   const [isOpen, setIsOpen] = useState(false)
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false)
@@ -174,7 +175,7 @@ export function SearchBar({
             setIsOpen(true)
           }}
           onFocus={() => setIsOpen(true)}
-          className="pl-10 pr-20 h-10 w-full rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-white placeholder:text-zinc-400 focus:border-green-500 focus:ring-1 focus:ring-green-500/20 focus:outline-none"
+          className="pl-10 pr-20 h-10 w-full rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-white placeholder:text-zinc-400 focus:border-primary focus:ring-1 focus:ring-primary/20 focus:outline-none"
         />
         
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
@@ -198,24 +199,9 @@ export function SearchBar({
             {showFilters && (
               <div className="absolute right-0 top-8 z-50 min-w-[8rem] rounded-md border border-zinc-700 bg-zinc-900 p-1 shadow-lg">
                 <div className="px-2 py-1.5 text-sm font-semibold text-zinc-300">Search Type</div>
-                <button 
-                  onClick={() => { setSearchType('all'); setShowFilters(false); }}
-                  className={`w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-zinc-800 border-none bg-transparent cursor-pointer ${searchType === 'all' ? 'bg-zinc-800' : ''}`}
-                >
-                  All Results
-                </button>
-                <button 
-                  onClick={() => { setSearchType('artists'); setShowFilters(false); }}
-                  className={`w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-zinc-800 border-none bg-transparent cursor-pointer ${searchType === 'artists' ? 'bg-zinc-800' : ''}`}
-                >
-                  Artists Only
-                </button>
-                <button 
-                  onClick={() => { setSearchType('shows'); setShowFilters(false); }}
-                  className={`w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-zinc-800 border-none bg-transparent cursor-pointer ${searchType === 'shows' ? 'bg-zinc-800' : ''}`}
-                >
-                  Shows Only
-                </button>
+                <div className="w-full text-left px-2 py-1.5 text-sm rounded-sm border-none bg-transparent cursor-default text-zinc-500">
+                  Artists Only (enforced)
+                </div>
                 <div className="-mx-1 my-1 h-px bg-zinc-700"></div>
                 <div className="px-2 py-1.5 text-sm font-semibold text-zinc-300">Sort By</div>
                 <button 

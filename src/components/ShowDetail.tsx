@@ -507,16 +507,20 @@ function SetlistCard({
 
       {/* Songs with ProductHunt-style voting */}
       <div className="space-y-3">
-        {setlist.songs.slice(0, 20).map((songTitle: string, index: number) => (
-          <SongVoteRow
-            key={`${setlist._id}-${songTitle}-${index}`}
-            setlistId={setlist._id}
-            songTitle={songTitle}
-            position={index + 1}
-            user={user}
-            onSignInRequired={onSignInRequired}
-          />
-        ))}
+        {setlist.songs
+          .map((s: any) => (typeof s === 'string' ? s : s?.title))
+          .filter(Boolean)
+          .slice(0, 20)
+          .map((songTitle: string, index: number) => (
+            <SongVoteRow
+              key={`${setlist._id}-${songTitle}-${index}`}
+              setlistId={setlist._id}
+              songTitle={songTitle}
+              position={index + 1}
+              user={user}
+              onSignInRequired={onSignInRequired}
+            />
+          ))}
         {setlist.songs.length > 20 && (
           <div className="text-sm text-muted-foreground text-center py-2">
             +{setlist.songs.length - 20} more songs

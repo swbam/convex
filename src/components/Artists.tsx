@@ -64,7 +64,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
     });
 
     return filtered;
-  }, [artists, searchQuery, filterGenre, sortBy]);
+  }, [trendingArtists, allArtists, searchQuery, filterGenre, sortBy]);
 
   const handleArtistClick = (artistId: Id<'artists'>, slug?: string) => {
     onArtistClick(artistId, slug);
@@ -89,7 +89,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
         <div>
           <h1 className="text-3xl font-bold mb-2">Artists</h1>
           <p className="text-muted-foreground">
-            Discover {artists.length} artists across all genres
+            Discover {filteredArtists.length} artists across all genres
           </p>
         </div>
         
@@ -186,7 +186,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
           <div className="space-y-1">
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm text-muted-foreground">
-                Showing {filteredArtists.length} of {artists.length} artists
+                Showing {filteredArtists.length} of {(sortBy === 'trending' ? trendingArtists.length : allArtists.length)} artists
               </p>
               {(searchQuery || filterGenre) && (
                 <button

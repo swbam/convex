@@ -17,22 +17,10 @@ export const submitVote = mutation({
       throw new Error("Must be logged in to vote");
     }
 
-    // Get user record
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_auth_id", (q) => q.eq("authId", userId))
-      .first();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
     // Check if user already voted on this setlist
     const existingVote = await ctx.db
       .query("votes")
-      .withIndex("by_user_and_setlist", (q) => 
-        q.eq("userId", user._id).eq("setlistId", args.setlistId)
-      )
+      .withIndex("by_user_and_setlist", (q) => q.eq("userId", userId).eq("setlistId", args.setlistId))
       .first();
 
     if (existingVote) {
@@ -45,7 +33,7 @@ export const submitVote = mutation({
     } else {
       // Create new vote
       await ctx.db.insert("votes", {
-        userId: user._id,
+        userId,
         setlistId: args.setlistId,
         voteType: args.voteType,
         songVotes: args.songVotes,
@@ -63,18 +51,9 @@ export const getUserVote = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_auth_id", (q) => q.eq("authId", userId))
-      .first();
-
-    if (!user) return null;
-
     return await ctx.db
       .query("votes")
-      .withIndex("by_user_and_setlist", (q) => 
-        q.eq("userId", user._id).eq("setlistId", args.setlistId)
-      )
+      .withIndex("by_user_and_setlist", (q) => q.eq("userId", userId).eq("setlistId", args.setlistId))
       .first();
   },
 });
