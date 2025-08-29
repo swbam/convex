@@ -159,6 +159,21 @@ export const syncArtistCatalog = internalAction({
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
+      // After importing catalog, auto-generate setlists for artist's shows
+      try {
+        const shows = await ctx.runQuery(internal.shows.getAllByArtistInternal, { artistId: args.artistId });
+        for (const show of shows) {
+          await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+            showId: show._id,
+            artistId: args.artistId,
+          });
+          // brief backoff to avoid bursts
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+      } catch (e) {
+        console.error('Failed to auto-generate setlists after catalog import:', e);
+      }
+
     } catch (error) {
       console.error("Failed to sync Spotify catalog:", error);
     }

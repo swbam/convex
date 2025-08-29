@@ -175,15 +175,19 @@ export const getAll = query({
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const limit = args.limit || 50;
-    let query = ctx.db.query("shows");
-    
+    let shows;
     if (args.status) {
-      query = query.withIndex("by_status", (q) => q.eq("status", args.status));
+      shows = await ctx.db
+        .query("shows")
+        .withIndex("by_status", (q) => q.eq("status", args.status as "upcoming" | "completed" | "cancelled"))
+        .order("desc")
+        .take(limit);
+    } else {
+      shows = await ctx.db
+        .query("shows")
+        .order("desc")
+        .take(limit);
     }
-    
-    const shows = await query
-      .order("desc")
-      .take(limit);
     
     // Populate artist and venue data
     const enrichedShows = await Promise.all(

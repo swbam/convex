@@ -726,9 +726,19 @@ async function syncSetlistFromSetlistFm(ctx: ActionCtx, setlist: any): Promise<b
   try {
     // Find matching show by artist name and date
     const artistName = setlist.artist?.name;
-    const eventDate = setlist.eventDate;
+    const rawEventDate = setlist.eventDate;
     
-    if (!artistName || !eventDate) return false;
+    if (!artistName || !rawEventDate) return false;
+
+    // Normalize setlist.fm date (usually dd-MM-yyyy) to yyyy-MM-dd used by our DB
+    const eventDate = (() => {
+      const ddmmyyyy = String(rawEventDate);
+      if (/^\d{2}-\d{2}-\d{4}$/.test(ddmmyyyy)) {
+        const [dd, mm, yyyy] = ddmmyyyy.split("-");
+        return `${yyyy}-${mm}-${dd}`;
+      }
+      return ddmmyyyy; // assume already normalized
+    })();
 
     // Find artist
     const artist = await ctx.runQuery(api.artists.getByName, { name: artistName });
