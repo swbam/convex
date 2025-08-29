@@ -160,12 +160,12 @@ export function SearchBar({
 
   const getTypeIcon = () => '🎵'
 
-  const getTypeColor = () => 'text-zinc-400'
+  const getTypeColor = (_type: 'artist' = 'artist') => 'text-muted-foreground'
 
   return (
     <div className={`relative ${className}`}>
       <div className="relative">
-        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400">🔍</span>
+        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">🔍</span>
         <input
           type="text"
           placeholder={placeholder}
@@ -175,7 +175,7 @@ export function SearchBar({
             setIsOpen(true)
           }}
           onFocus={() => setIsOpen(true)}
-          className="pl-10 pr-20 h-10 w-full rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-white placeholder:text-zinc-400 focus:border-primary focus:ring-1 focus:ring-primary/20 focus:outline-none"
+          className="pl-10 pr-20 h-10 w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-200"
         />
         
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
@@ -197,34 +197,34 @@ export function SearchBar({
             </button>
             
             {showFilters && (
-              <div className="absolute right-0 top-8 z-50 min-w-[8rem] rounded-md border border-zinc-700 bg-zinc-900 p-1 shadow-lg">
-                <div className="px-2 py-1.5 text-sm font-semibold text-zinc-300">Search Type</div>
-                <div className="w-full text-left px-2 py-1.5 text-sm rounded-sm border-none bg-transparent cursor-default text-zinc-500">
+              <div className="absolute right-0 top-8 z-50 min-w-[8rem] rounded-xl border border-border bg-background/95 backdrop-blur-xl p-2 shadow-2xl">
+                <div className="px-2 py-1.5 text-sm font-semibold text-foreground">Search Type</div>
+                <div className="w-full text-left px-2 py-1.5 text-sm rounded-lg border-none bg-accent/30 cursor-default text-muted-foreground">
                   Artists Only (enforced)
                 </div>
-                <div className="-mx-1 my-1 h-px bg-zinc-700"></div>
-                <div className="px-2 py-1.5 text-sm font-semibold text-zinc-300">Sort By</div>
+                <div className="-mx-1 my-2 h-px bg-border"></div>
+                <div className="px-2 py-1.5 text-sm font-semibold text-foreground">Sort By</div>
                 <button 
                   onClick={() => { setSortBy('relevance'); setShowFilters(false); }}
-                  className={`w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-zinc-800 border-none bg-transparent cursor-pointer ${sortBy === 'relevance' ? 'bg-zinc-800' : ''}`}
+                  className={`w-full text-left px-2 py-1.5 text-sm rounded-lg hover:bg-accent border-none bg-transparent cursor-pointer transition-colors ${sortBy === 'relevance' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   Relevance
                 </button>
                 <button 
                   onClick={() => { setSortBy('popularity'); setShowFilters(false); }}
-                  className={`w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-zinc-800 border-none bg-transparent cursor-pointer ${sortBy === 'popularity' ? 'bg-zinc-800' : ''}`}
+                  className={`w-full text-left px-2 py-1.5 text-sm rounded-lg hover:bg-accent border-none bg-transparent cursor-pointer transition-colors ${sortBy === 'popularity' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   Popularity
                 </button>
                 <button 
                   onClick={() => { setSortBy('alphabetical'); setShowFilters(false); }}
-                  className={`w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-zinc-800 border-none bg-transparent cursor-pointer ${sortBy === 'alphabetical' ? 'bg-zinc-800' : ''}`}
+                  className={`w-full text-left px-2 py-1.5 text-sm rounded-lg hover:bg-accent border-none bg-transparent cursor-pointer transition-colors ${sortBy === 'alphabetical' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   Alphabetical
                 </button>
                 <button 
                   onClick={() => { setSortBy('recent'); setShowFilters(false); }}
-                  className={`w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-zinc-800 border-none bg-transparent cursor-pointer ${sortBy === 'recent' ? 'bg-zinc-800' : ''}`}
+                  className={`w-full text-left px-2 py-1.5 text-sm rounded-lg hover:bg-accent border-none bg-transparent cursor-pointer transition-colors ${sortBy === 'recent' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   Most Recent
                 </button>
@@ -236,7 +236,7 @@ export function SearchBar({
 
       {/* Search Results Dropdown */}
       {isOpen && debouncedQuery.length >= 2 && (
-        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-zinc-900/95 backdrop-blur-sm border border-zinc-700 shadow-xl rounded-xl">
+        <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-xl max-h-[70vh] sm:max-h-96">
           <div className="p-0">
             <div className="max-h-96 overflow-y-auto">
               {sortedResults.length > 0 ? (
@@ -244,8 +244,8 @@ export function SearchBar({
                   {/* Active Filters */}
                   {sortBy !== 'relevance' && (
                     <div className="flex items-center gap-2 mb-3 px-2">
-                      <span className="text-xs text-zinc-400">Sort:</span>
-                      <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded">
+                      <span className="text-xs text-muted-foreground">Sort:</span>
+                      <span className="text-xs bg-accent text-foreground px-2 py-1 rounded-lg">
                         {sortBy}
                       </span>
                     </div>
@@ -257,7 +257,7 @@ export function SearchBar({
                       <div key={`${result.type}-${result.id}-${index}`}>
                         <button
                           onClick={() => { void handleResultClick(result) }}
-                          className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-zinc-800/50 transition-colors text-left border-none bg-transparent cursor-pointer"
+                          className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-accent/50 transition-all duration-200 text-left border-none bg-transparent cursor-pointer group"
                         >
                           {result.image && (
                             <img
@@ -276,26 +276,26 @@ export function SearchBar({
                               </span>
                             </div>
                             {result.subtitle && (
-                              <p className="text-sm text-zinc-400 truncate">
+                              <p className="text-sm text-muted-foreground truncate group-hover:text-foreground transition-colors">
                                 {result.subtitle}
                               </p>
                             )}
                             {result.metadata && (
-                              <p className="text-xs text-zinc-500 truncate">
+                              <p className="text-xs text-muted-foreground/70 truncate">
                                 {result.metadata}
                               </p>
                             )}
                           </div>
                         </button>
                         {index < sortedResults.length - 1 && (
-                          <div className="bg-zinc-800 my-3 h-px"></div>
+                          <div className="bg-border my-3 h-px"></div>
                         )}
                       </div>
                     ))}
                   </div>
                 </div>
               ) : (
-                <div className="p-4 text-center text-zinc-400 text-sm">
+                <div className="p-4 text-center text-muted-foreground text-sm">
                   No results found for "{debouncedQuery}"
                 </div>
               )}

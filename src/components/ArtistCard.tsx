@@ -1,5 +1,6 @@
 import React from 'react'
 import { Id } from '../../convex/_generated/dataModel'
+import { MagicCard } from './ui/magic-card'
 
 interface Artist {
   _id: Id<'artists'>
@@ -47,78 +48,84 @@ export function ArtistCard({
   }
 
   return (
-    <div 
-      className="group cursor-pointer bg-card border border-border rounded-xl hover:bg-accent/30 transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl p-6"
-      onClick={handleClick}
+    <MagicCard
+      className="cursor-pointer p-0 transition-all duration-200 hover:scale-[1.01]"
+      gradientColor="#1a1a1a"
+      gradientOpacity={0.1}
     >
-      <div className="flex items-start gap-5">
-        <div className="relative">
-          <div className="w-20 h-20 rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
-            {artist.images?.[0] ? (
-              <img 
-                src={artist.images[0]} 
-                alt={artist.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <span className="text-white font-semibold text-lg">
-                {artist.name.slice(0, 2).toUpperCase()}
-              </span>
-            )}
+      <div className="p-4" onClick={handleClick}>
+        <div className="flex items-center gap-3">
+          {/* Artist Avatar - Smaller & More Refined */}
+          <div className="relative flex-shrink-0">
+            <div className="w-12 h-12 rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+              {artist.images?.[0] ? (
+                <img 
+                  src={artist.images[0]} 
+                  alt={artist.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-white font-medium text-sm">
+                  {artist.name.slice(0, 2).toUpperCase()}
+                </span>
+              )}
+            </div>
           </div>
-
-        </div>
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-white text-xl truncate group-hover:text-gray-300 transition-colors mb-1">
-                {artist.name}
-              </h3>
-              {artist.genres && artist.genres.length > 0 && (
-                <p className="text-muted-foreground text-sm truncate">
-                  {artist.genres.slice(0, 2).join(', ')}
-                  {artist.genres.length > 2 && ` +${artist.genres.length - 2}`}
-                </p>
+          
+          {/* Artist Info - Refined Typography */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-white text-base truncate mb-1">
+                  {artist.name}
+                </h3>
+                {artist.genres && artist.genres.length > 0 && (
+                  <p className="text-muted-foreground text-xs truncate">
+                    {artist.genres.slice(0, 2).join(' • ')}
+                  </p>
+                )}
+              </div>
+              
+              {showFollowButton && (
+                <button
+                  onClick={handleFollowClick}
+                  className={`ml-3 shrink-0 px-2 py-1 rounded-lg text-xs font-medium transition-all duration-200 ${
+                    isFollowing 
+                      ? 'bg-white text-black hover:bg-gray-200' 
+                      : 'border border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:border-zinc-600'
+                  }`}
+                >
+                  {isFollowing ? 'Following' : 'Follow'}
+                </button>
               )}
             </div>
             
-            {showFollowButton && (
-              <button
-                onClick={handleFollowClick}
-                className={`ml-4 shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
-                  isFollowing 
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
-                    : 'border border-border text-foreground hover:bg-accent hover:border-gray-600'
-                }`}
-              >
-                <div className={`w-1.5 h-1.5 rounded-full ${isFollowing ? 'bg-primary-foreground' : 'bg-primary'}`} />
-                {isFollowing ? 'Following' : 'Follow'}
-              </button>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            {artist.followers && (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-gray-700 flex items-center justify-center">
-                  <div className="w-2 h-2 rounded-full bg-gray-400" />
+            {/* Stats - Refined & Minimal */}
+            <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+              {artist.followers && (
+                <div className="flex items-center gap-1">
+                  <div className="w-1 h-1 rounded-full bg-zinc-600" />
+                  <span>{formatFollowers(artist.followers)}</span>
                 </div>
-                <span className="font-medium">{formatFollowers(artist.followers)} followers</span>
-              </div>
-            )}
-            
-            {artist.popularity && (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-gray-700 flex items-center justify-center">
-                  <div className="w-2 h-1 rounded-full bg-gray-400" />
+              )}
+              
+              {artist.popularity && (
+                <div className="flex items-center gap-1">
+                  <div className="w-1 h-1 rounded-full bg-zinc-600" />
+                  <span>{artist.popularity}%</span>
                 </div>
-                <span className="font-medium">{artist.popularity}% popular</span>
-              </div>
-            )}
+              )}
+              
+              {artist.trendingScore && artist.trendingScore > 0 && (
+                <div className="flex items-center gap-1">
+                  <div className="w-1 h-1 rounded-full bg-white" />
+                  <span className="text-white font-medium">Trending</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </MagicCard>
   )
 }

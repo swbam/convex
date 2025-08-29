@@ -90,24 +90,42 @@ export const checkCompletedShows = internalAction({
     
     const upcomingShows = await ctx.runQuery(internal.shows.getUpcomingShows, {});
     
+    let completedCount = 0;
+    let setlistsSynced = 0;
+    
     for (const show of upcomingShows) {
       if (show.date < today) {
         // Mark show as completed
         await ctx.runMutation(internal.shows.markCompleted, {
           showId: show._id,
         });
+        completedCount++;
 
-        // Try to sync actual setlist
+        // Try to sync actual setlist with retry logic
         if (show.artist && show.venue) {
-          await ctx.runAction(internal.setlistfm.syncActualSetlist, {
-            showId: show._id,
-            artistName: show.artist.name,
-            venueCity: show.venue.city,
-            showDate: show.date,
-          });
+          try {
+            const setlistId = await ctx.runAction(internal.setlistfm.syncActualSetlist, {
+              showId: show._id,
+              artistName: show.artist.name,
+              venueCity: show.venue.city,
+              showDate: show.date,
+            });
+            
+            if (setlistId) {
+              setlistsSynced++;
+              console.log(`✅ Synced setlist for ${show.artist.name} at ${show.venue.name}`);
+            }
+          } catch (error) {
+            console.error(`❌ Failed to sync setlist for ${show.artist.name}:`, error);
+          }
         }
+        
+        // Rate limiting to respect setlist.fm API
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
+    
+    console.log(`Completed shows check: ${completedCount} shows marked complete, ${setlistsSynced} setlists synced`);
   },
 });
 

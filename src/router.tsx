@@ -26,14 +26,7 @@ export const router = createBrowserRouter([
     path: '/shows',
     element: <App />,
   },
-  {
-    path: '/venues',
-    element: <App />,
-  },
-  {
-    path: '/venues/:venueId',
-    element: <App />,
-  },
+
   {
     path: '/search',
     element: <App />,
@@ -44,6 +37,14 @@ export const router = createBrowserRouter([
   },
   {
     path: '/profile',
+    element: <App />,
+  },
+  {
+    path: '/admin',
+    element: <App />,
+  },
+  {
+    path: '/test',
     element: <App />,
   },
   {

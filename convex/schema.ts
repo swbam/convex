@@ -37,7 +37,9 @@ const applicationTables = {
   })
     .index("by_slug", ["slug"])
     .index("by_trending_score", ["trendingScore"])
-    .index("by_spotify_id", ["spotifyId"]),
+    .index("by_spotify_id", ["spotifyId"]) 
+    .index("by_ticketmaster_id", ["ticketmasterId"]) 
+    .index("by_name", ["name"]),
 
   venues: defineTable({
     name: v.string(),
@@ -50,7 +52,8 @@ const applicationTables = {
     lng: v.optional(v.number()),
     ticketmasterId: v.optional(v.string()),
   })
-    .index("by_location", ["city", "country"]),
+    .index("by_location", ["city", "country"]) 
+    .index("by_ticketmaster_id", ["ticketmasterId"]),
 
   shows: defineTable({
     slug: v.optional(v.string()),
@@ -150,7 +153,8 @@ const applicationTables = {
       v.literal("artist_catalog"),
       v.literal("trending_sync"),
       v.literal("active_sync"),
-      v.literal("full_sync")
+      v.literal("full_sync"),
+      v.literal("venue_ecosystem_sync")
     ),
     entityId: v.optional(v.string()),
     priority: v.number(),

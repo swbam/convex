@@ -149,6 +149,29 @@ export const search = query({
   },
 });
 
+// Get all artists with basic sorting and optional limit
+export const getAll = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 50;
+    // Return active artists ordered by trendingScore then followers/popularity
+    const artists = await ctx.db
+      .query("artists")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .take(500);
+
+    return artists
+      .sort((a, b) => {
+        const scoreA = (b.trendingScore || 0) - (a.trendingScore || 0);
+        if (scoreA !== 0) return scoreA;
+        const followersDelta = (b.followers || 0) - (a.followers || 0);
+        if (followersDelta !== 0) return followersDelta;
+        return (b.popularity || 0) - (a.popularity || 0);
+      })
+      .slice(0, limit);
+  },
+});
+
 export const isFollowing = query({
   args: { artistId: v.id("artists") },
   handler: async (ctx, args) => {
@@ -391,7 +414,7 @@ export const getByName = query({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("artists")
-      .filter((q) => q.eq(q.field("name"), args.name))
+      .withIndex("by_name", (q) => q.eq("name", args.name))
       .first();
   },
 });
@@ -401,7 +424,7 @@ export const getByTicketmasterId = query({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("artists")
-      .filter((q) => q.eq(q.field("ticketmasterId"), args.ticketmasterId))
+      .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.ticketmasterId))
       .first();
   },
 });

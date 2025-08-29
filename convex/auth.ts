@@ -73,12 +73,32 @@ export const createAppUser = mutation({
       return existingAppUser._id;
     }
     
+    // Generate unique username from name/email
+    const baseUsername = (identity.name || identity.email || "user").toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+      .substring(0, 20);
+    
+    let username = baseUsername;
+    let counter = 1;
+    
+    // Ensure username is unique
+    while (true) {
+      const existingUsername = await ctx.db
+        .query("users")
+        .withIndex("by_username", (q) => q.eq("username", username))
+        .first();
+      
+      if (!existingUsername) break;
+      username = `${baseUsername}${counter}`;
+      counter++;
+    }
+    
     // Create app user with Clerk data
     return await ctx.db.insert("users", {
       authId: identity.subject,
       email: identity.email,
       name: identity.name,
-      username: identity.name || identity.email || "Anonymous",
+      username,
       role: "user",
       preferences: {
         emailNotifications: true,

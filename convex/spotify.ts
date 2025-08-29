@@ -103,18 +103,25 @@ export const syncArtistCatalog = internalAction({
           const title: string = track.name || '';
           const titleLower = title.toLowerCase();
 
-          // Comprehensive studio-only filter (title + album level)
-          const isLive = /(\blive\b|\bconcert\b|\(live\)|\- live)/i.test(title) || albumIsLive;
-          const isRemix = /(remix|re\-?mix|\bmix\b|mixed)/i.test(title) || albumIsRemix;
-          const isAcoustic = /(acoustic|unplugged)/i.test(title) || albumIsAcoustic;
-          const isDemo = /(demo|rough|sketch|outtake|alternate|alt\.|alt version|alternative take)/i.test(title);
-          const isBonus = /(bonus|b\-?side)/i.test(title);
-          const isRadioEdit = /(radio edit)/i.test(title);
-          const isInstrumental = /(instrumental)/i.test(title);
+          // COMPREHENSIVE STUDIO-ONLY FILTERING - Enhanced per PRD requirements
+          const isLive = /(\blive\b|\bconcert\b|\(live\)|\- live|live at|live from|live in|live on|mtv unplugged|bbc session|radio session|live session)/i.test(title) || albumIsLive;
+          const isRemix = /(remix|re\-?mix|\bmix\b|mixed|club mix|dance mix|extended mix|dub mix|radio edit|radio version|club version|dance version|disco version|house mix|techno mix|trance mix|dubstep|electronic version)/i.test(title) || albumIsRemix;
+          const isAcoustic = /(acoustic|unplugged|stripped|piano version|solo version|bare|intimate|coffeehouse|storytellers)/i.test(title) || albumIsAcoustic;
+          const isDemo = /(demo|rough|sketch|work tape|outtake|alternate|alternative|take |cut|unreleased|bootleg|rarities|b\-?side)/i.test(title);
+          const isBonus = /(bonus|hidden track|secret track|extra|special edition|collector|limited edition|anniversary|reissue)/i.test(title);
+          const isInstrumental = /(instrumental|karaoke|backing track)/i.test(title);
           const isCommentary = /(commentary)/i.test(title);
+          const isFormat = /(\(mono\)|\(stereo\)|\(live\)|\(demo\)|\(acoustic\)|\(remix\)|\(radio\)|\(club\)|\(extended\)|\(instrumental\)|\(karaoke\))/i.test(title);
+          const isCover = /(cover of|tribute to|in the style of)/i.test(title);
 
-          // Skip non-studio material entirely
-          if (isLive || isRemix || isAcoustic || isDemo || isBonus || isRadioEdit || isInstrumental || isCommentary || albumIsLocalhost) {
+          // Skip ALL non-studio material
+          if (isLive || isRemix || isAcoustic || isDemo || isBonus || isInstrumental || isCommentary || isFormat || isCover || albumIsLocalhost) {
+            continue;
+          }
+
+          // Additional album-level exclusions
+          const excludedAlbumTypes = /(\blive\b|\bconcert\b|unplugged|greatest hits|best of|collection|compilation|anthology|rarities|b\-?sides|singles|remix|acoustic|demo|bootleg|live from|live at)/i;
+          if (excludedAlbumTypes.test(album.name)) {
             continue;
           }
 

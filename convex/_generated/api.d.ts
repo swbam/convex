@@ -13,6 +13,8 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as achievements from "../achievements.js";
+import type * as actualSetlists from "../actualSetlists.js";
 import type * as admin from "../admin.js";
 import type * as artistSongs from "../artistSongs.js";
 import type * as artists from "../artists.js";
@@ -20,9 +22,11 @@ import type * as auth from "../auth.js";
 import type * as cron from "../cron.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
+import type * as health from "../health.js";
 import type * as http from "../http.js";
+import type * as leaderboard from "../leaderboard.js";
+import type * as predictions from "../predictions.js";
 import type * as router from "../router.js";
-import type * as sampleData from "../sampleData.js";
 import type * as setlistfm from "../setlistfm.js";
 import type * as setlists from "../setlists.js";
 import type * as shows from "../shows.js";
@@ -47,6 +51,8 @@ import type * as votes from "../votes.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  achievements: typeof achievements;
+  actualSetlists: typeof actualSetlists;
   admin: typeof admin;
   artistSongs: typeof artistSongs;
   artists: typeof artists;
@@ -54,9 +60,11 @@ declare const fullApi: ApiFromModules<{
   cron: typeof cron;
   crons: typeof crons;
   dashboard: typeof dashboard;
+  health: typeof health;
   http: typeof http;
+  leaderboard: typeof leaderboard;
+  predictions: typeof predictions;
   router: typeof router;
-  sampleData: typeof sampleData;
   setlistfm: typeof setlistfm;
   setlists: typeof setlists;
   shows: typeof shows;

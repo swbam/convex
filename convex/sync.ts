@@ -145,6 +145,7 @@ export const syncSetlistFm = action({
           headers: {
             'x-api-key': apiKey,
             'Accept': 'application/json',
+            'User-Agent': 'TheSet/1.0',
           },
         }
       );
@@ -522,7 +523,7 @@ function isStudioSong(trackTitle: string, albumTitle: string): boolean {
   const trackTitleLower = trackTitle.toLowerCase();
   const albumTitleLower = albumTitle.toLowerCase();
   
-  // COMPREHENSIVE EXCLUSION FILTERS FOR STUDIO-ONLY SONGS
+  // COMPREHENSIVE EXCLUSION FILTERS FOR STUDIO-ONLY SONGS - Enhanced to match spotify.ts
   
   // 1. Live recordings (most common exclusions)
   const liveKeywords = [
@@ -537,7 +538,7 @@ function isStudioSong(trackTitle: string, albumTitle: string): boolean {
     return false;
   }
   
-  // 2. Remixes and alternate versions
+  // 2. Remixes and alternate versions - EXPANDED
   const remixKeywords = [
     'remix', 'mix)', 'radio edit', 'radio version', 'club mix', 'dance mix',
     'extended mix', 'dub mix', 'instrumental', 'karaoke', 'backing track',
@@ -559,54 +560,37 @@ function isStudioSong(trackTitle: string, albumTitle: string): boolean {
     return false;
   }
   
-  // 4. Demos, outtakes, and unreleased material
+  // 4. Demos, outtakes, and unreleased material - EXPANDED
   const demoKeywords = [
     'demo', 'rough', 'sketch', 'work tape', 'outtake', 'alternate',
-    'alternative', 'take ', 'version', 'cut', 'unreleased', 'bootleg',
-    'rarities', 'b-side', 'single version', 'album version', 'edit'
+    'alternative', 'take ', 'cut', 'unreleased', 'bootleg',
+    'rarities', 'b-side'
   ];
   
   if (demoKeywords.some(keyword => trackTitleLower.includes(keyword))) {
-    // Exception: "single version" and "album version" are often the studio versions
-    if (trackTitleLower.includes('single version') || trackTitleLower.includes('album version')) {
-      // Only exclude if it's explicitly different (has other keywords)
-      if (!trackTitleLower.includes('extended') && !trackTitleLower.includes('radio')) {
-        return true; // Keep single/album versions
-      }
-    }
     return false;
   }
   
   // 5. Bonus tracks and special editions
   const bonusKeywords = [
     'bonus', 'hidden track', 'secret track', 'extra', 'special edition',
-    'collector', 'limited edition', 'anniversary', 'reissue', 'remastered'
+    'collector', 'limited edition', 'anniversary'
   ];
   
-  // Only exclude bonus tracks, not remastered originals
-  if (bonusKeywords.some(keyword => {
-    if (keyword === 'remastered') {
-      // Keep remastered versions unless they're explicitly bonus
-      return trackTitleLower.includes('bonus') && trackTitleLower.includes(keyword);
-    }
-    return trackTitleLower.includes(keyword) ||
-           (albumTitleLower.includes('deluxe') && trackTitleLower.includes('bonus'));
-  })) {
+  if (bonusKeywords.some(keyword => trackTitleLower.includes(keyword))) {
     return false;
   }
   
   // 6. Cover versions and collaborations (only exclude obvious covers)
-  
-  // Only exclude obvious covers, keep main artist collaborations
   if (trackTitleLower.includes('cover of') ||
       trackTitleLower.includes('tribute to') ||
       trackTitleLower.includes('in the style of')) {
     return false;
   }
   
-  // 7. Language and format indicators that suggest non-studio
+  // 7. Format indicators that suggest non-studio - EXPANDED
   const formatKeywords = [
-    'mono', 'stereo', '(live)', '(demo)', '(acoustic)', '(remix)',
+    '(mono)', '(stereo)', '(live)', '(demo)', '(acoustic)', '(remix)',
     '(radio)', '(club)', '(extended)', '(instrumental)', '(karaoke)'
   ];
   
@@ -614,10 +598,10 @@ function isStudioSong(trackTitle: string, albumTitle: string): boolean {
     return false;
   }
   
-  // 8. Album type exclusions (live albums, compilation albums, etc.)
+  // 8. Album type exclusions - COMPREHENSIVE
   const excludedAlbumTypes = [
     'live', 'concert', 'unplugged', 'greatest hits', 'best of', 'collection',
-    'compilation', 'anthology', 'rarities', 'b-sides', 'singles',
+    'compilation', 'anthology', 'rarities', 'b-sides', 'singles collection',
     'remix', 'acoustic', 'demo', 'bootleg', 'live from', 'live at'
   ];
   
@@ -625,10 +609,7 @@ function isStudioSong(trackTitle: string, albumTitle: string): boolean {
     return false;
   }
   
-  // 9. Duration-based filtering (exclude very short intros/outros or very long jams)
-  // This would need duration data, so we'll skip for now
-  
-  // 10. Explicit studio indicators (these should be kept)
+  // 9. Explicit studio indicators (these should be kept)
   const studioKeywords = [
     'studio version', 'original version', 'album cut', 'studio recording'
   ];

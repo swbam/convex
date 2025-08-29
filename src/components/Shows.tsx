@@ -14,12 +14,14 @@ export function Shows({ onShowClick }: ShowsProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | 'upcoming' | 'completed'>('all');
   const [cityFilter, setCityFilter] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'artist' | 'popularity'>('date');
+  const [page, setPage] = useState(1);
+  const pageSize = 18;
 
   // Fetch shows based on filters
   const allShows = useQuery(
     api.shows.getAll, 
     { 
-      limit: 100,
+      limit: 500,
       status: statusFilter === 'all' ? undefined : statusFilter
     }
   ) || [];
@@ -69,6 +71,12 @@ export function Shows({ onShowClick }: ShowsProps) {
 
     return shows;
   }, [allShows, searchResults, cityShows, searchQuery, cityFilter, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(displayShows.length / pageSize));
+  const paginatedShows = React.useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return displayShows.slice(start, start + pageSize);
+  }, [displayShows, page]);
 
   const handleShowClick = (showId: Id<'shows'>, slug?: string) => {
     onShowClick(showId, slug);
@@ -196,7 +204,7 @@ export function Shows({ onShowClick }: ShowsProps) {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <p className="text-muted-foreground">
-                Showing {displayShows.length} of {allShows.length} shows
+                Showing page {page} of {totalPages} • {displayShows.length} results
               </p>
               {(searchQuery || cityFilter || statusFilter !== 'all') && (
                 <button
@@ -212,8 +220,8 @@ export function Shows({ onShowClick }: ShowsProps) {
               )}
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {displayShows.map((show) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {paginatedShows.map((show) => (
                 <ShowCard
                   key={show._id}
                   show={show as any}
@@ -222,6 +230,27 @@ export function Shows({ onShowClick }: ShowsProps) {
                 />
               ))}
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-4">
+                <button
+                  className="px-3 py-2 rounded border text-sm disabled:opacity-50"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </button>
+                <div className="text-sm text-muted-foreground">{page} / {totalPages}</div>
+                <button
+                  className="px-3 py-2 rounded border text-sm disabled:opacity-50"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

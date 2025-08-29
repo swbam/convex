@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
-import { MapPin, Search } from "lucide-react";
+import { MapPin, Search, Navigation, Users, Calendar, Loader2 } from "lucide-react";
 
 export function VenueSearch() {
   const [zipCode, setZipCode] = useState("");

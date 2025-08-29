@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Search, Music, Calendar, MapPin, TrendingUp, Users } from "lucide-react";
@@ -23,6 +23,7 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
   const user = useQuery(api.auth.loggedInUser);
   
   const startFullSync = useMutation(api.syncJobs.startFullSync);
+  const searchTicketmasterArtists = useAction(api.ticketmaster.searchArtists);
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
@@ -34,8 +35,7 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
     setIsSearching(true);
     try {
       // Use Convex action for secure API calls
-      const searchArtists = useMutation(api.ticketmaster.searchArtists);
-      const results = await searchArtists({ query, limit: 10 });
+      const results = await searchTicketmasterArtists({ query, limit: 10 });
       setSearchResults(results.map(artist => ({
         ticketmasterId: artist.ticketmasterId,
         name: artist.name,
@@ -273,10 +273,10 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
                         <span>{show.venue?.name}</span>
                       </div>
                     </div>
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    <div className={`px-2 py-1 rounded-full text-xs font-medium border ${
                       new Date(show.date).toDateString() === new Date().toDateString()
-                        ? "bg-primary/20 text-primary" 
-                        : "bg-blue-500/20 text-blue-400"
+                        ? "border-foreground text-foreground"
+                        : "border-border text-muted-foreground"
                     }`}>
                       {new Date(show.date).toDateString() === new Date().toDateString() ? "Tonight" : "Upcoming"}
                     </div>

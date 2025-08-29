@@ -5,6 +5,7 @@ import { ArrowLeft, Heart, Calendar, MapPin, Users, Music, Plus } from "lucide-r
 import { useState } from "react";
 import { toast } from "sonner";
 import { AddToSetlistModal } from "./AddToSetlistModal";
+import { SEOHead } from "./SEOHead";
 
 interface ArtistDetailProps {
   artistId: Id<"artists">;
@@ -69,6 +70,12 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
 
   return (
     <div className="container mx-auto px-6 py-8 space-y-8">
+      <SEOHead
+        title={`${artist.name} – Artist | TheSet`}
+        description={`Explore ${artist.name}'s upcoming shows, catalog and top songs. Vote on setlist predictions.`}
+        image={artist.images?.[0]}
+        url={typeof window !== 'undefined' ? window.location.href : undefined}
+      />
       {/* Back Button */}
       <button
         onClick={onBack}
@@ -138,7 +145,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
       </div>
 
       {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         {/* Upcoming Shows - Main Content */}
         <div className="lg:col-span-2">
           <div className="dashboard-card">
@@ -193,10 +200,10 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        <div className={`px-3 py-1 rounded-full text-sm font-medium border ${
                           new Date(show.date).toDateString() === new Date().toDateString()
-                            ? "bg-primary/20 text-primary" 
-                            : "bg-blue-500/20 text-blue-400"
+                            ? "border-foreground text-foreground" 
+                            : "border-border text-muted-foreground"
                         }`}>
                           {new Date(show.date).toDateString() === new Date().toDateString() ? "Tonight" : "Upcoming"}
                         </div>
