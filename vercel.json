@@ -5,10 +5,10 @@
   "outputDirectory": "dist",
   "devCommand": "npm run dev:frontend",
   "installCommand": "npm install",
-  "routes": [
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
@@ -29,9 +29,5 @@
         }
       ]
     }
-  ],
-  "env": {
-    "VITE_CONVEX_URL": "@convex_url",
-    "VITE_CLERK_PUBLISHABLE_KEY": "@clerk_publishable_key"
-  }
+  ]
 }
