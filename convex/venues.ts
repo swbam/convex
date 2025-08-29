@@ -61,7 +61,7 @@ export const getByTicketmasterIdInternal = internalQuery({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("venues")
-      .filter((q) => q.eq(q.field("ticketmasterId"), args.ticketmasterId))
+      .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.ticketmasterId))
       .first();
   },
 });
@@ -104,9 +104,10 @@ export const createFromTicketmaster = internalMutation({
   },
   handler: async (ctx, args) => {
     if (args.ticketmasterId) {
+      // Use new index for performance
       const existing = await ctx.db
         .query("venues")
-        .filter((q) => q.eq(q.field("ticketmasterId"), args.ticketmasterId))
+        .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.ticketmasterId))
         .first();
 
       if (existing) {

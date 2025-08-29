@@ -56,7 +56,7 @@ export function AddToSetlistModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-card border rounded-lg shadow-lg w-full max-w-md max-h-[80vh] overflow-y-auto">
+      <div className="bg-card border rounded-lg shadow-lg w-full max-w-md max-h-[90vh] sm:max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-semibold">Add to Setlist</h2>
           <button

@@ -13,24 +13,24 @@ export function Artists({ onArtistClick }: ArtistsProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'trending' | 'followers' | 'name'>('trending');
   const [filterGenre, setFilterGenre] = useState<string>('');
+  const [page, setPage] = useState(1);
+  const pageSize = 18;
 
-  // Fetch trending artists from sync system
-  const trendingArtists = useQuery(api.trending.getTrendingArtists) || [];
-  const allArtists = useQuery(api.artists.getAll, { limit: 50 }) || [];
+  // Use canonical artists collection; trending is reflected via trendingScore
+  const allArtists = useQuery(api.artists.getAll, { limit: 200 }) || [];
 
   // Get unique genres for filter
   const genres = React.useMemo(() => {
     const genreSet = new Set<string>();
-    const artistsToUse = sortBy === 'trending' ? trendingArtists : allArtists;
-    artistsToUse.forEach(artist => {
+    (allArtists || []).forEach(artist => {
       artist.genres?.forEach((genre: string) => genreSet.add(genre));
     });
     return Array.from(genreSet).sort();
-  }, [trendingArtists, allArtists, sortBy]);
+  }, [allArtists]);
 
   // Filter and sort artists
   const filteredArtists = React.useMemo(() => {
-    let filtered = sortBy === 'trending' ? trendingArtists : allArtists;
+    let filtered = allArtists;
 
     // Apply search filter
     if (searchQuery) {
@@ -64,7 +64,13 @@ export function Artists({ onArtistClick }: ArtistsProps) {
     });
 
     return filtered;
-  }, [trendingArtists, allArtists, searchQuery, filterGenre, sortBy]);
+  }, [allArtists, searchQuery, filterGenre, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredArtists.length / pageSize));
+  const paginatedArtists = React.useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredArtists.slice(start, start + pageSize);
+  }, [filteredArtists, page]);
 
   const handleArtistClick = (artistId: Id<'artists'>, slug?: string) => {
     onArtistClick(artistId, slug);
@@ -186,7 +192,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
           <div className="space-y-1">
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm text-muted-foreground">
-                Showing {filteredArtists.length} of {(sortBy === 'trending' ? trendingArtists.length : allArtists.length)} artists
+                Showing page {page} of {totalPages} • {filteredArtists.length} results
               </p>
               {(searchQuery || filterGenre) && (
                 <button
@@ -201,8 +207,8 @@ export function Artists({ onArtistClick }: ArtistsProps) {
               )}
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredArtists.map((artist) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {paginatedArtists.map((artist) => (
                 <ArtistCard
                   key={artist._id}
                   artist={artist}
@@ -211,6 +217,27 @@ export function Artists({ onArtistClick }: ArtistsProps) {
                 />
               ))}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-4">
+                <button
+                  className="px-3 py-2 rounded border text-sm disabled:opacity-50"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </button>
+                <div className="text-sm text-muted-foreground">{page} / {totalPages}</div>
+                <button
+                  className="px-3 py-2 rounded border text-sm disabled:opacity-50"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

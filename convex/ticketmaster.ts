@@ -257,3 +257,113 @@ export const getTrendingArtists = action({
     }
   },
 });
+
+// ADVANCED VENUE SEARCH: Zip code + radius search from Ticketmaster
+export const searchVenuesByLocation = action({
+  args: {
+    zipCode: v.string(),
+    radiusMiles: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(v.object({
+    ticketmasterId: v.string(),
+    name: v.string(),
+    address: v.optional(v.string()),
+    city: v.string(),
+    state: v.optional(v.string()),
+    country: v.string(),
+    lat: v.optional(v.number()),
+    lng: v.optional(v.number()),
+    capacity: v.optional(v.number()),
+    upcomingEvents: v.number(),
+    distance: v.optional(v.number()),
+  })),
+  handler: async (ctx, args) => {
+    const apiKey = process.env.TICKETMASTER_API_KEY;
+    if (!apiKey) {
+      throw new Error("Ticketmaster API key not configured");
+    }
+
+    const limit = args.limit || 50;
+    const radius = args.radiusMiles || 40;
+    
+    // Ticketmaster venue search with geolocation
+    const url = `https://app.ticketmaster.com/discovery/v2/venues.json?postalCode=${encodeURIComponent(args.zipCode)}&radius=${radius}&unit=miles&size=${limit}&apikey=${apiKey}`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Ticketmaster API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const venues = data._embedded?.venues || [];
+
+      return venues.map((venue: any) => ({
+        ticketmasterId: String(venue.id || ''),
+        name: String(venue.name || ''),
+        address: venue.address?.line1 ? String(venue.address.line1) : undefined,
+        city: String(venue.city?.name || ''),
+        state: venue.state?.stateCode ? String(venue.state.stateCode) : undefined,
+        country: String(venue.country?.name || ''),
+        lat: venue.location?.latitude ? parseFloat(venue.location.latitude) : undefined,
+        lng: venue.location?.longitude ? parseFloat(venue.location.longitude) : undefined,
+        capacity: venue.capacity ? Number(venue.capacity) : undefined,
+        upcomingEvents: Number(venue.upcomingEvents?._total || 0),
+        distance: venue.distance ? parseFloat(venue.distance) : undefined,
+      }));
+    } catch (error) {
+      console.error("Failed to search venues by location:", error);
+      return [];
+    }
+  },
+});
+
+// AUTONOMOUS VENUE ECOSYSTEM IMPORT: Venue → Shows → Artists → Complete Catalogs
+export const triggerVenueEcosystemSync = action({
+  args: {
+    ticketmasterId: v.string(),
+    venueName: v.string(),
+    city: v.string(),
+    state: v.optional(v.string()),
+    country: v.string(),
+    address: v.optional(v.string()),
+    capacity: v.optional(v.number()),
+    lat: v.optional(v.number()),
+    lng: v.optional(v.number()),
+  },
+  returns: v.object({
+    venueId: v.id("venues"),
+    jobId: v.id("syncJobs"),
+  }),
+  handler: async (ctx, args) => {
+    console.log(`🏛️ Starting venue ecosystem sync for: ${args.venueName}`);
+
+    // Phase 1: Create or get venue immediately
+    const venueId = await ctx.runMutation(internal.venues.createFromTicketmaster, {
+      ticketmasterId: args.ticketmasterId,
+      name: args.venueName,
+      city: args.city,
+      state: args.state,
+      country: args.country,
+      address: args.address,
+      capacity: args.capacity,
+      lat: args.lat,
+      lng: args.lng,
+    });
+
+    // Phase 2: Create venue ecosystem sync job
+    const jobId = await ctx.runMutation(internal.syncJobs.createVenueEcosystemJob, {
+      venueId,
+      ticketmasterId: args.ticketmasterId,
+      priority: 8, // High priority for user-initiated sync
+    });
+
+    // Phase 3: Schedule immediate execution
+    await ctx.scheduler.runAfter(0, internal.syncJobs.processVenueEcosystemSync, {
+      jobId,
+    });
+
+    return { venueId, jobId };
+  },
+});

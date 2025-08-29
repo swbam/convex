@@ -41,6 +41,17 @@ export function SEOHead({ title, description, image, url }: SEOHeadProps) {
     updateOGTag('og:type', 'website');
     if (url) updateOGTag('og:url', url);
     if (image) updateOGTag('og:image', image);
+    // Canonical
+    const existingCanonical = document.querySelector('link[rel="canonical"]');
+    const canonicalUrl = url || window.location.href;
+    if (existingCanonical) {
+      existingCanonical.setAttribute('href', canonicalUrl);
+    } else {
+      const link = document.createElement('link');
+      link.setAttribute('rel', 'canonical');
+      link.setAttribute('href', canonicalUrl);
+      document.head.appendChild(link);
+    }
     
     // Update Twitter Card tags
     const updateTwitterTag = (name: string, content: string) => {

@@ -11,7 +11,8 @@ export const create = mutation({
       v.literal("artist_catalog"),
       v.literal("trending_sync"),
       v.literal("active_sync"),
-      v.literal("full_sync")
+      v.literal("full_sync"),
+      v.literal("venue_ecosystem_sync")
     ),
     entityId: v.optional(v.string()),
     priority: v.optional(v.number()),
@@ -499,3 +500,339 @@ export const getJobProgress = query({
     };
   },
 });
+
+// Create venue ecosystem sync job
+export const createVenueEcosystemJob = internalMutation({
+  args: {
+    venueId: v.id("venues"),
+    ticketmasterId: v.string(),
+    priority: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("syncJobs", {
+      type: "venue_ecosystem_sync",
+      entityId: JSON.stringify({
+        venueId: args.venueId,
+        ticketmasterId: args.ticketmasterId,
+      }),
+      priority: args.priority || 5,
+      status: "pending",
+      retryCount: 0,
+      maxRetries: 3,
+    });
+  },
+});
+
+// ULTIMATE VENUE ECOSYSTEM SYNC: Import everything for a venue
+export const processVenueEcosystemSync = internalAction({
+  args: { jobId: v.id("syncJobs") },
+  handler: async (ctx: ActionCtx, args) => {
+    console.log(`🚀 Starting venue ecosystem sync job ${args.jobId}`);
+
+    // Initialize job progress
+    await ctx.runMutation(internal.syncJobs.updateJobStatus, {
+      jobId: args.jobId,
+      status: "running",
+      startedAt: Date.now(),
+    });
+
+    await ctx.runMutation(internal.syncJobs.updateJobProgress, {
+      jobId: args.jobId,
+      currentPhase: "Venue Setup",
+      totalSteps: 6,
+      completedSteps: 0,
+      currentStep: "Preparing venue ecosystem sync",
+      progressPercentage: 0,
+    });
+
+    try {
+      const job = await ctx.runQuery(internal.syncJobs.getJobById, {
+        jobId: args.jobId,
+      });
+
+      if (!job?.entityId) {
+        throw new Error("Job missing entity data");
+      }
+
+      const { venueId, ticketmasterId } = JSON.parse(job.entityId);
+
+      // Step 1: Get venue events from Ticketmaster
+      await ctx.runMutation(internal.syncJobs.updateJobProgress, {
+        jobId: args.jobId,
+        currentPhase: "Event Discovery",
+        completedSteps: 1,
+        currentStep: "Fetching all events at this venue",
+        progressPercentage: 17,
+      });
+
+      const events = await fetchVenueEvents(ctx, ticketmasterId);
+      console.log(`📅 Found ${events.length} events at venue`);
+
+      // Step 2: Extract unique artists from events
+      await ctx.runMutation(internal.syncJobs.updateJobProgress, {
+        jobId: args.jobId,
+        currentPhase: "Artist Discovery",
+        completedSteps: 2,
+        currentStep: "Identifying artists performing at venue",
+        progressPercentage: 33,
+      });
+
+      const uniqueArtists = extractUniqueArtistsFromEvents(events);
+      console.log(`🎤 Found ${uniqueArtists.length} unique artists`);
+
+      // Step 3: Create/sync all artists with full catalogs
+      await ctx.runMutation(internal.syncJobs.updateJobProgress, {
+        jobId: args.jobId,
+        currentPhase: "Artist Import",
+        completedSteps: 3,
+        currentStep: "Importing artist profiles and catalogs",
+        progressPercentage: 50,
+      });
+
+      const artistIds: string[] = [];
+      for (let i = 0; i < uniqueArtists.length; i++) {
+        const artistData = uniqueArtists[i];
+        
+        // Update sub-progress
+        await ctx.runMutation(internal.syncJobs.updateJobProgress, {
+          jobId: args.jobId,
+          itemsProcessed: i + 1,
+          totalItems: uniqueArtists.length,
+          currentStep: `Importing ${artistData.name} (${i + 1}/${uniqueArtists.length})`,
+        });
+
+        const artistId = await syncArtistFromVenueData(ctx, artistData);
+        if (artistId) {
+          artistIds.push(artistId);
+        }
+        
+        // Rate limiting
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      // Step 4: Create all shows and link to artists
+      await ctx.runMutation(internal.syncJobs.updateJobProgress, {
+        jobId: args.jobId,
+        currentPhase: "Show Creation",
+        completedSteps: 4,
+        currentStep: "Creating show records and linking artists",
+        progressPercentage: 67,
+      });
+
+      let showsCreated = 0;
+      for (const event of events) {
+        try {
+          const showCreated = await createShowFromEvent(ctx, event, venueId);
+          if (showCreated) showsCreated++;
+        } catch (error) {
+          console.error(`Failed to create show from event:`, error);
+        }
+      }
+
+      console.log(`📊 Created ${showsCreated} shows`);
+
+      // Step 5: Auto-generate setlists for all shows
+      await ctx.runMutation(internal.syncJobs.updateJobProgress, {
+        jobId: args.jobId,
+        currentPhase: "Setlist Generation",
+        completedSteps: 5,
+        currentStep: "Auto-generating setlists for shows",
+        progressPercentage: 83,
+      });
+
+      const allVenueShows = await ctx.runQuery(internal.shows.getByVenueInternal, { venueId });
+      let setlistsGenerated = 0;
+
+      for (const show of allVenueShows) {
+        try {
+          const existingSetlists = await ctx.runQuery(api.setlists.getByShow, { showId: show._id });
+          if ((existingSetlists || []).length === 0) {
+            await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+              showId: show._id,
+              artistId: show.artistId,
+            });
+            setlistsGenerated++;
+          }
+        } catch (error) {
+          console.error(`Failed to generate setlist for show ${show._id}:`, error);
+        }
+        
+        // Brief backoff
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      console.log(`🎵 Generated ${setlistsGenerated} setlists`);
+
+      // Step 6: Finalization
+      await ctx.runMutation(internal.syncJobs.updateJobProgress, {
+        jobId: args.jobId,
+        currentPhase: "Completed",
+        completedSteps: 6,
+        currentStep: `Venue ecosystem sync complete: ${artistIds.length} artists, ${showsCreated} shows, ${setlistsGenerated} setlists`,
+        progressPercentage: 100,
+      });
+
+      await ctx.runMutation(internal.syncJobs.updateJobStatus, {
+        jobId: args.jobId,
+        status: "completed",
+        completedAt: Date.now(),
+      });
+
+      console.log(`✅ Venue ecosystem sync completed for ${venueId}: ${artistIds.length} artists, ${showsCreated} shows, ${setlistsGenerated} setlists`);
+
+    } catch (error) {
+      console.error("Venue ecosystem sync failed:", error);
+      
+      const job = await ctx.runQuery(internal.syncJobs.getJobById, {
+        jobId: args.jobId,
+      });
+      
+      if (job && job.retryCount < job.maxRetries) {
+        await ctx.runMutation(internal.syncJobs.updateJobStatus, {
+          jobId: args.jobId,
+          status: "pending",
+          retryCount: job.retryCount + 1,
+          errorMessage: error instanceof Error ? error.message : "Unknown error",
+        });
+        
+        // Schedule retry after delay
+        await ctx.scheduler.runAfter(120000, internal.syncJobs.processVenueEcosystemSync, {
+          jobId: args.jobId,
+        });
+      } else {
+        await ctx.runMutation(internal.syncJobs.updateJobStatus, {
+          jobId: args.jobId,
+          status: "failed",
+          completedAt: Date.now(),
+          errorMessage: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    }
+  },
+});
+
+// Helper functions for venue ecosystem sync
+async function fetchVenueEvents(ctx: ActionCtx, venueTicketmasterId: string) {
+  const apiKey = process.env.TICKETMASTER_API_KEY;
+  if (!apiKey) return [];
+
+  try {
+    const url = `https://app.ticketmaster.com/discovery/v2/events.json?venueId=${venueTicketmasterId}&classificationName=music&size=200&sort=date,asc&apikey=${apiKey}`;
+    
+    const response = await fetch(url);
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    return data._embedded?.events || [];
+  } catch (error) {
+    console.error("Failed to fetch venue events:", error);
+    return [];
+  }
+}
+
+function extractUniqueArtistsFromEvents(events: any[]): Array<{
+  ticketmasterId: string;
+  name: string;
+  genres: string[];
+  images: string[];
+}> {
+  const artistMap = new Map<string, any>();
+  
+  for (const event of events) {
+    const attractions = event._embedded?.attractions || [];
+    for (const attraction of attractions) {
+      if (attraction.id && attraction.name && !artistMap.has(attraction.id)) {
+        artistMap.set(attraction.id, {
+          ticketmasterId: attraction.id,
+          name: attraction.name,
+          genres: attraction.classifications?.[0]?.genre?.name ? [attraction.classifications[0].genre.name] : [],
+          images: attraction.images?.map((img: any) => img.url) || [],
+        });
+      }
+    }
+  }
+  
+  return Array.from(artistMap.values());
+}
+
+async function syncArtistFromVenueData(ctx: ActionCtx, artistData: any): Promise<string | null> {
+  try {
+    // Check if artist already exists
+    const existingArtist = await ctx.runQuery(api.artists.getByTicketmasterId, {
+      ticketmasterId: artistData.ticketmasterId,
+    });
+
+    if (existingArtist) {
+      return existingArtist._id;
+    }
+
+    // Create new artist and trigger full sync
+    const artistId = await ctx.runAction(internal.ticketmaster.startFullArtistSync, {
+      ticketmasterId: artistData.ticketmasterId,
+      artistName: artistData.name,
+      genres: artistData.genres,
+      images: artistData.images,
+    });
+
+    return artistId;
+  } catch (error) {
+    console.error(`Failed to sync artist ${artistData.name}:`, error);
+    return null;
+  }
+}
+
+async function createShowFromEvent(ctx: ActionCtx, event: any, venueId: string): Promise<boolean> {
+  try {
+    const attraction = event._embedded?.attractions?.[0];
+    if (!attraction) return false;
+
+    // Get or create artist
+    let artist = await ctx.runQuery(api.artists.getByTicketmasterId, {
+      ticketmasterId: attraction.id,
+    });
+
+    if (!artist) {
+      artist = await ctx.runQuery(api.artists.getByName, { name: attraction.name });
+    }
+
+    if (!artist) {
+      // Create basic artist record (full sync will happen separately)
+      const artistId = await ctx.runMutation(internal.artists.createFromTicketmaster, {
+        ticketmasterId: attraction.id,
+        name: attraction.name,
+        genres: attraction.classifications?.[0]?.genre?.name ? [attraction.classifications[0].genre.name] : [],
+        images: attraction.images?.map((img: any) => img.url) || [],
+      });
+      artist = await ctx.runQuery(internal.artists.getByIdInternal, { id: artistId });
+    }
+
+    if (!artist) return false;
+
+    // Create show
+    const eventDate = event.dates?.start?.localDate;
+    if (!eventDate) return false;
+
+    const existingShow = await ctx.runQuery(internal.shows.getByArtistAndDateInternal, {
+      artistId: artist._id,
+      date: eventDate,
+    });
+
+    if (!existingShow) {
+      await ctx.runMutation(internal.shows.createFromTicketmaster, {
+        artistId: artist._id,
+        venueId: venueId as any,
+        ticketmasterId: event.id,
+        date: eventDate,
+        startTime: event.dates?.start?.localTime,
+        status: "upcoming",
+        ticketUrl: event.url,
+      });
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error("Failed to create show from event:", error);
+    return false;
+  }
+}

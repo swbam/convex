@@ -495,3 +495,13 @@ export const getByIdInternal = internalQuery({
     return await ctx.db.get(args.id);
   },
 });
+
+export const getByVenueInternal = internalQuery({
+  args: { venueId: v.id("venues") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("shows")
+      .withIndex("by_venue", (q) => q.eq("venueId", args.venueId))
+      .collect();
+  },
+});

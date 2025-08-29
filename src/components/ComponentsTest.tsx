@@ -122,16 +122,13 @@ export function ComponentsTest() {
           
           {selectedArtist && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {["Song A", "Song B", "Song C", "Song D"].map(songTitle => (
-                <button
-                  key={songTitle}
-                  onClick={() => setTestModal({ isOpen: true, songTitle })}
-                  className="p-3 border rounded-lg hover:bg-accent/50 transition-colors text-left"
-                >
-                  <div className="font-medium">{songTitle}</div>
-                  <div className="text-sm text-muted-foreground">Test Song</div>
-                </button>
-              ))}
+              <button
+                onClick={() => setTestModal({ isOpen: true, songTitle: "Example Song" })}
+                className="p-3 border rounded-lg hover:bg-accent/50 transition-colors text-left"
+              >
+                <div className="font-medium">Open modal (uses real artist shows)</div>
+                <div className="text-sm text-muted-foreground">No mock songs used</div>
+              </button>
             </div>
           )}
           

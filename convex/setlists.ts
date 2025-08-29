@@ -67,28 +67,28 @@ export const addSongToSetlist = mutation({
       throw new Error("Must be logged in to add songs to setlist");
     }
     
-    // Check if user already has a setlist for this show
-    const existing = await ctx.db
+    // Find the shared community setlist for this show (not user-specific)
+    const existingSetlist = await ctx.db
       .query("setlists")
-      .withIndex("by_show_and_user", (q) => 
-        q.eq("showId", args.showId).eq("userId", userId)
-      )
+      .withIndex("by_show", (q) => q.eq("showId", args.showId))
+      .filter((q) => q.eq(q.field("isOfficial"), false))
       .first();
     
-    if (existing) {
+    if (existingSetlist) {
       // Add song if not already present
-      const songExists = existing.songs.some(s => s.title === args.song.title);
+      const songExists = existingSetlist.songs.some(s => s.title === args.song.title);
       if (!songExists) {
-        await ctx.db.patch(existing._id, {
-          songs: [...existing.songs, args.song],
+        await ctx.db.patch(existingSetlist._id, {
+          songs: [...existingSetlist.songs, args.song],
+          lastUpdated: Date.now(),
         });
       }
-      return existing._id;
+      return existingSetlist._id;
     } else {
-      // Create new setlist with just this song
+      // Create new shared setlist for this show
       return await ctx.db.insert("setlists", {
         showId: args.showId,
-        userId: userId,
+        userId: undefined, // Shared setlist, not user-specific
         songs: [args.song],
         verified: false,
         source: "user_submitted",
@@ -158,7 +158,7 @@ export const getByShow = query({
     // Get user data for each setlist
     const enrichedSetlists = await Promise.all(
       setlists.map(async (setlist) => {
-        let username = "Anonymous";
+        let username = "Community";
         if (setlist.userId) {
           const user = await ctx.db.get(setlist.userId);
           if (user) {
@@ -291,6 +291,13 @@ export const submitVote = mutation({
 
 export const getSetlistVotes = query({
   args: { setlistId: v.id("setlists") },
+  returns: v.object({
+    total: v.number(),
+    accurate: v.number(),
+    inaccurate: v.number(),
+    accuracy: v.number(),
+    votes: v.array(v.any()),
+  }),
   handler: async (ctx, args) => {
     const votes = await ctx.db
       .query("votes")
@@ -300,11 +307,14 @@ export const getSetlistVotes = query({
     const totalVotes = votes.length;
     const accurateVotes = votes.filter(v => v.voteType === "accurate").length;
     
+    // Real-time accuracy calculation
+    const accuracy = totalVotes > 0 ? Math.round((accurateVotes / totalVotes) * 100) : 0;
+    
     return {
       total: totalVotes,
       accurate: accurateVotes,
       inaccurate: totalVotes - accurateVotes,
-      accuracy: totalVotes > 0 ? (accurateVotes / totalVotes) * 100 : 0,
+      accuracy,
       votes: votes, // Real-time updates!
     };
   },

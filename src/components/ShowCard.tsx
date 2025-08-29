@@ -1,5 +1,6 @@
 import React from 'react'
 import { Id } from '../../convex/_generated/dataModel'
+import { MagicCard } from './ui/magic-card'
 
 interface Show {
   _id: Id<'shows'>
@@ -46,8 +47,7 @@ export function ShowCard({
     return date.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
-      day: 'numeric',
-      year: 'numeric'
+      day: 'numeric'
     })
   }
 
@@ -65,70 +65,19 @@ export function ShowCard({
     }
   }
 
-  // Status color removed to enforce strict black/white theme
+  const isToday = new Date(show.date).toDateString() === new Date().toDateString()
 
   if (compact) {
     return (
-      <div 
-        className="group cursor-pointer bg-zinc-900/50 border border-zinc-800 rounded-lg hover:bg-zinc-800/50 transition-all duration-200 p-3"
-        onClick={handleClick}
+      <MagicCard
+        className="cursor-pointer p-0 transition-all duration-200"
+        gradientColor="#0a0a0a"
+        gradientOpacity={0.05}
       >
-        <div className="flex items-center gap-3">
-          {showArtist && show.artist && (
-            <div className="w-10 h-10 rounded-full overflow-hidden bg-zinc-700 flex items-center justify-center">
-              {show.artist.images?.[0] ? (
-                <img 
-                  src={show.artist.images[0]} 
-                  alt={show.artist.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-white text-sm font-medium">
-                  {show.artist.name.slice(0, 2).toUpperCase()}
-                </span>
-              )}
-            </div>
-          )}
-          
-          <div className="flex-1 min-w-0">
-            {showArtist && show.artist && (
-              <p className="font-medium text-white text-sm truncate group-hover:text-zinc-300 transition-colors">
-                {show.artist.name}
-              </p>
-            )}
-            
-            <div className="flex items-center gap-2 text-xs text-zinc-400">
-              <span>📅</span>
-              <span>{formatDate(show.date)}</span>
-              
-              {show.venue && (
-                <>
-                  <span>•</span>
-                  <span>📍</span>
-                  <span className="truncate">{show.venue.name}</span>
-                </>
-              )}
-            </div>
-          </div>
-          
-          <span className={`text-xs px-2 py-1 rounded border border-zinc-700 text-zinc-300`}>
-            {show.status}
-          </span>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div 
-      className="group cursor-pointer bg-zinc-900/50 border border-zinc-800 rounded-lg hover:bg-zinc-800/50 transition-all duration-200 hover:scale-[1.01]"
-      onClick={handleClick}
-    >
-      <div className="p-6 pb-3">
-        <div className="flex items-start justify-between">
+        <div className="p-3" onClick={handleClick}>
           <div className="flex items-center gap-3">
             {showArtist && show.artist && (
-              <div className="w-12 h-12 rounded-full ring-2 ring-zinc-700 group-hover:ring-zinc-600 transition-colors overflow-hidden bg-gradient-to-br from-zinc-700 to-zinc-800 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg overflow-hidden bg-zinc-800 flex items-center justify-center">
                 {show.artist.images?.[0] ? (
                   <img 
                     src={show.artist.images[0]} 
@@ -136,70 +85,122 @@ export function ShowCard({
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <span className="text-white font-medium">
+                  <span className="text-white text-xs font-medium">
                     {show.artist.name.slice(0, 2).toUpperCase()}
                   </span>
                 )}
               </div>
             )}
             
-            <div>
+            <div className="flex-1 min-w-0">
               {showArtist && show.artist && (
-                <h3 className="font-semibold text-white text-lg group-hover:text-zinc-300 transition-colors">
+                <p className="font-medium text-white text-sm truncate">
+                  {show.artist.name}
+                </p>
+              )}
+              
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>{formatDate(show.date)}</span>
+                {show.venue && (
+                  <>
+                    <span>•</span>
+                    <span className="truncate">{show.venue.name}</span>
+                  </>
+                )}
+              </div>
+            </div>
+            
+            <div className="text-right">
+              <div className={`text-xs px-2 py-1 rounded border ${
+                isToday ? 'border-white text-white' : 'border-zinc-700 text-zinc-400'
+              }`}>
+                {isToday ? 'Today' : show.status}
+              </div>
+            </div>
+          </div>
+        </div>
+      </MagicCard>
+    )
+  }
+
+  return (
+    <MagicCard
+      className="cursor-pointer p-0 transition-all duration-200 hover:scale-[1.01]"
+      gradientColor="#1a1a1a"
+      gradientOpacity={0.1}
+    >
+      <div className="p-4" onClick={handleClick}>
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {showArtist && show.artist && (
+              <div className="w-10 h-10 rounded-xl overflow-hidden bg-zinc-800 flex items-center justify-center">
+                {show.artist.images?.[0] ? (
+                  <img 
+                    src={show.artist.images[0]} 
+                    alt={show.artist.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-white font-medium text-sm">
+                    {show.artist.name.slice(0, 2).toUpperCase()}
+                  </span>
+                )}
+              </div>
+            )}
+            
+            <div className="flex-1 min-w-0">
+              {showArtist && show.artist && (
+                <h3 className="font-semibold text-white text-base truncate mb-1">
                   {show.artist.name}
                 </h3>
               )}
               
               {show.venue && (
-                <p className="text-zinc-400 text-sm">
-                  {show.venue.name} • {show.venue.city}{show.venue.state ? `, ${show.venue.state}` : ''}
+                <p className="text-muted-foreground text-sm truncate">
+                  {show.venue.name}
                 </p>
               )}
             </div>
           </div>
           
-          <span className={`px-2 py-1 rounded border text-sm border-zinc-700 text-zinc-300`}>
-            {show.status}
-          </span>
+          <div className={`text-xs px-2 py-1 rounded border ${
+            isToday ? 'border-white text-white' : 'border-zinc-700 text-zinc-400'
+          }`}>
+            {isToday ? 'Today' : show.status}
+          </div>
         </div>
-      </div>
-      
-      <div className="px-6 pb-6">
-        <div className="flex items-center gap-4 text-sm text-zinc-400 mb-4">
+        
+        {/* Event Details - Refined */}
+        <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
           <div className="flex items-center gap-1">
-            <span>📅</span>
+            <div className="w-1 h-1 rounded-full bg-zinc-600" />
             <span>{formatDate(show.date)}</span>
           </div>
           
           {show.time && (
             <div className="flex items-center gap-1">
-              <span>🕒</span>
+              <div className="w-1 h-1 rounded-full bg-zinc-600" />
               <span>{formatTime(show.time)}</span>
             </div>
           )}
           
           {show.venue && (
             <div className="flex items-center gap-1">
-              <span>📍</span>
-              <span className="truncate">{show.venue.city}{show.venue.state ? `, ${show.venue.state}` : ''}</span>
+              <div className="w-1 h-1 rounded-full bg-zinc-600" />
+              <span className="truncate">{show.venue.city}</span>
             </div>
           )}
         </div>
         
+        {/* Actions - Refined */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 text-sm text-zinc-400">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
             {show.setlistCount !== undefined && (
-              <div className="flex items-center gap-1">
-                <span>🎵</span>
-                <span>{show.setlistCount} setlist{show.setlistCount !== 1 ? 's' : ''}</span>
-              </div>
+              <span>{show.setlistCount} setlist{show.setlistCount !== 1 ? 's' : ''}</span>
             )}
             
             {show.voteCount !== undefined && show.voteCount > 0 && (
-              <div className="flex items-center gap-1">
-                <span>⭐</span>
-                <span>{show.voteCount} vote{show.voteCount !== 1 ? 's' : ''}</span>
-              </div>
+              <span>{show.voteCount} vote{show.voteCount !== 1 ? 's' : ''}</span>
             )}
           </div>
           
@@ -209,13 +210,13 @@ export function ShowCard({
                 e.stopPropagation()
                 window.open(show.ticketmasterUrl, '_blank')
               }}
-              className="border border-zinc-600 text-zinc-300 hover:border-zinc-500 hover:text-zinc-200 px-3 py-1 rounded text-sm font-medium transition-colors bg-transparent"
+              className="border border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white px-2 py-1 rounded text-xs font-medium transition-colors bg-transparent"
             >
               Tickets
             </button>
           )}
         </div>
       </div>
-    </div>
+    </MagicCard>
   )
 }

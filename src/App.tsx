@@ -10,17 +10,17 @@ import { ShowDetail } from "./components/ShowDetail";
 import { Artists } from "./components/Artists";
 import { Shows } from "./components/Shows";
 import { Library } from "./components/Library";
-import { VenueDetail } from "./components/VenueDetail";
 import { PublicDashboard } from "./components/PublicDashboard";
 import { AppLayout } from "./components/AppLayout";
 import { UserDashboard } from "./components/UserDashboard";
-import { Venues } from "./components/Venues";
 import { toast, Toaster } from "sonner";
 import { SEOHead } from "./components/SEOHead";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { AdminDashboard } from "./components/AdminDashboard";
+import { TestSuite } from "./components/TestSuite";
 // Removed lucide-react imports due to TypeScript compatibility issues
 
-type View = "home" | "artist" | "show" | "venue" | "search" | "artists" | "shows" | "venues" | "library" | "signin" | "trending" | "profile" | "following" | "predictions";
+type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "library" | "signin" | "trending" | "profile" | "following" | "predictions" | "admin" | "test";
 
 export default function App() {
   const location = useLocation();
@@ -30,7 +30,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<View>("home");
   const [selectedArtistId, setSelectedArtistId] = useState<Id<"artists"> | null>(null);
   const [selectedShowId, setSelectedShowId] = useState<Id<"shows"> | null>(null);
-  const [selectedVenueId, setSelectedVenueId] = useState<Id<"venues"> | null>(null);
+
   const [showSignIn, setShowSignIn] = useState(false);
 
   const createAppUser = useMutation(api.auth.createAppUser);
@@ -109,9 +109,7 @@ export default function App() {
     } else if (path === '/shows') {
       setCurrentView('shows');
       document.title = 'Shows – TheSet';
-    } else if (path === '/venues') {
-      setCurrentView('venues');
-      document.title = 'Venues – TheSet';
+
     } else if (path === '/library') {
       setCurrentView('library');
       document.title = 'Library – TheSet';
@@ -122,6 +120,12 @@ export default function App() {
     } else if (path === '/profile') {
       setCurrentView('profile');
       document.title = 'Profile – TheSet';
+    } else if (path === '/admin') {
+      setCurrentView('admin');
+      document.title = 'Admin – TheSet';
+    } else if (path === '/test') {
+      setCurrentView('test');
+      document.title = 'Test Suite – TheSet';
     }
   }, [location.pathname, artistBySlug, showBySlugOrId]);
 
@@ -259,25 +263,7 @@ export default function App() {
         return (
           <Shows onShowClick={handleShowClick} />
         );
-      case "venue":
-        return selectedVenueId ? (
-          <VenueDetail
-            venueId={selectedVenueId}
-            onBack={() => handleViewChange("venues")}
-            onShowClick={handleShowClick}
-          />
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">No venue selected</p>
-          </div>
-        );
-      case "venues":
-        return (
-          <Venues onVenueClick={(venueId) => {
-            setSelectedVenueId(venueId);
-            setCurrentView("venue");
-          }} />
-        );
+
       case "library":
         return (
           <Library 
@@ -291,6 +277,14 @@ export default function App() {
             onArtistClick={handleArtistClick}
             onShowClick={handleShowClick}
           />
+        );
+      case "admin":
+        return (
+          <AdminDashboard />
+        );
+      case "test":
+        return (
+          <TestSuite />
         );
       case "trending":
       case "following":
