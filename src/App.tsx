@@ -3,18 +3,18 @@ import { useQuery, useMutation } from "convex/react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
-import { SignedIn, SignedOut } from "@clerk/clerk-react";
+
 import { SignInForm } from "./SignInForm";
 import { ArtistDetail } from "./components/ArtistDetail";
 import { ShowDetail } from "./components/ShowDetail";
 import { Artists } from "./components/Artists";
 import { Shows } from "./components/Shows";
 import { Library } from "./components/Library";
-import { PublicDashboard } from "./components/PublicDashboard";
+
 import { AppLayout } from "./components/AppLayout";
 import { UserDashboard } from "./components/UserDashboard";
-import { toast, Toaster } from "sonner";
-import { SEOHead } from "./components/SEOHead";
+import { toast } from "sonner";
+
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { TestSuite } from "./components/TestSuite";
@@ -25,7 +25,7 @@ type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "libra
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
-  const params = useParams();
+  const _params = useParams();
   
   const [currentView, setCurrentView] = useState<View>("home");
   const [selectedArtistId, setSelectedArtistId] = useState<Id<"artists"> | null>(null);
