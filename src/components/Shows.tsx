@@ -175,16 +175,19 @@ export function Shows({ onShowClick }: ShowsProps) {
             </select>
           </div>
 
-          {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="w-full px-4 py-3 bg-muted/20 border border-muted rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none cursor-pointer"
-          >
-            <option value="date">Latest First</option>
-            <option value="artist">Artist Name</option>
-            <option value="popularity">Most Popular</option>
-          </select>
+          {/* Enhanced Sort */}
+          <div className="relative">
+            <TrendingUp className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none z-10" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="w-full pl-12 pr-8 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white backdrop-blur-sm appearance-none cursor-pointer transition-all duration-300"
+            >
+              <option value="date" className="bg-background text-foreground">Latest First</option>
+              <option value="artist" className="bg-background text-foreground">Artist Name</option>
+              <option value="popularity" className="bg-background text-foreground">Most Popular</option>
+            </select>
+          </div>
           </div>
         </div>
         <BorderBeam size={120} duration={8} className="opacity-20" />
