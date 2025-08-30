@@ -269,15 +269,27 @@ export const getRecentlyActive = internalQuery({
   },
 });
 
-// Get all artists for maintenance
+// Get all artists for maintenance (including incomplete ones)
 export const getAllForMaintenance = internalQuery({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx) => {
-    return await ctx.db
+    const allArtists = await ctx.db
       .query("artists")
       .order("desc")
       .take(100); // Limit for maintenance operations
+    
+    // Filter to prioritize artists with missing data
+    const incompleteArtists = allArtists.filter(artist => 
+      !artist.spotifyId || // Missing Spotify ID
+      !artist.popularity || // Missing popularity score
+      !artist.followers || // Missing follower count
+      !artist.images || artist.images.length === 0 || // Missing images
+      !artist.lastSynced // Never been synced
+    );
+    
+    // Return incomplete artists first, then complete ones
+    return [...incompleteArtists, ...allArtists.filter(a => !incompleteArtists.includes(a))];
   },
 });
 
@@ -294,6 +306,7 @@ export const updateSpotifyData = internalMutation({
     genres: v.array(v.string()),
     images: v.array(v.string()),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.patch(args.artistId, {
       spotifyId: args.spotifyId,
@@ -301,7 +314,9 @@ export const updateSpotifyData = internalMutation({
       popularity: args.popularity,
       genres: args.genres,
       images: args.images,
+      lastSynced: Date.now(), // CRITICAL: Update sync timestamp
     });
+    return null;
   },
 });
 
