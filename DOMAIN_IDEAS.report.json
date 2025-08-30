@@ -1,0 +1,211 @@
+{
+  "checkedAt": "2025-08-30T23:44:20.362Z",
+  "totals": {
+    "input": 50,
+    "available": 22,
+    "registered": 28,
+    "unknown": 0
+  },
+  "results": [
+    {
+      "domain": "setvox.com",
+      "status": "available"
+    },
+    {
+      "domain": "setcoda.com",
+      "status": "available"
+    },
+    {
+      "domain": "setrally.com",
+      "status": "available"
+    },
+    {
+      "domain": "setverse.com",
+      "status": "registered"
+    },
+    {
+      "domain": "setvibe.com",
+      "status": "registered"
+    },
+    {
+      "domain": "setforge.com",
+      "status": "registered"
+    },
+    {
+      "domain": "setpilot.com",
+      "status": "registered"
+    },
+    {
+      "domain": "setpicks.com",
+      "status": "registered"
+    },
+    {
+      "domain": "setcrowd.com",
+      "status": "registered"
+    },
+    {
+      "domain": "setshout.com",
+      "status": "available"
+    },
+    {
+      "domain": "setcast.com",
+      "status": "registered"
+    },
+    {
+      "domain": "setround.com",
+      "status": "available"
+    },
+    {
+      "domain": "setjam.com",
+      "status": "registered"
+    },
+    {
+      "domain": "setpulse.com",
+      "status": "registered"
+    },
+    {
+      "domain": "setmeter.com",
+      "status": "registered"
+    },
+    {
+      "domain": "setbeat.com",
+      "status": "registered"
+    },
+    {
+      "domain": "setloop.com",
+      "status": "registered"
+    },
+    {
+      "domain": "setnote.com",
+      "status": "registered"
+    },
+    {
+      "domain": "settune.com",
+      "status": "registered"
+    },
+    {
+      "domain": "lineuplist.com",
+      "status": "registered"
+    },
+    {
+      "domain": "votelineup.com",
+      "status": "available"
+    },
+    {
+      "domain": "votegig.com",
+      "status": "available"
+    },
+    {
+      "domain": "gigvote.com",
+      "status": "registered"
+    },
+    {
+      "domain": "encorevote.com",
+      "status": "available"
+    },
+    {
+      "domain": "encoreplay.com",
+      "status": "registered"
+    },
+    {
+      "domain": "encorecast.com",
+      "status": "registered"
+    },
+    {
+      "domain": "setencore.com",
+      "status": "available"
+    },
+    {
+      "domain": "setgroove.com",
+      "status": "available"
+    },
+    {
+      "domain": "setgrid.com",
+      "status": "registered"
+    },
+    {
+      "domain": "stagevote.com",
+      "status": "registered"
+    },
+    {
+      "domain": "stagelist.com",
+      "status": "registered"
+    },
+    {
+      "domain": "showvote.com",
+      "status": "registered"
+    },
+    {
+      "domain": "showset.com",
+      "status": "registered"
+    },
+    {
+      "domain": "setrank.com",
+      "status": "registered"
+    },
+    {
+      "domain": "setranker.com",
+      "status": "available"
+    },
+    {
+      "domain": "setpredict.com",
+      "status": "available"
+    },
+    {
+      "domain": "setoracle.com",
+      "status": "available"
+    },
+    {
+      "domain": "setseer.com",
+      "status": "registered"
+    },
+    {
+      "domain": "crowdencore.com",
+      "status": "available"
+    },
+    {
+      "domain": "crowdsing.com",
+      "status": "registered"
+    },
+    {
+      "domain": "crowdset.com",
+      "status": "registered"
+    },
+    {
+      "domain": "votemyset.com",
+      "status": "available"
+    },
+    {
+      "domain": "setchooser.com",
+      "status": "available"
+    },
+    {
+      "domain": "setdecide.com",
+      "status": "available"
+    },
+    {
+      "domain": "pickmyset.com",
+      "status": "registered"
+    },
+    {
+      "domain": "mysetvote.com",
+      "status": "available"
+    },
+    {
+      "domain": "setlistvote.com",
+      "status": "available"
+    },
+    {
+      "domain": "votetheset.com",
+      "status": "available"
+    },
+    {
+      "domain": "setriff.com",
+      "status": "available"
+    },
+    {
+      "domain": "setbop.com",
+      "status": "available"
+    }
+  ]
+}
