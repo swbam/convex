@@ -72,7 +72,7 @@ export function ShowCard({
   if (compact) {
     return (
       <MagicCard
-        className="group cursor-pointer p-0 transition-all duration-500 ease-out hover:scale-[1.03] relative overflow-hidden border-0 hover:border-white/20"
+        className="group cursor-pointer p-0 transition-all duration-500 ease-out hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden border-0 hover:border-white/20 touch-manipulation"
         gradientColor="#ffffff"
         gradientOpacity={0.08}
         gradientSize={300}

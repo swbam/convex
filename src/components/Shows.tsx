@@ -89,20 +89,20 @@ export function Shows({ onShowClick }: ShowsProps) {
   const completedCount = allShows.filter(s => s.status === 'completed').length;
 
   return (
-    <div className="container mx-auto px-6 py-8 space-y-8">
+    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8">
       {/* Enhanced Header with MagicCard */}
       <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 hover:border-white/20">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5" />
-        <div className="relative z-10 p-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="relative z-10 p-4 sm:p-6 lg:p-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
                   <Calendar className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-4xl lg:text-5xl font-bold text-white">Shows</h1>
-                  <p className="text-gray-300 text-lg">
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white leading-tight">Shows</h1>
+                  <p className="text-gray-300 text-sm sm:text-base lg:text-lg">
                     Discover {allShows.length} concerts • {upcomingCount} upcoming • {completedCount} completed
                   </p>
                 </div>
@@ -125,15 +125,15 @@ export function Shows({ onShowClick }: ShowsProps) {
 
       {/* Enhanced Filters and Search */}
       <MagicCard className="p-0 rounded-2xl border-0 hover:border-white/20">
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-6">
+        <div className="p-4 sm:p-6">
+          <div className="flex items-center gap-3 mb-4 sm:mb-6">
             <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
               <Filter className="h-4 w-4 text-white" />
             </div>
-            <h2 className="text-xl font-semibold text-white">Filters & Search</h2>
+            <h2 className="text-lg sm:text-xl font-semibold text-white">Filters & Search</h2>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {/* Enhanced Search */}
             <div className="relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -254,7 +254,7 @@ export function Shows({ onShowClick }: ShowsProps) {
               )}
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {paginatedShows.map((show) => (
                 <ShowCard
                   key={show._id}

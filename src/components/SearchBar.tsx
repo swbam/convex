@@ -239,7 +239,7 @@ export function SearchBar({
 
       {/* Search Results Dropdown */}
       {isOpen && debouncedQuery.length >= 2 && (
-        <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-xl max-h-[70vh] sm:max-h-96">
+        <div className="absolute top-full left-0 right-0 mt-2 z-[9999] bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-xl max-h-[70vh] sm:max-h-96">
           <div className="p-0">
             <div className="max-h-96 overflow-y-auto">
               {sortedResults.length > 0 ? (
@@ -310,7 +310,7 @@ export function SearchBar({
       {/* Backdrop to close search */}
       {isOpen && (
         <div 
-          className="fixed inset-0 z-40" 
+          className="fixed inset-0 z-[9998]" 
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -318,7 +318,7 @@ export function SearchBar({
       {/* Backdrop to close filters */}
       {showFilters && (
         <div 
-          className="fixed inset-0 z-40" 
+          className="fixed inset-0 z-[9998]" 
           onClick={() => setShowFilters(false)}
         />
       )}
