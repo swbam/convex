@@ -179,6 +179,31 @@
       radial-gradient(circle at 80% 80%, hsl(0 0% 12% / 0.2) 0%, transparent 50%),
       radial-gradient(circle at 40% 60%, hsl(0 0% 6% / 0.1) 0%, transparent 50%);
   }
+  
+  /* Optimized scrolling animations */
+  .animate-scroll-medium {
+    animation: scroll-horizontal 25s linear infinite;
+  }
+  
+  .animate-scroll-medium:hover {
+    animation-play-state: paused;
+  }
+  
+  @keyframes scroll-horizontal {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+  
+  /* Mobile-optimized card styling */
+  .mobile-card {
+    @apply halo-card w-full p-4;
+    background: linear-gradient(to right, hsl(var(--card)), hsl(var(--card) / 0.98), hsl(var(--card) / 0.95));
+    min-height: 120px;
+  }
 
   .auth-input-field {
     @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50;
