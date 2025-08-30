@@ -1,6 +1,8 @@
 import React from 'react'
 import { Id } from '../../convex/_generated/dataModel'
 import { MagicCard } from './ui/magic-card'
+import { BorderBeam } from './ui/border-beam'
+import { Users } from 'lucide-react'
 
 interface Artist {
   _id: Id<'artists'>
@@ -32,100 +34,93 @@ export function ArtistCard({
     onClick(artist._id, artist.slug)
   }
 
-  const handleFollowClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    onFollow?.(artist._id)
-  }
-
-  const formatFollowers = (count: number) => {
-    if (count >= 1000000) {
-      return `${(count / 1000000).toFixed(1)}M`
-    }
-    if (count >= 1000) {
-      return `${(count / 1000).toFixed(1)}K`
-    }
-    return count.toString()
-  }
-
   return (
     <MagicCard
-      className="cursor-pointer p-0 transition-all duration-200 hover:scale-[1.01]"
-      gradientColor="#1a1a1a"
-      gradientOpacity={0.1}
+      className="group cursor-pointer p-0 transition-all duration-300 hover:scale-[1.02] relative overflow-hidden"
+      gradientColor="#ffffff"
+      gradientOpacity={0.05}
+      gradientSize={300}
     >
-      <div className="p-4" onClick={handleClick}>
-        <div className="flex items-center gap-3">
-          {/* Artist Avatar - Smaller & More Refined */}
-          <div className="relative flex-shrink-0">
-            <div className="w-12 h-12 rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 flex items-center justify-center">
-              {artist.images?.[0] ? (
-                <img 
-                  src={artist.images[0]} 
-                  alt={artist.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-white font-medium text-sm">
-                  {artist.name.slice(0, 2).toUpperCase()}
-                </span>
-              )}
-            </div>
+      {/* Enhanced Artist Image with Better Visibility */}
+      <div className="relative w-full h-40 overflow-hidden">
+        {artist.images?.[0] ? (
+          <>
+            <img 
+              src={artist.images[0]} 
+              alt={artist.name}
+              className="w-full h-full object-cover opacity-85 group-hover:opacity-95 transition-all duration-500 scale-105 group-hover:scale-110"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+          </>
+        ) : (
+          <div className="w-full h-full bg-accent/20 flex items-center justify-center">
+            <span className="text-foreground font-bold text-2xl">
+              {artist.name.slice(0, 2).toUpperCase()}
+            </span>
           </div>
+        )}
+      </div>
+      
+      <div className="relative z-10 p-5" onClick={handleClick}>
+        {/* Artist Info - Enhanced */}
+        <div className="mb-4">
+          <h3 className="font-bold text-foreground text-lg mb-2 group-hover:text-primary transition-colors truncate">
+            {artist.name}
+          </h3>
           
-          {/* Artist Info - Refined Typography */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between">
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-white text-base truncate mb-1">
-                  {artist.name}
-                </h3>
-                {artist.genres && artist.genres.length > 0 && (
-                  <p className="text-muted-foreground text-xs truncate">
-                    {artist.genres.slice(0, 2).join(' • ')}
-                  </p>
-                )}
-              </div>
-              
-              {showFollowButton && (
-                <button
-                  onClick={handleFollowClick}
-                  className={`ml-3 shrink-0 px-2 py-1 rounded-lg text-xs font-medium transition-all duration-200 ${
-                    isFollowing 
-                      ? 'bg-white text-black hover:bg-gray-200' 
-                      : 'border border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:border-zinc-600'
-                  }`}
-                >
-                  {isFollowing ? 'Following' : 'Follow'}
-                </button>
-              )}
-            </div>
+          <div className="flex items-center justify-between">
+            {artist.genres?.[0] && (
+              <span className="text-muted-foreground text-sm font-medium bg-accent/30 px-2 py-1 rounded-lg">
+                {artist.genres[0]}
+              </span>
+            )}
             
-            {/* Stats - Refined & Minimal */}
-            <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-              {artist.followers && (
-                <div className="flex items-center gap-1">
-                  <div className="w-1 h-1 rounded-full bg-zinc-600" />
-                  <span>{formatFollowers(artist.followers)}</span>
-                </div>
-              )}
-              
-              {artist.popularity && (
-                <div className="flex items-center gap-1">
-                  <div className="w-1 h-1 rounded-full bg-zinc-600" />
-                  <span>{artist.popularity}%</span>
-                </div>
-              )}
-              
-              {artist.trendingScore && artist.trendingScore > 0 && (
-                <div className="flex items-center gap-1">
-                  <div className="w-1 h-1 rounded-full bg-white" />
-                  <span className="text-white font-medium">Trending</span>
-                </div>
-              )}
-            </div>
+            {artist.followers && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Users className="h-3 w-3" />
+                <span className="font-semibold">{artist.followers.toLocaleString()}</span>
+              </div>
+            )}
           </div>
         </div>
+        
+        {/* Single Action Button - Clean */}
+        <div className="flex gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onClick(artist._id, artist.slug)
+            }}
+            className="flex-1 bg-accent hover:bg-primary hover:text-primary-foreground text-foreground rounded-xl py-2.5 px-4 text-sm font-semibold transition-all duration-200 group-hover:shadow-lg"
+          >
+            View Profile
+          </button>
+          
+          {showFollowButton && onFollow && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                void onFollow(artist._id)
+              }}
+              className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                isFollowing 
+                  ? 'bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30' 
+                  : 'bg-accent hover:bg-accent/80 text-foreground'
+              }`}
+            >
+              {isFollowing ? 'Following' : 'Follow'}
+            </button>
+          )}
+        </div>
       </div>
+      
+      <BorderBeam 
+        size={100} 
+        duration={12} 
+        className="opacity-0 group-hover:opacity-60 transition-opacity duration-300" 
+        colorFrom="#ffffff" 
+        colorTo="#666666"
+      />
     </MagicCard>
   )
 }

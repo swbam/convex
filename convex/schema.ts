@@ -110,6 +110,8 @@ const applicationTables = {
     upvotes: v.optional(v.number()),
     downvotes: v.optional(v.number()),
     setlistfmId: v.optional(v.string()),
+    accuracy: v.optional(v.number()), // Calculated accuracy vs actual setlist
+    comparedAt: v.optional(v.number()), // When accuracy was calculated
   })
     .index("by_show", ["showId"])
     .index("by_user", ["userId"])
@@ -234,6 +236,15 @@ const applicationTables = {
   })
     .index("by_status", ["status"])
     .index("by_reporter", ["reporterId"]),
+
+  // User achievements for gamification
+  userAchievements: defineTable({
+    userId: v.id("users"),
+    achievementId: v.string(),
+    points: v.number(),
+    unlockedAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_user_and_achievement", ["userId", "achievementId"]),
 };
 
 export default defineSchema({
