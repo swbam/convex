@@ -20,6 +20,9 @@ CONVEX_DEPLOY_KEY=your-convex-deploy-key
 # Clerk Authentication  
 VITE_CLERK_PUBLISHABLE_KEY=pk_live_your-clerk-publishable-key
 CLERK_SECRET_KEY=sk_live_your-clerk-secret-key
+# Issuer domain for Convex auth config (Clerk instance Frontend API URL)
+# Example: https://quiet-possum-71.clerk.accounts.dev
+CLERK_JWT_ISSUER_DOMAIN=https://your-clerk-domain
 
 # External APIs (for backend functions)
 TICKETMASTER_API_KEY=your-ticketmaster-api-key
