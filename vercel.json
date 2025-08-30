@@ -1,10 +1,10 @@
 {
   "version": 2,
   "framework": "vite",
-  "buildCommand": "pnpm run build",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "devCommand": "npm run dev:frontend",
-  "installCommand": "pnpm i --frozen-lockfile",
+  "installCommand": "npm ci",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],
