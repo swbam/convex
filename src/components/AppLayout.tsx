@@ -8,6 +8,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { SignOutButton } from '../SignOutButton'
 import { MagicCard } from '@/components/ui/magic-card'
 import { BorderBeam } from './ui/border-beam'
+import { Footer } from './Footer'
 import { Home, Mic, Music, Settings, Menu, X } from 'lucide-react'
 
 interface AppLayoutProps {
@@ -156,16 +157,10 @@ export function AppLayout({ children }: AppLayoutProps) {
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         {/* Enhanced Top Header with Magic UI */}
         <MagicCard className="rounded-none border-b border-border bg-background/95 backdrop-blur-xl">
-          <header className="px-6 py-4">
+          <header className="px-4 sm:px-6 py-4">
             <div className="flex items-center justify-between">
-              <button 
-                className="lg:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                onClick={() => setSidebarOpen(true)}
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-              
-              <div className="flex-1 max-w-lg mx-4">
+              {/* Search Bar - Mobile First */}
+              <div className="flex-1 max-w-lg mr-2 sm:mr-4">
                 <SearchBar onResultClick={(type: string, id: string, slug?: string) => {
                    if (type === 'artist') {
                      const urlParam = slug || id;
@@ -177,38 +172,52 @@ export function AppLayout({ children }: AppLayoutProps) {
                  }} />
               </div>
               
+              {/* Right Side - Settings and Mobile Menu */}
               <div className="flex items-center space-x-2">
-                <MagicCard className="rounded-lg bg-accent/20">
+                <MagicCard className="hidden sm:block rounded-lg bg-accent/20">
                   <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground transition-colors">
                     <Settings className="h-4 w-4" />
                   </button>
                 </MagicCard>
+                
+                {/* Mobile Menu Button - Right Side */}
+                <button 
+                  className="lg:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  onClick={() => setSidebarOpen(true)}
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
               </div>
             </div>
           </header>
         </MagicCard>
         
         {/* Main Content Area with Enhanced Background */}
-        <main className="flex-1 overflow-y-auto bg-background">
-          <div className="p-6">
-            <SyncProgress />
-            {location.pathname === '/' ? (
-              <PublicDashboard 
-                onArtistClick={(artistId) => {
-                  // Navigate using the artist ID directly since it's from Ticketmaster sync
-                  void navigate(`/artists/${artistId}`)
-                }}
-                onShowClick={(showId) => {
-                  void navigate(`/shows/${showId}`)
-                }}
-                onSignInRequired={() => {
-                  void navigate('/signin')
-                }}
-              />
-            ) : (
-              children
-            )}
+        <main className="flex-1 overflow-y-auto bg-background flex flex-col">
+          <div className="flex-1">
+            <div className="p-4 sm:p-6">
+              <SyncProgress />
+              {location.pathname === '/' ? (
+                <PublicDashboard 
+                  onArtistClick={(artistId) => {
+                    // Navigate using the artist ID directly since it's from Ticketmaster sync
+                    void navigate(`/artists/${artistId}`)
+                  }}
+                  onShowClick={(showId) => {
+                    void navigate(`/shows/${showId}`)
+                  }}
+                  onSignInRequired={() => {
+                    void navigate('/signin')
+                  }}
+                />
+              ) : (
+                children
+              )}
+            </div>
           </div>
+          
+          {/* Footer */}
+          <Footer />
         </main>
       </div>
       

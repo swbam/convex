@@ -69,7 +69,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired }: PublicDashb
       </div>
 
       {/* Horizontal Scrolling Sections */}
-      <div className="space-y-16">
+      <div className="space-y-8 sm:space-y-16">
         {/* Trending Shows - Scrolling Left */}
         <div>
           <div className="flex items-center gap-3 mb-6">
@@ -93,11 +93,11 @@ export function PublicDashboard({ onArtistClick, onSignInRequired }: PublicDashb
               <PremiumShowCard
                 key={`${show.ticketmasterId}-${index}`}
                 show={show}
-                rank={index + 1}
+                
                 onArtistClick={(artistTicketmasterId: string, artistName: string, genres?: string[], images?: string[]) => {
                   void handleArtistClick(artistTicketmasterId, artistName, genres, images);
                 }}
-                onTicketClick={(url) => window.open(url, '_blank')}
+
               />
             ))}
           </HorizontalScrollingSection>
@@ -126,7 +126,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired }: PublicDashb
               <PremiumArtistCard
                 key={`${artist.ticketmasterId}-${index}`}
                 artist={artist}
-                rank={index + 1}
+                
                 onClick={() => {
                   void handleArtistClick(artist.ticketmasterId, artist.name, artist.genres, artist.images);
                 }}
@@ -136,28 +136,36 @@ export function PublicDashboard({ onArtistClick, onSignInRequired }: PublicDashb
         </div>
       </div>
 
-      {/* Call to Action - Refined */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-zinc-950 to-black border border-zinc-800 p-8 text-center">
-        <div className="relative z-10">
-          <h3 className="text-2xl font-bold mb-4">Join the Voting</h3>
-          <p className="text-base text-muted-foreground mb-6 max-w-lg mx-auto">
-            Request songs for upcoming shows, upvote favorites, and compete with music fans worldwide
-          </p>
-          <button
-            onClick={onSignInRequired}
-            className="px-8 py-3 bg-white text-black rounded-xl hover:bg-gray-200 transition-all duration-200 font-semibold text-sm"
-          >
-            Start Voting
-          </button>
-        </div>
+      {/* Call to Action - Enhanced */}
+      <MagicCard className="relative overflow-hidden rounded-2xl p-8 text-center">
+        <h2 className="text-2xl font-bold mb-3 text-foreground">Join the Community</h2>
+        <p className="text-muted-foreground mb-6 text-base max-w-lg mx-auto">
+          Vote on setlists, follow artists, and predict what songs will be played live
+        </p>
+        
+        <button 
+          onClick={onSignInRequired}
+          className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl"
+        >
+          Get Started
+        </button>
+        
         {/* Simplified background pattern */}
         <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-4 left-4 w-8 h-8 border border-white rounded-full"></div>
-          <div className="absolute top-8 right-8 w-6 h-6 border border-white rounded-full"></div>
-          <div className="absolute bottom-4 left-8 w-4 h-4 border border-white rounded-full"></div>
-          <div className="absolute bottom-8 right-4 w-10 h-10 border border-white rounded-full"></div>
+          <div className="absolute top-4 left-4 w-8 h-8 border border-foreground rounded-full"></div>
+          <div className="absolute top-8 right-8 w-6 h-6 border border-foreground rounded-full"></div>
+          <div className="absolute bottom-4 left-8 w-4 h-4 border border-foreground rounded-full"></div>
+          <div className="absolute bottom-8 right-4 w-10 h-10 border border-foreground rounded-full"></div>
         </div>
-      </div>
+        
+        <BorderBeam 
+          size={80} 
+          duration={10} 
+          className="opacity-30" 
+          colorFrom="#ffffff" 
+          colorTo="#888888"
+        />
+      </MagicCard>
     </div>
   );
 }
@@ -262,11 +270,9 @@ function HorizontalScrollingSection({
 }
 
 // Optimized Show Card for horizontal scrolling
-function PremiumShowCard({ show, rank, onArtistClick, onTicketClick }: {
+function PremiumShowCard({ show, onArtistClick }: {
   show: any;
-  rank: number;
   onArtistClick: (artistTicketmasterId: string, artistName: string, genres?: string[], images?: string[]) => void;
-  onTicketClick: (url: string) => void;
 }) {
   const showDate = new Date(show.date);
   const isToday = showDate.toDateString() === new Date().toDateString();
@@ -277,25 +283,25 @@ function PremiumShowCard({ show, rank, onArtistClick, onTicketClick }: {
     month: 'short', 
     day: 'numeric'
   });
-  if (isToday) dateText = "Today";
+  if (isToday) dateText = "Tonight";
   else if (isTomorrow) dateText = "Tomorrow";
 
   return (
-    <div className="flex-shrink-0 w-80 group relative bg-gradient-to-br from-zinc-950 to-black border border-zinc-800 rounded-2xl overflow-hidden hover:border-zinc-600 transition-all duration-300 hover:scale-[1.02] cursor-pointer">
-      {/* Rank Badge - Smaller */}
-      <div className="absolute top-4 left-4 z-20 w-8 h-8 bg-white text-black rounded-full flex items-center justify-center text-sm font-bold">
-        {rank}
-      </div>
-      
-      {/* Artist Image Background */}
+    <MagicCard
+      className="flex-shrink-0 w-80 group relative transition-all duration-300 hover:scale-[1.02] cursor-pointer p-0 overflow-hidden"
+      gradientColor="#ffffff"
+      gradientOpacity={0.06}
+      gradientSize={400}
+    >
+      {/* Enhanced Artist Image Background */}
       {show.artistImage && (
         <div className="absolute inset-0 z-0">
           <img 
             src={show.artistImage} 
             alt={show.artistName}
-            className="w-full h-full object-cover opacity-20 group-hover:opacity-30 transition-opacity duration-300"
+            className="w-full h-full object-cover opacity-75 group-hover:opacity-90 transition-all duration-500 scale-105 group-hover:scale-110"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/95 to-black/50" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/90 to-background/30" />
         </div>
       )}
       
@@ -337,39 +343,28 @@ function PremiumShowCard({ show, rank, onArtistClick, onTicketClick }: {
           >
             View Artist
           </button>
-          {show.ticketUrl && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onTicketClick(show.ticketUrl);
-              }}
-              className="w-full bg-white text-black rounded-xl py-2 px-4 font-semibold hover:bg-gray-200 transition-all duration-200 flex items-center justify-center gap-2 text-sm"
-            >
-              <ExternalLink className="h-3 w-3" />
-              Tickets
-            </button>
-          )}
+
         </div>
       </div>
-    </div>
+    </MagicCard>
   );
 }
 
 // Optimized Artist Card for horizontal scrolling
-function PremiumArtistCard({ artist, rank, onClick }: {
+function PremiumArtistCard({ artist, onClick }: {
   artist: any;
-  rank: number;
+
   onClick: () => void;
 }) {
   return (
-    <div 
-      className="flex-shrink-0 w-80 group relative bg-gradient-to-br from-zinc-950 to-black border border-zinc-800 rounded-2xl overflow-hidden hover:border-zinc-600 transition-all duration-300 hover:scale-[1.02] cursor-pointer"
+    <MagicCard 
+      className="flex-shrink-0 w-80 group relative transition-all duration-300 hover:scale-[1.02] cursor-pointer p-0 overflow-hidden"
       onClick={onClick}
+      gradientColor="#ffffff"
+      gradientOpacity={0.06}
+      gradientSize={400}
     >
-      {/* Rank Badge - Smaller */}
-      <div className="absolute top-4 left-4 z-20 w-8 h-8 bg-white text-black rounded-full flex items-center justify-center text-sm font-bold">
-        {rank}
-      </div>
+
       
       {/* Artist Image Background */}
       {artist.images?.[0] && (
@@ -377,21 +372,21 @@ function PremiumArtistCard({ artist, rank, onClick }: {
           <img 
             src={artist.images[0]} 
             alt={artist.name}
-            className="w-full h-full object-cover opacity-25 group-hover:opacity-35 transition-opacity duration-300"
+            className="w-full h-full object-cover opacity-75 group-hover:opacity-90 transition-all duration-500 scale-105 group-hover:scale-110"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/95 to-black/50" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/90 to-background/30" />
         </div>
       )}
       
       <div className="relative z-10 p-6 h-full flex flex-col justify-between min-h-[280px]">
         {/* Artist Info - Refined */}
         <div>
-          <h3 className="text-xl font-bold mb-3 text-white leading-tight">
+          <h3 className="text-xl font-bold mb-3 text-foreground leading-tight group-hover:text-primary transition-colors">
             {artist.name}
           </h3>
           
           {artist.genres && artist.genres.length > 0 && (
-            <p className="text-gray-300 font-medium mb-4 capitalize text-sm">
+            <p className="text-muted-foreground font-medium mb-4 capitalize text-sm bg-accent/30 px-2 py-1 rounded-lg inline-block">
               {artist.genres.slice(0, 2).join(" • ")}
             </p>
           )}
@@ -405,12 +400,20 @@ function PremiumArtistCard({ artist, rank, onClick }: {
           )}
         </div>
         
-        {/* Action Button - Smaller & More Refined */}
-        <button className="w-full bg-white/10 border border-white/20 text-white rounded-xl py-2 px-4 text-sm font-medium hover:bg-white/20 transition-all duration-200 backdrop-blur-sm">
-          View Artist
+        {/* Action Button - Enhanced */}
+        <button className="w-full bg-accent hover:bg-primary hover:text-primary-foreground text-foreground rounded-xl py-3 px-4 text-sm font-semibold transition-all duration-200 group-hover:shadow-lg">
+          View Profile
         </button>
       </div>
-    </div>
+      
+      <BorderBeam 
+        size={120} 
+        duration={15} 
+        className="opacity-0 group-hover:opacity-50 transition-opacity duration-300" 
+        colorFrom="#ffffff" 
+        colorTo="#888888"
+      />
+    </MagicCard>
   );
 }
 
