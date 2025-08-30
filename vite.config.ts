@@ -36,7 +36,21 @@ window.addEventListener('message', async (message) => {
     // End of code for taking screenshots on chef.convex.dev.
   ].filter(Boolean),
   build: {
-    outDir: 'dist'
+    outDir: 'dist',
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      external: ['old/**/*'],
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'router-vendor': ['react-router-dom'],
+          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-scroll-area'],
+          'convex-vendor': ['convex/react', 'convex/react-clerk'],
+          'clerk-vendor': ['@clerk/clerk-react'],
+          'animation-vendor': ['framer-motion'],
+        }
+      }
+    }
   },
   server: {
     host: true

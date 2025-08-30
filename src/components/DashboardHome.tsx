@@ -22,7 +22,7 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
   const upcomingShows = useQuery(api.shows.getUpcoming, { limit: 6 });
   const user = useQuery(api.auth.loggedInUser);
   
-  const startFullSync = useMutation(api.syncJobs.startFullSync);
+  const triggerArtistSync = useAction(api.ticketmaster.triggerFullArtistSync);
   const searchTicketmasterArtists = useAction(api.ticketmaster.searchArtists);
 
   const handleSearch = async (query: string) => {
@@ -82,14 +82,11 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
 
       // Start full sync for new artist: shows first, then catalog in background
       toast.info(`Starting full import for ${result.name}...`);
-      await startFullSync({ 
-        artistName: result.name,
+      await triggerArtistSync({ 
         ticketmasterId: result.ticketmasterId,
-        artistData: {
-          name: result.name,
-          images: result.images?.map((img: any) => img.url) || [],
-          genres: result.genres || []
-        }
+        artistName: result.name,
+        genres: result.genres || [],
+        images: result.images || []
       });
       
       toast.success(`Import started for ${result.name}. Fetching shows now...`);

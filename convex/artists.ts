@@ -253,6 +253,38 @@ export const createFromTicketmaster = internalMutation({
   },
 });
 
+// Get recently active artists for cron jobs
+export const getRecentlyActive = internalQuery({
+  args: {
+    since: v.number(),
+    limit: v.number(),
+  },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("artists")
+      .filter((q) => q.gte(q.field("lastSynced"), args.since))
+      .order("desc")
+      .take(args.limit);
+  },
+});
+
+// Get all artists for maintenance
+export const getAllForMaintenance = internalQuery({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("artists")
+      .order("desc")
+      .take(100); // Limit for maintenance operations
+  },
+});
+
+
+
+
+
 export const updateSpotifyData = internalMutation({
   args: {
     artistId: v.id("artists"),
@@ -272,6 +304,8 @@ export const updateSpotifyData = internalMutation({
     });
   },
 });
+
+
 
 // Internal queries for sync operations
 export const getBySlugInternal = internalQuery({
@@ -327,6 +361,8 @@ export const createInternal = internalMutation({
   },
 });
 
+
+
 export const updateTrendingScore = internalMutation({
   args: {
     artistId: v.id("artists"),
@@ -338,6 +374,8 @@ export const updateTrendingScore = internalMutation({
     });
   },
 });
+
+
 
 export const getAllInternal = internalQuery({
   args: {},
@@ -466,3 +504,5 @@ export const create = internalMutation({
     });
   },
 });
+
+

@@ -72,14 +72,14 @@ export const triggerFullArtistSync = action({
       images: args.images || [],
     });
 
-    // Phase 2: Sync shows from Ticketmaster (background)
-    void ctx.runAction(internal.ticketmaster.syncArtistShows, {
+    // Phase 2: Sync shows from Ticketmaster (blocking to ensure data is available)
+    await ctx.runAction(internal.ticketmaster.syncArtistShows, {
       artistId,
       ticketmasterId: args.ticketmasterId,
     });
 
-    // Phase 3: Sync catalog from Spotify (background)
-    void ctx.runAction(internal.spotify.syncArtistCatalog, {
+    // Phase 3: Sync catalog from Spotify (blocking to ensure songs are available)
+    await ctx.runAction(internal.spotify.syncArtistCatalog, {
       artistId,
       artistName: args.artistName,
     });
@@ -143,5 +143,97 @@ export const syncArtistShows = internalAction({
       console.error("Failed to sync artist shows:", error);
     }
     return null;
+  },
+});
+
+// Get trending shows from Ticketmaster API
+export const getTrendingShows = action({
+  args: { limit: v.optional(v.number()) },
+  returns: v.array(v.object({
+    ticketmasterId: v.string(),
+    artistTicketmasterId: v.optional(v.string()),
+    artistName: v.string(),
+    venueName: v.string(),
+    venueCity: v.string(),
+    venueCountry: v.string(),
+    date: v.string(),
+    startTime: v.optional(v.string()),
+    artistImage: v.optional(v.string()),
+    ticketUrl: v.optional(v.string()),
+    priceRange: v.optional(v.string()),
+    status: v.string(),
+  })),
+  handler: async (ctx, args) => {
+    const apiKey = process.env.TICKETMASTER_API_KEY;
+    if (!apiKey) return [];
+
+    const limit = args.limit || 50;
+    const url = `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=${limit}&sort=date,asc&apikey=${apiKey}`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) return [];
+
+      const data = await response.json();
+      const events = data._embedded?.events || [];
+
+      return events.map((event: any) => ({
+        ticketmasterId: String(event.id || ''),
+        artistTicketmasterId: String(event._embedded?.attractions?.[0]?.id || ''),
+        artistName: String(event._embedded?.attractions?.[0]?.name || 'Unknown Artist'),
+        venueName: String(event._embedded?.venues?.[0]?.name || 'Unknown Venue'),
+        venueCity: String(event._embedded?.venues?.[0]?.city?.name || ''),
+        venueCountry: String(event._embedded?.venues?.[0]?.country?.name || ''),
+        date: String(event.dates?.start?.localDate || ''),
+        startTime: event.dates?.start?.localTime ? String(event.dates.start.localTime) : undefined,
+        artistImage: event._embedded?.attractions?.[0]?.images?.[0]?.url ? String(event._embedded.attractions[0].images[0].url) : undefined,
+        ticketUrl: event.url ? String(event.url) : undefined,
+        priceRange: event.priceRanges?.[0] ? `$${event.priceRanges[0].min}-${event.priceRanges[0].max}` : undefined,
+        status: String(event.dates?.status?.code || 'unknown'),
+      }));
+    } catch (error) {
+      console.error("Failed to get trending shows:", error);
+      return [];
+    }
+  },
+});
+
+// Get trending artists from Ticketmaster API
+export const getTrendingArtists = action({
+  args: { limit: v.optional(v.number()) },
+  returns: v.array(v.object({
+    ticketmasterId: v.string(),
+    name: v.string(),
+    genres: v.array(v.string()),
+    images: v.array(v.string()),
+    upcomingEvents: v.number(),
+    url: v.optional(v.string()),
+  })),
+  handler: async (ctx, args) => {
+    const apiKey = process.env.TICKETMASTER_API_KEY;
+    if (!apiKey) return [];
+
+    const limit = args.limit || 30;
+    const url = `https://app.ticketmaster.com/discovery/v2/attractions.json?classificationName=music&size=${limit}&sort=upcoming,desc&apikey=${apiKey}`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) return [];
+
+      const data = await response.json();
+      const attractions = data._embedded?.attractions || [];
+
+      return attractions.map((attraction: any) => ({
+        ticketmasterId: String(attraction.id || ''),
+        name: String(attraction.name || ''),
+        genres: attraction.classifications?.[0]?.genre?.name ? [String(attraction.classifications[0].genre.name)] : [],
+        images: (attraction.images?.map((img: any) => String(img.url)) || []),
+        upcomingEvents: Number(attraction.upcomingEvents?._total || 0),
+        url: attraction.url ? String(attraction.url) : undefined,
+      }));
+    } catch (error) {
+      console.error("Failed to get trending artists:", error);
+      return [];
+    }
   },
 });
