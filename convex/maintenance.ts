@@ -1,6 +1,6 @@
 "use node";
 
-import { action, internalAction, internalQuery } from "./_generated/server";
+import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 
@@ -10,6 +10,16 @@ export const triggerDataMaintenance = action({
   returns: v.null(),
   handler: async (ctx) => {
     await ctx.runAction(internal.maintenance.fixMissingArtistData, {});
+    return null;
+  },
+});
+
+// PUBLIC: Manually trigger trending data sync for testing
+export const triggerTrendingSync = action({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    await ctx.runAction(internal.maintenance.syncTrendingData, {});
     return null;
   },
 });
@@ -71,11 +81,15 @@ export const syncTrendingData = internalAction({
     console.log("📈 Syncing trending data from APIs...");
     
     try {
-      // This will populate the trendingShows and trendingArtists tables
+      // Fetch trending data from Ticketmaster API
       const trendingShows = await ctx.runAction(api.ticketmaster.getTrendingShows, { limit: 50 });
       const trendingArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 30 });
       
-      console.log(`✅ Synced ${trendingShows.length} trending shows and ${trendingArtists.length} trending artists`);
+      // Save to database tables for fast querying
+      await ctx.runMutation(internal.trending.saveTrendingShows, { shows: trendingShows });
+      await ctx.runMutation(internal.trending.saveTrendingArtists, { artists: trendingArtists });
+      
+      console.log(`✅ Synced and saved ${trendingShows.length} trending shows and ${trendingArtists.length} trending artists to database`);
       
     } catch (error) {
       console.error("❌ Failed to sync trending data:", error);

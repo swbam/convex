@@ -200,7 +200,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               {location.pathname === '/' ? (
                 <PublicDashboard 
                   onArtistClick={(artistId) => {
-                    // Navigate using the artist ID directly since it's from Ticketmaster sync
+                    // Navigate using the artist slug for SEO-friendly URLs
                     void navigate(`/artists/${artistId}`)
                   }}
                   onShowClick={(showId) => {
