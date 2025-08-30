@@ -5,10 +5,9 @@ import { MagicCard } from './ui/magic-card';
 import { Calendar, MapPin, Music, Vote } from 'lucide-react';
 
 export function UserPredictions() {
-  const votingActivity = useQuery(api.predictions.getUserActivity, { limit: 50 });
-  const setlistContributions = useQuery(api.predictions.getUserSetlistContributions, { limit: 20 });
+  const songVotes = useQuery(api.songVotes.getUserVotes, { limit: 50 });
 
-  if (!votingActivity || !setlistContributions) {
+  if (!songVotes) {
     return (
       <div className="animate-pulse space-y-4">
         {[...Array(6)].map((_, i) => (
@@ -18,112 +17,70 @@ export function UserPredictions() {
     );
   }
 
+  if (songVotes.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <Vote className="h-16 w-16 mx-auto mb-6 text-muted-foreground opacity-50" />
+        <h3 className="text-xl font-semibold mb-2">No voting activity yet</h3>
+        <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+          Start voting on setlists to see your activity here
+        </p>
+        <button 
+          onClick={() => window.location.href = '/shows'}
+          className="px-6 py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors font-medium"
+        >
+          Browse Shows
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Simple Stats */}
       <div className="grid grid-cols-2 gap-4">
         <MagicCard className="p-6 text-center">
-          <div className="text-3xl font-bold text-primary mb-2">{votingActivity.length}</div>
-          <div className="text-sm text-muted-foreground">Song Votes</div>
+          <div className="text-3xl font-bold mb-2">{songVotes.length}</div>
+          <div className="text-sm text-muted-foreground">Total Votes</div>
         </MagicCard>
         
         <MagicCard className="p-6 text-center">
-          <div className="text-3xl font-bold text-primary mb-2">{setlistContributions.length}</div>
-          <div className="text-sm text-muted-foreground">Setlist Contributions</div>
+          <div className="text-3xl font-bold mb-2">
+            {new Set(songVotes.map(v => v.setlistId)).size}
+          </div>
+          <div className="text-sm text-muted-foreground">Shows Voted On</div>
         </MagicCard>
       </div>
 
-      {/* Recent Voting Activity */}
+      {/* Voting History */}
       <div>
-        <h3 className="font-bold text-xl mb-4 flex items-center gap-2">
-          <Vote className="h-5 w-5 text-primary" />
-          Recent Votes
-        </h3>
-        
+        <h2 className="text-xl font-semibold mb-6">Your Recent Votes</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {votingActivity.slice(0, 10).map((vote) => (
-            <MagicCard key={vote._id} className="p-4 group cursor-pointer hover:scale-[1.01] transition-all duration-200">
-              <div className="flex items-start justify-between mb-3">
+          {songVotes.map((vote) => (
+            <MagicCard key={vote._id} className="p-4">
+              <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                    {vote.show.artist?.name}
-                  </h4>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                    <MapPin className="h-3 w-3 flex-shrink-0" />
-                    <span className="truncate">{vote.show.venue?.name}</span>
+                  <h3 className="font-medium text-base mb-1 truncate">
+                    {vote.songTitle}
+                  </h3>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                    <Music className="h-3 w-3" />
+                    <span>Upvoted</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Calendar className="h-3 w-3" />
+                    <span>{new Date(vote.createdAt).toLocaleDateString()}</span>
                   </div>
                 </div>
-                
-                <div className="text-xs text-muted-foreground">
-                  {new Date(vote.createdAt).toLocaleDateString()}
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2 text-sm">
-                <div className="bg-primary/20 text-primary px-2 py-1 rounded-lg font-medium">
-                  Voted: {vote.songTitle}
+                <div className="ml-4 text-right">
+                  <div className="text-sm font-medium text-primary">
+                    +1
+                  </div>
                 </div>
               </div>
             </MagicCard>
           ))}
         </div>
-        
-        {votingActivity.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            <Vote className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium">No votes yet</p>
-            <p className="text-sm">Start voting on setlists to see your activity here</p>
-          </div>
-        )}
-      </div>
-
-      {/* Setlist Contributions */}
-      <div>
-        <h3 className="font-bold text-xl mb-4 flex items-center gap-2">
-          <Music className="h-5 w-5 text-primary" />
-          Your Setlist Contributions
-        </h3>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {setlistContributions.map((contribution) => (
-            <MagicCard key={contribution._id} className="p-4 group cursor-pointer hover:scale-[1.01] transition-all duration-200">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                    {contribution.show.artist?.name}
-                  </h4>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                    <MapPin className="h-3 w-3 flex-shrink-0" />
-                    <span className="truncate">{contribution.show.venue?.name}</span>
-                  </div>
-                </div>
-                
-                <div className="text-xs text-muted-foreground">
-                  {new Date(contribution.createdAt).toLocaleDateString()}
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  <span>{new Date(contribution.show.date).toLocaleDateString()}</span>
-                </div>
-                
-                <div className="bg-accent/30 px-2 py-1 rounded-lg text-xs font-medium">
-                  {contribution.songsCount} songs added
-                </div>
-              </div>
-            </MagicCard>
-          ))}
-        </div>
-        
-        {setlistContributions.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium">No contributions yet</p>
-            <p className="text-sm">Add songs to setlists to see your contributions here</p>
-          </div>
-        )}
       </div>
     </div>
   );
