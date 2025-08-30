@@ -83,24 +83,51 @@ export function PublicDashboard({ onArtistClick, onSignInRequired }: PublicDashb
             <div className="pulse-dot ml-2"></div>
           </div>
           
-          <HorizontalScrollingSection
-            direction="left"
-            isLoading={isLoadingShows}
-            emptyTitle="Loading trending shows..."
-            emptySubtitle="Fetching live data from Ticketmaster"
-          >
-            {trendingShows.map((show, index) => (
-              <PremiumShowCard
-                key={`${show.ticketmasterId}-${index}`}
-                show={show}
-                
-                onArtistClick={(artistTicketmasterId: string, artistName: string, genres?: string[], images?: string[]) => {
-                  void handleArtistClick(artistTicketmasterId, artistName, genres, images);
-                }}
-
-              />
-            ))}
-          </HorizontalScrollingSection>
+          {/* Desktop: Horizontal scroll */}
+          <div className="hidden md:block">
+            <HorizontalScrollingSection
+              direction="left"
+              isLoading={isLoadingShows}
+              emptyTitle="Loading trending shows..."
+              emptySubtitle="Fetching live data from Ticketmaster"
+            >
+              {trendingShows.map((show, index) => (
+                <PremiumShowCard
+                  key={`${show.ticketmasterId}-${index}`}
+                  show={show}
+                  onArtistClick={(artistTicketmasterId: string, artistName: string, genres?: string[], images?: string[]) => {
+                    void handleArtistClick(artistTicketmasterId, artistName, genres, images);
+                  }}
+                />
+              ))}
+            </HorizontalScrollingSection>
+          </div>
+          
+          {/* Mobile: Vertical stack */}
+          <div className="md:hidden space-y-4">
+            {isLoadingShows ? (
+              [...Array(4)].map((_, i) => (
+                <div key={i} className="mobile-card animate-pulse">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 bg-muted/20 rounded-xl"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-muted/20 rounded w-3/4"></div>
+                      <div className="h-3 bg-muted/20 rounded w-1/2"></div>
+                      <div className="h-3 bg-muted/20 rounded w-1/3"></div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              trendingShows.slice(0, 6).map((show) => (
+                <MobileShowCard
+                  key={show.ticketmasterId}
+                  show={show}
+                  onArtistClick={handleArtistClick}
+                />
+              ))
+            )}
+          </div>
         </div>
 
         {/* Trending Artists - Scrolling Right */}
@@ -116,23 +143,51 @@ export function PublicDashboard({ onArtistClick, onSignInRequired }: PublicDashb
             <div className="pulse-dot ml-2"></div>
           </div>
           
-          <HorizontalScrollingSection
-            direction="right"
-            isLoading={isLoadingArtists}
-            emptyTitle="Loading trending artists..."
-            emptySubtitle="Fetching live data from Ticketmaster"
-          >
-            {trendingArtists.map((artist, index) => (
-              <PremiumArtistCard
-                key={`${artist.ticketmasterId}-${index}`}
-                artist={artist}
-                
-                onClick={() => {
-                  void handleArtistClick(artist.ticketmasterId, artist.name, artist.genres, artist.images);
-                }}
-              />
-            ))}
-          </HorizontalScrollingSection>
+          {/* Desktop: Horizontal scroll */}
+          <div className="hidden md:block">
+            <HorizontalScrollingSection
+              direction="right"
+              isLoading={isLoadingArtists}
+              emptyTitle="Loading trending artists..."
+              emptySubtitle="Fetching live data from Ticketmaster"
+            >
+              {trendingArtists.map((artist, index) => (
+                <PremiumArtistCard
+                  key={`${artist.ticketmasterId}-${index}`}
+                  artist={artist}
+                  onClick={() => {
+                    void handleArtistClick(artist.ticketmasterId, artist.name, artist.genres, artist.images);
+                  }}
+                />
+              ))}
+            </HorizontalScrollingSection>
+          </div>
+          
+          {/* Mobile: Vertical stack */}
+          <div className="md:hidden space-y-4">
+            {isLoadingArtists ? (
+              [...Array(4)].map((_, i) => (
+                <div key={i} className="mobile-card animate-pulse">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 bg-muted/20 rounded-xl"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-muted/20 rounded w-3/4"></div>
+                      <div className="h-3 bg-muted/20 rounded w-1/2"></div>
+                      <div className="h-3 bg-muted/20 rounded w-1/3"></div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              trendingArtists.slice(0, 6).map((artist) => (
+                <MobileArtistCard
+                  key={artist.ticketmasterId}
+                  artist={artist}
+                  onClick={() => handleArtistClick(artist.ticketmasterId, artist.name, artist.genres, artist.images)}
+                />
+              ))
+            )}
+          </div>
         </div>
       </div>
 
@@ -199,18 +254,18 @@ function HorizontalScrollingSection({
         if (currentScroll >= maxScroll) {
           scrollElement.scrollLeft = 0;
         } else {
-          scrollElement.scrollLeft += 1;
+          scrollElement.scrollLeft += 1.5; // Faster scroll speed
         }
       } else {
         if (currentScroll <= 0) {
           scrollElement.scrollLeft = maxScroll;
         } else {
-          scrollElement.scrollLeft -= 1;
+          scrollElement.scrollLeft -= 1.5; // Faster scroll speed
         }
       }
     };
 
-    const interval = setInterval(scroll, 50); // Smooth 50ms intervals
+    const interval = setInterval(scroll, 25); // Faster scrolling - 25ms intervals
     return () => clearInterval(interval);
   }, [direction, isPaused, isLoading]);
 
@@ -429,6 +484,94 @@ function EmptyState({ icon, title, subtitle }: {
       <div className="opacity-50 mb-4 flex justify-center">{icon}</div>
       <p className="font-medium">{title}</p>
       <p className="text-sm mt-1">{subtitle}</p>
+    </div>
+  );
+}
+
+// Mobile-optimized Show Card
+function MobileShowCard({ show, onArtistClick }: {
+  show: any;
+  onArtistClick: (artistTicketmasterId: string, artistName: string, genres?: string[], images?: string[]) => void;
+}) {
+  const showDate = new Date(show.date);
+  const isToday = showDate.toDateString() === new Date().toDateString();
+  
+  return (
+    <div className="mobile-card cursor-pointer" onClick={() => onArtistClick(show.artistTicketmasterId, show.artistName, [], show.artistImage ? [show.artistImage] : [])}>
+      <div className="flex items-center gap-4">
+        {/* Artist Image */}
+        {show.artistImage && (
+          <div className="w-16 h-16 rounded-xl overflow-hidden bg-accent/20 flex-shrink-0">
+            <img 
+              src={show.artistImage} 
+              alt={show.artistName}
+              className="w-full h-full object-cover opacity-85"
+            />
+          </div>
+        )}
+        
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-foreground hover:text-primary transition-colors truncate">
+            {show.artistName}
+          </h3>
+          <p className="text-sm text-muted-foreground truncate">{show.venueName}</p>
+          <p className="text-xs text-muted-foreground">{show.venueCity}, {show.venueCountry}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className={`text-xs px-2 py-1 rounded-full ${
+              isToday ? 'bg-primary/20 text-primary' : 'bg-muted/20 text-muted-foreground'
+            }`}>
+              {isToday ? 'Tonight' : showDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </span>
+          </div>
+        </div>
+        
+        {/* Arrow indicator */}
+        <div className="text-muted-foreground">
+          <TrendingUp className="h-4 w-4" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Mobile-optimized Artist Card
+function MobileArtistCard({ artist, onClick }: {
+  artist: any;
+  onClick: () => void;
+}) {
+  return (
+    <div className="mobile-card cursor-pointer" onClick={onClick}>
+      <div className="flex items-center gap-4">
+        {/* Artist Image */}
+        {artist.images?.[0] && (
+          <div className="w-16 h-16 rounded-xl overflow-hidden bg-accent/20 flex-shrink-0">
+            <img 
+              src={artist.images[0]} 
+              alt={artist.name}
+              className="w-full h-full object-cover opacity-85"
+            />
+          </div>
+        )}
+        
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-foreground hover:text-primary transition-colors truncate">{artist.name}</h3>
+          {artist.genres && artist.genres.length > 0 && (
+            <p className="text-sm text-muted-foreground truncate">{artist.genres[0]}</p>
+          )}
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs bg-muted/20 text-muted-foreground px-2 py-1 rounded-full">
+              {artist.upcomingEvents} shows
+            </span>
+          </div>
+        </div>
+        
+        {/* Arrow indicator */}
+        <div className="text-muted-foreground">
+          <TrendingUp className="h-4 w-4" />
+        </div>
+      </div>
     </div>
   );
 }
