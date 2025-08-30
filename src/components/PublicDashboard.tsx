@@ -4,6 +4,8 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { TrendingUp, Calendar, MapPin, Clock, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { MagicCard } from "./ui/magic-card";
+import { BorderBeam } from "./ui/border-beam";
 
 interface PublicDashboardProps {
   onArtistClick: (artistId: Id<"artists">) => void;
@@ -19,21 +21,36 @@ export function PublicDashboard({ onArtistClick, onSignInRequired }: PublicDashb
   const [isLoadingArtists, setIsLoadingArtists] = useState(false);
 
   const triggerFullSync = useAction(api.ticketmaster.triggerFullArtistSync);
+  const getTrendingShowsAction = useAction(api.ticketmaster.getTrendingShows);
+  const getTrendingArtistsAction = useAction(api.ticketmaster.getTrendingArtists);
 
-  // Load trending data from database (updated by cron jobs every 3 hours)
-  const dbTrendingShows = useQuery(api.trending.getTrendingShows, { limit: 20 });
-  const dbTrendingArtists = useQuery(api.trending.getTrendingArtists, { limit: 20 });
-
+  // Load trending data from Ticketmaster API
   useEffect(() => {
-    if (dbTrendingShows) {
-      setTrendingShows(dbTrendingShows);
-      setIsLoadingShows(false);
-    }
-    if (dbTrendingArtists) {
-      setTrendingArtists(dbTrendingArtists);
-      setIsLoadingArtists(false);
-    }
-  }, [dbTrendingShows, dbTrendingArtists]);
+    const loadTrendingData = async () => {
+      setIsLoadingShows(true);
+      setIsLoadingArtists(true);
+      
+      try {
+        const [shows, artists] = await Promise.all([
+          getTrendingShowsAction({ limit: 20 }),
+          getTrendingArtistsAction({ limit: 20 })
+        ]);
+        
+        setTrendingShows(shows);
+        setTrendingArtists(artists);
+      } catch (error) {
+        console.error("Failed to load trending data:", error);
+        // Set empty arrays to stop loading states
+        setTrendingShows([]);
+        setTrendingArtists([]);
+      } finally {
+        setIsLoadingShows(false);
+        setIsLoadingArtists(false);
+      }
+    };
+
+    loadTrendingData();
+  }, [getTrendingShowsAction, getTrendingArtistsAction]);
 
   const handleArtistClick = async (ticketmasterId: string, artistName: string, genres?: string[], images?: string[]) => {
     try {
