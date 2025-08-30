@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import React, { useState } from "react";
-import { ArrowLeft, MapPin, Calendar, Clock, Users, Music, TrendingUp, ChevronUp, Heart, Play, Star, Vote } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Clock, Users, Music, ChevronUp, Heart, Star, Vote } from "lucide-react";
 import { toast } from "sonner";
 import { SEOHead } from "./SEOHead";
 import { AnimatedSubscribeButton } from "./ui/animated-subscribe-button";
@@ -298,12 +298,15 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                   </div>
                 </div>
               )}
-            </div>
+              </div>
+              <BorderBeam size={120} duration={10} className="opacity-20" />
+            </MagicCard>
           )}
 
-          {/* Shared Setlist Display */}
-          <div className="dashboard-card">
-            <div className="flex items-center justify-between mb-6">
+          {/* Enhanced Shared Setlist Display */}
+          <MagicCard className="p-0 rounded-2xl border-0 hover:border-white/20">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold">
                 {officialSetlist ? "Official Setlist" : "Vote on the Setlist"}
               </h2>
@@ -376,13 +379,16 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                   ))}
               </div>
             )}
-          </div>
+            </div>
+            <BorderBeam size={120} duration={10} className="opacity-20" />
+          </MagicCard>
         </div>
 
-        {/* Sidebar */}
+        {/* Enhanced Sidebar */}
         <div className="space-y-6">
-          {/* Venue Details */}
-          <div className="dashboard-card">
+          {/* Enhanced Venue Details */}
+          <MagicCard className="p-0 rounded-2xl border-0 hover:border-white/20">
+            <div className="p-6">
             <h3 className="text-xl font-bold mb-4">Venue Details</h3>
             <div className="space-y-3">
               <div>
@@ -405,10 +411,13 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                 </div>
               )}
             </div>
-          </div>
+            </div>
+            <BorderBeam size={100} duration={8} className="opacity-20" />
+          </MagicCard>
 
-          {/* Show Stats */}
-          <div className="dashboard-card">
+          {/* Enhanced Show Stats */}
+          <MagicCard className="p-0 rounded-2xl border-0 hover:border-white/20">
+            <div className="p-6">
             <h3 className="text-xl font-bold mb-4">Show Stats</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -440,28 +449,38 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                 </>
               )}
               
-              <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Show status</span>
                 <span className="font-medium capitalize">{show.status}</span>
               </div>
             </div>
-          </div>
-
-          {/* Call to Action */}
-          {!user && (
-            <div className="dashboard-card text-center">
-              <TrendingUp className="h-8 w-8 mx-auto mb-3 text-primary" />
-              <h3 className="font-bold mb-2">Join the Voting</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Sign in to request unlimited songs and vote on others
-              </p>
-              <button
-                onClick={onSignInRequired}
-                className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-              >
-                Sign In
-              </button>
             </div>
+            <BorderBeam size={100} duration={8} className="opacity-20" />
+          </MagicCard>
+
+          {/* Enhanced Call to Action */}
+          {!user && (
+            <MagicCard className="p-0 rounded-2xl border-0 hover:border-white/20">
+              <div className="p-6 text-center">
+                <div className="flex items-center justify-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
+                    <Vote className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">Join the Voting</h3>
+                </div>
+                <p className="text-gray-300 mb-6">
+                  Sign in to request unlimited songs and vote on others
+                </p>
+                <button
+                  onClick={onSignInRequired}
+                  className="w-full bg-primary/20 hover:bg-primary/30 text-white border border-primary/30 rounded-xl py-3 px-6 font-medium transition-all duration-300 backdrop-blur-sm"
+                >
+                  <Music className="h-4 w-4 mr-2 inline" />
+                  Sign In to Vote
+                </button>
+              </div>
+              <BorderBeam size={120} duration={10} className="opacity-30" />
+            </MagicCard>
           )}
         </div>
       </div>

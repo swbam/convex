@@ -4,7 +4,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 
-import { SignInForm } from "./SignInForm";
+
 import { ArtistDetail } from "./components/ArtistDetail";
 import { ShowDetail } from "./components/ShowDetail";
 import { Artists } from "./components/Artists";
@@ -31,7 +31,7 @@ export default function App() {
   const [selectedArtistId, setSelectedArtistId] = useState<Id<"artists"> | null>(null);
   const [selectedShowId, setSelectedShowId] = useState<Id<"shows"> | null>(null);
 
-  const [showSignIn, setShowSignIn] = useState(false);
+
 
   const createAppUser = useMutation(api.auth.createAppUser);
   const user = useQuery(api.auth.loggedInUser);
@@ -113,10 +113,7 @@ export default function App() {
     } else if (path === '/library') {
       setCurrentView('library');
       document.title = 'Library – TheSet';
-    } else if (path === '/signin') {
-      setCurrentView('signin');
-      setShowSignIn(true);
-      document.title = 'Sign In – TheSet';
+
     } else if (path === '/profile') {
       setCurrentView('profile');
       document.title = 'Profile – TheSet';
@@ -160,12 +157,8 @@ export default function App() {
   };
 
   const handleSignInRequired = () => {
-    setShowSignIn(true);
+    navigate('/signin');
     toast.info("Sign in to add more songs and create setlists");
-  };
-
-  const handleSignInClose = () => {
-    setShowSignIn(false);
   };
 
   const renderMainContent = () => {
@@ -309,24 +302,7 @@ export default function App() {
         </AppLayout>
       </ErrorBoundary>
 
-      {showSignIn && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-white">Sign In to TheSet</h2>
-                <button
-                  onClick={handleSignInClose}
-                  className="text-zinc-400 hover:text-white"
-                >
-                  ✕
-                </button>
-              </div>
-              <SignInForm />
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

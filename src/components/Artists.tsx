@@ -148,33 +148,38 @@ export function Artists({ onArtistClick }: ArtistsProps) {
             />
           </div>
 
-          {/* Genre Filter */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <select
-              value={filterGenre}
-              onChange={handleFilterChange}
-              className="pl-10 pr-8 py-2 bg-muted/20 border border-muted rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none cursor-pointer"
-            >
-              <option value="">All Genres</option>
-              {genres.map((genre: string) => (
-                <option key={genre} value={genre}>{genre}</option>
-              ))}
-            </select>
-          </div>
+            {/* Enhanced Genre Filter */}
+            <div className="relative">
+              <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none z-10" />
+              <select
+                value={filterGenre}
+                onChange={handleFilterChange}
+                className="w-full pl-12 pr-8 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white backdrop-blur-sm appearance-none cursor-pointer transition-all duration-300"
+              >
+                <option value="" className="bg-background text-foreground">All Genres</option>
+                {genres.map((genre: string) => (
+                  <option key={genre} value={genre} className="bg-background text-foreground">{genre}</option>
+                ))}
+              </select>
+            </div>
 
-          {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={handleSortChange}
-            className="px-4 py-2 bg-muted/20 border border-muted rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none cursor-pointer"
-          >
-            <option value="trending">Trending</option>
-            <option value="followers">Most Followers</option>
-            <option value="name">Alphabetical</option>
-          </select>
+            {/* Enhanced Sort */}
+            <div className="relative">
+              <TrendingUp className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none z-10" />
+              <select
+                value={sortBy}
+                onChange={handleSortChange}
+                className="w-full pl-12 pr-8 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white backdrop-blur-sm appearance-none cursor-pointer transition-all duration-300"
+              >
+                <option value="trending" className="bg-background text-foreground">Trending</option>
+                <option value="followers" className="bg-background text-foreground">Most Followers</option>
+                <option value="name" className="bg-background text-foreground">Alphabetical</option>
+              </select>
+            </div>
+          </div>
         </div>
-      </div>
+        <BorderBeam size={120} duration={8} className="opacity-20" />
+      </MagicCard>
 
       {/* Results */}
       <div className="dashboard-card">
