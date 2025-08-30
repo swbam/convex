@@ -1,8 +1,24 @@
 "use node";
 
-import { internalAction } from "./_generated/server";
+import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
+
+// Public action to trigger Spotify data enrichment
+export const enrichArtistData = action({
+  args: {
+    artistId: v.id("artists"),
+    artistName: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.runAction(internal.spotify.syncArtistCatalog, {
+      artistId: args.artistId,
+      artistName: args.artistName,
+    });
+    return null;
+  },
+});
 
 export const syncArtistCatalog = internalAction({
   args: {
@@ -59,7 +75,7 @@ export const syncArtistCatalog = internalAction({
 
       const spotifyArtist = artists[0];
       
-      // Update artist with Spotify data
+      // Update artist with Spotify data - THIS IS CRITICAL FOR DATA INTEGRITY
       await ctx.runMutation(internal.artists.updateSpotifyData, {
         artistId: args.artistId,
         spotifyId: spotifyArtist.id,
@@ -68,6 +84,8 @@ export const syncArtistCatalog = internalAction({
         genres: spotifyArtist.genres || [],
         images: spotifyArtist.images?.map((img: any) => img.url) || [],
       });
+
+      console.log(`✅ Updated artist ${args.artistName} with Spotify ID: ${spotifyArtist.id}`);
 
       // Get ALL albums with pagination
       let albums = [];

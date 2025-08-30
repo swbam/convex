@@ -22,6 +22,7 @@ import type * as dashboard from "../dashboard.js";
 import type * as health from "../health.js";
 import type * as http from "../http.js";
 import type * as leaderboard from "../leaderboard.js";
+import type * as maintenance from "../maintenance.js";
 import type * as setlistfm from "../setlistfm.js";
 import type * as setlists from "../setlists.js";
 import type * as shows from "../shows.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   health: typeof health;
   http: typeof http;
   leaderboard: typeof leaderboard;
+  maintenance: typeof maintenance;
   setlistfm: typeof setlistfm;
   setlists: typeof setlists;
   shows: typeof shows;
