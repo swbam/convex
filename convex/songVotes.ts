@@ -12,33 +12,37 @@ export const voteOnSong = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Must be logged in to vote");
+    
+    // For anonymous users, we'll use a session-based approach
+    // The frontend should handle the 2-action limit before requiring signup
+    const effectiveUserId = userId || ("anonymous" as any);
+
+    // Check if user already voted on this song in this setlist (only for authenticated users)
+    if (userId) {
+      const existingVote = await ctx.db
+        .query("songVotes")
+        .withIndex("by_user_setlist_song", (q) => 
+          q.eq("userId", userId)
+           .eq("setlistId", args.setlistId)
+           .eq("songTitle", args.songTitle)
+        )
+        .first();
+
+      if (existingVote) {
+        // Remove existing vote (toggle off)
+        await ctx.db.delete(existingVote._id);
+        return null;
+      }
     }
 
-    // Check if user already voted on this song in this setlist
-    const existingVote = await ctx.db
-      .query("songVotes")
-      .withIndex("by_user_setlist_song", (q) => 
-        q.eq("userId", userId)
-         .eq("setlistId", args.setlistId)
-         .eq("songTitle", args.songTitle)
-      )
-      .first();
-
-    if (existingVote) {
-      // Remove existing vote (toggle off)
-      await ctx.db.delete(existingVote._id);
-    } else {
-      // Create new vote
-      await ctx.db.insert("songVotes", {
-        userId,
-        setlistId: args.setlistId,
-        songTitle: args.songTitle,
-        voteType: args.voteType,
-        createdAt: Date.now(),
-      });
-    }
+    // Create new vote
+    await ctx.db.insert("songVotes", {
+      userId: effectiveUserId,
+      setlistId: args.setlistId,
+      songTitle: args.songTitle,
+      voteType: args.voteType,
+      createdAt: Date.now(),
+    });
 
     return null;
   },

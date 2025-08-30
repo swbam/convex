@@ -90,7 +90,7 @@ export const syncArtistCatalog = internalAction({
         const albumsData = await albumsResponse.json();
         const batchAlbums = albumsData.items || [];
         
-        albums.push(...batchAlbums);
+        albums.push(...batchAlbums as any[]);
         
         console.log(`📀 Fetched ${batchAlbums.length} albums (total: ${albums.length})`);
         
@@ -109,7 +109,7 @@ export const syncArtistCatalog = internalAction({
       let songsImported = 0;
 
       // Process each album
-      for (const album of albums) {
+      for (const album of albums as any[]) {
         // Filter to studio albums only
         if (!isStudioAlbum(album.name)) continue;
 
@@ -129,7 +129,7 @@ export const syncArtistCatalog = internalAction({
         const tracks = tracksData.items || [];
 
         // Process each track
-        for (const track of tracks) {
+        for (const track of tracks as any[]) {
           if (!isStudioSong(track.name, album.name)) continue;
 
           try {

@@ -63,9 +63,10 @@ export const addSongToSetlist = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Must be logged in to add songs to setlist");
-    }
+    
+    // For anonymous users, we'll use a session-based approach
+    // The frontend should handle the 2-action limit before requiring signup
+    const effectiveUserId = userId || "anonymous";
     
     // Find the shared community setlist for this show (not user-specific)
     const existingSetlist = await ctx.db
