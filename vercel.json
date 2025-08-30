@@ -11,7 +11,7 @@
       "destination": "/index.html"
     }
   ],
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./ ':!old/'",
+
   "headers": [
     {
       "source": "/(.*)",
