@@ -1,4 +1,4 @@
-import { query, internalMutation, internalAction } from "./_generated/server";
+import { query } from "./_generated/server";
 import { v } from "convex/values";
 
 export const getTrendingArtists = query({
@@ -45,15 +45,5 @@ export const getTrendingShows = query({
     );
 
     return enrichedShows;
-  },
-});
-
-export const updateScores = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: async (ctx) => {
-    console.log("🔄 Updating trending scores...");
-    // Simple implementation for now
-    return null;
   },
 });

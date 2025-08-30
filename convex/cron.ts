@@ -1,8 +1,8 @@
 import { cronJobs } from "convex/server";
-import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-// All cron schedules are consolidated in crons.ts per Convex best practices.
+// Simple cron system - can be expanded later
+// For now, keep it minimal to avoid conflicts
 
 export default crons;

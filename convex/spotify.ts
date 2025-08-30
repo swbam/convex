@@ -2,7 +2,7 @@
 
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 
 export const syncArtistCatalog = internalAction({
   args: {
@@ -16,7 +16,7 @@ export const syncArtistCatalog = internalAction({
     
     if (!clientId || !clientSecret) {
       console.log("Spotify credentials not configured");
-      return;
+      return null;
     }
 
     try {
@@ -47,38 +47,72 @@ export const syncArtistCatalog = internalAction({
         }
       );
 
-      if (!searchResponse.ok) return;
+      if (!searchResponse.ok) return null;
 
       const searchData = await searchResponse.json();
-      const artist = searchData.artists?.items?.[0];
+      const artists = searchData.artists?.items || [];
       
-      if (!artist) return;
+      if (artists.length === 0) {
+        console.log(`No Spotify artist found for: ${args.artistName}`);
+        return null;
+      }
 
+      const spotifyArtist = artists[0];
+      
       // Update artist with Spotify data
       await ctx.runMutation(internal.artists.updateSpotifyData, {
         artistId: args.artistId,
-        spotifyId: artist.id,
-        followers: artist.followers?.total,
-        popularity: artist.popularity,
-        genres: artist.genres || [],
-        images: artist.images?.map((img: any) => img.url) || [],
+        spotifyId: spotifyArtist.id,
+        followers: spotifyArtist.followers?.total,
+        popularity: spotifyArtist.popularity,
+        genres: spotifyArtist.genres || [],
+        images: spotifyArtist.images?.map((img: any) => img.url) || [],
       });
 
-      // Get artist's albums
-      const albumsResponse = await fetch(
-        `https://api.spotify.com/v1/artists/${artist.id}/albums?include_groups=album,single&market=US&limit=50`,
-        {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-          },
+      // Get ALL albums with pagination
+      let albums = [];
+      let offset = 0;
+      const limit = 50;
+      let hasMore = true;
+
+      while (hasMore) {
+        const albumsResponse = await fetch(
+          `https://api.spotify.com/v1/artists/${spotifyArtist.id}/albums?include_groups=album,single,compilation&market=US&limit=${limit}&offset=${offset}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+            },
+          }
+        );
+
+        if (!albumsResponse.ok) break;
+
+        const albumsData = await albumsResponse.json();
+        const batchAlbums = albumsData.items || [];
+        
+        albums.push(...batchAlbums);
+        
+        console.log(`📀 Fetched ${batchAlbums.length} albums (total: ${albums.length})`);
+        
+        // Check if we have more albums to fetch
+        if (batchAlbums.length < limit || offset + limit >= albumsData.total) {
+          hasMore = false;
+        } else {
+          offset += limit;
+          // Rate limiting between album batches
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
-      );
+      }
 
-      if (!albumsResponse.ok) return;
+      console.log(`📀 Total albums found: ${albums.length}`);
 
-      const albumsData = await albumsResponse.json();
-      
-      for (const album of albumsData.items || []) {
+      let songsImported = 0;
+
+      // Process each album
+      for (const album of albums) {
+        // Filter to studio albums only
+        if (!isStudioAlbum(album.name)) continue;
+
         // Get album tracks
         const tracksResponse = await fetch(
           `https://api.spotify.com/v1/albums/${album.id}/tracks`,
@@ -92,90 +126,56 @@ export const syncArtistCatalog = internalAction({
         if (!tracksResponse.ok) continue;
 
         const tracksData = await tracksResponse.json();
-        
-        const albumTitleLower: string = (album.name || '').toLowerCase();
-        const albumIsLive = /(\blive\b|\bconcert\b|at\b.*\blive\b)/i.test(album.name || '');
-        const albumIsAcoustic = /(acoustic|unplugged)/i.test(album.name || '');
-        const albumIsRemix = /(remix|re\-?mix|mix\)|mixed)/i.test(album.name || '');
-        const albumIsLocalhost = albumTitleLower.includes('localhost:3001');
+        const tracks = tracksData.items || [];
 
-        for (const track of tracksData.items || []) {
-          const title: string = track.name || '';
-          const titleLower = title.toLowerCase();
+        // Process each track
+        for (const track of tracks) {
+          if (!isStudioSong(track.name, album.name)) continue;
 
-          // COMPREHENSIVE STUDIO-ONLY FILTERING - Enhanced per PRD requirements
-          const isLive = /(\blive\b|\bconcert\b|\(live\)|\- live|live at|live from|live in|live on|mtv unplugged|bbc session|radio session|live session)/i.test(title) || albumIsLive;
-          const isRemix = /(remix|re\-?mix|\bmix\b|mixed|club mix|dance mix|extended mix|dub mix|radio edit|radio version|club version|dance version|disco version|house mix|techno mix|trance mix|dubstep|electronic version)/i.test(title) || albumIsRemix;
-          const isAcoustic = /(acoustic|unplugged|stripped|piano version|solo version|bare|intimate|coffeehouse|storytellers)/i.test(title) || albumIsAcoustic;
-          const isDemo = /(demo|rough|sketch|work tape|outtake|alternate|alternative|take |cut|unreleased|bootleg|rarities|b\-?side)/i.test(title);
-          const isBonus = /(bonus|hidden track|secret track|extra|special edition|collector|limited edition|anniversary|reissue)/i.test(title);
-          const isInstrumental = /(instrumental|karaoke|backing track)/i.test(title);
-          const isCommentary = /(commentary)/i.test(title);
-          const isFormat = /(\(mono\)|\(stereo\)|\(live\)|\(demo\)|\(acoustic\)|\(remix\)|\(radio\)|\(club\)|\(extended\)|\(instrumental\)|\(karaoke\))/i.test(title);
-          const isCover = /(cover of|tribute to|in the style of)/i.test(title);
-
-          // Skip ALL non-studio material
-          if (isLive || isRemix || isAcoustic || isDemo || isBonus || isInstrumental || isCommentary || isFormat || isCover || albumIsLocalhost) {
-            continue;
-          }
-
-          // Additional album-level exclusions
-          const excludedAlbumTypes = /(\blive\b|\bconcert\b|unplugged|greatest hits|best of|collection|compilation|anthology|rarities|b\-?sides|singles|remix|acoustic|demo|bootleg|live from|live at)/i;
-          if (excludedAlbumTypes.test(album.name)) {
-            continue;
-          }
-
-          // Deduplicate by Spotify ID before creating
-          const existing = await ctx.runQuery(internal.songs.getBySpotifyIdInternal, { spotifyId: track.id });
-          let songId;
-          if (existing) {
-            songId = existing._id;
-          } else {
-            // Title-level duplicate check (normalize title)
-            const normalizedTitle = titleLower
-              .replace(/\(feat\.[^)]+\)/gi, '')
-              .replace(/\[feat\.[^\]]+\]/gi, '')
-              .replace(/\s+-\s+.*$/g, '') // remove trailing descriptors after dash
-              .replace(/\s*\(.*?\)\s*/g, ' ') // remove parenthetical
-              .replace(/\s{2,}/g, ' ')
-              .trim();
-
-            // If a different Spotify ID exists with same normalized title for this artist, reuse it
-            // (we'll rely on artistSongs relation to check duplicates at link time)
-            songId = await ctx.runMutation(internal.songs.createFromSpotify, {
-              title: normalizedTitle || track.name,
+          try {
+            // Create song
+            const songId = await ctx.runMutation(internal.songs.create, {
+              name: track.name,
+              artist: args.artistName,
               album: album.name,
+              duration: track.duration_ms,
               spotifyId: track.id,
-              durationMs: track.duration_ms,
-              popularity: (track as any).popularity || 0,
-              trackNo: track.track_number,
-              isLive: false,
-              isRemix: false,
+              popularity: track.popularity || 0,
+              isStudio: true,
             });
-          }
 
-          // Link to artist
-          await ctx.runMutation(internal.artistSongs.create, {
-            artistId: args.artistId,
-            songId,
-            isPrimaryArtist: true,
-          });
+            // Link artist to song
+            await ctx.runMutation(internal.artistSongs.create, {
+              artistId: args.artistId,
+              songId,
+              isPrimaryArtist: true,
+            });
+
+            songsImported++;
+          } catch (error) {
+            console.error(`Failed to import song ${track.name}:`, error);
+          }
         }
 
-        // Add delay to respect rate limits
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Rate limiting between albums
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
 
-      // After importing catalog, auto-generate setlists for artist's shows
+      console.log(`✅ Catalog sync completed for ${args.artistName}: ${songsImported} songs imported`);
+
+      // Auto-generate setlists for shows without them
       try {
-        const shows = await ctx.runQuery(internal.shows.getAllByArtistInternal, { artistId: args.artistId });
-        for (const show of shows) {
-          await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
-            showId: show._id,
-            artistId: args.artistId,
-          });
-          // brief backoff to avoid bursts
-          await new Promise(resolve => setTimeout(resolve, 50));
+        const artistShows = await ctx.runQuery(internal.shows.getAllByArtistInternal, { artistId: args.artistId });
+        
+        for (const show of artistShows) {
+          const existingSetlists = await ctx.runQuery(api.setlists.getByShow, { showId: show._id });
+          
+          if (!existingSetlists || existingSetlists.length === 0) {
+            await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+              showId: show._id,
+              artistId: args.artistId,
+            });
+          }
         }
       } catch (e) {
         console.error('Failed to auto-generate setlists after catalog import:', e);
@@ -187,3 +187,27 @@ export const syncArtistCatalog = internalAction({
     return null;
   },
 });
+
+// Helper function to determine if an album is likely to contain studio recordings
+function isStudioAlbum(albumName: string): boolean {
+  const liveKeywords = [
+    'live at ', 'concert at ', 'bootleg'
+  ];
+  
+  const albumLower = albumName.toLowerCase();
+  return !liveKeywords.some(keyword => albumLower.includes(keyword));
+}
+
+// Helper function to determine if a song is likely a studio recording
+function isStudioSong(songName: string, albumName: string): boolean {
+  const liveKeywords = [
+    'live at ', 'concert at ', 'bootleg', '(live)', '(acoustic live)'
+  ];
+  
+  const songLower = songName.toLowerCase();
+  const albumLower = albumName.toLowerCase();
+  
+  return !liveKeywords.some(keyword => 
+    songLower.includes(keyword) || albumLower.includes(keyword)
+  );
+}

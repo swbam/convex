@@ -9,5 +9,10 @@
     "paths": {
       "@/*": ["./src/*"]
     }
-  }
+  },
+  "exclude": [
+    "old/**/*",
+    "node_modules",
+    "dist"
+  ]
 }

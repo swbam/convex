@@ -8,10 +8,10 @@ export function TestSuite() {
   const [isRunning, setIsRunning] = useState(false);
   
   const searchArtists = useAction(api.ticketmaster.searchArtists);
-  const startFullSync = useMutation(api.syncJobs.startFullSync);
+  const triggerArtistSync = useAction(api.ticketmaster.triggerFullArtistSync);
   const createAppUser = useMutation(api.auth.createAppUser);
   const healthCheck = useQuery(api.health.healthCheck);
-  const systemStats = useQuery(api.health.getSystemStats);
+  const dashboardStats = useQuery(api.dashboard.getStats);
 
   const runTest = async (testName: string, testFn: () => Promise<boolean>) => {
     try {
@@ -49,7 +49,7 @@ export function TestSuite() {
 
       // Test 4: Database Connectivity
       await runTest("Database Connectivity", async () => {
-        return systemStats?.totalArtists !== undefined;
+        return dashboardStats?.totalArtists !== undefined;
       });
 
       // Test 5: Auth System

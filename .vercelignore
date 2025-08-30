@@ -1,0 +1,14 @@
+old/
+node_modules/
+.env.local
+.env
+*.log
+.DS_Store
+.vscode/
+.idea/
+coverage/
+test-results/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx

@@ -31,7 +31,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
   const communitySetlist = setlists?.find(s => !s.isOfficial) || null;
 
   const handleAnonymousAction = () => {
-    if (anonymousActions >= 2) {
+    if (anonymousActions >= 4) { // Allow 2 song additions + 2 votes = 4 total actions
       onSignInRequired();
       return false;
     }
