@@ -240,7 +240,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired }: PublicDashb
   );
 }
 
-// Horizontal Scrolling Container Component with Two Rows
+// Static Two-Row Display Component
 function HorizontalScrollingSection({ 
   children, 
   direction, 
@@ -254,65 +254,12 @@ function HorizontalScrollingSection({
   emptyTitle: string;
   emptySubtitle: string;
 }) {
-  const scrollRef1 = React.useRef<HTMLDivElement>(null);
-  const scrollRef2 = React.useRef<HTMLDivElement>(null);
-  const [isPaused, setIsPaused] = React.useState(false);
-
-  useEffect(() => {
-    const scrollElement1 = scrollRef1.current;
-    const scrollElement2 = scrollRef2.current;
-    if (!scrollElement1 || !scrollElement2 || isPaused || isLoading) return;
-
-    const scroll = () => {
-      // First row scrolls in specified direction
-      const maxScroll1 = scrollElement1.scrollWidth - scrollElement1.clientWidth;
-      const currentScroll1 = scrollElement1.scrollLeft;
-      
-      // Second row scrolls in opposite direction
-      const maxScroll2 = scrollElement2.scrollWidth - scrollElement2.clientWidth;
-      const currentScroll2 = scrollElement2.scrollLeft;
-      
-      if (direction === 'right') {
-        // First row: left to right
-        if (currentScroll1 >= maxScroll1) {
-          scrollElement1.scrollLeft = 0;
-        } else {
-          scrollElement1.scrollLeft += 2.5; // Faster scroll speed
-        }
-        
-        // Second row: right to left
-        if (currentScroll2 <= 0) {
-          scrollElement2.scrollLeft = maxScroll2;
-        } else {
-          scrollElement2.scrollLeft -= 2.5; // Faster scroll speed
-        }
-      } else {
-        // First row: right to left
-        if (currentScroll1 <= 0) {
-          scrollElement1.scrollLeft = maxScroll1;
-        } else {
-          scrollElement1.scrollLeft -= 2.5; // Faster scroll speed
-        }
-        
-        // Second row: left to right
-        if (currentScroll2 >= maxScroll2) {
-          scrollElement2.scrollLeft = 0;
-        } else {
-          scrollElement2.scrollLeft += 2.5; // Faster scroll speed
-        }
-      }
-    };
-
-    const interval = setInterval(scroll, 20); // Even faster scrolling - 20ms intervals
-    return () => clearInterval(interval);
-  }, [direction, isPaused, isLoading]);
-
   if (isLoading) {
     return (
       <div className="space-y-6">
         {/* Two rows of loading skeletons */}
         {[...Array(2)].map((_, rowIndex) => (
-          <div key={rowIndex} className="flex gap-4 overflow-hidden pb-4">
+          <div key={rowIndex} className="flex gap-4 overflow-x-auto scrollbar-hide pb-4">
             {[...Array(6)].map((_, i) => (
               <div key={i} className="flex-shrink-0 w-72 h-64 bg-gradient-to-br from-gray-950 to-black border border-gray-800 rounded-2xl p-6 animate-pulse">
                 <div className="w-8 h-8 bg-gray-800 rounded-full mb-4"></div>
@@ -347,49 +294,27 @@ function HorizontalScrollingSection({
   const secondRowChildren = childrenArray.slice(Math.ceil(childrenArray.length / 2));
 
   return (
-    <div 
-      className="relative space-y-6"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-    >
-      {/* First Row */}
+    <div className="space-y-6">
+      {/* First Row - Static Horizontal Scroll */}
       <div className="relative">
-        <div 
-          ref={scrollRef1}
-          className="flex gap-6 overflow-x-hidden scrollbar-hide pb-4"
-          style={{ 
-            width: '100%',
-            overflowX: 'hidden'
-          }}
-        >
-          {/* Duplicate children for seamless scrolling */}
-          {firstRowChildren}
+        <div className="flex gap-6 overflow-x-auto scrollbar-hide pb-4 scroll-smooth">
           {firstRowChildren}
         </div>
         
-        {/* Gradient Overlays for first row */}
-        <div className="absolute top-0 left-0 w-32 h-full bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
-        <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
+        {/* Subtle gradient overlays */}
+        <div className="absolute top-0 left-0 w-8 h-full bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-8 h-full bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
       </div>
 
-      {/* Second Row */}
+      {/* Second Row - Static Horizontal Scroll */}
       <div className="relative">
-        <div 
-          ref={scrollRef2}
-          className="flex gap-6 overflow-x-hidden scrollbar-hide pb-4"
-          style={{ 
-            width: '100%',
-            overflowX: 'hidden'
-          }}
-        >
-          {/* Duplicate children for seamless scrolling */}
-          {secondRowChildren}
+        <div className="flex gap-6 overflow-x-auto scrollbar-hide pb-4 scroll-smooth">
           {secondRowChildren}
         </div>
         
-        {/* Gradient Overlays for second row */}
-        <div className="absolute top-0 left-0 w-32 h-full bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
-        <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
+        {/* Subtle gradient overlays */}
+        <div className="absolute top-0 left-0 w-8 h-full bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-8 h-full bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
       </div>
     </div>
   );
