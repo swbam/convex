@@ -107,7 +107,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired }: PublicDashb
                   key={`${show.ticketmasterId}-${index}`}
                   show={show}
                   onArtistClick={(artistTicketmasterId: string, artistName: string, genres?: string[], images?: string[]) => {
-                    handleArtistClick(artistTicketmasterId, artistName, genres, images).catch(console.error);
+                    void handleArtistClick(artistTicketmasterId, artistName, genres, images);
                   }}
                 />
               ))}
@@ -194,7 +194,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired }: PublicDashb
                 <MobileArtistCard
                   key={artist.ticketmasterId}
                   artist={artist}
-                  onClick={() => handleArtistClick(artist.ticketmasterId, artist.name, artist.genres, artist.images).catch(console.error)}
+                  onClick={() => void handleArtistClick(artist.ticketmasterId, artist.name, artist.genres, artist.images)}
                 />
               ))
             )}
@@ -236,7 +236,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired }: PublicDashb
   );
 }
 
-// Horizontal Scrolling Container Component
+// Horizontal Scrolling Container Component with Two Rows
 function HorizontalScrollingSection({ 
   children, 
   direction, 
@@ -250,51 +250,78 @@ function HorizontalScrollingSection({
   emptyTitle: string;
   emptySubtitle: string;
 }) {
-  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const scrollRef1 = React.useRef<HTMLDivElement>(null);
+  const scrollRef2 = React.useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = React.useState(false);
 
   useEffect(() => {
-    const scrollElement = scrollRef.current;
-    if (!scrollElement || isPaused || isLoading) return;
+    const scrollElement1 = scrollRef1.current;
+    const scrollElement2 = scrollRef2.current;
+    if (!scrollElement1 || !scrollElement2 || isPaused || isLoading) return;
 
     const scroll = () => {
-      const maxScroll = scrollElement.scrollWidth - scrollElement.clientWidth;
-      const currentScroll = scrollElement.scrollLeft;
+      // First row scrolls in specified direction
+      const maxScroll1 = scrollElement1.scrollWidth - scrollElement1.clientWidth;
+      const currentScroll1 = scrollElement1.scrollLeft;
+      
+      // Second row scrolls in opposite direction
+      const maxScroll2 = scrollElement2.scrollWidth - scrollElement2.clientWidth;
+      const currentScroll2 = scrollElement2.scrollLeft;
       
       if (direction === 'right') {
-        if (currentScroll >= maxScroll) {
-          scrollElement.scrollLeft = 0;
+        // First row: left to right
+        if (currentScroll1 >= maxScroll1) {
+          scrollElement1.scrollLeft = 0;
         } else {
-          scrollElement.scrollLeft += 1.5; // Faster scroll speed
+          scrollElement1.scrollLeft += 2.5; // Faster scroll speed
+        }
+        
+        // Second row: right to left
+        if (currentScroll2 <= 0) {
+          scrollElement2.scrollLeft = maxScroll2;
+        } else {
+          scrollElement2.scrollLeft -= 2.5; // Faster scroll speed
         }
       } else {
-        if (currentScroll <= 0) {
-          scrollElement.scrollLeft = maxScroll;
+        // First row: right to left
+        if (currentScroll1 <= 0) {
+          scrollElement1.scrollLeft = maxScroll1;
         } else {
-          scrollElement.scrollLeft -= 1.5; // Faster scroll speed
+          scrollElement1.scrollLeft -= 2.5; // Faster scroll speed
+        }
+        
+        // Second row: left to right
+        if (currentScroll2 >= maxScroll2) {
+          scrollElement2.scrollLeft = 0;
+        } else {
+          scrollElement2.scrollLeft += 2.5; // Faster scroll speed
         }
       }
     };
 
-    const interval = setInterval(scroll, 25); // Faster scrolling - 25ms intervals
+    const interval = setInterval(scroll, 20); // Even faster scrolling - 20ms intervals
     return () => clearInterval(interval);
   }, [direction, isPaused, isLoading]);
 
   if (isLoading) {
     return (
-      <div className="flex gap-6 overflow-hidden pb-4">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex-shrink-0 w-96 h-80 bg-gradient-to-br from-gray-950 to-black border border-gray-800 rounded-3xl p-8 animate-pulse">
-            <div className="w-10 h-10 bg-gray-800 rounded-full mb-6"></div>
-            <div className="space-y-4">
-              <div className="h-8 bg-gray-800 rounded-lg shimmer"></div>
-              <div className="h-5 bg-gray-800 rounded w-3/4 shimmer"></div>
-              <div className="h-5 bg-gray-800 rounded w-1/2 shimmer"></div>
-            </div>
-            <div className="mt-8 space-y-3">
-              <div className="h-12 bg-gray-800 rounded-2xl shimmer"></div>
-              <div className="h-12 bg-gray-800 rounded-2xl shimmer"></div>
-            </div>
+      <div className="space-y-6">
+        {/* Two rows of loading skeletons */}
+        {[...Array(2)].map((_, rowIndex) => (
+          <div key={rowIndex} className="flex gap-4 overflow-hidden pb-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="flex-shrink-0 w-72 h-64 bg-gradient-to-br from-gray-950 to-black border border-gray-800 rounded-2xl p-6 animate-pulse">
+                <div className="w-8 h-8 bg-gray-800 rounded-full mb-4"></div>
+                <div className="space-y-3">
+                  <div className="h-6 bg-gray-800 rounded-lg shimmer"></div>
+                  <div className="h-4 bg-gray-800 rounded w-3/4 shimmer"></div>
+                  <div className="h-4 bg-gray-800 rounded w-1/2 shimmer"></div>
+                </div>
+                <div className="mt-6 space-y-2">
+                  <div className="h-10 bg-gray-800 rounded-xl shimmer"></div>
+                </div>
+              </div>
+            ))}
           </div>
         ))}
       </div>
@@ -311,31 +338,60 @@ function HorizontalScrollingSection({
     );
   }
 
+  const childrenArray = React.Children.toArray(children);
+  const firstRowChildren = childrenArray.slice(0, Math.ceil(childrenArray.length / 2));
+  const secondRowChildren = childrenArray.slice(Math.ceil(childrenArray.length / 2));
+
   return (
     <div 
-      className="relative"
+      className="relative space-y-6"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
-      <div 
-        ref={scrollRef}
-        className="flex gap-8 overflow-x-hidden scrollbar-hide pb-6"
-        style={{ 
-          width: '100%',
-          overflowX: 'hidden'
-        }}
-      >
-        {children}
+      {/* First Row */}
+      <div className="relative">
+        <div 
+          ref={scrollRef1}
+          className="flex gap-6 overflow-x-hidden scrollbar-hide pb-4"
+          style={{ 
+            width: '100%',
+            overflowX: 'hidden'
+          }}
+        >
+          {/* Duplicate children for seamless scrolling */}
+          {firstRowChildren}
+          {firstRowChildren}
+        </div>
+        
+        {/* Gradient Overlays for first row */}
+        <div className="absolute top-0 left-0 w-32 h-full bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
       </div>
-      
-      {/* Gradient Overlays */}
-      <div className="absolute top-0 left-0 w-40 h-full bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
-      <div className="absolute top-0 right-0 w-40 h-full bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
+
+      {/* Second Row */}
+      <div className="relative">
+        <div 
+          ref={scrollRef2}
+          className="flex gap-6 overflow-x-hidden scrollbar-hide pb-4"
+          style={{ 
+            width: '100%',
+            overflowX: 'hidden'
+          }}
+        >
+          {/* Duplicate children for seamless scrolling */}
+          {secondRowChildren}
+          {secondRowChildren}
+        </div>
+        
+        {/* Gradient Overlays for second row */}
+        <div className="absolute top-0 left-0 w-32 h-full bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
+      </div>
     </div>
   );
 }
 
-// Optimized Show Card for horizontal scrolling
+// Optimized Show Card for horizontal scrolling - Smaller Size
 function PremiumShowCard({ show, onArtistClick }: {
   show: any;
   onArtistClick: (artistTicketmasterId: string, artistName: string, genres?: string[], images?: string[]) => void;
@@ -354,10 +410,10 @@ function PremiumShowCard({ show, onArtistClick }: {
 
   return (
     <MagicCard
-      className="flex-shrink-0 w-80 group relative transition-all duration-300 hover:scale-[1.02] cursor-pointer p-0 overflow-hidden"
+      className="flex-shrink-0 w-72 group relative transition-all duration-500 ease-out hover:scale-[1.03] cursor-pointer p-0 overflow-hidden border-0 hover:border-white/20"
       gradientColor="#ffffff"
-      gradientOpacity={0.06}
-      gradientSize={400}
+      gradientOpacity={0.08}
+      gradientSize={300}
     >
       {/* Enhanced Artist Image Background */}
       {show.artistImage && (
@@ -365,35 +421,35 @@ function PremiumShowCard({ show, onArtistClick }: {
           <img 
             src={show.artistImage} 
             alt={show.artistName}
-            className="w-full h-full object-cover opacity-75 group-hover:opacity-90 transition-all duration-500 scale-105 group-hover:scale-110"
+            className="w-full h-full object-cover opacity-70 group-hover:opacity-95 transition-all duration-700 ease-out scale-105 group-hover:scale-110"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/90 to-background/30" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/85 to-background/20" />
         </div>
       )}
       
-      <div className="relative z-10 p-6 h-full flex flex-col justify-between min-h-[280px]">
+      <div className="relative z-10 p-5 h-full flex flex-col justify-between min-h-[240px]">
         {/* Artist Info - Refined */}
         <div>
-          <h3 className="text-xl font-bold mb-3 text-white leading-tight">
+          <h3 className="text-lg font-bold mb-2 text-white leading-tight line-clamp-2">
             {show.artistName}
           </h3>
           
           {/* Show Details - Compact */}
-          <div className="space-y-2 mb-6">
+          <div className="space-y-1.5 mb-4">
             <div className="flex items-center gap-2 text-gray-300">
-              <MapPin className="h-4 w-4 flex-shrink-0" />
+              <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
               <div className="min-w-0">
-                <div className="font-medium text-sm truncate">{show.venueName}</div>
+                <div className="font-medium text-xs truncate">{show.venueName}</div>
                 <div className="text-gray-400 text-xs">{show.venueCity}</div>
               </div>
             </div>
             
             <div className="flex items-center gap-2 text-gray-300">
-              <Calendar className="h-4 w-4" />
-              <span className="font-medium text-sm">{dateText}</span>
+              <Calendar className="h-3.5 w-3.5" />
+              <span className="font-medium text-xs">{dateText}</span>
               {show.startTime && (
                 <>
-                  <Clock className="h-3 w-3 ml-2" />
+                  <Clock className="h-3 w-3 ml-1" />
                   <span className="text-xs">{show.startTime}</span>
                 </>
               )}
@@ -401,36 +457,33 @@ function PremiumShowCard({ show, onArtistClick }: {
           </div>
         </div>
         
-        {/* Action Buttons - Smaller & More Refined */}
-        <div className="space-y-2">
+        {/* Action Button - Smaller & More Refined */}
+        <div>
           <button
             onClick={() => onArtistClick(show.artistTicketmasterId || show.ticketmasterId, show.artistName, [], show.artistImage ? [show.artistImage] : [])}
-            className="w-full bg-white/10 border border-white/20 text-white rounded-xl py-2 px-4 text-sm font-medium hover:bg-white/20 transition-all duration-200 backdrop-blur-sm"
+            className="w-full bg-white/10 border border-white/20 text-white rounded-lg py-2 px-3 text-xs font-medium hover:bg-white/25 hover:border-white/40 transition-all duration-300 ease-out backdrop-blur-sm"
           >
             View Artist
           </button>
-
         </div>
       </div>
     </MagicCard>
   );
 }
 
-// Optimized Artist Card for horizontal scrolling
+// Optimized Artist Card for horizontal scrolling - Smaller Size
 function PremiumArtistCard({ artist, onClick }: {
   artist: any;
-
   onClick: () => void;
 }) {
   return (
     <MagicCard 
-      className="flex-shrink-0 w-80 group relative transition-all duration-300 hover:scale-[1.02] cursor-pointer p-0 overflow-hidden"
+      className="flex-shrink-0 w-72 group relative transition-all duration-500 ease-out hover:scale-[1.03] cursor-pointer p-0 overflow-hidden border-0 hover:border-white/20"
       gradientColor="#ffffff"
-      gradientOpacity={0.06}
-      gradientSize={400}
+      gradientOpacity={0.08}
+      gradientSize={300}
     >
       <div onClick={onClick} className="w-full h-full">
-
       
       {/* Artist Image Background */}
       {artist.images?.[0] && (
@@ -438,44 +491,44 @@ function PremiumArtistCard({ artist, onClick }: {
           <img 
             src={artist.images[0]} 
             alt={artist.name}
-            className="w-full h-full object-cover opacity-75 group-hover:opacity-90 transition-all duration-500 scale-105 group-hover:scale-110"
+            className="w-full h-full object-cover opacity-70 group-hover:opacity-95 transition-all duration-700 ease-out scale-105 group-hover:scale-110"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/90 to-background/30" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/85 to-background/20" />
         </div>
       )}
       
-      <div className="relative z-10 p-6 h-full flex flex-col justify-between min-h-[280px]">
+      <div className="relative z-10 p-5 h-full flex flex-col justify-between min-h-[240px]">
         {/* Artist Info - Refined */}
         <div>
-          <h3 className="text-xl font-bold mb-3 text-foreground leading-tight group-hover:text-primary transition-colors">
+          <h3 className="text-lg font-bold mb-2 text-white leading-tight line-clamp-2 group-hover:text-primary transition-colors duration-300">
             {artist.name}
           </h3>
           
           {artist.genres && artist.genres.length > 0 && (
-            <p className="text-muted-foreground font-medium mb-4 capitalize text-sm bg-accent/30 px-2 py-1 rounded-lg inline-block">
+            <p className="text-gray-300 font-medium mb-3 capitalize text-xs bg-white/10 px-2 py-1 rounded-md inline-block backdrop-blur-sm">
               {artist.genres.slice(0, 2).join(" • ")}
             </p>
           )}
           
           {artist.upcomingEvents > 0 && (
-            <div className="flex items-center gap-2 text-gray-300 mb-6">
-              <Calendar className="h-4 w-4" />
-              <span className="font-semibold text-lg">{artist.upcomingEvents}</span>
-              <span className="text-gray-400 text-sm">upcoming shows</span>
+            <div className="flex items-center gap-1.5 text-gray-300 mb-4">
+              <Calendar className="h-3.5 w-3.5" />
+              <span className="font-semibold text-sm">{artist.upcomingEvents}</span>
+              <span className="text-gray-400 text-xs">shows</span>
             </div>
           )}
         </div>
         
         {/* Action Button - Enhanced */}
-        <button className="w-full bg-accent hover:bg-primary hover:text-primary-foreground text-foreground rounded-xl py-3 px-4 text-sm font-semibold transition-all duration-200 group-hover:shadow-lg">
+        <button className="w-full bg-white/10 border border-white/20 hover:bg-white/25 hover:border-white/40 text-white rounded-lg py-2 px-3 text-xs font-medium transition-all duration-300 ease-out backdrop-blur-sm group-hover:shadow-lg">
           View Profile
         </button>
       </div>
       
       <BorderBeam 
-        size={120} 
-        duration={15} 
-        className="opacity-0 group-hover:opacity-50 transition-opacity duration-300" 
+        size={100} 
+        duration={12} 
+        className="opacity-0 group-hover:opacity-40 transition-opacity duration-500 ease-out" 
         colorFrom="#ffffff" 
         colorTo="#888888"
       />

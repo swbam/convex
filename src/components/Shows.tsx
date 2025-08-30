@@ -3,7 +3,10 @@ import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { ShowCard } from './ShowCard';
-import { Search, Calendar, MapPin, Filter, TrendingUp, Music } from 'lucide-react';
+import { Search, Calendar, MapPin, Filter, TrendingUp, Music, Sparkles } from 'lucide-react';
+import { MagicCard } from './ui/magic-card';
+import { BorderBeam } from './ui/border-beam';
+import { ShimmerButton } from './ui/shimmer-button';
 
 interface ShowsProps {
   onShowClick: (showId: Id<'shows'>, slug?: string) => void;
@@ -86,54 +89,80 @@ export function Shows({ onShowClick }: ShowsProps) {
   const completedCount = allShows.filter(s => s.status === 'completed').length;
 
   return (
-    <div className="container mx-auto px-6 py-8 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-bold mb-2">Shows</h1>
-          <p className="text-muted-foreground text-lg">
-            Discover {allShows.length} concerts • {upcomingCount} upcoming • {completedCount} completed
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <TrendingUp className="h-4 w-4" />
-          <span>Updated live from Ticketmaster</span>
-        </div>
-      </div>
-
-      {/* Filters and Search */}
-      <div className="dashboard-card">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <input
-              type="text"
-              placeholder="Search shows, artists, venues..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-muted/20 border border-muted rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
+    <div className="container mx-auto px-6 py-8 space-y-8">
+      {/* Enhanced Header with MagicCard */}
+      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 hover:border-white/20">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5" />
+        <div className="relative z-10 p-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                  <Calendar className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-4xl lg:text-5xl font-bold text-white">Shows</h1>
+                  <p className="text-gray-300 text-lg">
+                    Discover {allShows.length} concerts • {upcomingCount} upcoming • {completedCount} completed
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3 bg-white/5 rounded-xl p-4 backdrop-blur-sm">
+              <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-4 w-4 text-green-400" />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-white">Live Data</div>
+                <div className="text-xs text-gray-400">Updated from Ticketmaster</div>
+              </div>
+            </div>
           </div>
+        </div>
+        <BorderBeam size={150} duration={12} className="opacity-30" />
+      </MagicCard>
 
-          {/* Status Filter */}
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="w-full pl-10 pr-8 py-3 bg-muted/20 border border-muted rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none cursor-pointer"
-            >
-              <option value="all">All Shows</option>
-              <option value="upcoming">Upcoming</option>
-              <option value="completed">Completed</option>
-            </select>
+      {/* Enhanced Filters and Search */}
+      <MagicCard className="p-0 rounded-2xl border-0 hover:border-white/20">
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
+              <Filter className="h-4 w-4 text-white" />
+            </div>
+            <h2 className="text-xl font-semibold text-white">Filters & Search</h2>
           </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {/* Enhanced Search */}
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <input
+                type="text"
+                placeholder="Search shows, artists, venues..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300"
+              />
+            </div>
 
-          {/* City Filter */}
-          <div className="relative">
-            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            {/* Enhanced Status Filter */}
+            <div className="relative">
+              <Calendar className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none z-10" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="w-full pl-12 pr-8 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white backdrop-blur-sm appearance-none cursor-pointer transition-all duration-300"
+              >
+                <option value="all" className="bg-background text-foreground">All Shows</option>
+                <option value="upcoming" className="bg-background text-foreground">Upcoming</option>
+                <option value="completed" className="bg-background text-foreground">Completed</option>
+              </select>
+            </div>
+
+            {/* Enhanced City Filter */}
+            <div className="relative">
+              <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none z-10" />
             <select
               value={cityFilter}
               onChange={(e) => setCityFilter(e.target.value)}
@@ -156,8 +185,10 @@ export function Shows({ onShowClick }: ShowsProps) {
             <option value="artist">Artist Name</option>
             <option value="popularity">Most Popular</option>
           </select>
+          </div>
         </div>
-      </div>
+        <BorderBeam size={120} duration={8} className="opacity-20" />
+      </MagicCard>
 
       {/* Results */}
       <div className="dashboard-card">

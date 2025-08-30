@@ -72,10 +72,10 @@ export function ShowCard({
   if (compact) {
     return (
       <MagicCard
-        className="group cursor-pointer p-0 transition-all duration-300 hover:scale-[1.01] relative overflow-hidden"
+        className="group cursor-pointer p-0 transition-all duration-500 ease-out hover:scale-[1.03] relative overflow-hidden border-0 hover:border-white/20"
         gradientColor="#ffffff"
-        gradientOpacity={0.03}
-        gradientSize={200}
+        gradientOpacity={0.08}
+        gradientSize={300}
       >
         {/* Background Image for Compact */}
         {showArtist && show.artist?.images?.[0] && (

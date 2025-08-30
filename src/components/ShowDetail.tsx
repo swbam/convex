@@ -2,10 +2,13 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import React, { useState } from "react";
-import { ArrowLeft, MapPin, Calendar, Clock, Users, Music, TrendingUp, ChevronUp, Heart } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Clock, Users, Music, TrendingUp, ChevronUp, Heart, Play, Star, Vote } from "lucide-react";
 import { toast } from "sonner";
 import { SEOHead } from "./SEOHead";
 import { AnimatedSubscribeButton } from "./ui/animated-subscribe-button";
+import { MagicCard } from "./ui/magic-card";
+import { BorderBeam } from "./ui/border-beam";
+import { ShimmerButton } from "./ui/shimmer-button";
 
 interface ShowDetailProps {
   showId: Id<"shows">;
@@ -90,77 +93,138 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
         image={show.artist?.images?.[0]}
         url={typeof window !== 'undefined' ? window.location.href : undefined}
       />
-      {/* Back Button */}
-      <button
-        onClick={onBack}
-        className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Dashboard
-      </button>
+      
+      {/* Enhanced Back Button */}
+      <MagicCard className="inline-block p-0 rounded-xl border-0 hover:border-white/20">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all duration-300 px-4 py-2 rounded-xl"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Dashboard
+        </button>
+      </MagicCard>
 
-      {/* Show Header */}
-      <div className="dashboard-card">
-        <div className="space-y-6">
-          <div>
-            <button
-              onClick={() => onArtistClick(show.artistId)}
-              className="text-4xl font-bold hover:text-primary transition-colors"
-            >
-              {show.artist?.name}
-            </button>
-            <div className="flex items-center gap-4 mt-2 text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <MapPin className="h-4 w-4" />
-                <span>{show.venue?.name}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                <span>
-                  {showDate.toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </span>
-              </div>
-              {show.startTime && (
-                <div className="flex items-center gap-1">
-                  <Clock className="h-4 w-4" />
-                  <span>{show.startTime}</span>
+      {/* Enhanced Show Header with MagicCard */}
+      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 hover:border-white/20">
+        {/* Background Image */}
+        {show.artist?.images?.[0] && (
+          <div className="absolute inset-0 z-0">
+            <img 
+              src={show.artist.images[0]} 
+              alt={show.artist.name}
+              className="w-full h-full object-cover opacity-20 blur-sm scale-110"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/80" />
+          </div>
+        )}
+        
+        <div className="relative z-10 p-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+            <div className="space-y-6 flex-1">
+              {/* Artist Name and Status */}
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <button
+                    onClick={() => onArtistClick(show.artistId)}
+                    className="text-4xl lg:text-5xl font-bold text-white hover:text-primary transition-colors text-left"
+                  >
+                    {show.artist?.name}
+                  </button>
+                  <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold backdrop-blur-sm ${
+                    isUpcoming 
+                      ? isToday 
+                        ? 'bg-green-500/30 text-green-300 border border-green-500/50' 
+                        : 'bg-blue-500/30 text-blue-300 border border-blue-500/50'
+                      : 'bg-gray-500/30 text-gray-300 border border-gray-500/50'
+                  }`}>
+                    <div className={`w-2 h-2 rounded-full mr-2 ${
+                      isUpcoming ? (isToday ? 'bg-green-400' : 'bg-blue-400') : 'bg-gray-400'
+                    }`} />
+                    {isUpcoming ? (isToday ? 'Tonight' : 'Upcoming') : 'Completed'}
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-              isUpcoming 
-                ? isToday 
-                  ? "border border-border text-foreground" 
-                  : "border border-border text-muted-foreground"
-                : "border border-border text-muted-foreground"
-            }`}>
-              {isToday ? "Tonight" : show.status}
-            </div>
-            
-            {show.venue?.capacity && (
-              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Users className="h-4 w-4" />
-                <span>{show.venue.capacity.toLocaleString()} capacity</span>
+                
+                {/* Venue and Date Info */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="flex items-center gap-3 text-gray-300">
+                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                      <MapPin className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-white">{show.venue?.name}</div>
+                      <div className="text-sm text-gray-400">{show.venue?.city}, {show.venue?.country}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 text-gray-300">
+                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                      <Calendar className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-white">
+                        {showDate.toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        {showDate.toLocaleDateString('en-US', { weekday: 'long' })}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {show.startTime && (
+                    <div className="flex items-center gap-3 text-gray-300">
+                      <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                        <Clock className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-white">{show.startTime}</div>
+                        <div className="text-sm text-gray-400">Show Time</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Additional Info */}
+                <div className="flex flex-wrap gap-4">
+                  {show.venue?.capacity && (
+                    <div className="flex items-center gap-2 bg-white/5 rounded-lg p-3 backdrop-blur-sm">
+                      <Users className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm text-gray-300">{show.venue.capacity.toLocaleString()} capacity</span>
+                    </div>
+                  )}
+                  
+                  {show.venue?.address && (
+                    <div className="text-gray-400 bg-white/5 rounded-lg p-3 backdrop-blur-sm">
+                      <div className="text-sm">{show.venue.address}</div>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-
-          {show.venue?.city && (
-            <div className="text-muted-foreground">
-              {show.venue.address && `${show.venue.address}, `}
-              {show.venue.city}, {show.venue.country}
+              
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-4">
+                {show.ticketUrl && (
+                  <a 
+                    href={show.ticketUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-6 py-3 bg-primary/20 hover:bg-primary/30 text-white rounded-xl font-medium transition-all duration-300 border border-primary/30 backdrop-blur-sm"
+                  >
+                    <Star className="h-4 w-4 mr-2" />
+                    Get Tickets
+                  </a>
+                )}
+              </div>
             </div>
-          )}
+          </div>
         </div>
-      </div>
+        
+        <BorderBeam size={200} duration={15} className="opacity-30" />
+      </MagicCard>
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
@@ -168,10 +232,16 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
         <div className="lg:col-span-2 space-y-6">
           {/* Song Selection for Upcoming Shows */}
           {!officialSetlist && isUpcoming && (
-            <div className="dashboard-card">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">Add Songs to Setlist</h2>
-              </div>
+            <MagicCard className="p-0 rounded-2xl border-0 hover:border-white/20">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
+                      <Music className="h-4 w-4 text-white" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white">Add Songs to Setlist</h2>
+                  </div>
+                </div>
               
               {/* Enhanced Song Selection */}
               {songs && songs.length > 0 && (
