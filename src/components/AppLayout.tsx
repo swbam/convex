@@ -37,15 +37,15 @@ export function AppLayout({ children }: AppLayoutProps) {
         />
       )}
       
-      {/* Enhanced Magic UI Sidebar */}
+      {/* Enhanced Magic UI Sidebar - Mobile Optimized */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-50 w-72 sm:w-80 lg:w-64 transform transition-transform duration-300 ease-in-out
         lg:translate-x-0 lg:static lg:inset-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <MagicCard className="h-full rounded-none border-r border-border bg-background/95 backdrop-blur-xl">
           {/* Sidebar Header with Magic UI */}
-          <div className="flex items-center justify-between p-6 border-b border-border">
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border">
             <button 
               onClick={(e) => { e.preventDefault(); void navigate('/') }}
               className="flex items-center space-x-2 group"
@@ -66,8 +66,8 @@ export function AppLayout({ children }: AppLayoutProps) {
             </button>
           </div>
           
-          {/* Enhanced Navigation with Magic UI */}
-          <nav className="flex-1 px-4 py-6 space-y-2">
+          {/* Enhanced Navigation with Magic UI - Mobile Optimized */}
+          <nav className="flex-1 px-3 sm:px-4 py-4 sm:py-6 space-y-2">
             {navigationItems.map((item) => {
               const isActive = location.pathname === item.href || 
                 (item.href !== '/' && location.pathname.startsWith(item.href))
@@ -89,7 +89,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                        setSidebarOpen(false)
                      }}
                     className={`
-                      w-full flex items-center px-4 py-3 text-sm font-medium transition-colors group
+                      w-full flex items-center px-4 py-4 text-base font-medium transition-colors group touch-manipulation
                       ${isActive 
                         ? 'text-primary' 
                         : 'text-muted-foreground hover:text-foreground'

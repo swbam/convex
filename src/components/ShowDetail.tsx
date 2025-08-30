@@ -86,7 +86,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
   const officialSetlist = setlists?.find(s => s.isOfficial);
 
   return (
-    <div className="container mx-auto px-6 py-8 space-y-8">
+    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8">
       <SEOHead
         title={`${show.artist?.name || 'Artist'} @ ${show.venue?.name || 'Venue'} – ${showDate.toLocaleDateString('en-US')} | TheSet`}
         description={`Details for ${show.artist?.name} at ${show.venue?.name} on ${showDate.toLocaleDateString('en-US')}. View setlists and vote.`}
@@ -119,15 +119,15 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
           </div>
         )}
         
-        <div className="relative z-10 p-8">
-          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8">
+        <div className="relative z-10 p-4 sm:p-6 lg:p-8">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 sm:gap-6 lg:gap-8">
             <div className="space-y-6 flex-1">
               {/* Artist Name and Status */}
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   <button
                     onClick={() => onArtistClick(show.artistId)}
-                    className="text-4xl lg:text-5xl font-bold text-white hover:text-primary transition-colors text-left"
+                    className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white hover:text-primary transition-colors text-left leading-tight"
                   >
                     {show.artist?.name}
                   </button>
@@ -146,7 +146,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                 </div>
                 
                 {/* Venue and Date Info */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                   <div className="flex items-center gap-3 text-gray-300">
                     <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
                       <MapPin className="h-5 w-5 text-white" />
@@ -221,10 +221,10 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
               </div>
             </div>
 
-            {/* Artist Image */}
+            {/* Artist Image - Mobile Responsive */}
             {show.artist?.images?.[0] && (
-              <div className="flex-shrink-0">
-                <MagicCard className="w-48 h-48 lg:w-64 lg:h-64 p-0 rounded-2xl overflow-hidden border-0 hover:border-white/30">
+              <div className="flex-shrink-0 self-center sm:self-start">
+                <MagicCard className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 xl:w-64 xl:h-64 p-0 rounded-2xl overflow-hidden border-0 hover:border-white/30">
                   <img 
                     src={show.artist.images[0]} 
                     alt={show.artist.name}
@@ -240,16 +240,16 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
         <BorderBeam size={200} duration={15} className="opacity-30" />
       </MagicCard>
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
-        {/* Setlist Section */}
-        <div className="lg:col-span-2 space-y-6">
+      {/* Mobile-Responsive Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+        {/* Setlist Section - Mobile First */}
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
 
 
           {/* Enhanced Shared Setlist Display */}
           <MagicCard className="p-0 rounded-2xl border-0">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
+            <div className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
                     <Music className="h-4 w-4 text-white" />
@@ -310,7 +310,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                         ) || [];
                         return !songTitles.includes(s!.title);
                       })
-                      .sort((a, b) => (b!.popularity || 0) - (a!.popularity || 0))
+                      .sort((a, b) => a!.title.localeCompare(b!.title))
                       .map((song) => (
                         <option 
                           key={song!._id} 
@@ -389,12 +389,12 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
           </MagicCard>
         </div>
 
-        {/* Enhanced Sidebar */}
-        <div className="space-y-6">
+        {/* Enhanced Sidebar - Mobile Responsive */}
+        <div className="space-y-4 sm:space-y-6 lg:order-last">
           {/* Enhanced Venue Details */}
           <MagicCard className="p-0 rounded-2xl border-0">
-            <div className="p-6">
-            <h3 className="text-xl font-bold mb-4">Venue Details</h3>
+            <div className="p-4 sm:p-6">
+            <h3 className="text-lg sm:text-xl font-bold mb-4 text-white">Venue Details</h3>
             <div className="space-y-3">
               <div>
                 <div className="font-medium">{show.venue?.name}</div>
@@ -422,8 +422,8 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
 
           {/* Enhanced Show Stats */}
           <MagicCard className="p-0 rounded-2xl border-0">
-            <div className="p-6">
-            <h3 className="text-xl font-bold mb-4">Show Stats</h3>
+            <div className="p-4 sm:p-6">
+            <h3 className="text-lg sm:text-xl font-bold mb-4 text-white">Show Stats</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Songs in setlist</span>

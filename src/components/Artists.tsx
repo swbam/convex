@@ -91,20 +91,20 @@ export function Artists({ onArtistClick }: ArtistsProps) {
   };
 
   return (
-    <div className="container mx-auto px-6 py-8 space-y-8">
+    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8">
       {/* Enhanced Header with MagicCard */}
       <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 hover:border-white/20">
         <div className="absolute inset-0 bg-gradient-to-br from-purple/5 via-background to-blue/5" />
-        <div className="relative z-10 p-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="relative z-10 p-4 sm:p-6 lg:p-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
                   <Mic className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-4xl lg:text-5xl font-bold text-white">Artists</h1>
-                  <p className="text-gray-300 text-lg">
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white leading-tight">Artists</h1>
+                  <p className="text-gray-300 text-sm sm:text-base lg:text-lg">
                     Discover {filteredArtists.length} artists across all genres
                   </p>
                 </div>
@@ -127,24 +127,24 @@ export function Artists({ onArtistClick }: ArtistsProps) {
 
       {/* Enhanced Search and Filters */}
       <MagicCard className="p-0 rounded-2xl border-0 hover:border-white/20">
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-6">
+        <div className="p-4 sm:p-6">
+          <div className="flex items-center gap-3 mb-4 sm:mb-6">
             <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
               <Filter className="h-4 w-4 text-white" />
             </div>
-            <h2 className="text-xl font-semibold text-white">Search & Filter</h2>
+            <h2 className="text-lg sm:text-xl font-semibold text-white">Search & Filter</h2>
           </div>
           
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           {/* Search */}
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <input
               type="text"
               placeholder="Search artists or genres..."
               value={searchQuery}
               onChange={handleSearch}
-              className="w-full pl-10 pr-4 py-2 bg-muted/20 border border-muted rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300 text-base"
             />
           </div>
 
@@ -240,7 +240,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
               )}
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {paginatedArtists.map((artist) => (
                 <ArtistCard
                   key={artist._id}

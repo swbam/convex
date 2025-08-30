@@ -35,7 +35,7 @@ export function ArtistCard({
   }
 
   return (
-    <div className="halo-card group cursor-pointer p-0 transition-all duration-300 hover:scale-[1.01] relative">
+    <MagicCard className="group cursor-pointer p-0 transition-all duration-500 ease-out hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden border-0 hover:border-white/20 touch-manipulation" onClick={handleClick}>
       {/* Halo-style gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-white/2 pointer-events-none" />
       {/* Enhanced Artist Image with Better Visibility */}
@@ -111,8 +111,8 @@ export function ArtistCard({
         </div>
       </div>
       
-      {/* Halo-style border glow on hover */}
-      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-white/8 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-    </div>
+      {/* Enhanced border effect */}
+      <BorderBeam size={100} duration={10} className="opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
+    </MagicCard>
   )
 }
