@@ -7,8 +7,9 @@
     "dev": "npm-run-all --parallel dev:frontend dev:backend",
     "dev:frontend": "vite --open",
     "dev:backend": "convex dev",
-    "build": "vite build",
-    "lint": "tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false && convex dev --once && vite build",
+    "build": "tsc && vite build",
+    "build:check": "tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false",
+    "lint": "npm run build:check",
     "preview": "vite preview"
   },
   "dependencies": {
