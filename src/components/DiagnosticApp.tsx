@@ -43,6 +43,23 @@ export function DiagnosticApp() {
               ✅ App is loading and rendering successfully
             </div>
           </div>
+          
+          <div className="halo-card p-6 border-red-500">
+            <h2 className="text-xl font-semibold mb-4 text-red-400">Action Required</h2>
+            <div className="space-y-2 text-sm">
+              <p className="text-red-400 font-medium">Environment variables are missing!</p>
+              <p>To fix this issue:</p>
+              <ol className="list-decimal list-inside space-y-1 ml-4">
+                <li>Go to your Vercel Dashboard</li>
+                <li>Navigate to Settings → Environment Variables</li>
+                <li>Add the missing variables shown above</li>
+                <li>Redeploy your application</li>
+              </ol>
+              <p className="mt-4 text-yellow-400">
+                For local development, create a .env.local file with these variables.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
