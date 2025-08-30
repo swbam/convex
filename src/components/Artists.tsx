@@ -3,7 +3,9 @@ import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { ArtistCard } from './ArtistCard';
-import { Search, Music, TrendingUp, Users, Filter } from 'lucide-react';
+import { Search, Music, TrendingUp, Users, Filter, Star, Mic } from 'lucide-react';
+import { MagicCard } from './ui/magic-card';
+import { BorderBeam } from './ui/border-beam';
 
 interface ArtistsProps {
   onArtistClick: (artistId: Id<'artists'>, slug?: string) => void;
@@ -89,25 +91,51 @@ export function Artists({ onArtistClick }: ArtistsProps) {
   };
 
   return (
-    <div className="container mx-auto px-6 py-8 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Artists</h1>
-          <p className="text-muted-foreground">
-            Discover {filteredArtists.length} artists across all genres
-          </p>
+    <div className="container mx-auto px-6 py-8 space-y-8">
+      {/* Enhanced Header with MagicCard */}
+      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 hover:border-white/20">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple/5 via-background to-blue/5" />
+        <div className="relative z-10 p-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                  <Mic className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-4xl lg:text-5xl font-bold text-white">Artists</h1>
+                  <p className="text-gray-300 text-lg">
+                    Discover {filteredArtists.length} artists across all genres
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3 bg-white/5 rounded-xl p-4 backdrop-blur-sm">
+              <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                <Star className="h-4 w-4 text-purple-400" />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-white">Trending</div>
+                <div className="text-xs text-gray-400">Updated daily</div>
+              </div>
+            </div>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <TrendingUp className="h-4 w-4" />
-          <span>Updated daily</span>
-        </div>
-      </div>
+        <BorderBeam size={150} duration={12} className="opacity-30" />
+      </MagicCard>
 
-      {/* Search and Filters */}
-      <div className="dashboard-card">
-        <div className="flex flex-col md:flex-row gap-4">
+      {/* Enhanced Search and Filters */}
+      <MagicCard className="p-0 rounded-2xl border-0 hover:border-white/20">
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
+              <Filter className="h-4 w-4 text-white" />
+            </div>
+            <h2 className="text-xl font-semibold text-white">Search & Filter</h2>
+          </div>
+          
+          <div className="flex flex-col md:flex-row gap-4">
           {/* Search */}
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />

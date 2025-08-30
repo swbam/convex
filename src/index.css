@@ -5,6 +5,60 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom utilities for line clamping */
+@layer utilities {
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+  
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  /* Shimmer animations for MagicUI components */
+  @keyframes shimmer-slide {
+    to {
+      transform: translate(calc(100cqw - 100%), calc(100cqh - 100%));
+    }
+  }
+
+  @keyframes spin-around {
+    0% {
+      transform: translateZ(0) rotate(0);
+    }
+    15%, 35% {
+      transform: translateZ(0) rotate(90deg);
+    }
+    65%, 85% {
+      transform: translateZ(0) rotate(270deg);
+    }
+    100% {
+      transform: translateZ(0) rotate(360deg);
+    }
+  }
+
+  .animate-shimmer-slide {
+    animation: shimmer-slide var(--speed) ease-in-out infinite alternate;
+  }
+
+  .animate-spin-around {
+    animation: spin-around calc(var(--speed) * 2) infinite linear;
+  }
+}
+
 /* =========================================
    TOKENS — Dark-first grayscale palette
    + shadcn variable names mapped to your system
