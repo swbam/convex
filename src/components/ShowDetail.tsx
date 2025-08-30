@@ -1,8 +1,8 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import React, { useState } from "react";
 import { ArrowLeft, MapPin, Calendar, Clock, Users, Music, TrendingUp, ChevronUp, Heart } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 import { SEOHead } from "./SEOHead";
 import { AnimatedSubscribeButton } from "./ui/animated-subscribe-button";

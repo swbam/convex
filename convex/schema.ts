@@ -212,7 +212,7 @@ const applicationTables = {
 
   // Individual song votes within setlists (ProductHunt style)
   songVotes: defineTable({
-    userId: v.id("users"),
+    userId: v.union(v.id("users"), v.literal("anonymous")),
     setlistId: v.id("setlists"),
     songTitle: v.string(),
     voteType: v.literal("upvote"),

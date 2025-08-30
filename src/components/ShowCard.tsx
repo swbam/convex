@@ -134,12 +134,9 @@ export function ShowCard({
   }
 
   return (
-    <MagicCard
-      className="group cursor-pointer p-0 transition-all duration-300 hover:scale-[1.02] relative overflow-hidden"
-      gradientColor="#ffffff"
-      gradientOpacity={0.05}
-      gradientSize={300}
-    >
+    <div className="halo-card group cursor-pointer p-0 transition-all duration-300 hover:scale-[1.01]">
+      {/* Halo-style gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/4 via-transparent to-white/2 pointer-events-none" />
       {/* Enhanced Artist Image Background */}
       {showArtist && show.artist?.images?.[0] && (
         <div className="absolute inset-0 z-0">
@@ -216,13 +213,8 @@ export function ShowCard({
         </button>
       </div>
       
-      <BorderBeam 
-        size={100} 
-        duration={12} 
-        className="opacity-0 group-hover:opacity-60 transition-opacity duration-300" 
-        colorFrom="#ffffff" 
-        colorTo="#666666"
-      />
-    </MagicCard>
+      {/* Halo-style border glow on hover */}
+      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-white/8 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+    </div>
   )
 }
