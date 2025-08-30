@@ -120,7 +120,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
         )}
         
         <div className="relative z-10 p-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8">
             <div className="space-y-6 flex-1">
               {/* Artist Name and Status */}
               <div className="space-y-4">
@@ -220,6 +220,20 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                 )}
               </div>
             </div>
+
+            {/* Artist Image */}
+            {show.artist?.images?.[0] && (
+              <div className="flex-shrink-0">
+                <MagicCard className="w-48 h-48 lg:w-64 lg:h-64 p-0 rounded-2xl overflow-hidden border-0 hover:border-white/30">
+                  <img 
+                    src={show.artist.images[0]} 
+                    alt={show.artist.name}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                  />
+                  <BorderBeam size={80} duration={12} className="opacity-0 hover:opacity-40 transition-opacity duration-500" />
+                </MagicCard>
+              </div>
+            )}
           </div>
         </div>
         
@@ -230,25 +244,40 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
         {/* Setlist Section */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Song Selection for Upcoming Shows */}
-          {!officialSetlist && isUpcoming && (
-            <MagicCard className="p-0 rounded-2xl border-0 hover:border-white/20">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
-                      <Music className="h-4 w-4 text-white" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-white">Add Songs to Setlist</h2>
+
+
+          {/* Enhanced Shared Setlist Display */}
+          <MagicCard className="p-0 rounded-2xl border-0">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
+                    <Music className="h-4 w-4 text-white" />
                   </div>
+                  <h2 className="text-2xl font-bold text-white">
+                    {officialSetlist ? "Official Setlist" : "Vote on the Setlist"}
+                  </h2>
                 </div>
-              
-              {/* Enhanced Song Selection */}
-              {songs && songs.length > 0 && (
-                <div className="p-5 bg-muted/10 border border-muted/20 rounded-xl">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-semibold text-foreground">Add Songs to Setlist</h3>
-                    <div className="text-xs text-muted-foreground">
+                <div className="flex items-center gap-4">
+                  {(communitySetlist || officialSetlist) && (
+                    <div className="text-base font-medium text-gray-300">
+                      {(officialSetlist?.songs?.length || communitySetlist?.songs?.length || 0)} songs
+                    </div>
+                  )}
+                  {communitySetlist && !officialSetlist && (
+                    <div className="text-sm text-gray-400 bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm">
+                      Community Predictions
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Song Addition Dropdown - Moved into setlist section */}
+              {!officialSetlist && isUpcoming && songs && songs.length > 0 && (
+                <div className="mb-6 p-4 bg-white/5 border border-white/10 rounded-xl backdrop-blur-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-base font-semibold text-white">Add Songs to Setlist</h3>
+                    <div className="text-sm text-gray-400">
                       {(songs || []).filter(Boolean).filter(s => s && !s.isLive && !s.isRemix).filter((s) => {
                         const songTitles = communitySetlist?.songs?.map((song: any) => 
                           typeof song === 'string' ? song : song?.title
@@ -266,9 +295,9 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                         e.target.value = "";
                       }
                     }}
-                    className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm transition-all hover:border-muted-foreground"
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-base text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300"
                   >
-                    <option value="" disabled>
+                    <option value="" disabled className="bg-background text-foreground text-base">
                       {user ? "Choose a song to add instantly..." : "Sign in to add songs"}
                     </option>
                     {(songs || [])
@@ -286,6 +315,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                         <option 
                           key={song!._id} 
                           value={song!.title}
+                          className="bg-background text-foreground text-base"
                         >
                           {song!.title} {song!.album ? `• ${song!.album}` : ''}
                         </option>
@@ -293,36 +323,11 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                     }
                   </select>
                   
-                  <div className="mt-3 text-xs text-muted-foreground">
+                  <div className="mt-3 text-sm text-gray-400">
                     Songs are added instantly - no save button needed
                   </div>
                 </div>
               )}
-              </div>
-              <BorderBeam size={120} duration={10} className="opacity-20" />
-            </MagicCard>
-          )}
-
-          {/* Enhanced Shared Setlist Display */}
-          <MagicCard className="p-0 rounded-2xl border-0 hover:border-white/20">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">
-                {officialSetlist ? "Official Setlist" : "Vote on the Setlist"}
-              </h2>
-              <div className="flex items-center gap-4">
-                {(communitySetlist || officialSetlist) && (
-                  <div className="text-sm text-muted-foreground">
-                    {(officialSetlist?.songs?.length || communitySetlist?.songs?.length || 0)} songs
-                  </div>
-                )}
-                {communitySetlist && !officialSetlist && (
-                  <div className="text-xs text-muted-foreground bg-muted/20 px-2 py-1 rounded-full">
-                    Community Predictions
-                  </div>
-                )}
-              </div>
-            </div>
             
             {officialSetlist ? (
               // Show official setlist (verified from setlist.fm)
@@ -342,7 +347,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                       {index + 1}
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-medium text-foreground text-sm">{typeof songTitle === 'string' ? songTitle : songTitle?.title}</h3>
+                      <h3 className="font-medium text-foreground text-base">{typeof songTitle === 'string' ? songTitle : songTitle?.title}</h3>
                     </div>
                   </div>
                 ))}
@@ -357,10 +362,10 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
             ) : (
               // Show shared setlist with instant voting (no save buttons)
               <div className="space-y-2">
-                <div className="mb-4 p-3 bg-muted/5 border border-muted/20 rounded-lg">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Click ↑ to vote for songs you want to hear</span>
-                    <span className="text-muted-foreground">{communitySetlist.songs?.length || 0} songs • {((communitySetlist.upvotes || 0) + (communitySetlist.downvotes || 0))} total votes</span>
+                <div className="mb-4 p-4 bg-white/5 border border-white/10 rounded-xl backdrop-blur-sm">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-300 font-medium">Click ↑ to vote for songs you want to hear</span>
+                    <span className="text-gray-400">{communitySetlist.songs?.length || 0} songs • {((communitySetlist.upvotes || 0) + (communitySetlist.downvotes || 0))} total votes</span>
                   </div>
                 </div>
                 
@@ -387,7 +392,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
         {/* Enhanced Sidebar */}
         <div className="space-y-6">
           {/* Enhanced Venue Details */}
-          <MagicCard className="p-0 rounded-2xl border-0 hover:border-white/20">
+          <MagicCard className="p-0 rounded-2xl border-0">
             <div className="p-6">
             <h3 className="text-xl font-bold mb-4">Venue Details</h3>
             <div className="space-y-3">
@@ -416,7 +421,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
           </MagicCard>
 
           {/* Enhanced Show Stats */}
-          <MagicCard className="p-0 rounded-2xl border-0 hover:border-white/20">
+          <MagicCard className="p-0 rounded-2xl border-0">
             <div className="p-6">
             <h3 className="text-xl font-bold mb-4">Show Stats</h3>
             <div className="space-y-3">
@@ -460,7 +465,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
 
           {/* Enhanced Call to Action */}
           {!user && (
-            <MagicCard className="p-0 rounded-2xl border-0 hover:border-white/20">
+            <MagicCard className="p-0 rounded-2xl border-0">
               <div className="p-6 text-center">
                 <div className="flex items-center justify-center gap-3 mb-4">
                   <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
