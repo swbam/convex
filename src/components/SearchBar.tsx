@@ -131,21 +131,24 @@ export function SearchBar({
     // If this is a Ticketmaster result (no slug), kick off full sync first
     if (result.type === 'artist' && !result.slug) {
       try {
-        await triggerFullArtistSync({
+        console.log(`🚀 Triggering full artist sync for: ${result.title}`);
+        const artistId = await triggerFullArtistSync({
           ticketmasterId: result.id,
           artistName: result.title,
           genres: result.subtitle ? result.subtitle.split(', ').filter(Boolean) : undefined,
           images: result.image ? [result.image] : undefined,
-        })
-      } catch {
-        // Non-blocking
+        });
+        
+        // Navigate to the created artist using the returned ID
+        const slug = result.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        onResultClick(result.type, artistId as any, slug as any);
+        setIsOpen(false);
+        setQuery('');
+        return;
+      } catch (error) {
+        console.error('Failed to trigger artist sync:', error);
+        // Still try to navigate even if sync fails
       }
-      const slug = result.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-      onResultClick(result.type, result.id as any, slug as any)
-      // Immediately navigate to the artist page while background sync proceeds
-      setIsOpen(false)
-      setQuery('')
-      return
     } else {
       onResultClick(result.type, result.id as any, result.slug)
     }

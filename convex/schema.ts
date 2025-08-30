@@ -156,7 +156,7 @@ const applicationTables = {
       v.literal("trending_sync"),
       v.literal("active_sync"),
       v.literal("full_sync"),
-      v.literal("venue_ecosystem_sync")
+      v.literal("artist_import")
     ),
     entityId: v.optional(v.string()),
     priority: v.number(),
