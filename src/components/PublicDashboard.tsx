@@ -28,7 +28,11 @@ export function PublicDashboard({ onArtistClick, onSignInRequired }: PublicDashb
 
   useEffect(() => {
     if (dbTrendingShows) {
-      setTrendingShows(dbTrendingShows);
+      // Deduplicate shows by artist to avoid showing same artist multiple times
+      const uniqueShows = dbTrendingShows.filter((show, index, self) => 
+        index === self.findIndex(s => s.artistName === show.artistName)
+      );
+      setTrendingShows(uniqueShows);
       setIsLoadingShows(false);
     }
     if (dbTrendingArtists) {
