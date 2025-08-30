@@ -29,6 +29,8 @@ package-lock.json
 
 # Convex
 .env.local
+.env
+.env.production
 _generated
 
 # Old directory (exclude from builds)
