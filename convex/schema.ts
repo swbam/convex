@@ -197,6 +197,7 @@ const applicationTables = {
   trendingShows: defineTable({
     ticketmasterId: v.string(),
     artistTicketmasterId: v.optional(v.string()),
+    artistId: v.optional(v.id("artists")), // Link to artist record
     artistName: v.string(),
     venueName: v.string(),
     venueCity: v.string(),

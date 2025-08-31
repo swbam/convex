@@ -140,11 +140,73 @@ export const syncTrendingData = internalAction({
       const trendingShows = await ctx.runAction(api.ticketmaster.getTrendingShows, { limit: 50 });
       const trendingArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 30 });
       
-      // Save to database tables for fast querying
-      await ctx.runMutation(internal.trending.saveTrendingShows, { shows: trendingShows });
-      await ctx.runMutation(internal.trending.saveTrendingArtists, { artists: trendingArtists });
+      // Process trending shows to ensure artist data is properly linked
+      const processedShows = [];
+      for (const show of trendingShows) {
+        try {
+          // Check if artist exists in database
+          let artistId = null;
+          if (show.artistTicketmasterId) {
+            const artist = await ctx.runQuery(internal.artists.getByTicketmasterIdInternal, { 
+              ticketmasterId: show.artistTicketmasterId 
+            });
+            
+            if (artist) {
+              artistId = artist._id;
+            } else {
+              // Import the artist if not exists
+              console.log(`🎤 Importing artist: ${show.artistName}`);
+              artistId = await ctx.runAction(api.ticketmaster.triggerFullArtistSync, {
+                ticketmasterId: show.artistTicketmasterId,
+                artistName: show.artistName,
+                genres: [],
+                images: show.artistImage ? [show.artistImage] : [],
+              });
+            }
+          }
+          
+          processedShows.push({
+            ...show,
+            artistId: artistId || null,
+          });
+        } catch (error) {
+          console.error(`Failed to process show for ${show.artistName}:`, error);
+          processedShows.push(show);
+        }
+      }
       
-      console.log(`✅ Synced and saved ${trendingShows.length} trending shows and ${trendingArtists.length} trending artists to database`);
+      // Process trending artists to ensure they exist in database
+      const processedArtists = [];
+      for (const artist of trendingArtists) {
+        try {
+          // Check if artist exists
+          const existingArtist = await ctx.runQuery(internal.artists.getByTicketmasterIdInternal, { 
+            ticketmasterId: artist.ticketmasterId 
+          });
+          
+          if (!existingArtist) {
+            // Import the artist
+            console.log(`🎤 Importing trending artist: ${artist.name}`);
+            await ctx.runAction(api.ticketmaster.triggerFullArtistSync, {
+              ticketmasterId: artist.ticketmasterId,
+              artistName: artist.name,
+              genres: artist.genres || [],
+              images: artist.images || [],
+            });
+          }
+          
+          processedArtists.push(artist);
+        } catch (error) {
+          console.error(`Failed to process artist ${artist.name}:`, error);
+          processedArtists.push(artist);
+        }
+      }
+      
+      // Save to database tables for fast querying
+      await ctx.runMutation(internal.trending.saveTrendingShows, { shows: processedShows });
+      await ctx.runMutation(internal.trending.saveTrendingArtists, { artists: processedArtists });
+      
+      console.log(`✅ Synced and saved ${processedShows.length} trending shows and ${processedArtists.length} trending artists to database`);
       
     } catch (error) {
       console.error("❌ Failed to sync trending data:", error);
