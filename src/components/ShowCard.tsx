@@ -73,9 +73,9 @@ export function ShowCard({
     return (
       <MagicCard
         className="group cursor-pointer p-0 transition-all duration-300 ease-out active:scale-[0.98] relative overflow-hidden border-0 touch-manipulation"
-        gradientColor="#ffffff"
-        gradientOpacity={0.08}
-        gradientSize={300}
+        gradientColor="#000000"
+        gradientOpacity={0}
+        gradientSize={0}
       >
         {/* Background Image for Compact */}
         {showArtist && show.artist?.images?.[0] && (
@@ -85,7 +85,7 @@ export function ShowCard({
               alt={show.artist.name}
               className="w-full h-full object-cover opacity-40 group-hover:opacity-50 transition-all duration-500"
             />
-            <div className="absolute inset-0 bg-black/60" />
+
           </div>
         )}
         
@@ -136,7 +136,7 @@ export function ShowCard({
   return (
     <div className="halo-card group cursor-pointer p-0 transition-all duration-300 hover:scale-[1.01]">
       {/* Halo-style gradient overlay */}
-      <div className="absolute inset-0 bg-black/20 pointer-events-none" />
+
       {/* Enhanced Artist Image Background */}
       {showArtist && show.artist?.images?.[0] && (
         <div className="absolute inset-0 z-0">

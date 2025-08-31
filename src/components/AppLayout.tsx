@@ -79,9 +79,9 @@ export function AppLayout({ children }: AppLayoutProps) {
                   className={`relative overflow-hidden rounded-xl transition-all duration-200 ${
                     isActive ? 'bg-primary/10 border-primary/20' : 'hover:bg-accent/50'
                   }`}
-                  gradientSize={150}
-                  gradientColor={isActive ? "#ffffff" : "#262626"}
-                  gradientOpacity={isActive ? 0.1 : 0.05}
+                  gradientSize={0}
+                  gradientColor="#000000"
+                  gradientOpacity={0}
                 >
                   <button
                     onClick={() => {

@@ -35,9 +35,9 @@ export function ArtistCard({
   }
 
   return (
-    <MagicCard className="group cursor-pointer p-0 transition-all duration-300 ease-out active:scale-[0.98] relative overflow-hidden border-0 touch-manipulation" onClick={handleClick}>
+    <MagicCard className="group cursor-pointer p-0 transition-all duration-300 ease-out active:scale-[0.98] relative overflow-hidden border-0 touch-manipulation" onClick={handleClick} gradientColor="#000000" gradientOpacity={0} gradientSize={0}>
       {/* Halo-style gradient overlay */}
-      <div className="absolute inset-0 bg-black/20 pointer-events-none" />
+
       {/* Enhanced Artist Image with Better Visibility */}
       <div className="relative w-full h-40 overflow-hidden">
         {artist.images?.[0] ? (
@@ -47,7 +47,7 @@ export function ArtistCard({
               alt={artist.name}
               className="w-full h-full object-cover opacity-85 group-hover:opacity-95 transition-all duration-500 scale-105 group-hover:scale-110"
             />
-            <div className="absolute inset-0 bg-black/60" />
+
           </>
         ) : (
           <div className="w-full h-full bg-accent/20 flex items-center justify-center">
