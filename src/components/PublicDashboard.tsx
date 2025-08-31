@@ -80,30 +80,28 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
   }, [dbTrendingShows, dbTrendingArtists, fallbackShows, fallbackArtists]);
 
   const handleArtistClick = async (ticketmasterId: string, artistName: string, genres?: string[], images?: string[]) => {
-    try {
-      toast.info(`Loading ${artistName}...`);
-      
-      // Trigger full sync to create artist in DB
-      await triggerFullSync({
-        ticketmasterId,
-        artistName,
-        genres,
-        images,
-      });
-      
-      // Generate SEO-friendly slug for navigation
-      const slug = artistName.toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '');
-      
-      // Navigate to artist page using slug (will fallback to ID if needed)
-      onArtistClick(slug);
-      
-      toast.success(`${artistName} loaded successfully!`);
-    } catch (error) {
+    // Generate SEO-friendly slug for navigation
+    const slug = artistName.toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    
+    // Navigate immediately using the slug
+    onArtistClick(slug);
+    
+    toast.info(`Loading ${artistName} data...`);
+    
+    // Trigger sync in the background
+    triggerFullSync({
+      ticketmasterId,
+      artistName,
+      genres,
+      images,
+    }).then(() => {
+      console.log(`✅ ${artistName} data imported successfully`);
+    }).catch(error => {
       console.error("Failed to sync artist:", error);
-      toast.error("Failed to load artist");
-    }
+      toast.error("Failed to import complete artist data");
+    });
   };
 
   return (

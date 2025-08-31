@@ -20,7 +20,8 @@ import { toast } from "sonner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { TestSuite } from "./components/TestSuite";
-// Removed lucide-react imports due to TypeScript compatibility issues
+import { Music } from "lucide-react";
+import { MagicCard } from "./components/ui/magic-card";
 
 type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "library" | "signin" | "trending" | "profile" | "following" | "predictions" | "admin" | "test";
 
@@ -44,6 +45,18 @@ export default function App() {
       createAppUser().catch(console.error);
     }
   }, [user, createAppUser]);
+
+  // Poll for artist creation when on artist page with no artist found
+  useEffect(() => {
+    if (location.pathname.startsWith('/artists/') && artistBySlug === null) {
+      const interval = setInterval(() => {
+        // Force a re-render which will re-query
+        window.location.reload();
+      }, 3000); // Check every 3 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [location.pathname, artistBySlug]);
 
   // Extract slug from URL safely
   const getSlugFromPath = (path: string, prefix: string) => {
@@ -87,10 +100,12 @@ export default function App() {
         setSelectedArtistId(artistBySlug._id as Id<"artists">);
         document.title = `${artistBySlug.name} – Artist | TheSet`;
       } else if (artistBySlug === null) {
-        // Artist not found, reset to avoid showing "No artist selected"
+        // Artist not found yet, but keep the view to show loading state
+        // The artist might be in the process of being created
         setSelectedArtistId(null);
-        document.title = 'Artist Not Found – TheSet';
+        document.title = 'Loading Artist – TheSet';
       }
+      // If artistBySlug is undefined, it's still loading
     } else if (path.startsWith('/shows/')) {
       setCurrentView('show');
       if (showBySlugOrId) {
@@ -170,27 +185,55 @@ export default function App() {
       case "artist":
         // Show loading state while query is pending
         if (location.pathname.startsWith('/artists/') && artistBySlug === undefined) {
+          const artistSlug = getSlugFromPath(location.pathname, '/artists/');
+          const artistName = artistSlug ? artistSlug.split('-').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+          ).join(' ') : 'Artist';
+          
           return (
-            <div className="text-center py-8">
-              <div className="animate-pulse space-y-4">
-                <div className="h-8 bg-muted rounded w-48 mx-auto"></div>
-                <div className="h-4 bg-muted rounded w-32 mx-auto"></div>
-              </div>
+            <div className="container mx-auto px-4 sm:px-6 py-8">
+              <MagicCard className="p-6 rounded-2xl border border-white/10">
+                <div className="animate-pulse space-y-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-32 h-32 bg-white/10 rounded-xl"></div>
+                    <div className="flex-1 space-y-3">
+                      <div className="h-8 bg-white/10 rounded w-2/3"></div>
+                      <div className="h-4 bg-white/10 rounded w-1/2"></div>
+                      <div className="h-4 bg-white/10 rounded w-1/3"></div>
+                    </div>
+                  </div>
+                  <div className="text-center py-4">
+                    <p className="text-lg text-white mb-2">Loading {artistName}...</p>
+                    <p className="text-sm text-gray-400">Importing artist data and shows</p>
+                  </div>
+                </div>
+              </MagicCard>
             </div>
           );
         }
-        // Show not found if query returned null
-        if (location.pathname.startsWith('/artists/') && artistBySlug === null) {
+        // Show special loading state if artist doesn't exist yet but might be creating
+        if (location.pathname.startsWith('/artists/') && artistBySlug === null && !selectedArtistId) {
+          const artistSlug = getSlugFromPath(location.pathname, '/artists/');
+          const artistName = artistSlug ? artistSlug.split('-').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+          ).join(' ') : 'Artist';
+          
           return (
-            <div className="text-center py-8">
-              <h2 className="text-2xl font-bold mb-4">Artist Not Found</h2>
-              <p className="text-muted-foreground mb-4">The artist you're looking for doesn't exist.</p>
-              <button 
-                onClick={() => handleViewChange("home")}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-              >
-                Back to Home
-              </button>
+            <div className="container mx-auto px-4 sm:px-6 py-8">
+              <MagicCard className="p-6 rounded-2xl border border-white/10">
+                <div className="text-center space-y-4">
+                  <div className="w-20 h-20 mx-auto bg-primary/20 rounded-full flex items-center justify-center animate-pulse">
+                    <Music className="h-10 w-10 text-primary" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white">Setting up {artistName}</h2>
+                  <p className="text-gray-400">Importing shows, venues, and song catalog...</p>
+                  <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                    <span>This may take a few moments</span>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-4">The page will refresh automatically when ready</p>
+                </div>
+              </MagicCard>
             </div>
           );
         }
