@@ -93,7 +93,7 @@ export default function TicketmasterTest() {
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold mb-4">Search Results</h2>
           {results.map((artist) => (
-            <div key={artist.ticketmasterId} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+            <div key={artist.ticketmasterId} className="border border-gray-200 rounded-lg p-6 transition-colors">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <h3 className="text-xl font-semibold mb-2">{artist.name}</h3>

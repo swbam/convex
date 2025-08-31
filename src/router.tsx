@@ -33,7 +33,10 @@ export const router = createBrowserRouter([
     path: '/shows',
     element: <App />,
   },
-
+  {
+    path: '/trending',
+    element: <App />,
+  },
   {
     path: '/search',
     element: <App />,

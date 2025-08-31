@@ -403,8 +403,7 @@
     box-shadow: var(--shadow);
   }
   .dashboard-card:hover {
-    @apply hover:shadow-2xl;
-    box-shadow: var(--shadow-2xl);
+    /* Shadow removed for cleaner look */
     outline: 1px solid hsl(var(--ring)/0.15);
     outline-offset: 0px;
   }

@@ -25,6 +25,30 @@ function createShowSlug(artistName: string, venueName: string, venueCity: string
   return `${createSEOSlug(artistName)}-${createSEOSlug(venueName)}-${createSEOSlug(venueCity)}-${datePart}`;
 }
 
+export const getRecentlyUpdated = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 10;
+    const shows = await ctx.db
+      .query("shows")
+      .order("desc") // Order by creation time descending for most recent
+      .take(limit);
+    
+    // Populate artist and venue data
+    const enrichedShows = await Promise.all(
+      shows.map(async (show) => {
+        const [artist, venue] = await Promise.all([
+          ctx.db.get(show.artistId),
+          ctx.db.get(show.venueId),
+        ]);
+        return { ...show, artist, venue };
+      })
+    );
+    
+    return enrichedShows;
+  },
+});
+
 export const getUpcoming = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {

@@ -21,7 +21,16 @@ export function Artists({ onArtistClick }: ArtistsProps) {
   // Use canonical artists collection; trending is reflected via trendingScore
   const allArtistsRaw = useQuery(api.artists.getAll, { limit: 200 });
   const isLoading = allArtistsRaw === undefined;
-  const allArtists = React.useMemo(() => allArtistsRaw || [], [allArtistsRaw]);
+  const allArtists = React.useMemo(() => {
+    // Deduplicate artists by name to avoid showing duplicates
+    const artistsMap = new Map<string, any>();
+    (allArtistsRaw || []).forEach(artist => {
+      if (!artistsMap.has(artist.name)) {
+        artistsMap.set(artist.name, artist);
+      }
+    });
+    return Array.from(artistsMap.values());
+  }, [allArtistsRaw]);
 
   // Get unique genres for filter
   const genres = React.useMemo(() => {
@@ -82,6 +91,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
+    setPage(1); // Reset to first page on search
   };
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
