@@ -142,13 +142,11 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
 
           {/* Center Content */}
           <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8">
-            <h1 className="text-responsive-3xl sm:text-responsive-4xl font-bold tracking-tight text-white mb-2 sm:mb-3 lg:mb-4">
-              Crowd-Curated
-              <br className="sm:hidden" />
-              <span className="hidden sm:inline"> </span>Setlists
+            <h1 className="text-responsive-3xl sm:text-responsive-4xl lg:text-responsive-5xl font-bold tracking-tight text-white mb-2 sm:mb-3 lg:mb-4">
+              Crowd-Curated<br />Setlists
             </h1>
             <p className="text-responsive-sm sm:text-responsive-base lg:text-responsive-lg text-gray-300 max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto leading-relaxed mb-4 sm:mb-6 lg:mb-8">
-              Vote on songs you want to hear at concerts<span className="hidden sm:inline"> and see what other fans are predicting</span>.
+              Vote on the songs you want to hear at upcoming concerts and see what other fans are predicting.
             </p>
             
             {/* Search Input - Homepage Only */}
@@ -334,7 +332,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
         
         <button 
           onClick={onSignInRequired}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-xl font-semibold transition-all duration-200"
         >
           Get Started
         </button>

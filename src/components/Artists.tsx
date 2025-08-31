@@ -91,6 +91,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
+    setPage(1); // Reset to first page on search
   };
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {

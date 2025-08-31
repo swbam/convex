@@ -10,6 +10,7 @@ import { ShowDetail } from "./components/ShowDetail";
 import { Artists } from "./components/Artists";
 import { Shows } from "./components/Shows";
 import { Library } from "./components/Library";
+import { Trending } from "./components/Trending";
 
 import { AppLayout } from "./components/AppLayout";
 import { ScrollToTop } from "./components/ScrollToTop";
@@ -110,7 +111,9 @@ export default function App() {
     } else if (path === '/shows') {
       setCurrentView('shows');
       document.title = 'Shows – TheSet';
-
+    } else if (path === '/trending') {
+      setCurrentView('trending');
+      document.title = 'Trending – TheSet';
     } else if (path === '/library') {
       setCurrentView('library');
       document.title = 'Library – TheSet';
@@ -257,7 +260,13 @@ export default function App() {
         return (
           <Shows onShowClick={handleShowClick} />
         );
-
+      case "trending":
+        return (
+          <Trending 
+            onArtistClick={handleArtistClick}
+            onShowClick={handleShowClick}
+          />
+        );
       case "library":
         return (
           <Library 

@@ -154,7 +154,10 @@ export function Shows({ onShowClick }: ShowsProps) {
                 type="text"
                 placeholder="Search shows, artists, venues..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1); // Reset to first page on search
+                }}
                 className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300"
               />
             </div>

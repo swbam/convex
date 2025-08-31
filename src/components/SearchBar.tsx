@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useQuery, useAction } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { Id } from '../../convex/_generated/dataModel'
@@ -34,15 +34,32 @@ export function SearchBar({
   const [isOpen, setIsOpen] = useState(false)
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const searchRef = useRef<HTMLDivElement>(null)
 
-  // Debounce search query
+  // Debounce search query with shorter delay for better UX
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(query)
-    }, 300)
+      // Open dropdown when there's a query
+      if (query.length >= 2) {
+        setIsOpen(true)
+      }
+    }, 200) // Reduced from 300ms for faster response
 
     return () => clearTimeout(timer)
   }, [query])
+
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   // State for Ticketmaster search results
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
@@ -166,7 +183,7 @@ export function SearchBar({
   const getTypeColor = (_type: 'artist' = 'artist') => 'text-muted-foreground'
 
   return (
-    <div className={`relative ${className}`}>
+    <div ref={searchRef} className={`relative ${className}`}>
       <div className="relative">
         <span className="absolute left-2.5 sm:left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground text-responsive-sm">🔍</span>
         <input
