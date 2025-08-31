@@ -45,56 +45,58 @@ export function SignInPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+    <div className="min-h-screen bg-black flex items-center justify-center p-3 sm:p-4 safe-area-x safe-area-y">
       {/* Simple black gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-black via-gray-950 to-black" />
       
-      <div className="relative z-10 w-full max-w-md">
+      <div className="relative z-10 w-full max-w-sm sm:max-w-md">
         {/* Back Button */}
-        <MagicCard className="inline-block p-0 rounded-xl border-0 mb-6">
+        <MagicCard className="inline-block p-0 rounded-lg sm:rounded-xl border-0 mb-4 sm:mb-6">
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all duration-300 px-4 py-2 rounded-xl"
+            className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground hover:text-foreground transition-all duration-300 px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl touch-target"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Home
+            <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="text-responsive-sm">Back to Home</span>
           </button>
         </MagicCard>
 
         {/* Main Sign In Card */}
-        <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0">
+        <MagicCard className="relative overflow-hidden rounded-xl sm:rounded-2xl p-0 border-0">
           {/* Header */}
-          <div className="relative z-10 p-8">
-            <div className="text-center mb-8">
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                  <Music className="h-6 w-6 text-white" />
+          <div className="relative z-10 p-6 sm:p-8">
+            <div className="text-center mb-6 sm:mb-8">
+              <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 rounded-xl sm:rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                  <Music className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
-                <h1 className="text-3xl font-bold text-white">Welcome Back</h1>
+                <h1 className="text-responsive-2xl sm:text-responsive-3xl font-bold text-white">Welcome Back</h1>
               </div>
-              <p className="text-gray-300 text-lg">
+              <p className="text-gray-300 text-responsive-base sm:text-responsive-lg">
                 Sign in to your TheSet account
               </p>
-              <div className="flex items-center justify-center gap-2 mt-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <span className="text-sm text-gray-400">Vote on setlists and follow artists</span>
+              <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2">
+                <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                <span className="text-responsive-xs sm:text-responsive-sm text-gray-400">Vote on setlists and follow artists</span>
               </div>
             </div>
 
             {/* Sign In Form */}
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {/* Email Field */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-300">Email</label>
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="text-responsive-xs sm:text-responsive-sm font-medium text-gray-300">Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Mail className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email"
                     required
-                    className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300"
+                    inputMode="email"
+                    autoComplete="email"
+                    className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300 text-responsive-sm touch-target"
                   />
                 </div>
               </div>

@@ -90,10 +90,10 @@ export function ShowCard({
           </div>
         )}
         
-        <div className="relative z-10 p-4" onClick={handleClick}>
-          <div className="flex items-center gap-3">
+        <div className="relative z-10 p-3 sm:p-4" onClick={handleClick}>
+          <div className="flex items-center gap-2.5 sm:gap-3">
             {showArtist && show.artist && (
-              <div className="w-10 h-10 rounded-xl overflow-hidden bg-accent/20 flex items-center justify-center border border-border">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden bg-accent/20 flex items-center justify-center border border-border flex-shrink-0">
                 {show.artist.images?.[0] ? (
                   <img 
                     src={show.artist.images[0]} 
@@ -103,7 +103,7 @@ export function ShowCard({
                     className="w-full h-full object-cover opacity-90"
                   />
                 ) : (
-                  <span className="text-foreground font-semibold text-sm">
+                  <span className="text-foreground font-semibold text-xs sm:text-sm">
                     {show.artist.name.slice(0, 2).toUpperCase()}
                   </span>
                 )}
@@ -112,21 +112,26 @@ export function ShowCard({
             
             <div className="flex-1 min-w-0">
               {showArtist && show.artist && (
-                <h3 className="font-semibold text-foreground text-sm truncate mb-1 group-hover:text-primary transition-colors">
+                <h3 className="font-semibold text-foreground text-responsive-sm truncate mb-0.5 sm:mb-1 group-hover:text-primary transition-colors">
                   {show.artist.name}
                 </h3>
               )}
               
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Calendar className="h-3 w-3" />
-                <span>{formatDate(show.date)}</span>
-                <span>•</span>
-                <span className="truncate">{show.venue?.name}</span>
+              <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground">
+                <Calendar className="h-3 w-3 flex-shrink-0" />
+                <span className="whitespace-nowrap">{formatDate(show.date)}</span>
+                <span className="hidden sm:inline">•</span>
+                <span className="truncate hidden sm:inline">{show.venue?.name}</span>
               </div>
+              {show.venue && (
+                <div className="sm:hidden text-[10px] text-muted-foreground truncate mt-0.5">
+                  {show.venue.name}
+                </div>
+              )}
             </div>
             
             {isToday && (
-              <div className="bg-primary/20 border border-primary/40 text-primary rounded-full px-2 py-1 text-xs font-semibold">
+              <div className="bg-primary/20 border border-primary/40 text-primary rounded-full px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold flex-shrink-0">
                 Tonight
               </div>
             )}
@@ -138,7 +143,7 @@ export function ShowCard({
 
   return (
     <MagicCard
-      className="group cursor-pointer p-0 transition-all duration-300 ease-out hover:scale-[1.01] active:scale-[0.98] relative overflow-hidden border-0 touch-manipulation"
+      className="group cursor-pointer p-0 transition-all duration-300 ease-out hover:scale-[1.01] active:scale-[0.98] relative overflow-hidden border-0 touch-manipulation h-full"
       onClick={handleClick}
       gradientColor="#000000"
       gradientOpacity={0}
@@ -158,24 +163,24 @@ export function ShowCard({
         </div>
       )}
       
-      <div className="relative z-10 p-4 sm:p-5 min-h-[200px] flex flex-col" onClick={handleClick}>
+      <div className="relative z-10 p-3 sm:p-4 lg:p-5 min-h-[180px] sm:min-h-[200px] flex flex-col" onClick={handleClick}>
         {/* Status Badge - Top Right */}
         {isToday && (
-          <div className="absolute top-4 right-4 bg-primary/20 border border-primary/40 text-primary rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm">
+          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-primary/20 border border-primary/40 text-primary rounded-full px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold backdrop-blur-sm">
             Tonight
           </div>
         )}
         
         {/* Artist Info - Enhanced */}
-        <div className="mb-4 flex-1">
+        <div className="mb-3 sm:mb-4 flex-1">
           {showArtist && show.artist && (
-            <h3 className="font-bold text-white text-lg sm:text-xl mb-2 group-hover:text-primary transition-colors line-clamp-2">
+            <h3 className="font-bold text-white text-responsive-base sm:text-responsive-lg lg:text-responsive-xl mb-1.5 sm:mb-2 group-hover:text-primary transition-colors line-clamp-2">
               {show.artist.name}
             </h3>
           )}
           
           {show.venue && (
-            <div className="flex items-center gap-2 text-gray-300 text-sm">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-gray-300 text-responsive-xs sm:text-responsive-sm">
               <MapPin className="h-3 w-3 flex-shrink-0" />
               <span className="truncate font-medium">{show.venue.name}</span>
             </div>
@@ -183,7 +188,7 @@ export function ShowCard({
         </div>
         
         {/* Event Details - Refined */}
-        <div className="flex flex-col gap-2 text-xs text-gray-300 mb-4">
+        <div className="flex flex-col gap-1.5 sm:gap-2 text-responsive-xs text-gray-300 mb-3 sm:mb-4">
           <div className="flex items-center gap-1.5">
             <Calendar className="h-3 w-3 flex-shrink-0" />
             <span className="font-medium">{formatDate(show.date)}</span>
@@ -199,13 +204,13 @@ export function ShowCard({
         
         {/* Stats - Clean */}
         {(show.setlistCount !== undefined || (show.voteCount !== undefined && show.voteCount > 0)) && (
-          <div className="flex flex-wrap gap-2 text-xs text-gray-300 mb-4">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-gray-300 mb-3 sm:mb-4">
             {show.setlistCount !== undefined && (
-              <span className="bg-white/10 px-2 py-1 rounded-lg font-medium">{show.setlistCount} setlist{show.setlistCount !== 1 ? 's' : ''}</span>
+              <span className="bg-white/10 px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg font-medium">{show.setlistCount} setlist{show.setlistCount !== 1 ? 's' : ''}</span>
             )}
             
             {show.voteCount !== undefined && show.voteCount > 0 && (
-              <span className="bg-white/10 px-2 py-1 rounded-lg font-medium">{show.voteCount} vote{show.voteCount !== 1 ? 's' : ''}</span>
+              <span className="bg-white/10 px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg font-medium">{show.voteCount} vote{show.voteCount !== 1 ? 's' : ''}</span>
             )}
           </div>
         )}
@@ -217,7 +222,7 @@ export function ShowCard({
               e.stopPropagation()
               handleClick()
             }}
-            className="w-full bg-white/10 hover:bg-primary hover:text-primary-foreground text-white rounded-xl py-2.5 sm:py-3 px-4 text-sm font-semibold transition-all duration-200 group-hover:shadow-lg border border-white/20 hover:border-primary/30"
+            className="w-full bg-white/10 hover:bg-primary hover:text-primary-foreground text-white rounded-lg sm:rounded-xl py-2 sm:py-2.5 lg:py-3 px-3 sm:px-4 text-responsive-xs sm:text-responsive-sm font-semibold transition-all duration-200 group-hover:shadow-lg border border-white/20 hover:border-primary/30 touch-target"
           >
             View Setlist
           </button>

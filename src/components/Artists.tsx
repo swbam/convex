@@ -93,33 +93,33 @@ export function Artists({ onArtistClick }: ArtistsProps) {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-8 relative z-10">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8 relative z-10">
       {/* Enhanced Header with MagicCard */}
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0">
+      <MagicCard className="relative overflow-hidden rounded-xl sm:rounded-2xl p-0 border-0">
         <div className="absolute inset-0 bg-black" />
-        <div className="relative z-10 p-4 sm:p-6 lg:p-8">
+        <div className="relative z-10 p-3 sm:p-5 lg:p-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
             <div className="space-y-4">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                  <Mic className="h-6 w-6 text-white" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 rounded-xl sm:rounded-2xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+                  <Mic className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white leading-tight">Artists</h1>
-                  <p className="text-gray-300 text-sm sm:text-base lg:text-lg">
-                    Discover {filteredArtists.length} artists across all genres
+                  <h1 className="text-responsive-2xl sm:text-responsive-3xl lg:text-responsive-4xl font-bold text-white leading-tight">Artists</h1>
+                  <p className="text-gray-300 text-responsive-xs sm:text-responsive-sm lg:text-responsive-base">
+                    Discover {filteredArtists.length} artists<span className="hidden sm:inline"> across all genres</span>
                   </p>
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-3 bg-white/5 rounded-xl p-4 backdrop-blur-sm">
-              <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                <Star className="h-4 w-4 text-purple-400" />
+            <div className="hidden sm:flex items-center gap-2 sm:gap-3 bg-white/5 rounded-lg sm:rounded-xl p-3 sm:p-4 backdrop-blur-sm">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-purple-500/20 rounded-md sm:rounded-lg flex items-center justify-center">
+                <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-400" />
               </div>
               <div>
-                <div className="text-sm font-medium text-white">Trending</div>
-                <div className="text-xs text-gray-400">Updated daily</div>
+                <div className="text-responsive-xs sm:text-responsive-sm font-medium text-white">Trending</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">Updated daily</div>
               </div>
             </div>
           </div>
