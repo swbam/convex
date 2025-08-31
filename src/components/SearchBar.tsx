@@ -168,7 +168,7 @@ export function SearchBar({
   return (
     <div className={`relative ${className}`}>
       <div className="relative">
-        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">🔍</span>
+        <span className="absolute left-2.5 sm:left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground text-responsive-sm">🔍</span>
         <input
           type="text"
           placeholder={placeholder}
@@ -178,14 +178,15 @@ export function SearchBar({
             setIsOpen(true)
           }}
           onFocus={() => setIsOpen(true)}
-          className="pl-10 pr-16 sm:pr-20 h-10 w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-200"
+          className="pl-8 sm:pl-10 pr-8 sm:pr-12 h-9 sm:h-10 w-full rounded-lg sm:rounded-xl border border-border bg-background/50 px-2.5 sm:px-3 py-2 text-responsive-sm placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-200 touch-target"
         />
         
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
           {query && (
             <button
               onClick={clearSearch}
-              className="h-6 w-6 p-0 text-zinc-400 hover:text-white bg-transparent border-none cursor-pointer"
+              className="h-5 w-5 sm:h-6 sm:w-6 p-0 text-zinc-400 hover:text-white bg-transparent border-none cursor-pointer flex items-center justify-center touch-target"
+              aria-label="Clear search"
             >
               ✕
             </button>
@@ -196,66 +197,67 @@ export function SearchBar({
 
       {/* Search Results Dropdown */}
       {isOpen && debouncedQuery.length >= 2 && (
-        <div className="absolute top-full left-0 right-0 mt-2 z-[9999] bg-black/95 backdrop-blur-xl border border-border shadow-2xl rounded-xl max-h-[70vh] sm:max-h-96">
+        <div className="absolute top-full left-0 right-0 mt-1.5 sm:mt-2 z-[9999] bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-lg sm:rounded-xl max-h-[60vh] sm:max-h-[70vh] lg:max-h-96">
           <div className="p-0">
             <div className="max-h-96 overflow-y-auto">
               {sortedResults.length > 0 ? (
-                <div className="p-2">
+                <div className="p-1.5 sm:p-2">
                   {/* Active Filters */}
                   {sortBy !== 'relevance' && (
-                    <div className="flex items-center gap-2 mb-3 px-2">
-                      <span className="text-xs text-muted-foreground">Sort:</span>
-                      <span className="text-xs bg-accent text-foreground px-2 py-1 rounded-lg">
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3 px-1.5 sm:px-2">
+                      <span className="text-[10px] sm:text-xs text-muted-foreground">Sort:</span>
+                      <span className="text-[10px] sm:text-xs bg-accent text-foreground px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
                         {sortBy}
                       </span>
                     </div>
                   )}
                   
                   {/* Results */}
-                  <div className="space-y-1">
+                  <div className="space-y-0.5 sm:space-y-1">
                     {sortedResults.map((result, index) => (
                       <div key={`${result.type}-${result.id}-${index}`}>
                         <button
                           onClick={() => { void handleResultClick(result) }}
-                          className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-accent/50 transition-all duration-200 text-left border-none bg-transparent cursor-pointer group"
+                          className="w-full flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-md sm:rounded-lg hover:bg-accent/50 active:bg-accent/60 transition-all duration-200 text-left border-none bg-transparent cursor-pointer group touch-manipulation"
                         >
                           {result.image && (
                             <img
                               src={result.image}
                               alt={result.title}
-                              className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                              className="w-8 h-8 sm:w-10 sm:h-10 rounded-md sm:rounded-lg object-cover flex-shrink-0"
+                              loading="lazy"
                             />
                           )}
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className={`text-sm ${getTypeColor('artist')}`}>
+                            <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
+                              <span className={`text-responsive-xs sm:text-responsive-sm ${getTypeColor('artist')}`}>
                                 {getTypeIcon()}
                               </span>
-                              <span className="font-medium text-white truncate">
+                              <span className="font-medium text-foreground text-responsive-sm truncate">
                                 {result.title}
                               </span>
                             </div>
                             {result.subtitle && (
-                              <p className="text-sm text-muted-foreground truncate group-hover:text-foreground transition-colors">
+                              <p className="text-responsive-xs text-muted-foreground truncate group-hover:text-foreground transition-colors">
                                 {result.subtitle}
                               </p>
                             )}
                             {result.metadata && (
-                              <p className="text-xs text-muted-foreground/70 truncate">
+                              <p className="text-[10px] sm:text-xs text-muted-foreground/70 truncate">
                                 {result.metadata}
                               </p>
                             )}
                           </div>
                         </button>
                         {index < sortedResults.length - 1 && (
-                          <div className="bg-border my-3 h-px"></div>
+                          <div className="bg-border my-1.5 sm:my-2 h-px opacity-50"></div>
                         )}
                       </div>
                     ))}
                   </div>
                 </div>
               ) : (
-                <div className="p-4 text-center text-muted-foreground text-sm">
+                <div className="p-3 sm:p-4 text-center text-muted-foreground text-responsive-xs sm:text-responsive-sm">
                   No results found for "{debouncedQuery}"
                 </div>
               )}
