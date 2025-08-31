@@ -27,4 +27,12 @@ crons.interval(
   {}
 );
 
+// Check for completed shows and import setlists from setlist.fm
+crons.interval(
+  "check-completed-shows",
+  { hours: 6 }, // Every 6 hours
+  internal.setlistfm.checkCompletedShows,
+  {}
+);
+
 export default crons;

@@ -116,15 +116,17 @@ export const syncArtistShows = internalAction({
 
       for (const event of events) {
         // Create or get venue
+        const venue = event._embedded?.venues?.[0];
         const venueId = await ctx.runMutation(internal.venues.createFromTicketmaster, {
-          ticketmasterId: event._embedded?.venues?.[0]?.id,
-          name: event._embedded?.venues?.[0]?.name || "Unknown Venue",
-          city: event._embedded?.venues?.[0]?.city?.name || "",
-          country: event._embedded?.venues?.[0]?.country?.name || "",
-          address: event._embedded?.venues?.[0]?.address?.line1,
-          capacity: event._embedded?.venues?.[0]?.capacity,
-          lat: parseFloat(event._embedded?.venues?.[0]?.location?.latitude) || undefined,
-          lng: parseFloat(event._embedded?.venues?.[0]?.location?.longitude) || undefined,
+          ticketmasterId: venue?.id || undefined,
+          name: venue?.name || "Unknown Venue",
+          city: venue?.city?.name || "Unknown City",
+          state: venue?.state?.stateCode || venue?.state?.name || undefined,
+          country: venue?.country?.name || venue?.country?.countryCode || "Unknown Country",
+          address: venue?.address?.line1 || undefined,
+          capacity: venue?.generalInfo?.generalRule ? parseInt(venue.generalInfo.generalRule) : undefined,
+          lat: venue?.location?.latitude ? parseFloat(venue.location.latitude) : undefined,
+          lng: venue?.location?.longitude ? parseFloat(venue.location.longitude) : undefined,
         });
 
         // Create show
