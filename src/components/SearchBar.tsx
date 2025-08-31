@@ -145,27 +145,30 @@ export function SearchBar({
   })
 
   const handleResultClick = async (result: SearchResult) => {
-    // If this is a Ticketmaster result (no slug), kick off full sync first
+    // If this is a Ticketmaster result (no slug), kick off sync but navigate immediately
     if (result.type === 'artist' && !result.slug) {
-      try {
-        console.log(`🚀 Triggering full artist sync for: ${result.title}`);
-        const artistId = await triggerFullArtistSync({
-          ticketmasterId: result.id,
-          artistName: result.title,
-          genres: result.subtitle ? result.subtitle.split(', ').filter(Boolean) : undefined,
-          images: result.image ? [result.image] : undefined,
-        });
-        
-        // Navigate to the created artist using the returned ID
-        const slug = result.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-        onResultClick(result.type, artistId as any, slug as any);
-        setIsOpen(false);
-        setQuery('');
-        return;
-      } catch (error) {
+      const slug = result.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      
+      // Navigate immediately with the ticketmaster ID as a temporary ID
+      onResultClick(result.type, result.id as any, slug);
+      setIsOpen(false);
+      setQuery('');
+      
+      // Then trigger sync in the background
+      triggerFullArtistSync({
+        ticketmasterId: result.id,
+        artistName: result.title,
+        genres: result.subtitle ? result.subtitle.split(', ').filter(Boolean) : undefined,
+        images: result.image ? [result.image] : undefined,
+      }).then(artistId => {
+        console.log(`✅ Artist ${result.title} created with ID: ${artistId}`);
+        // The artist page will handle loading the new data
+      }).catch(error => {
         console.error('Failed to trigger artist sync:', error);
-        // Still try to navigate even if sync fails
-      }
+        toast.error('Failed to import artist data, but you can still browse');
+      });
+      
+      return;
     } else {
       onResultClick(result.type, result.id as any, result.slug)
     }
