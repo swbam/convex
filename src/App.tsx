@@ -332,7 +332,6 @@ export default function App() {
         return (
           <TestSuite />
         );
-      case "trending":
       case "following":
       case "predictions":
         return (
