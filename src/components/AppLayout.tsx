@@ -43,7 +43,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         lg:translate-x-0 lg:static lg:inset-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <MagicCard className="h-full rounded-none border-r border-white/10 bg-transparent backdrop-blur-xl">
+        <div className="h-full rounded-none border-r border-white/10 bg-transparent backdrop-blur-sm">
           {/* Sidebar Header with Magic UI */}
           <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/10">
             <button 
@@ -150,13 +150,13 @@ export function AppLayout({ children }: AppLayoutProps) {
               </MagicCard>
             )}
           </div>
-        </MagicCard>
+        </div>
       </div>
       
       {/* Enhanced Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         {/* Enhanced Top Header with Magic UI */}
-        <MagicCard className="rounded-none border-b border-white/10 bg-transparent backdrop-blur-xl">
+        <div className="rounded-none border-b border-white/10 bg-transparent backdrop-blur-sm">
           <header className="px-4 sm:px-6 py-4">
             <div className="flex items-center justify-between">
               {/* Search Bar - Mobile First */}
@@ -190,7 +190,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               </div>
             </div>
           </header>
-        </MagicCard>
+        </div>
         
         {/* Main Content Area with Enhanced Background */}
         <main className="flex-1 overflow-y-auto bg-transparent flex flex-col">
