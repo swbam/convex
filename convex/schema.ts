@@ -102,6 +102,15 @@ const applicationTables = {
       duration: v.optional(v.number()),
       songId: v.optional(v.id("songs")),
     })),
+    // SEPARATE column for actual setlist from setlist.fm - preserves user predictions
+    actualSetlist: v.optional(v.array(v.object({
+      title: v.string(),
+      album: v.optional(v.string()),
+      duration: v.optional(v.number()),
+      songId: v.optional(v.id("songs")),
+      setNumber: v.optional(v.number()), // 1 = main set, 2 = encore, etc.
+      encore: v.optional(v.boolean()),
+    }))),
     verified: v.boolean(),
     source: v.union(v.literal("setlistfm"), v.literal("user_submitted")),
     lastUpdated: v.number(),
@@ -110,6 +119,7 @@ const applicationTables = {
     upvotes: v.optional(v.number()),
     downvotes: v.optional(v.number()),
     setlistfmId: v.optional(v.string()),
+    setlistfmData: v.optional(v.any()), // Raw setlist.fm JSON for reference
     accuracy: v.optional(v.number()), // Calculated accuracy vs actual setlist
     comparedAt: v.optional(v.number()), // When accuracy was calculated
   })
