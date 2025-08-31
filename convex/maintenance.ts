@@ -24,6 +24,59 @@ export const triggerTrendingSync = action({
   },
 });
 
+// PUBLIC: Check recent shows and their setlists
+export const checkRecentShows = action({
+  args: {},
+  returns: v.object({
+    recentShows: v.array(v.any()),
+    showsWithSetlists: v.array(v.any()),
+    totalShows: v.number(),
+    showsWithOfficialSetlists: v.number(),
+  }),
+  handler: async (ctx) => {
+    // Get shows from last 2 days
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+    const twoDaysAgoString = twoDaysAgo.toISOString().split('T')[0];
+    
+    // Get all shows
+    const allShows = await ctx.runQuery(api.shows.getAll, { limit: 1000 });
+    
+    // Filter shows from last 2 days
+    const recentShows = allShows.filter(show => show.date >= twoDaysAgoString);
+    
+    // Check which shows have setlists
+    const showsWithSetlists = [];
+    let showsWithOfficialSetlists = 0;
+    
+    for (const show of recentShows) {
+      const setlists = await ctx.runQuery(api.setlists.getByShow, { showId: show._id });
+      const officialSetlist = setlists?.find(s => s.isOfficial);
+      const communitySetlist = setlists?.find(s => !s.isOfficial);
+      
+      if (setlists && setlists.length > 0) {
+        showsWithSetlists.push({
+          ...show,
+          hasOfficialSetlist: !!officialSetlist,
+          hasCommunitySetlist: !!communitySetlist,
+          officialSongCount: officialSetlist?.songs?.length || 0,
+          communitySongCount: communitySetlist?.songs?.length || 0,
+          setlistfmId: officialSetlist?.setlistfmId,
+        });
+        
+        if (officialSetlist) showsWithOfficialSetlists++;
+      }
+    }
+    
+    return {
+      recentShows,
+      showsWithSetlists,
+      totalShows: recentShows.length,
+      showsWithOfficialSetlists,
+    };
+  },
+});
+
 // PUBLIC: Populate database with sample data for testing
 export const populateTestData = action({
   args: {},

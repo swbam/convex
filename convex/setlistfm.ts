@@ -65,15 +65,55 @@ export const syncActualSetlist = internalAction({
         return null;
       }
 
-      // Create official setlist
-      const setlistId: string = await ctx.runMutation(internal.setlists.createOfficial, {
-        showId: args.showId,
-        songs,
-        setlistfmId: setlist.id,
-      });
+      // Update existing community setlist with actual setlist data, or create new one
+      const existingSetlist = await ctx.db
+        .query("setlists")
+        .withIndex("by_show", (q) => q.eq("showId", args.showId))
+        .filter((q) => q.eq(q.field("isOfficial"), false))
+        .first();
 
-      console.log(`Created official setlist for ${args.artistName} with ${songs.length} songs`);
-      return setlistId;
+      if (existingSetlist) {
+        // Update existing community setlist with actual data
+        await ctx.db.patch(existingSetlist._id, {
+          actualSetlist: songs.map(song => ({
+            title: song.title,
+            album: song.album,
+            setNumber: 1, // Default to main set
+            encore: false,
+          })),
+          setlistfmId: setlist.id,
+          setlistfmData: setlist, // Store raw setlist.fm data
+          lastUpdated: Date.now(),
+        });
+        
+        console.log(`Updated existing setlist for ${args.artistName} with actual setlist data`);
+        return existingSetlist._id;
+      } else {
+        // Create new setlist with actual data only
+        const setlistId = await ctx.db.insert("setlists", {
+          showId: args.showId,
+          userId: undefined,
+          songs: [], // Empty user predictions
+          actualSetlist: songs.map(song => ({
+            title: song.title,
+            album: song.album,
+            setNumber: 1, // Default to main set
+            encore: false,
+          })),
+          verified: true,
+          source: "setlistfm",
+          lastUpdated: Date.now(),
+          isOfficial: true,
+          confidence: 1.0,
+          upvotes: 0,
+          downvotes: 0,
+          setlistfmId: setlist.id,
+          setlistfmData: setlist, // Store raw setlist.fm data
+        });
+        
+        console.log(`Created new setlist for ${args.artistName} with actual setlist data`);
+        return setlistId;
+      }
 
     } catch (error) {
       console.error("Setlist.fm sync error:", error);

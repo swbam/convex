@@ -32,6 +32,9 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
 
   // Get the shared community setlist (there should only be one per show)
   const communitySetlist = setlists?.find(s => !s.isOfficial) || null;
+  
+  // Check if community setlist has actual setlist data from setlist.fm
+  const hasActualSetlist = communitySetlist?.actualSetlist && communitySetlist.actualSetlist.length > 0;
 
   const handleAnonymousAction = () => {
     if (anonymousActions >= 4) { // Allow 2 song additions + 2 votes = 4 total actions
@@ -329,11 +332,11 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                 </div>
               )}
             
-            {officialSetlist ? (
-              // Show official setlist (verified from setlist.fm) with comparison
+            {hasActualSetlist ? (
+              // Show actual setlist vs community predictions comparison
               <div className="space-y-4">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Official Setlist */}
+                  {/* Actual Setlist from setlist.fm */}
                   <div className="space-y-3">
                     <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl backdrop-blur-sm">
                       <div className="flex items-center justify-between">
@@ -341,31 +344,39 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                           <div className="w-6 h-6 bg-green-500/20 rounded-full flex items-center justify-center">
                             <span className="text-green-400 text-xs">✓</span>
                           </div>
-                          <span className="font-semibold text-white">Official Setlist</span>
+                          <span className="font-semibold text-white">Actual Setlist</span>
                         </div>
-                        <span className="text-xs text-green-400">Verified from setlist.fm</span>
+                        <span className="text-xs text-green-400">From setlist.fm</span>
                       </div>
                     </div>
                     
                     <div className="space-y-2">
-                      {(officialSetlist.songs as any[]).map((songTitle, index) => (
+                      {(communitySetlist.actualSetlist || []).map((song: any, index: number) => (
                         <div
-                          key={index}
+                          key={`actual-${index}`}
                           className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10"
                         >
                           <div className="w-6 h-6 bg-green-500/20 text-center rounded-full flex items-center justify-center text-xs font-semibold text-green-400">
                             {index + 1}
                           </div>
                           <div className="flex-1">
-                            <h3 className="font-medium text-white text-base">{typeof songTitle === 'string' ? songTitle : songTitle?.title}</h3>
+                            <h3 className="font-medium text-white text-base">{song.title}</h3>
+                            {song.album && (
+                              <p className="text-xs text-gray-400">{song.album}</p>
+                            )}
                           </div>
+                          {song.encore && (
+                            <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded-full">
+                              Encore
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
 
                   {/* Community Predictions Comparison */}
-                  {communitySetlist && (
+                  {communitySetlist && communitySetlist.songs && communitySetlist.songs.length > 0 && (
                     <div className="space-y-3">
                       <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl backdrop-blur-sm">
                         <div className="flex items-center justify-between">
@@ -386,8 +397,8 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                           .map((s: any) => (typeof s === 'string' ? s : s?.title))
                           .filter(Boolean)
                           .map((songTitle: string, index: number) => {
-                            const wasCorrect = (officialSetlist.songs as any[]).some(
-                              officialSong => (typeof officialSong === 'string' ? officialSong : officialSong?.title) === songTitle
+                            const wasCorrect = (communitySetlist.actualSetlist || []).some(
+                              actualSong => actualSong.title === songTitle
                             );
                             
                             return (
