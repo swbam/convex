@@ -182,7 +182,8 @@ export function Artists({ onArtistClick }: ArtistsProps) {
       </MagicCard>
 
       {/* Results */}
-      <div className="dashboard-card">
+      <MagicCard className="p-0 rounded-2xl border-0">
+        <div className="p-4 sm:p-6 bg-black">
         {!filteredArtists.length ? (
           // Loading state
           <div className="space-y-4">
@@ -273,7 +274,9 @@ export function Artists({ onArtistClick }: ArtistsProps) {
             )}
           </div>
         )}
-      </div>
+        </div>
+        <BorderBeam size={120} duration={8} className="opacity-20" />
+      </MagicCard>
     </div>
   );
 }

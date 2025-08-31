@@ -116,7 +116,7 @@ export function AddToSetlistModal({
           )}
 
           {!user && (
-            <div className="mt-4 p-3 bg-muted/50 rounded-lg text-center">
+            <div className="mt-4 p-3 bg-black/50 rounded-lg text-center">
               <p className="text-sm text-muted-foreground mb-2">
                 Sign in to create setlist predictions
               </p>

@@ -104,7 +104,7 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
   return (
     <div className="container mx-auto px-6 py-8 space-y-8">
       {/* Search Section */}
-      <div className="dashboard-card">
+      <div className="bg-black rounded-2xl p-6 border border-white/10">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold mb-2">Discover Artists & Shows</h1>
           <p className="text-muted-foreground">
@@ -173,7 +173,7 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Trending Artists */}
-        <div className="dashboard-card">
+        <div className="bg-black rounded-2xl p-6 border border-white/10">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold">Trending Artists</h2>
             <TrendingUp className="h-5 w-5 text-primary" />
@@ -232,7 +232,7 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
         </div>
 
         {/* Upcoming Shows */}
-        <div className="dashboard-card">
+        <div className="bg-black rounded-2xl p-6 border border-white/10">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold">Upcoming Shows</h2>
             <Calendar className="h-5 w-5 text-primary" />
@@ -295,7 +295,7 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
 
       {/* Call to Action for Anonymous Users */}
       {!user && (
-        <div className="dashboard-card text-center">
+        <div className="bg-black rounded-2xl p-6 border border-white/10 text-center">
           <Users className="h-12 w-12 mx-auto mb-4 text-primary" />
           <h3 className="text-xl font-bold mb-2">Join the Community</h3>
           <p className="text-muted-foreground mb-6">

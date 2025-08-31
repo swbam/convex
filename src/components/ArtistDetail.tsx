@@ -1,11 +1,14 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { ArrowLeft, Heart, Calendar, MapPin, Users, Music, Plus } from "lucide-react";
+import { ArrowLeft, Heart, Calendar, MapPin, Users, Music, Plus, Star, Play } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AddToSetlistModal } from "./AddToSetlistModal";
 import { SEOHead } from "./SEOHead";
+import { MagicCard } from "./ui/magic-card";
+import { BorderBeam } from "./ui/border-beam";
+import { ShimmerButton } from "./ui/shimmer-button";
 
 interface ArtistDetailProps {
   artistId: Id<"artists">;
@@ -69,24 +72,26 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   const recentShows = shows?.filter(show => show.status === "completed") || [];
 
   return (
-    <div className="container mx-auto px-6 py-8 space-y-8">
+    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10">
       <SEOHead
         title={`${artist.name} – Artist | TheSet`}
         description={`Explore ${artist.name}'s upcoming shows, catalog and top songs. Vote on setlist predictions.`}
         image={artist.images?.[0]}
         url={typeof window !== 'undefined' ? window.location.href : undefined}
       />
-      {/* Back Button */}
-      <button
-        onClick={onBack}
-        className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Dashboard
-      </button>
+      {/* Enhanced Back Button */}
+      <MagicCard className="inline-block p-0 rounded-xl border-0">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all duration-300 px-4 py-2 rounded-xl"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Dashboard
+        </button>
+      </MagicCard>
 
       {/* Artist Header */}
-      <div className="dashboard-card">
+      <div className="bg-black rounded-2xl p-6 border border-white/10">
         <div className="flex flex-col md:flex-row gap-6">
           {artist.images?.[0] && (
             <img
@@ -148,7 +153,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
         {/* Upcoming Shows - Main Content */}
         <div className="lg:col-span-2">
-          <div className="dashboard-card">
+          <div className="bg-black rounded-2xl p-6 border border-white/10">
             <h2 className="text-2xl font-bold mb-6">Upcoming Shows</h2>
             
             {!shows ? (
@@ -258,7 +263,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
 
         {/* Top Songs - Right Sidebar */}
         <div className="space-y-6">
-          <div className="dashboard-card">
+          <div className="bg-black rounded-2xl p-6 border border-white/10">
             <h3 className="text-xl font-bold mb-4">Top Songs</h3>
             
             {!songs ? (
@@ -318,7 +323,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
           </div>
 
           {/* Artist Stats */}
-          <div className="dashboard-card">
+          <div className="bg-black rounded-2xl p-6 border border-white/10">
             <h3 className="text-xl font-bold mb-4">Artist Stats</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">

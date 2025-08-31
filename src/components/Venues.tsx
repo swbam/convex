@@ -45,7 +45,7 @@ export function Venues({ onVenueClick }: VenuesProps) {
       </div>
 
       {/* Tabs */}
-      <div className="dashboard-card">
+      <div className="bg-black rounded-2xl p-6 border border-white/10">
         <div className="flex border-b border-border mb-6">
           <button
             onClick={() => setSelectedTab('search')}

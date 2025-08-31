@@ -5,6 +5,9 @@ import { Id } from "../../convex/_generated/dataModel";
 import { ArtistCard } from "./ArtistCard";
 import { ShowCard } from "./ShowCard";
 import { Heart, Music, Calendar, TrendingUp, Users } from "lucide-react";
+import { MagicCard } from "./ui/magic-card";
+import { BorderBeam } from "./ui/border-beam";
+import { ShimmerButton } from "./ui/shimmer-button";
 
 interface LibraryProps {
   onArtistClick: (artistId: Id<"artists">, slug?: string) => void;
@@ -14,10 +17,11 @@ interface LibraryProps {
 export function Library({ onArtistClick, onShowClick }: LibraryProps) {
   const [activeTab, setActiveTab] = useState<"followed" | "setlists" | "votes">("followed");
 
-  const user = useQuery(api.users.getCurrentUser);
-  const userFollows = useQuery(api.users.getUserFollows);
-  const userSetlists = useQuery(api.users.getUserSetlists);
-  const userStats = useQuery(api.users.getUserStats);
+  const user = useQuery(api.auth.loggedInUser);
+  // TODO: Implement user follows, setlists, and stats queries
+  const userFollows = null; // useQuery(api.userFollows.getByUser);
+  const userSetlists = null; // useQuery(api.setlists.getByUser);
+  const userStats = null; // useQuery(api.users.getStats);
 
   if (!user) {
     return (
@@ -43,7 +47,7 @@ export function Library({ onArtistClick, onShowClick }: LibraryProps) {
   ] as const;
 
   return (
-    <div className="container mx-auto px-6 py-8 space-y-6">
+    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -72,7 +76,7 @@ export function Library({ onArtistClick, onShowClick }: LibraryProps) {
       </div>
 
       {/* Tabs */}
-      <div className="dashboard-card">
+      <div className="bg-black rounded-2xl p-6 border border-white/10">
         <div className="flex border-b border-border">
           {tabs.map((tab) => {
             const Icon = tab.icon;

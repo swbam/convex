@@ -42,7 +42,7 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
       </button>
 
       {/* Venue Header */}
-      <div className="dashboard-card">
+      <div className="bg-black rounded-2xl p-6 border border-white/10">
         <div className="space-y-6">
           <div>
             <h1 className="text-4xl font-bold mb-2">{venue.name}</h1>
@@ -96,7 +96,7 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Upcoming Shows */}
-        <div className="dashboard-card">
+        <div className="bg-black rounded-2xl p-6 border border-white/10">
           <div className="flex items-center gap-2 mb-6">
             <Calendar className="h-5 w-5" />
             <h2 className="text-2xl font-bold">Upcoming Shows</h2>
@@ -132,7 +132,7 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
         </div>
 
         {/* Past Shows */}
-        <div className="dashboard-card">
+        <div className="bg-black rounded-2xl p-6 border border-white/10">
           <div className="flex items-center gap-2 mb-6">
             <Clock className="h-5 w-5" />
             <h2 className="text-2xl font-bold">Recent Shows</h2>
