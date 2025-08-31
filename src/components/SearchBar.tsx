@@ -51,6 +51,8 @@ export function SearchBar({
 
   // Handle click outside to close dropdown
   useEffect(() => {
+    if (typeof document === 'undefined') return;
+    
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setIsOpen(false)

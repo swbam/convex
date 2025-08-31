@@ -42,9 +42,21 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               <p className="text-muted-foreground">
                 We encountered an unexpected error. Please refresh the page to try again.
               </p>
+              {process.env.NODE_ENV === 'development' && this.state.error && (
+                <details className="mt-4 text-left">
+                  <summary className="cursor-pointer text-sm text-muted-foreground">
+                    Show error details (dev only)
+                  </summary>
+                  <pre className="mt-2 text-xs bg-muted p-2 rounded overflow-auto">
+                    {this.state.error.message}
+                    {'\n'}
+                    {this.state.error.stack}
+                  </pre>
+                </details>
+              )}
             </div>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => typeof window !== 'undefined' && window.location.reload()}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
             >
               Refresh Page

@@ -31,9 +31,9 @@ export function DiagnosticApp() {
           <div className="bg-black rounded-2xl p-6 border border-white/10 p-6">
             <h2 className="text-xl font-semibold mb-4">Browser Info</h2>
             <div className="space-y-2 text-sm">
-              <div>User Agent: {navigator.userAgent}</div>
-              <div>URL: {window.location.href}</div>
-              <div>Origin: {window.location.origin}</div>
+              <div>User Agent: {typeof navigator !== 'undefined' ? navigator.userAgent : 'Not available'}</div>
+              <div>URL: {typeof window !== 'undefined' ? window.location.href : 'Not available'}</div>
+              <div>Origin: {typeof window !== 'undefined' ? window.location.origin : 'Not available'}</div>
             </div>
           </div>
           
