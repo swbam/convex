@@ -45,6 +45,8 @@ export function ArtistCard({
             <img 
               src={artist.images[0]} 
               alt={artist.name}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover opacity-85 group-hover:opacity-95 transition-all duration-500 scale-105 group-hover:scale-110"
             />
 
@@ -58,23 +60,23 @@ export function ArtistCard({
         )}
       </div>
       
-      <div className="relative z-10 p-5" onClick={handleClick}>
+      <div className="relative z-10 p-4 sm:p-5 min-h-[180px] flex flex-col" onClick={handleClick}>
         {/* Artist Info - Enhanced */}
-        <div className="mb-4">
-          <h3 className="font-bold text-foreground text-lg mb-2 group-hover:text-primary transition-colors truncate">
+        <div className="mb-4 flex-1">
+          <h3 className="font-bold text-white text-base sm:text-lg mb-2 group-hover:text-primary transition-colors line-clamp-2">
             {artist.name}
           </h3>
           
-          <div className="flex items-center justify-between">
+          <div className="space-y-2">
             {artist.genres?.[0] && (
-              <span className="text-muted-foreground text-sm font-medium bg-accent/30 px-2 py-1 rounded-lg">
+              <span className="inline-block text-gray-300 text-xs sm:text-sm font-medium bg-white/10 px-2 py-1 rounded-lg">
                 {artist.genres[0]}
               </span>
             )}
             
             {artist.followers && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Users className="h-3 w-3" />
+              <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                <Users className="h-3 w-3 flex-shrink-0" />
                 <span className="font-semibold">{artist.followers.toLocaleString()}</span>
               </div>
             )}
@@ -82,13 +84,13 @@ export function ArtistCard({
         </div>
         
         {/* Single Action Button - Clean */}
-        <div className="flex gap-2">
+        <div className="mt-auto flex gap-2">
           <button
             onClick={(e) => {
               e.stopPropagation()
               onClick(artist._id, artist.slug)
             }}
-            className="flex-1 bg-accent hover:bg-primary hover:text-primary-foreground text-foreground rounded-xl py-2.5 px-4 text-sm font-semibold transition-all duration-200 group-hover:shadow-lg"
+            className="flex-1 bg-white/10 hover:bg-primary hover:text-primary-foreground text-white rounded-xl py-2.5 px-4 text-sm font-semibold transition-all duration-200 group-hover:shadow-lg border border-white/20 hover:border-primary/30"
           >
             View Profile
           </button>
@@ -102,7 +104,7 @@ export function ArtistCard({
               className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 isFollowing 
                   ? 'bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30' 
-                  : 'bg-accent hover:bg-accent/80 text-foreground'
+                  : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
               }`}
             >
               {isFollowing ? 'Following' : 'Follow'}

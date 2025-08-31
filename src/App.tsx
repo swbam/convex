@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../convex/_generated/api";
@@ -12,6 +12,7 @@ import { Shows } from "./components/Shows";
 import { Library } from "./components/Library";
 
 import { AppLayout } from "./components/AppLayout";
+import { ScrollToTop } from "./components/ScrollToTop";
 import { UserDashboard } from "./components/UserDashboard";
 import { toast } from "sonner";
 
@@ -140,7 +141,7 @@ export default function App() {
       const urlParam = slug || id;
       void navigate(`/shows/${urlParam}`);
     } else if (view === "signin") {
-      setShowSignIn(true);
+      void navigate('/signin');
     } else {
       setSelectedArtistId(null);
       setSelectedShowId(null);
@@ -157,7 +158,7 @@ export default function App() {
   };
 
   const handleSignInRequired = () => {
-    navigate('/signin');
+    void navigate('/signin');
     toast.info("Sign in to add more songs and create setlists");
   };
 
@@ -301,6 +302,7 @@ export default function App() {
       
       <div className="relative z-10">
         <ErrorBoundary>
+          <ScrollToTop />
           <AppLayout>
             {renderMainContent()}
           </AppLayout>

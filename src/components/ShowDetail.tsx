@@ -8,7 +8,7 @@ import { SEOHead } from "./SEOHead";
 import { AnimatedSubscribeButton } from "./ui/animated-subscribe-button";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
-import { ShimmerButton } from "./ui/shimmer-button";
+// import { ShimmerButton } from "./ui/shimmer-button";
 
 interface ShowDetailProps {
   showId: Id<"shows">;
@@ -71,7 +71,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
 
   if (!show) {
     return (
-      <div className="container mx-auto px-6 py-8">
+      <div className="px-4 sm:px-6 py-8">
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-muted rounded w-32"></div>
           <div className="h-64 bg-muted rounded"></div>
@@ -89,7 +89,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
   const officialSetlist = setlists?.find(s => s.isOfficial);
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10">
+    <div className="px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10">
       <SEOHead
         title={`${show.artist?.name || 'Artist'} @ ${show.venue?.name || 'Venue'} – ${showDate.toLocaleDateString('en-US')} | TheSet`}
         description={`Details for ${show.artist?.name} at ${show.venue?.name} on ${showDate.toLocaleDateString('en-US')}. View setlists and vote.`}
@@ -707,6 +707,18 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
           )}
         </div>
       </div>
+
+      {/* Sticky mobile CTA for primary action */}
+      {isUpcoming && (
+        <div className="sm:hidden fixed inset-x-4 bottom-[calc(16px+env(safe-area-inset-bottom))] z-40">
+          <button
+            onClick={onSignInRequired}
+            className="w-full h-12 rounded-xl bg-primary text-primary-foreground shadow-lg"
+          >
+            Vote on Setlist
+          </button>
+        </div>
+      )}
     </div>
   );
 }
