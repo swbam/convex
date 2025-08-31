@@ -11,9 +11,33 @@ export const getTrendingArtists = query({
     const artists = await ctx.db
       .query("trendingArtists")
       .order("desc")
-      .take(limit);
+      .take(limit * 2); // Get more to filter and sort
+    
+    // Sort by popularity and upcoming events (stadium artists first)
+    const sortedArtists = artists
+      .sort((a, b) => {
+        // Prioritize artists with more upcoming events
+        const aEvents = a.upcomingEvents || 0;
+        const bEvents = b.upcomingEvents || 0;
+        if (aEvents !== bEvents) return bEvents - aEvents;
+        
+        // Then by artist name recognition (major artists)
+        const majorArtists = [
+          'taylor swift', 'beyonce', 'drake', 'ed sheeran', 'coldplay', 'imagine dragons',
+          'billie eilish', 'the weeknd', 'bruno mars', 'ariana grande', 'post malone',
+          'dua lipa', 'bad bunny', 'harry styles', 'olivia rodrigo', 'travis scott',
+          'kanye west', 'eminem', 'rihanna', 'justin bieber', 'lady gaga', 'adele'
+        ];
+        const aIsMajor = majorArtists.some(major => a.name.toLowerCase().includes(major)) ? 1 : 0;
+        const bIsMajor = majorArtists.some(major => b.name.toLowerCase().includes(major)) ? 1 : 0;
+        if (aIsMajor !== bIsMajor) return bIsMajor - aIsMajor;
+        
+        // Finally by creation time (most recent)
+        return b.lastUpdated - a.lastUpdated;
+      })
+      .slice(0, limit);
 
-    return artists;
+    return sortedArtists;
   },
 });
 
@@ -27,9 +51,27 @@ export const getTrendingShows = query({
     const shows = await ctx.db
       .query("trendingShows")
       .order("desc")
-      .take(limit);
+      .take(limit * 2); // Get more to filter and sort
+    
+    // Sort by venue capacity (stadium shows first) and artist popularity
+    const sortedShows = shows
+      .sort((a, b) => {
+        // Prioritize shows with price ranges (indicates demand)
+        const aHasPrice = a.priceRange ? 1 : 0;
+        const bHasPrice = b.priceRange ? 1 : 0;
+        if (aHasPrice !== bHasPrice) return bHasPrice - aHasPrice;
+        
+        // Then by venue name (stadiums/arenas typically have these keywords)
+        const aIsStadium = /stadium|arena|center|amphitheatre|pavilion/i.test(a.venueName) ? 1 : 0;
+        const bIsStadium = /stadium|arena|center|amphitheatre|pavilion/i.test(b.venueName) ? 1 : 0;
+        if (aIsStadium !== bIsStadium) return bIsStadium - aIsStadium;
+        
+        // Finally by creation time (most recent)
+        return b.lastUpdated - a.lastUpdated;
+      })
+      .slice(0, limit);
 
-    return shows;
+    return sortedShows;
   },
 });
 
