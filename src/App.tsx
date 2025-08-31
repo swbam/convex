@@ -25,7 +25,7 @@ import { MagicCard } from "./components/ui/magic-card";
 
 type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "library" | "signin" | "trending" | "profile" | "following" | "predictions" | "admin" | "test";
 
-export default function App() {
+function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const _params = useParams();
@@ -45,18 +45,6 @@ export default function App() {
       createAppUser().catch(console.error);
     }
   }, [user, createAppUser]);
-
-  // Poll for artist creation when on artist page with no artist found
-  useEffect(() => {
-    if (location.pathname.startsWith('/artists/') && artistBySlug === null) {
-      const interval = setInterval(() => {
-        // Force a re-render which will re-query
-        window.location.reload();
-      }, 3000); // Check every 3 seconds
-      
-      return () => clearInterval(interval);
-    }
-  }, [location.pathname, artistBySlug]);
 
   // Extract slug from URL safely
   const getSlugFromPath = (path: string, prefix: string) => {
@@ -84,6 +72,18 @@ export default function App() {
     api.shows.getBySlugOrId,
     showSlug ? { key: showSlug } : 'skip'
   );
+
+  // Poll for artist creation when on artist page with no artist found
+  useEffect(() => {
+    if (location.pathname.startsWith('/artists/') && artistBySlug === null) {
+      const interval = setInterval(() => {
+        // Force a re-render which will re-query
+        window.location.reload();
+      }, 3000); // Check every 3 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [location.pathname, artistBySlug]);
 
   // Update view based on current route
   useEffect(() => {
@@ -362,3 +362,5 @@ export default function App() {
     </div>
   );
 }
+
+export { App };

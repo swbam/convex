@@ -1,5 +1,6 @@
+import React from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import App from './App';
+import { App } from './App';
 import { SignInPage } from './pages/SignInPage';
 import { SignUpPage } from './pages/SignUpPage';
 import { AdminTest } from './components/AdminTest';

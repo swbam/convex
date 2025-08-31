@@ -11,20 +11,35 @@ import { DiagnosticApp } from "./components/DiagnosticApp";
 const convexUrl = import.meta.env.VITE_CONVEX_URL as string;
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string;
 
+// Safety check for DOM availability
+if (typeof document === 'undefined') {
+  throw new Error('Document is not available - this should only run in the browser');
+}
+
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error('Root element not found in DOM');
+}
+
 // Show diagnostic if environment variables are missing
 if (!convexUrl || !publishableKey) {
   console.error("Missing environment variables:", { convexUrl: !!convexUrl, publishableKey: !!publishableKey });
-  createRoot(document.getElementById("root")!).render(<DiagnosticApp />);
+  createRoot(rootElement).render(<DiagnosticApp />);
 } else {
-  const convex = new ConvexReactClient(convexUrl);
+  try {
+    const convex = new ConvexReactClient(convexUrl);
 
-  createRoot(document.getElementById("root")!).render(
-    <React.StrictMode>
-      <ClerkProvider publishableKey={publishableKey} afterSignOutUrl="/">
-        <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-          <RouterProvider router={router} />
-        </ConvexProviderWithClerk>
-      </ClerkProvider>
-    </React.StrictMode>,
-  );
+    createRoot(rootElement).render(
+      <React.StrictMode>
+        <ClerkProvider publishableKey={publishableKey} afterSignOutUrl="/">
+          <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+            <RouterProvider router={router} />
+          </ConvexProviderWithClerk>
+        </ClerkProvider>
+      </React.StrictMode>,
+    );
+  } catch (error) {
+    console.error('Failed to initialize app:', error);
+    createRoot(rootElement).render(<DiagnosticApp />);
+  }
 }

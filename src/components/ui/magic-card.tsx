@@ -45,7 +45,7 @@ export function MagicCard({
 
   const handleMouseOut = useCallback(
     (e: MouseEvent) => {
-      if (!e.relatedTarget) {
+      if (!e.relatedTarget && typeof document !== 'undefined') {
         document.removeEventListener("mousemove", handleMouseMove);
         mouseX.set(-gradientSize);
         mouseY.set(-gradientSize);
@@ -55,12 +55,16 @@ export function MagicCard({
   );
 
   const handleMouseEnter = useCallback(() => {
-    document.addEventListener("mousemove", handleMouseMove);
-    mouseX.set(-gradientSize);
-    mouseY.set(-gradientSize);
+    if (typeof document !== 'undefined') {
+      document.addEventListener("mousemove", handleMouseMove);
+      mouseX.set(-gradientSize);
+      mouseY.set(-gradientSize);
+    }
   }, [handleMouseMove, mouseX, gradientSize, mouseY]);
 
   useEffect(() => {
+    if (typeof document === 'undefined') return;
+    
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseout", handleMouseOut);
     document.addEventListener("mouseenter", handleMouseEnter);

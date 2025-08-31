@@ -48,6 +48,12 @@ window.addEventListener('message', async (message) => {
           'convex-vendor': ['convex/react', 'convex/react-clerk'],
           'clerk-vendor': ['@clerk/clerk-react'],
           'animation-vendor': ['framer-motion'],
+        },
+        chunkFileNames: (chunkInfo) => {
+          const facadeModuleId = chunkInfo.facadeModuleId 
+            ? chunkInfo.facadeModuleId.split('/').pop()?.replace(/\.\w+$/, '') || 'chunk'
+            : 'chunk';
+          return `assets/${facadeModuleId}-[hash].js`;
         }
       }
     }
