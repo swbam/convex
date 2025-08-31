@@ -90,71 +90,115 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         </button>
       </MagicCard>
 
-      {/* Artist Header */}
-      <div className="bg-black rounded-2xl p-6 border border-white/10">
-        <div className="flex flex-col md:flex-row gap-6">
-          {artist.images?.[0] && (
-            <img
-              src={artist.images[0]}
+      {/* Enhanced Artist Header with MagicCard */}
+      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-white/10">
+        {/* Background gradient with artist image */}
+        {artist.images?.[0] && (
+          <div className="absolute inset-0 z-0">
+            <img 
+              src={artist.images[0]} 
               alt={artist.name}
-              className="w-48 h-48 rounded-lg object-cover mx-auto md:mx-0"
+              className="w-full h-full object-cover opacity-10 blur-xl scale-110"
             />
-          )}
-          
-          <div className="flex-1 space-y-4">
-            <div>
-              <h1 className="text-4xl font-bold mb-2">{artist.name}</h1>
-              {artist.genres && artist.genres.length > 0 && (
-                <p className="text-muted-foreground text-lg">
-                  {artist.genres.join(", ")}
-                </p>
-              )}
-            </div>
-            
-            <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
-              {artist.followers && (
-                <div className="flex items-center gap-1">
-                  <Users className="h-4 w-4" />
-                  <span>{artist.followers.toLocaleString()} followers</span>
-                </div>
-              )}
-              {artist.popularity && (
-                <div className="flex items-center gap-1">
-                  <Music className="h-4 w-4" />
-                  <span>{artist.popularity}% popularity</span>
-                </div>
-              )}
-              <div className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                <span>{upcomingShows.length} upcoming shows</span>
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/60" />
+          </div>
+        )}
+        
+        <div className="relative z-10 p-4 sm:p-6 lg:p-8">
+          <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8">
+            {/* Artist Image - Mobile Optimized */}
+            {artist.images?.[0] && (
+              <div className="mx-auto lg:mx-0 flex-shrink-0">
+                <MagicCard className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 p-0 rounded-2xl overflow-hidden border-0">
+                  <img
+                    src={artist.images[0]}
+                    alt={artist.name}
+                    className="w-full h-full object-cover"
+                  />
+                  <BorderBeam size={80} duration={12} className="opacity-30" />
+                </MagicCard>
               </div>
-            </div>
+            )}
             
-            <div className="flex gap-3">
-              <button
-                onClick={handleFollow}
-                className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${
-                  isFollowing 
-                    ? "bg-primary/20 text-primary border border-primary" 
-                    : "bg-primary text-primary-foreground hover:bg-primary/90"
-                }`}
-              >
-                <Heart className={`h-4 w-4 ${isFollowing ? "fill-current" : ""}`} />
-                {isFollowing ? "Following" : "Follow"}
-              </button>
+            <div className="flex-1 space-y-4 text-center lg:text-left">
+              {/* Name and Genres */}
+              <div>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white mb-2 leading-tight">{artist.name}</h1>
+                {artist.genres && artist.genres.length > 0 && (
+                  <div className="flex flex-wrap gap-2 justify-center lg:justify-start">
+                    {artist.genres.slice(0, 3).map((genre, idx) => (
+                      <span key={idx} className="px-3 py-1 bg-white/10 rounded-full text-sm text-gray-300 backdrop-blur-sm">
+                        {genre}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
               
-              {/* Removed audio playback UI per spec */}
+              {/* Stats Grid - Mobile Responsive */}
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-sm mx-auto lg:mx-0">
+                {artist.followers && (
+                  <div className="bg-white/5 rounded-xl p-3 backdrop-blur-sm">
+                    <div className="flex items-center gap-1.5 text-gray-400 mb-1">
+                      <Users className="h-3.5 w-3.5" />
+                      <span className="text-xs">Followers</span>
+                    </div>
+                    <div className="text-lg sm:text-xl font-bold text-white">{artist.followers >= 1000000 ? `${(artist.followers / 1000000).toFixed(1)}M` : artist.followers >= 1000 ? `${(artist.followers / 1000).toFixed(0)}K` : artist.followers.toLocaleString()}</div>
+                  </div>
+                )}
+                {artist.popularity && (
+                  <div className="bg-white/5 rounded-xl p-3 backdrop-blur-sm">
+                    <div className="flex items-center gap-1.5 text-gray-400 mb-1">
+                      <Star className="h-3.5 w-3.5" />
+                      <span className="text-xs">Popularity</span>
+                    </div>
+                    <div className="text-lg sm:text-xl font-bold text-white">{artist.popularity}%</div>
+                  </div>
+                )}
+                <div className="bg-white/5 rounded-xl p-3 backdrop-blur-sm">
+                  <div className="flex items-center gap-1.5 text-gray-400 mb-1">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span className="text-xs">Shows</span>
+                  </div>
+                  <div className="text-lg sm:text-xl font-bold text-white">{upcomingShows.length}</div>
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-3 justify-center lg:justify-start">
+                <ShimmerButton
+                  onClick={handleFollow}
+                  className={`${
+                    isFollowing 
+                      ? "bg-white/10 text-white border-white/20" 
+                      : "bg-primary/20 text-white border-primary/30"
+                  }`}
+                  shimmerColor={isFollowing ? "#ffffff" : "#3b82f6"}
+                  shimmerDuration="2s"
+                >
+                  <Heart className={`h-4 w-4 mr-2 ${isFollowing ? "fill-current" : ""}`} />
+                  {isFollowing ? "Following" : "Follow Artist"}
+                </ShimmerButton>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+        
+        <BorderBeam size={200} duration={15} className="opacity-30" />
+      </MagicCard>
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
         {/* Upcoming Shows - Main Content */}
         <div className="lg:col-span-2">
-          <div className="bg-black rounded-2xl p-6 border border-white/10">
-            <h2 className="text-2xl font-bold mb-6">Upcoming Shows</h2>
+          <MagicCard className="p-0 rounded-2xl border border-white/10">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                  <Calendar className="h-5 w-5 text-white" />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white">Upcoming Shows</h2>
+              </div>
             
             {!shows ? (
               <div className="space-y-4">
@@ -173,34 +217,33 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 <p className="text-sm mt-1">Check back later for tour announcements</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {upcomingShows.map((show) => (
                   <div
                     key={show._id}
-                    className="p-6 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors"
+                    className="p-4 sm:p-5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 cursor-pointer transition-all duration-200"
                     onClick={() => onShowClick(show._id, (show as any).slug)}
                   >
-                    <div className="flex justify-between items-start mb-4">
+                    <div className="flex justify-between items-start mb-3">
                       <div className="flex-1">
-                        <h3 className="text-xl font-bold mb-2">{show.venue?.name}</h3>
-                        <div className="flex items-center gap-4 text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <MapPin className="h-4 w-4" />
+                        <h3 className="text-lg sm:text-xl font-bold text-white mb-2">{show.venue?.name}</h3>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-300">
+                          <div className="flex items-center gap-1.5">
+                            <MapPin className="h-3.5 w-3.5" />
                             <span>{show.venue?.city}, {show.venue?.country}</span>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4" />
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="h-3.5 w-3.5" />
                             <span>
                               {new Date(show.date).toLocaleDateString('en-US', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
+                                weekday: 'short',
+                                month: 'short',
                                 day: 'numeric'
                               })}
                             </span>
                           </div>
                           {show.startTime && (
-                            <span>{show.startTime}</span>
+                            <span className="text-xs">{show.startTime}</span>
                           )}
                         </div>
                       </div>
@@ -258,13 +301,21 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 </div>
               </div>
             )}
-          </div>
+            </div>
+            <BorderBeam size={120} duration={10} className="opacity-20" />
+          </MagicCard>
         </div>
 
         {/* Top Songs - Right Sidebar */}
-        <div className="space-y-6">
-          <div className="bg-black rounded-2xl p-6 border border-white/10">
-            <h3 className="text-xl font-bold mb-4">Top Songs</h3>
+        <div className="space-y-4 sm:space-y-6">
+          <MagicCard className="p-0 rounded-2xl border border-white/10">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center">
+                  <Music className="h-4 w-4 text-white" />
+                </div>
+                <h3 className="text-xl sm:text-2xl font-bold text-white">Top Songs</h3>
+              </div>
             
             {!songs ? (
               <div className="space-y-3">
@@ -350,7 +401,9 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 </div>
               )}
             </div>
-          </div>
+            </div>
+            <BorderBeam size={100} duration={8} className="opacity-20" />
+          </MagicCard>
         </div>
       </div>
 

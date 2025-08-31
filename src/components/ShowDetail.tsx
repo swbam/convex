@@ -108,96 +108,95 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
       </button>
       </MagicCard>
 
-      {/* Enhanced Show Header with MagicCard */}
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0">
+      {/* Enhanced Show Header with MagicCard - Improved Mobile Layout */}
+      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-white/10">
         {/* Background Image */}
         {show.artist?.images?.[0] && (
           <div className="absolute inset-0 z-0">
             <img 
               src={show.artist.images[0]} 
               alt={show.artist.name}
-              className="w-full h-full object-cover opacity-20 blur-sm scale-110"
+              className="w-full h-full object-cover opacity-15 blur-sm scale-110"
             />
-            <div className="absolute inset-0 bg-black/30" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/70 to-black/90" />
           </div>
         )}
         
-                        <div className="relative z-10 p-4 sm:p-6 lg:p-8">
-          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 sm:gap-6 lg:gap-8">
-            <div className="space-y-6 flex-1">
-              {/* Artist Name and Status */}
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <button
-                    onClick={() => onArtistClick(show.artistId)}
-                    className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white hover:text-primary transition-colors text-left leading-tight"
-                  >
-                    {show.artist?.name}
-                  </button>
-                  <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold backdrop-blur-sm ${
-                    isUpcoming 
-                      ? isToday 
-                        ? 'bg-green-500/30 text-green-300 border border-green-500/50' 
-                        : 'bg-blue-500/30 text-blue-300 border border-blue-500/50'
-                      : 'bg-gray-500/30 text-gray-300 border border-gray-500/50'
-                  }`}>
-                    <div className={`w-2 h-2 rounded-full mr-2 ${
-                      isUpcoming ? (isToday ? 'bg-green-400' : 'bg-blue-400') : 'bg-gray-400'
-                    }`} />
-                    {isUpcoming ? (isToday ? 'Tonight' : 'Upcoming') : 'Completed'}
-                  </div>
+        <div className="relative z-10 p-4 sm:p-5 lg:p-6">
+          <div className="space-y-4">
+            {/* Compact Mobile Header */}
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <button
+                  onClick={() => onArtistClick(show.artistId)}
+                  className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white hover:text-primary transition-colors text-left leading-tight flex-1 min-w-0"
+                >
+                  {show.artist?.name}
+                </button>
+                <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold backdrop-blur-sm whitespace-nowrap ${
+                  isUpcoming 
+                    ? isToday 
+                      ? 'bg-green-500/30 text-green-300 border border-green-500/50' 
+                      : 'bg-blue-500/30 text-blue-300 border border-blue-500/50'
+                    : 'bg-gray-500/30 text-gray-300 border border-gray-500/50'
+                }`}>
+                  <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                    isUpcoming ? (isToday ? 'bg-green-400' : 'bg-blue-400') : 'bg-gray-400'
+                  }`} />
+                  {isUpcoming ? (isToday ? 'Tonight' : 'Upcoming') : 'Completed'}
                 </div>
+              </div>
                 
-                {/* Venue and Date Info */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                  <div className="flex items-center gap-3 text-gray-300">
-                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                      <MapPin className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white">{show.venue?.name}</div>
-                      <div className="text-sm text-gray-400">{show.venue?.city}, {show.venue?.country}</div>
-                    </div>
+              {/* Compact Info Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
+                <div className="flex items-center gap-2.5 text-gray-300">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+                    <MapPin className="h-4 w-4 text-white" />
                   </div>
-                  
-                  <div className="flex items-center gap-3 text-gray-300">
-                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                      <Calendar className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white">
-                        {showDate.toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
-                      </div>
-                      <div className="text-sm text-gray-400">
-                        {showDate.toLocaleDateString('en-US', { weekday: 'long' })}
-                      </div>
-                    </div>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-white text-sm sm:text-base truncate">{show.venue?.name}</div>
+                    <div className="text-xs sm:text-sm text-gray-400 truncate">{show.venue?.city}, {show.venue?.country}</div>
                   </div>
-                  
-                  {show.startTime && (
-                    <div className="flex items-center gap-3 text-gray-300">
-                      <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                        <Clock className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-white">
-                          {(() => {
-                            const [hours, minutes] = show.startTime.split(':');
-                            const hour = parseInt(hours);
-                            const ampm = hour >= 12 ? 'PM' : 'AM';
-                            const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-                            return `${displayHour}:${minutes} ${ampm} EST`;
-                          })()}
-                        </div>
-                        <div className="text-sm text-gray-400">Show Time</div>
-                      </div>
-                    </div>
-                  )}
                 </div>
+                  
+                <div className="flex items-center gap-2.5 text-gray-300">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+                    <Calendar className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-white text-sm sm:text-base">
+                      {showDate.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </div>
+                    <div className="text-xs sm:text-sm text-gray-400">
+                      {showDate.toLocaleDateString('en-US', { weekday: 'long' })}
+                    </div>
+                  </div>
+                </div>
+                  
+                {show.startTime && (
+                  <div className="flex items-center gap-2.5 text-gray-300">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+                      <Clock className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-white text-sm sm:text-base">
+                        {(() => {
+                          const [hours, minutes] = show.startTime.split(':');
+                          const hour = parseInt(hours);
+                          const ampm = hour >= 12 ? 'PM' : 'AM';
+                          const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                          return `${displayHour}:${minutes} ${ampm} EST`;
+                        })()}
+                      </div>
+                      <div className="text-xs sm:text-sm text-gray-400">Show Time</div>
+                    </div>
+                  </div>
+                )}
+              </div>
                 
                 {/* Additional Info */}
                 <div className="flex flex-wrap gap-4">
@@ -257,38 +256,38 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
         <div className="lg:col-span-2 space-y-4 sm:space-y-6">
 
 
-          {/* Enhanced Shared Setlist Display */}
-          <MagicCard className="p-0 rounded-2xl border-0">
+          {/* Enhanced Shared Setlist Display with Better Border */}
+          <MagicCard className="p-0 rounded-2xl border border-white/10">
             <div className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
-                    <Music className="h-4 w-4 text-white" />
+                  <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                    <Music className="h-5 w-5 text-white" />
                   </div>
-                  <h2 className="text-2xl font-bold text-white">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-white">
                     {officialSetlist ? "Official Setlist" : "Vote on the Setlist"}
                   </h2>
                 </div>
                 <div className="flex items-center gap-4">
                   {(communitySetlist || officialSetlist) && (
-                    <div className="text-base font-medium text-gray-300">
+                    <div className="text-lg font-medium text-gray-300">
                       {(officialSetlist?.songs?.length || communitySetlist?.songs?.length || 0)} songs
               </div>
             )}
                   {communitySetlist && !officialSetlist && (
-                    <div className="text-sm text-gray-400 bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm">
+                    <div className="text-sm text-gray-400 bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm">
                       Community Predictions
             </div>
           )}
         </div>
       </div>
 
-              {/* Song Addition Dropdown - Only for upcoming shows WITHOUT actual setlist */}
+              {/* Song Addition Dropdown - Improved Design */}
               {!hasActualSetlist && isUpcoming && songs && songs.length > 0 && (
-                <div className="mb-6 p-4 bg-white/5 border border-white/10 rounded-xl backdrop-blur-sm">
+                <div className="mb-6 p-4 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl backdrop-blur-sm">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-base font-semibold text-white">Add Songs to Setlist</h3>
-                    <div className="text-sm text-gray-400">
+                    <h3 className="text-lg font-semibold text-white">Add Songs to Setlist</h3>
+                    <div className="text-sm text-gray-300">
                       {(songs || []).filter(Boolean).filter(s => s && !s.isLive && !s.isRemix).filter((s) => {
                         const songTitles = communitySetlist?.songs?.map((song: any) => 
                           typeof song === 'string' ? song : song?.title
@@ -306,7 +305,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                         e.target.value = "";
                       }
                     }}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-base text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300"
+                    className="w-full px-4 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-base sm:text-lg text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300 cursor-pointer"
                   >
                     <option value="" disabled className="bg-background text-foreground text-base">
                       {user ? "Choose a song to add instantly..." : "Sign in to add songs"}
@@ -326,7 +325,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                         <option 
                           key={song!._id} 
                           value={song!.title}
-                          className="bg-background text-foreground text-base"
+                          className="bg-background text-foreground text-base sm:text-lg py-2"
                         >
                           {song!.title} {song!.album ? `• ${song!.album}` : ''}
                         </option>
@@ -334,7 +333,8 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                     }
                   </select>
                   
-                  <div className="mt-3 text-sm text-gray-400">
+                  <div className="mt-3 text-sm text-gray-300 font-medium">
+                    <ChevronUp className="inline h-4 w-4 mr-1" />
                     Songs are added instantly - no save button needed
                   </div>
                 </div>
@@ -388,9 +388,9 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                           </div>
                           
                           <div className="flex-1">
-                            <h3 className="font-semibold text-white text-lg">{song.title}</h3>
+                            <h3 className="font-semibold text-white text-lg sm:text-xl">{song.title}</h3>
                             {song.album && (
-                              <p className="text-sm text-gray-400">{song.album}</p>
+                              <p className="text-sm sm:text-base text-gray-400">{song.album}</p>
                             )}
                           </div>
                           
@@ -762,26 +762,26 @@ function SongVoteRow({
   };
 
   return (
-    <div className="flex items-center justify-between py-3 px-4 bg-muted/5 rounded-lg hover:bg-muted/10 transition-all duration-200 group">
+    <div className="flex items-center justify-between py-3.5 px-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-200 group">
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div className="w-6 h-6 bg-muted/30 text-center rounded-full flex items-center justify-center text-xs font-semibold text-muted-foreground">
+        <div className="w-8 h-8 bg-primary/20 text-center rounded-full flex items-center justify-center text-sm font-semibold text-primary">
           {position}
         </div>
-        <span className="font-medium text-sm text-foreground truncate">{songTitle}</span>
+        <span className="font-medium text-base sm:text-lg text-white truncate">{songTitle}</span>
       </div>
       
       {/* Always-visible vote button with count */}
       <AnimatedSubscribeButton
         subscribeStatus={songVotes?.userVoted || false}
         onClick={() => void handleSongVote()}
-        className="ml-3 h-7 min-w-[60px] text-xs"
+        className="ml-3 h-8 sm:h-9 min-w-[70px] text-sm sm:text-base"
       >
-        <span className="flex items-center gap-1">
-          <ChevronUp className="h-3 w-3" />
+        <span className="flex items-center gap-1.5">
+          <ChevronUp className="h-4 w-4" />
           <span className="font-semibold">{songVotes?.upvotes || 0}</span>
         </span>
-        <span className="flex items-center gap-1">
-          <Heart className="h-3 w-3 fill-current" />
+        <span className="flex items-center gap-1.5">
+          <Heart className="h-4 w-4 fill-current" />
           <span className="font-semibold">{songVotes?.upvotes || 0}</span>
         </span>
       </AnimatedSubscribeButton>
