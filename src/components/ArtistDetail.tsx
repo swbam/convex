@@ -9,6 +9,7 @@ import { SEOHead } from "./SEOHead";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { ShimmerButton } from "./ui/shimmer-button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 interface ArtistDetailProps {
   artistId: Id<"artists">;
@@ -193,14 +194,22 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         <div className="lg:col-span-2">
           <MagicCard className="p-0 rounded-2xl border border-white/10">
             <div className="p-4 sm:p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-                  <Calendar className="h-5 w-5 text-white" />
+              <Tabs defaultValue="upcoming" className="w-full">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                      <Calendar className="h-5 w-5 text-white" />
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white">Shows</h2>
+                  </div>
+                  <TabsList className="grid w-[200px] grid-cols-2">
+                    <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+                    <TabsTrigger value="past">Past</TabsTrigger>
+                  </TabsList>
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-bold text-white">Upcoming Shows</h2>
-              </div>
-            
-            {!shows ? (
+                
+                <TabsContent value="upcoming" className="mt-6">
+                  {!shows ? (
               <div className="space-y-4">
                 {[...Array(5)].map((_, i) => (
                   <div key={i} className="p-4 rounded-lg border animate-pulse">
@@ -266,41 +275,75 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                     )}
                   </div>
                 ))}
-              </div>
-            )}
-
-            {/* Recent Shows Section */}
-            {recentShows.length > 0 && (
-              <div className="mt-8">
-                <h3 className="text-xl font-bold mb-4">Recent Shows</h3>
-                <div className="space-y-3">
-                  {recentShows.slice(0, 3).map((show) => (
+                  </div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="past" className="mt-6">
+                  {!shows ? (
+                    <div className="space-y-4">
+                      {[...Array(5)].map((_, i) => (
+                        <div key={i} className="p-4 rounded-lg border animate-pulse">
+                          <div className="h-6 bg-muted rounded mb-2"></div>
+                          <div className="h-4 bg-muted rounded w-2/3 mb-2"></div>
+                          <div className="h-4 bg-muted rounded w-1/2"></div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : recentShows.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No past shows recorded</p>
+                      <p className="text-sm mt-1">Past shows will appear here after they happen</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {recentShows.map((show) => (
                     <div
                       key={show._id}
-                      className="p-4 rounded-lg border bg-muted/20 hover:bg-muted/40 cursor-pointer transition-colors"
+                      className="p-4 sm:p-5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 cursor-pointer transition-all duration-200"
                       onClick={() => onShowClick(show._id, (show as any).slug)}
                     >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="font-medium">{show.venue?.name}</div>
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <MapPin className="h-3 w-3" />
-                            <span>{show.venue?.city}</span>
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <h3 className="text-lg sm:text-xl font-bold text-white mb-2">{show.venue?.name}</h3>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-300">
+                            <div className="flex items-center gap-1.5">
+                              <MapPin className="h-3.5 w-3.5" />
+                              <span>{show.venue?.city}, {show.venue?.country}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <Calendar className="h-3.5 w-3.5" />
+                              <span>
+                                {new Date(show.date).toLocaleDateString('en-US', {
+                                  weekday: 'short',
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          {new Date(show.date).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
+                        <div className="text-right">
+                          <div className="px-3 py-1 rounded-full text-sm font-medium border border-green-500 text-green-500">
+                            Completed
+                          </div>
                         </div>
                       </div>
+                      
+                      {show.venue?.capacity && (
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Users className="h-4 w-4" />
+                          <span>{show.venue.capacity.toLocaleString()} capacity</span>
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
             <BorderBeam size={120} duration={10} className="opacity-20" />
           </MagicCard>

@@ -53,8 +53,30 @@ export const getTrendingShows = query({
       .order("desc")
       .take(limit * 2); // Get more to filter and sort
     
+    // Enrich shows with artist data if available
+    const enrichedShows = await Promise.all(
+      shows.map(async (show) => {
+        if (show.artistId) {
+          const artist = await ctx.db.get(show.artistId);
+          if (artist) {
+            return {
+              ...show,
+              artist: {
+                _id: artist._id,
+                name: artist.name,
+                slug: artist.slug,
+                images: artist.images,
+                genres: artist.genres,
+              }
+            };
+          }
+        }
+        return show;
+      })
+    );
+    
     // Sort by venue capacity (stadium shows first) and artist popularity
-    const sortedShows = shows
+    const sortedShows = enrichedShows
       .sort((a, b) => {
         // Prioritize shows with price ranges (indicates demand)
         const aHasPrice = a.priceRange ? 1 : 0;
@@ -91,6 +113,7 @@ export const saveTrendingShows = internalMutation({
       await ctx.db.insert("trendingShows", {
         ticketmasterId: show.ticketmasterId,
         artistTicketmasterId: show.artistTicketmasterId,
+        artistId: show.artistId || undefined,
         artistName: show.artistName,
         venueName: show.venueName,
         venueCity: show.venueCity,
