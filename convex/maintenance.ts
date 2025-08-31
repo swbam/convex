@@ -24,6 +24,64 @@ export const triggerTrendingSync = action({
   },
 });
 
+// PUBLIC: Populate database with sample data for testing
+export const populateTestData = action({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    console.log("🚀 Populating database with test data...");
+    
+    try {
+      // Create test artists
+      const testArtists = [
+        { name: "Arctic Monkeys", genres: ["Rock", "Indie"], popularity: 85 },
+        { name: "Taylor Swift", genres: ["Pop", "Country"], popularity: 95 },
+        { name: "The Strokes", genres: ["Rock", "Indie"], popularity: 78 },
+        { name: "Billie Eilish", genres: ["Pop", "Alternative"], popularity: 92 },
+        { name: "Radiohead", genres: ["Alternative", "Rock"], popularity: 88 }
+      ];
+      
+      for (const artistData of testArtists) {
+        const artistId = await ctx.runMutation(internal.artists.createInternal, {
+          name: artistData.name,
+          spotifyId: `spotify_${artistData.name.toLowerCase().replace(/\s+/g, '_')}`,
+          genres: artistData.genres,
+          popularity: artistData.popularity,
+          followers: Math.floor(Math.random() * 1000000) + 100000,
+          lastSynced: Date.now(),
+        });
+        
+        // Create test venue
+        const venueId = await ctx.runMutation(internal.venues.createInternal, {
+          name: `${artistData.name} Arena`,
+          city: "New York",
+          country: "USA",
+          capacity: 20000,
+        });
+        
+        // Create test shows
+        const today = new Date();
+        const futureDate = new Date(today.getTime() + (Math.random() * 30 + 1) * 24 * 60 * 60 * 1000);
+        
+        await ctx.runMutation(internal.shows.createInternal, {
+          artistId,
+          venueId,
+          date: futureDate.toISOString().split('T')[0],
+          startTime: "20:00",
+          status: "upcoming",
+        });
+      }
+      
+      console.log("✅ Test data populated successfully!");
+      
+    } catch (error) {
+      console.error("❌ Failed to populate test data:", error);
+    }
+    
+    return null;
+  },
+});
+
 // CRITICAL: Fix artists with missing spotifyId or other data
 export const fixMissingArtistData = internalAction({
   args: {},
