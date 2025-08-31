@@ -222,7 +222,7 @@ export function ShowCard({
               e.stopPropagation()
               handleClick()
             }}
-            className="w-full bg-white/10 hover:bg-primary hover:text-primary-foreground text-white rounded-lg sm:rounded-xl py-2 sm:py-2.5 lg:py-3 px-3 sm:px-4 text-responsive-xs sm:text-responsive-sm font-semibold transition-all duration-200 group-hover:shadow-lg border border-white/20 hover:border-primary/30 touch-target"
+            className="w-full bg-white/10 hover:bg-primary hover:text-primary-foreground text-white rounded-lg sm:rounded-xl py-2 sm:py-2.5 lg:py-3 px-3 sm:px-4 text-responsive-xs sm:text-responsive-sm font-semibold transition-all duration-200 border border-white/20 hover:border-primary/30 touch-target"
           >
             View Setlist
           </button>
