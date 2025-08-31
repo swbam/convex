@@ -3,7 +3,7 @@ import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { ArtistCard } from './ArtistCard';
-import { Search, Music, TrendingUp, Users, Filter, Star, Mic } from 'lucide-react';
+import { Search, Music, TrendingUp, Filter, Star, Mic } from 'lucide-react';
 import { MagicCard } from './ui/magic-card';
 import { BorderBeam } from './ui/border-beam';
 
@@ -19,7 +19,9 @@ export function Artists({ onArtistClick }: ArtistsProps) {
   const pageSize = 18;
 
   // Use canonical artists collection; trending is reflected via trendingScore
-  const allArtists = useQuery(api.artists.getAll, { limit: 200 }) || [];
+  const allArtistsRaw = useQuery(api.artists.getAll, { limit: 200 });
+  const isLoading = allArtistsRaw === undefined;
+  const allArtists = React.useMemo(() => allArtistsRaw || [], [allArtistsRaw]);
 
   // Get unique genres for filter
   const genres = React.useMemo(() => {
@@ -91,7 +93,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
   };
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10">
+    <div className="space-y-4 sm:space-y-8 relative z-10">
       {/* Enhanced Header with MagicCard */}
       <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0">
         <div className="absolute inset-0 bg-black" />
@@ -184,7 +186,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
       {/* Results */}
       <MagicCard className="p-0 rounded-2xl border-0">
         <div className="p-4 sm:p-6 bg-black">
-        {!filteredArtists.length ? (
+        {isLoading ? (
           // Loading state
           <div className="space-y-4">
             {[...Array(12)].map((_, i) => (
@@ -241,7 +243,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
               )}
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6">
               {paginatedArtists.map((artist) => (
                 <ArtistCard
                   key={artist._id}

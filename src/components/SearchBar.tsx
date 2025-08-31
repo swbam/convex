@@ -190,50 +190,7 @@ export function SearchBar({
               ✕
             </button>
           )}
-          
-          <div className="relative">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="h-6 w-6 p-0 text-zinc-400 hover:text-white bg-transparent border-none cursor-pointer"
-            >
-              ⚙️
-            </button>
-            
-            {showFilters && (
-              <div className="absolute right-0 top-8 z-50 min-w-[8rem] rounded-xl border border-border bg-black/95 backdrop-blur-xl p-2 shadow-2xl">
-                <div className="px-2 py-1.5 text-sm font-semibold text-foreground">Search Type</div>
-                <div className="w-full text-left px-2 py-1.5 text-sm rounded-lg border-none bg-accent/30 cursor-default text-muted-foreground">
-                  Artists Only (enforced)
-                </div>
-                <div className="-mx-1 my-2 h-px bg-border"></div>
-                <div className="px-2 py-1.5 text-sm font-semibold text-foreground">Sort By</div>
-                <button 
-                  onClick={() => { setSortBy('relevance'); setShowFilters(false); }}
-                  className={`w-full text-left px-2 py-1.5 text-sm rounded-lg hover:bg-accent border-none bg-transparent cursor-pointer transition-colors ${sortBy === 'relevance' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  Relevance
-                </button>
-                <button 
-                  onClick={() => { setSortBy('popularity'); setShowFilters(false); }}
-                  className={`w-full text-left px-2 py-1.5 text-sm rounded-lg hover:bg-accent border-none bg-transparent cursor-pointer transition-colors ${sortBy === 'popularity' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  Popularity
-                </button>
-                <button 
-                  onClick={() => { setSortBy('alphabetical'); setShowFilters(false); }}
-                  className={`w-full text-left px-2 py-1.5 text-sm rounded-lg hover:bg-accent border-none bg-transparent cursor-pointer transition-colors ${sortBy === 'alphabetical' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  Alphabetical
-                </button>
-                <button 
-                  onClick={() => { setSortBy('recent'); setShowFilters(false); }}
-                  className={`w-full text-left px-2 py-1.5 text-sm rounded-lg hover:bg-accent border-none bg-transparent cursor-pointer transition-colors ${sortBy === 'recent' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  Most Recent
-                </button>
-              </div>
-            )}
-          </div>
+          {/* Filters temporarily removed for a cleaner desktop nav */}
         </div>
       </div>
 

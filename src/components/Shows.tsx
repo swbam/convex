@@ -3,10 +3,10 @@ import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { ShowCard } from './ShowCard';
-import { Search, Calendar, MapPin, Filter, TrendingUp, Music, Sparkles } from 'lucide-react';
+import { Search, Calendar, MapPin, Filter, TrendingUp, Music } from 'lucide-react';
 import { MagicCard } from './ui/magic-card';
 import { BorderBeam } from './ui/border-beam';
-import { ShimmerButton } from './ui/shimmer-button';
+// import { ShimmerButton } from './ui/shimmer-button';
 
 interface ShowsProps {
   onShowClick: (showId: Id<'shows'>, slug?: string) => void;
@@ -21,22 +21,25 @@ export function Shows({ onShowClick }: ShowsProps) {
   const pageSize = 18;
 
   // Fetch shows based on filters
-  const allShows = useQuery(
+  const allShowsRaw = useQuery(
     api.shows.getAll, 
     { 
       limit: 500,
       status: statusFilter === 'all' ? undefined : statusFilter
     }
-  ) || [];
+  );
+  const isLoading = allShowsRaw === undefined;
+  const allShows = React.useMemo(() => allShowsRaw || [], [allShowsRaw]);
 
   const searchResults = useQuery(
-    searchQuery.length > 2 ? api.shows.searchShows : "skip",
-    searchQuery.length > 2 ? { query: searchQuery, limit: 50 } : "skip"
+    // Convex pattern: pass "skip" by narrowing type with conditional
+    searchQuery.length > 2 ? api.shows.searchShows : ("skip" as any),
+    searchQuery.length > 2 ? { query: searchQuery, limit: 50 } : ("skip" as any)
   );
 
   const cityShows = useQuery(
-    cityFilter ? api.shows.getByCity : "skip",
-    cityFilter ? { city: cityFilter, limit: 50 } : "skip"
+    cityFilter ? api.shows.getByCity : ("skip" as any),
+    cityFilter ? { city: cityFilter, limit: 50 } : ("skip" as any)
   );
 
   // Get unique cities for filter dropdown
@@ -89,7 +92,7 @@ export function Shows({ onShowClick }: ShowsProps) {
   const completedCount = allShows.filter(s => s.status === 'completed').length;
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10">
+    <div className="space-y-4 sm:space-y-8 relative z-10">
       {/* Enhanced Header with MagicCard */}
       <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0">
         <div className="absolute inset-0 bg-black" />
@@ -196,7 +199,7 @@ export function Shows({ onShowClick }: ShowsProps) {
       {/* Results */}
       <MagicCard className="p-0 rounded-2xl border-0">
         <div className="p-4 sm:p-6 bg-black">
-        {!allShows.length ? (
+        {isLoading ? (
           // Loading state
           <div className="space-y-4">
             {[...Array(8)].map((_, i) => (
@@ -255,7 +258,7 @@ export function Shows({ onShowClick }: ShowsProps) {
               )}
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6">
               {paginatedShows.map((show) => (
                 <ShowCard
                   key={show._id}

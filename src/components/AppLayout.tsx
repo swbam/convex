@@ -9,7 +9,9 @@ import { SignOutButton } from '../SignOutButton'
 import { MagicCard } from './ui/magic-card'
 import { BorderBeam } from './ui/border-beam'
 import { Footer } from './Footer'
-import { Home, Mic, Music, Settings, Menu, X } from 'lucide-react'
+import { MobileBottomNav } from './MobileBottomNav'
+import { PageContainer } from './PageContainer'
+import { Home, Mic, Music, Menu, X } from 'lucide-react'
 
 interface AppLayoutProps {
   children?: React.ReactNode
@@ -28,7 +30,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const { user, isSignedIn } = useUser()
 
   return (
-    <div className="flex h-screen bg-transparent text-foreground">
+    <div className="flex min-h-dvh bg-transparent text-foreground supports-[overflow:clip]:overflow-clip overflow-x-hidden">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
@@ -37,10 +39,10 @@ export function AppLayout({ children }: AppLayoutProps) {
         />
       )}
       
-      {/* Enhanced Magic UI Sidebar - Mobile Optimized */}
+      {/* Mobile-only Sidebar (hidden on desktop for centered layout) */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-72 sm:w-80 lg:w-64 transform transition-transform duration-300 ease-in-out
-        lg:translate-x-0 lg:static lg:inset-0
+        fixed inset-y-0 left-0 z-50 w-72 sm:w-80 transform transition-transform duration-300 ease-in-out
+        lg:hidden
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="h-full rounded-none border-r border-white/10 bg-transparent backdrop-blur-sm">
@@ -154,55 +156,59 @@ export function AppLayout({ children }: AppLayoutProps) {
       </div>
       
       {/* Enhanced Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
-        {/* Enhanced Top Header with Magic UI */}
-        <div className="rounded-none border-b border-white/10 bg-transparent backdrop-blur-sm">
-          <header className="px-4 sm:px-6 py-4">
-            <div className="flex items-center justify-between">
-              {/* Search Bar - Only on show/artist pages */}
-              {(location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists')) && (
-                <div className="flex-1 max-w-lg mr-2 sm:mr-4">
-                  <SearchBar onResultClick={(type: string, id: string, slug?: string) => {
-                     if (type === 'artist') {
-                       const urlParam = slug || id;
-                       void navigate(`/artists/${urlParam}`)
-                     } else if (type === 'show') {
-                       const urlParam = slug || id;
-                       void navigate(`/shows/${urlParam}`)
-                     }
-                   }} />
+      <div className="flex-1 flex flex-col overflow-hidden lg:ml-0 min-w-0 w-full">
+        {/* Desktop top navigation */}
+        <div className="border-b border-white/10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <header className="px-4 sm:px-6 lg:px-8 xl:px-12 h-14 flex items-center">
+            <div className="mx-auto w-full max-w-page-full flex items-center gap-4">
+              <button onClick={(e)=>{e.preventDefault(); void navigate('/')}} className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center">
+                  <Music className="h-4 w-4 text-background" />
                 </div>
-              )}
-              
-              {/* Right Side - Settings and Mobile Menu */}
-              <div className="flex items-center space-x-2">
-                <MagicCard className="hidden sm:block rounded-lg bg-accent/20">
-                  <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground transition-colors">
-                    <Settings className="h-4 w-4" />
-                  </button>
-                </MagicCard>
-                
-                {/* Mobile Menu Button - Right Side */}
-                <button 
-                  className="lg:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                  onClick={() => setSidebarOpen(true)}
-                >
-                  <Menu className="h-5 w-5" />
-                </button>
+                <span className="hidden md:inline text-lg font-bold">TheSet</span>
+              </button>
+
+              <nav className="hidden md:flex items-center gap-2">
+                <button onClick={()=>void navigate('/')} className={`px-3 py-1.5 rounded-md text-sm ${location.pathname==='/'?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Home</button>
+                <button onClick={()=>void navigate('/artists')} className={`px-3 py-1.5 rounded-md text-sm ${location.pathname.startsWith('/artists')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Artists</button>
+                <button onClick={()=>void navigate('/shows')} className={`px-3 py-1.5 rounded-md text-sm ${location.pathname.startsWith('/shows')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Shows</button>
+                <button onClick={()=>void navigate('/trending')} className={`px-3 py-1.5 rounded-md text-sm ${location.pathname.startsWith('/trending')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Trending</button>
+              </nav>
+
+              <div className="flex-1" />
+
+              {/* Global search */}
+              <div className="hidden md:block w-full max-w-md">
+                <SearchBar onResultClick={(type: string, id: string, slug?: string) => {
+                  if (type === 'artist') {
+                    const urlParam = slug || id;
+                    void navigate(`/artists/${urlParam}`)
+                  } else if (type === 'show') {
+                    const urlParam = slug || id;
+                    void navigate(`/shows/${urlParam}`)
+                  }
+                }} />
               </div>
+
+              {/* Mobile menu button */}
+              <button 
+                className="md:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <Menu className="h-5 w-5" />
+              </button>
             </div>
           </header>
         </div>
         
         {/* Main Content Area with Enhanced Background */}
-        <main className="flex-1 overflow-y-auto bg-transparent flex flex-col">
-          <div className="flex-1">
-            <div className="p-4 sm:p-6">
+        <main className="flex-1 overflow-y-auto bg-transparent flex flex-col min-w-0">
+          <div className="flex-1 min-w-0">
+            <PageContainer variant={location.pathname === '/' || location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists') ? 'wide' : 'narrow'}>
               <SyncProgress />
               {location.pathname === '/' ? (
                 <PublicDashboard 
                   onArtistClick={(artistId) => {
-                    // Navigate using the artist slug for SEO-friendly URLs
                     void navigate(`/artists/${artistId}`)
                   }}
                   onShowClick={(showId) => {
@@ -211,20 +217,23 @@ export function AppLayout({ children }: AppLayoutProps) {
                   onSignInRequired={() => {
                     void navigate('/signin')
                   }}
-                  navigate={navigate}
+                  navigate={(path: string) => { void navigate(path) }}
                 />
               ) : (
                 children
               )}
-            </div>
+            </PageContainer>
           </div>
-          
-          {/* Footer */}
-          <Footer />
+
+          {/* Footer (desktop only to avoid bottom-nav overlap) */}
+          <div className="hidden sm:block">
+            <Footer />
+          </div>
         </main>
       </div>
       
       <Toaster />
+      <MobileBottomNav />
     </div>
   )
 }

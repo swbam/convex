@@ -3,7 +3,7 @@
 import { motion, useMotionTemplate, useMotionValue } from "framer-motion";
 import React, { useCallback, useEffect, useRef } from "react";
 
-import { cn } from "@/lib/utils";
+import { cn } from "../../lib/utils";
 
 interface MagicCardProps {
   children?: React.ReactNode;
@@ -13,6 +13,7 @@ interface MagicCardProps {
   gradientOpacity?: number;
   gradientFrom?: string;
   gradientTo?: string;
+  onClick?: React.MouseEventHandler<HTMLDivElement>;
 }
 
 export function MagicCard({
@@ -23,6 +24,7 @@ export function MagicCard({
   gradientOpacity = 0.8,
   gradientFrom = "#ffffff",
   gradientTo = "#ffffff",
+  onClick,
 }: MagicCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const mouseX = useMotionValue(-gradientSize);
@@ -79,6 +81,7 @@ export function MagicCard({
     <div
       ref={cardRef}
       className={cn("group relative rounded-[inherit]", className)}
+      onClick={onClick}
     >
       <motion.div
         className="pointer-events-none absolute inset-0 rounded-[inherit] bg-border duration-300 group-hover:opacity-100"
