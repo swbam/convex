@@ -350,9 +350,9 @@ function PremiumShowCard({ show, onArtistClick }: {
   return (
     <MagicCard
       className="flex-shrink-0 w-72 group relative transition-all duration-300 ease-out active:scale-[0.98] cursor-pointer p-0 overflow-hidden border-0 touch-manipulation"
-      gradientColor="#ffffff"
-      gradientOpacity={0.08}
-      gradientSize={300}
+      gradientColor="#000000"
+      gradientOpacity={0}
+      gradientSize={0}
     >
       {/* Large Artist Image at Top - Matching Artist Card Style */}
       <div className="relative w-full h-40 overflow-hidden">
@@ -363,7 +363,7 @@ function PremiumShowCard({ show, onArtistClick }: {
               alt={show.artistName}
               className="w-full h-full object-cover opacity-85"
             />
-            <div className="absolute inset-0 bg-black/60" />
+
           </>
         ) : (
           <div className="w-full h-full bg-accent/20 flex items-center justify-center">
@@ -435,9 +435,9 @@ function PremiumArtistCard({ artist, onClick }: {
   return (
     <MagicCard 
       className="flex-shrink-0 w-72 group relative transition-all duration-300 ease-out active:scale-[0.98] cursor-pointer p-0 overflow-hidden border-0 touch-manipulation"
-      gradientColor="#ffffff"
-      gradientOpacity={0.08}
-      gradientSize={300}
+      gradientColor="#000000"
+      gradientOpacity={0}
+      gradientSize={0}
     >
       {/* Large Artist Image at Top - Matching Artist Card Style */}
       <div className="relative w-full h-40 overflow-hidden">
@@ -448,7 +448,7 @@ function PremiumArtistCard({ artist, onClick }: {
               alt={artist.name}
               className="w-full h-full object-cover opacity-85"
             />
-            <div className="absolute inset-0 bg-black/60" />
+
           </>
         ) : (
           <div className="w-full h-full bg-accent/20 flex items-center justify-center">

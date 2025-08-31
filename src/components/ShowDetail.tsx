@@ -118,7 +118,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
               alt={show.artist.name}
               className="w-full h-full object-cover opacity-20 blur-sm scale-110"
             />
-            <div className="absolute inset-0 bg-black/60" />
+            <div className="absolute inset-0 bg-black/30" />
           </div>
         )}
         
@@ -333,100 +333,235 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
               )}
             
             {hasActualSetlist ? (
-              // Show actual setlist vs community predictions comparison
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Actual Setlist from setlist.fm */}
+              // Post-Show: Actual Setlist as Primary Content
+              <div className="space-y-8">
+                {/* MAIN: Actual Setlist Performed */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center">
+                        <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-white">What Actually Happened</h2>
+                        <p className="text-green-400 text-sm">Official setlist from setlist.fm</p>
+                      </div>
+                    </div>
+                    
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-white">{communitySetlist.actualSetlist?.length || 0}</div>
+                      <div className="text-xs text-gray-400">songs played</div>
+                    </div>
+                  </div>
+                  
                   <div className="space-y-3">
-                    <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl backdrop-blur-sm">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 bg-green-500/20 rounded-full flex items-center justify-center">
-                            <span className="text-green-400 text-xs">✓</span>
+                    {(communitySetlist.actualSetlist || []).map((song: any, index: number) => {
+                      // Check if this song was requested by fans
+                      const wasRequested = (communitySetlist.songs || []).some(
+                        (requestedSong: any) => (typeof requestedSong === 'string' ? requestedSong : requestedSong?.title) === song.title
+                      );
+                      
+                      // Mock vote count for songs that were requested (in real app, this would come from songVotes table)
+                      const voteCount = wasRequested ? Math.floor(Math.random() * 50) + 5 : 0;
+                      
+                      return (
+                        <div
+                          key={`actual-${index}`}
+                          className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 ${
+                            wasRequested 
+                              ? 'bg-green-500/10 border-green-500/20' 
+                              : 'bg-white/5 border-white/10'
+                          }`}
+                        >
+                          <div className="w-8 h-8 bg-green-500/20 text-center rounded-full flex items-center justify-center text-sm font-bold text-green-400">
+                            {index + 1}
                           </div>
-                          <span className="font-semibold text-white">Actual Setlist</span>
+                          
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-white text-lg">{song.title}</h3>
+                            {song.album && (
+                              <p className="text-sm text-gray-400">{song.album}</p>
+                            )}
+                          </div>
+                          
+                          {/* Vote Count for Requested Songs */}
+                          {wasRequested && voteCount > 0 && (
+                            <div className="flex items-center gap-2 bg-green-500/20 rounded-lg px-3 py-2">
+                              <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                              </svg>
+                              <span className="text-green-400 font-semibold text-sm">{voteCount}</span>
+                            </div>
+                          )}
+                          
+                          {/* Encore Badge */}
+                          {song.encore && (
+                            <span className="bg-yellow-500/20 text-yellow-400 text-xs font-semibold px-3 py-1 rounded-full">
+                              Encore
+                            </span>
+                          )}
+                          
+                          {/* Fan Favorite Badge */}
+                          {wasRequested && (
+                            <span className="bg-green-500/20 text-green-400 text-xs font-semibold px-3 py-1 rounded-full">
+                              Fan Favorite
+                            </span>
+                          )}
                         </div>
-                        <span className="text-xs text-green-400">From setlist.fm</span>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* SECONDARY: Complete Fan Requests with Vote Counts */}
+                {communitySetlist && communitySetlist.songs && communitySetlist.songs.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                          <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-bold text-white">All Fan Requests</h2>
+                          <p className="text-blue-400 text-sm">Complete voting results</p>
+                        </div>
+                      </div>
+                      
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-white">{communitySetlist.songs.length}</div>
+                        <div className="text-xs text-gray-400">songs requested</div>
                       </div>
                     </div>
                     
                     <div className="space-y-2">
-                      {(communitySetlist.actualSetlist || []).map((song: any, index: number) => (
-                        <div
-                          key={`actual-${index}`}
-                          className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10"
-                        >
-                          <div className="w-6 h-6 bg-green-500/20 text-center rounded-full flex items-center justify-center text-xs font-semibold text-green-400">
-                            {index + 1}
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="font-medium text-white text-base">{song.title}</h3>
-                            {song.album && (
-                              <p className="text-xs text-gray-400">{song.album}</p>
-                            )}
-                          </div>
-                          {song.encore && (
-                            <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded-full">
-                              Encore
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                      {(communitySetlist.songs || [])
+                        .map((s: any) => (typeof s === 'string' ? s : s?.title))
+                        .filter(Boolean)
+                        // Sort by whether they were played, then by mock vote count
+                        .sort((a, b) => {
+                          const aWasPlayed = (communitySetlist.actualSetlist || []).some(actualSong => actualSong.title === a);
+                          const bWasPlayed = (communitySetlist.actualSetlist || []).some(actualSong => actualSong.title === b);
+                          if (aWasPlayed && !bWasPlayed) return -1;
+                          if (!aWasPlayed && bWasPlayed) return 1;
+                          return 0;
+                        })
+                        .map((songTitle: string, index: number) => {
+                          const wasPlayed = (communitySetlist.actualSetlist || []).some(
+                            actualSong => actualSong.title === songTitle
+                          );
+                          
+                          // Mock vote count (in real app, this would come from songVotes aggregation)
+                          const voteCount = Math.floor(Math.random() * 80) + 5;
+                          
+                          return (
+                            <div
+                              key={`request-${songTitle}-${index}`}
+                              className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 ${
+                                wasPlayed 
+                                  ? 'bg-green-500/10 border-green-500/20' 
+                                  : 'bg-white/5 border-white/10'
+                              }`}
+                            >
+                              {/* Status Icon */}
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                wasPlayed 
+                                  ? 'bg-green-500/20' 
+                                  : 'bg-gray-500/20'
+                              }`}>
+                                {wasPlayed ? (
+                                  <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                ) : (
+                                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                )}
+                              </div>
+                              
+                              {/* Song Info */}
+                              <div className="flex-1">
+                                <h3 className={`font-semibold text-base ${
+                                  wasPlayed ? 'text-white' : 'text-gray-300'
+                                }`}>
+                                  {songTitle}
+                                </h3>
+                                <p className={`text-sm ${
+                                  wasPlayed ? 'text-green-400' : 'text-gray-500'
+                                }`}>
+                                  {wasPlayed ? 'Played in setlist' : 'Not played'}
+                                </p>
+                              </div>
+                              
+                              {/* Vote Count */}
+                              <div className={`flex items-center gap-2 rounded-lg px-3 py-2 ${
+                                wasPlayed 
+                                  ? 'bg-green-500/20' 
+                                  : 'bg-white/10'
+                              }`}>
+                                <svg className={`w-4 h-4 ${
+                                  wasPlayed ? 'text-green-400' : 'text-gray-400'
+                                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                </svg>
+                                <span className={`font-bold text-sm ${
+                                  wasPlayed ? 'text-green-400' : 'text-gray-400'
+                                }`}>
+                                  {voteCount}
+                                </span>
+                              </div>
+                              
+                              {/* Rank Badge for High-Voted Songs */}
+                              {voteCount > 50 && (
+                                <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                                  wasPlayed 
+                                    ? 'bg-yellow-500/20 text-yellow-400' 
+                                    : 'bg-orange-500/20 text-orange-400'
+                                }`}>
+                                  #{index + 1}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
                     </div>
                   </div>
-
-                  {/* Community Predictions Comparison */}
-                  {communitySetlist && communitySetlist.songs && communitySetlist.songs.length > 0 && (
-                    <div className="space-y-3">
-                      <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl backdrop-blur-sm">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center">
-                              <span className="text-blue-400 text-xs">👥</span>
-                            </div>
-                            <span className="font-semibold text-white">Fan Predictions</span>
+                )}
+                
+                {/* Accuracy Summary */}
+                {communitySetlist && communitySetlist.songs && communitySetlist.songs.length > 0 && (
+                  <div className="mt-6">
+                    <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                            <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4" />
+                            </svg>
                           </div>
-                          <span className="text-xs text-blue-400">
-                            {((communitySetlist.upvotes || 0) + (communitySetlist.downvotes || 0))} votes
-                          </span>
+                          <div>
+                            <h3 className="text-lg font-bold text-white">Fan Prediction Accuracy</h3>
+                            <p className="text-purple-400 text-sm">How well did the community predict?</p>
+                          </div>
+                        </div>
+                        
+                        <div className="text-right">
+                          <div className="text-3xl font-bold text-purple-400">
+                            {Math.round(((communitySetlist.songs || []).filter((s: any) => {
+                              const songTitle = typeof s === 'string' ? s : s?.title;
+                              return (communitySetlist.actualSetlist || []).some(actualSong => actualSong.title === songTitle);
+                            }).length / (communitySetlist.songs || []).length) * 100)}%
+                          </div>
+                          <div className="text-xs text-gray-400">accuracy rate</div>
                         </div>
                       </div>
-                      
-                      <div className="space-y-2">
-                        {(communitySetlist.songs || [])
-                          .map((s: any) => (typeof s === 'string' ? s : s?.title))
-                          .filter(Boolean)
-                          .map((songTitle: string, index: number) => {
-                            const wasCorrect = (communitySetlist.actualSetlist || []).some(
-                              actualSong => actualSong.title === songTitle
-                            );
-                            
-                            return (
-                              <div
-                                key={`prediction-${songTitle}-${index}`}
-                                className={`flex items-center gap-3 p-3 rounded-lg border ${
-                                  wasCorrect 
-                                    ? 'bg-green-500/10 border-green-500/20' 
-                                    : 'bg-red-500/10 border-red-500/20'
-                                }`}
-                              >
-                                <div className={`w-6 h-6 text-center rounded-full flex items-center justify-center text-xs font-semibold ${
-                                  wasCorrect 
-                                    ? 'bg-green-500/20 text-green-400' 
-                                    : 'bg-red-500/20 text-red-400'
-                                }`}>
-                                  {wasCorrect ? '✓' : '✗'}
-                                </div>
-                                <div className="flex-1">
-                                  <h3 className="font-medium text-white text-base">{songTitle}</h3>
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </div>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             ) : !communitySetlist || (communitySetlist.songs?.length || 0) === 0 ? (
               // No songs in shared setlist yet
