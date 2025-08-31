@@ -7,14 +7,16 @@ import { toast } from "sonner";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { Marquee } from "./ui/marquee";
+import { SearchBar } from "./SearchBar";
 
 interface PublicDashboardProps {
   onArtistClick: (artistSlug: string) => void;
   onShowClick: (showId: Id<"shows">) => void;
   onSignInRequired: () => void;
+  navigate: (path: string) => void;
 }
 
-export function PublicDashboard({ onArtistClick, onSignInRequired }: PublicDashboardProps) {
+export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: PublicDashboardProps) {
   // State for Ticketmaster trending data
   const [trendingShows, setTrendingShows] = useState<any[]>([]);
   const [trendingArtists, setTrendingArtists] = useState<any[]>([]);
@@ -108,13 +110,28 @@ export function PublicDashboard({ onArtistClick, onSignInRequired }: PublicDashb
             <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-white mb-3 sm:mb-4">
               Crowd-Curated
               <br />
-              <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-                Setlists
-              </span>
+              Setlists
             </h1>
-            <p className="text-base sm:text-lg lg:text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-lg lg:text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed mb-6 sm:mb-8">
               Vote on the songs you want to hear at upcoming concerts and see what other fans are predicting.
             </p>
+            
+            {/* Search Input - Homepage Only */}
+            <div className="max-w-md mx-auto">
+              <SearchBar 
+                onResultClick={(type: string, id: string, slug?: string) => {
+                  if (type === 'artist') {
+                    const urlParam = slug || id;
+                    navigate(`/artists/${urlParam}`)
+                  } else if (type === 'show') {
+                    const urlParam = slug || id;
+                    navigate(`/shows/${urlParam}`)
+                  }
+                }} 
+                placeholder="Search artists, shows, venues..."
+                className="w-full"
+              />
+            </div>
           </div>
 
           {/* Bottom Marquee - Artists sliding left to right */}
