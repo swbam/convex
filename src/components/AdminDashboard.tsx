@@ -13,7 +13,7 @@ export function AdminDashboard() {
 
   return (
     <div className="container mx-auto px-6 py-8 space-y-8">
-      <div className="dashboard-card">
+      <div className="bg-black rounded-2xl p-6 border border-white/10">
         <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
 
         {!stats ? (
@@ -32,7 +32,7 @@ export function AdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Flagged Content */}
-        <div className="dashboard-card">
+        <div className="bg-black rounded-2xl p-6 border border-white/10">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Flagged Content</h2>
             <div className="text-sm text-muted-foreground">{pendingFlags.length} pending</div>
@@ -67,7 +67,7 @@ export function AdminDashboard() {
         </div>
 
         {/* Users */}
-        <div className="dashboard-card">
+        <div className="bg-black rounded-2xl p-6 border border-white/10">
           <h2 className="text-xl font-semibold mb-4">Users</h2>
           <div className="space-y-2">
             {(users || []).map((u) => (

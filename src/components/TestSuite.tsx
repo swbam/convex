@@ -95,7 +95,7 @@ export function TestSuite() {
             <div className="text-lg font-medium mb-2">
               Results: {passedCount}/{testCount} tests passed
             </div>
-            <div className="w-full bg-muted rounded-full h-2">
+            <div className="w-full bg-black rounded-full h-2">
               <div 
                 className="h-2 rounded-full bg-primary transition-all duration-300"
                 style={{ width: `${(passedCount / testCount) * 100}%` }}
@@ -109,7 +109,7 @@ export function TestSuite() {
             <div key={testName} className="flex items-center justify-between p-3 border rounded-lg">
               <span className="font-medium">{testName}</span>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm ${
-                passed ? "bg-muted text-foreground" : "bg-muted text-muted-foreground"
+                passed ? "bg-black text-foreground" : "bg-black text-muted-foreground"
               }`}>
                 {passed ? "✓" : "✗"}
               </div>

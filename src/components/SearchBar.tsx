@@ -200,7 +200,7 @@ export function SearchBar({
             </button>
             
             {showFilters && (
-              <div className="absolute right-0 top-8 z-50 min-w-[8rem] rounded-xl border border-border bg-background/95 backdrop-blur-xl p-2 shadow-2xl">
+              <div className="absolute right-0 top-8 z-50 min-w-[8rem] rounded-xl border border-border bg-black/95 backdrop-blur-xl p-2 shadow-2xl">
                 <div className="px-2 py-1.5 text-sm font-semibold text-foreground">Search Type</div>
                 <div className="w-full text-left px-2 py-1.5 text-sm rounded-lg border-none bg-accent/30 cursor-default text-muted-foreground">
                   Artists Only (enforced)
@@ -239,7 +239,7 @@ export function SearchBar({
 
       {/* Search Results Dropdown */}
       {isOpen && debouncedQuery.length >= 2 && (
-        <div className="absolute top-full left-0 right-0 mt-2 z-[9999] bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-xl max-h-[70vh] sm:max-h-96">
+        <div className="absolute top-full left-0 right-0 mt-2 z-[9999] bg-black/95 backdrop-blur-xl border border-border shadow-2xl rounded-xl max-h-[70vh] sm:max-h-96">
           <div className="p-0">
             <div className="max-h-96 overflow-y-auto">
               {sortedResults.length > 0 ? (

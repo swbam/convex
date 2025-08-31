@@ -134,7 +134,7 @@ export function ShowCard({
   }
 
   return (
-    <div className="halo-card group cursor-pointer p-0 transition-all duration-300 hover:scale-[1.01]">
+    <div className="bg-black rounded-2xl border border-white/10 group cursor-pointer p-0 transition-all duration-300 hover:scale-[1.01]">
       {/* Halo-style gradient overlay */}
 
       {/* Enhanced Artist Image Background */}

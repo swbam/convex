@@ -3,7 +3,7 @@ import { Music, Heart, Github, Twitter, Instagram, Mail } from 'lucide-react'
 
 export function Footer() {
   return (
-    <footer className="w-full bg-background border-t border-white/10 mt-auto">
+    <footer className="w-full bg-transparent border-t border-white/10 mt-auto">
       <div className="container mx-auto px-4 sm:px-6 py-12 sm:py-16">
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
@@ -53,21 +53,18 @@ export function Footer() {
             </nav>
           </div>
 
-          {/* Community */}
+          {/* Support */}
           <div className="space-y-6">
-            <h3 className="font-semibold text-foreground text-lg">Community</h3>
+            <h3 className="font-semibold text-foreground text-lg">Support</h3>
             <nav className="space-y-3">
-              <a href="/leaderboard" className="block text-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
-                Leaderboard
-              </a>
-              <a href="/about" className="block text-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
-                About Us
-              </a>
-              <a href="/blog" className="block text-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
-                Blog
+              <a href="/help" className="block text-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
+                Help Center
               </a>
               <a href="/contact" className="block text-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
-                Contact
+                Contact Us
+              </a>
+              <a href="/feedback" className="block text-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
+                Send Feedback
               </a>
             </nav>
           </div>
@@ -81,12 +78,6 @@ export function Footer() {
               </a>
               <a href="/terms" className="block text-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
                 Terms of Service
-              </a>
-              <a href="/cookies" className="block text-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
-                Cookie Policy
-              </a>
-              <a href="/api" className="block text-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
-                API Documentation
               </a>
             </nav>
           </div>
@@ -106,37 +97,14 @@ export function Footer() {
               </span>
             </div>
             
-            {/* Tech Stack */}
-            <div className="flex items-center gap-6 text-sm text-muted-foreground">
-              <span>Powered by</span>
-              <a href="https://convex.dev" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors font-medium">
-                Convex
-              </a>
-              <span className="w-1 h-1 bg-muted-foreground rounded-full"></span>
-              <a href="https://clerk.dev" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors font-medium">
-                Clerk
-              </a>
-              <span className="w-1 h-1 bg-muted-foreground rounded-full"></span>
-              <a href="https://vercel.com" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors font-medium">
-                Vercel
-              </a>
+            {/* Simple Brand */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Music className="h-4 w-4" />
+              <span>TheSet - Concert Setlist Platform</span>
             </div>
           </div>
           
-          {/* Additional Links */}
-          <div className="mt-6 pt-6 border-t border-white/5 text-center">
-            <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-muted-foreground">
-              <a href="/sitemap" className="hover:text-foreground transition-colors">Sitemap</a>
-              <span className="w-1 h-1 bg-muted-foreground rounded-full"></span>
-              <a href="/accessibility" className="hover:text-foreground transition-colors">Accessibility</a>
-              <span className="w-1 h-1 bg-muted-foreground rounded-full"></span>
-              <a href="/security" className="hover:text-foreground transition-colors">Security</a>
-              <span className="w-1 h-1 bg-muted-foreground rounded-full"></span>
-              <a href="/status" className="hover:text-foreground transition-colors">System Status</a>
-              <span className="w-1 h-1 bg-muted-foreground rounded-full"></span>
-              <span>v1.0.0</span>
-            </div>
-          </div>
+
         </div>
       </div>
     </footer>
