@@ -373,14 +373,7 @@ export const getUpcomingShows = internalQuery({
   },
 });
 
-export const markCompleted = internalMutation({
-  args: { showId: v.id("shows") },
-  handler: async (ctx, args) => {
-    await ctx.db.patch(args.showId, {
-      status: "completed",
-    });
-  },
-});
+
 
 export const getByArtistAndDateInternal = internalQuery({
   args: {

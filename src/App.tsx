@@ -78,7 +78,9 @@ function App() {
     if (location.pathname.startsWith('/artists/') && artistBySlug === null) {
       const interval = setInterval(() => {
         // Force a re-render which will re-query
-        window.location.reload();
+        if (typeof window !== 'undefined') {
+          window.location.reload();
+        }
       }, 3000); // Check every 3 seconds
       
       return () => clearInterval(interval);
