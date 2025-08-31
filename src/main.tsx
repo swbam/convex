@@ -20,7 +20,7 @@ if (!convexUrl || !publishableKey) {
 
   createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
-      <ClerkProvider publishableKey={publishableKey}>
+      <ClerkProvider publishableKey={publishableKey} afterSignOutUrl="/">
         <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
           <RouterProvider router={router} />
         </ConvexProviderWithClerk>
