@@ -58,31 +58,34 @@ export function SignInForm() {
   return (
     <div className="w-full">
       <form
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-3 sm:gap-4"
         onSubmit={handleSubmit}
       >
         <input
-          className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-400 focus:border-primary focus:outline-none"
+          className="px-3 sm:px-4 py-2.5 sm:py-3 bg-zinc-800 border border-zinc-700 rounded-lg sm:rounded-xl text-responsive-sm placeholder-zinc-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all touch-target"
           type="email"
           name="email"
           placeholder="Email"
           required
+          autoComplete="email"
+          inputMode="email"
         />
         <input
-          className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-400 focus:border-primary focus:outline-none"
+          className="px-3 sm:px-4 py-2.5 sm:py-3 bg-zinc-800 border border-zinc-700 rounded-lg sm:rounded-xl text-responsive-sm placeholder-zinc-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all touch-target"
           type="password"
           name="password"
           placeholder="Password"
           required
+          autoComplete={flow === "signIn" ? "current-password" : "new-password"}
         />
         <button 
-          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50" 
+          className="px-4 sm:px-6 py-2.5 sm:py-3 bg-primary text-primary-foreground rounded-lg sm:rounded-xl hover:bg-primary/90 active:bg-primary/80 transition-all disabled:opacity-50 font-medium text-responsive-sm sm:text-responsive-base touch-target" 
           type="submit" 
           disabled={submitting}
         >
           {submitting ? "..." : (flow === "signIn" ? "Sign in" : "Sign up")}
         </button>
-        <div className="text-center text-sm text-zinc-400">
+        <div className="text-center text-responsive-xs sm:text-responsive-sm text-zinc-400 mt-1 sm:mt-2">
           <span>
             {flow === "signIn"
               ? "Don't have an account? "
@@ -90,7 +93,7 @@ export function SignInForm() {
           </span>
           <button
             type="button"
-            className="text-primary hover:text-primary/80 hover:underline font-medium cursor-pointer"
+            className="text-primary hover:text-primary/80 hover:underline font-medium cursor-pointer touch-target inline-block py-1"
             onClick={() => setFlow(flow === "signIn" ? "signUp" : "signIn")}
           >
             {flow === "signIn" ? "Sign up instead" : "Sign in instead"}

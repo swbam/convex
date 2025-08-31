@@ -72,18 +72,18 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
   };
 
   return (
-    <div className="container mx-auto px-6 py-8 space-y-10 relative z-10">
+    <div className="w-full space-y-6 sm:space-y-8 lg:space-y-10 relative z-10">
       {/* Apple-Level Hero Section with Dynamic Marquee */}
       <div className="relative overflow-hidden">
         {/* Dynamic Marquee Banners */}
-        <div className="relative h-32 sm:h-40 lg:h-48 flex flex-col justify-center space-y-2 sm:space-y-4">
+        <div className="relative min-h-[280px] sm:min-h-[320px] lg:min-h-[400px] flex flex-col justify-center space-y-3 sm:space-y-4 py-4 sm:py-6">
           {/* Top Marquee - Artists sliding right to left */}
           <div className="relative">
             <Marquee className="[--duration:25s] [--gap:2rem]" reverse={false}>
               {trendingArtists.slice(0, 10).map((artist, index) => (
                 <div
                   key={`top-${artist.name}-${index}`}
-                  className="flex items-center space-x-3 px-6 py-2 bg-white/5 backdrop-blur-sm rounded-full border border-white/10"
+                  className="flex items-center space-x-2 sm:space-x-3 px-4 sm:px-6 py-1.5 sm:py-2 bg-white/5 backdrop-blur-sm rounded-full border border-white/10"
                 >
                   {artist.images?.[0] && (
                     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-white/10">
@@ -107,13 +107,13 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
 
           {/* Center Content */}
           <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-white mb-3 sm:mb-4">
+            <h1 className="text-responsive-3xl sm:text-responsive-4xl font-bold tracking-tight text-white mb-2 sm:mb-3 lg:mb-4">
               Crowd-Curated
-              <br />
-              Setlists
+              <br className="sm:hidden" />
+              <span className="hidden sm:inline"> </span>Setlists
             </h1>
-            <p className="text-base sm:text-lg lg:text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed mb-6 sm:mb-8">
-              Vote on the songs you want to hear at upcoming concerts and see what other fans are predicting.
+            <p className="text-responsive-sm sm:text-responsive-base lg:text-responsive-lg text-gray-300 max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto leading-relaxed mb-4 sm:mb-6 lg:mb-8">
+              Vote on songs you want to hear at concerts<span className="hidden sm:inline"> and see what other fans are predicting</span>.
             </p>
             
             {/* Search Input - Homepage Only */}
@@ -140,7 +140,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
               {trendingArtists.slice(10, 20).map((artist, index) => (
                 <div
                   key={`bottom-${artist.name}-${index}`}
-                  className="flex items-center space-x-3 px-6 py-2 bg-white/5 backdrop-blur-sm rounded-full border border-white/10"
+                  className="flex items-center space-x-2 sm:space-x-3 px-4 sm:px-6 py-1.5 sm:py-2 bg-white/5 backdrop-blur-sm rounded-full border border-white/10"
                 >
                   {artist.images?.[0] && (
                     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-white/10">
@@ -167,8 +167,8 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-950/5 to-transparent pointer-events-none"></div>
       </div>
 
-      {/* Horizontal Scrolling Sections */}
-      <div className="space-y-8 sm:space-y-16">
+      {/* Main Content Sections */}
+      <div className="space-y-6 sm:space-y-10 lg:space-y-16 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12">
         {/* Trending Shows - Scrolling Left */}
         <div>
           <div className="flex items-center gap-3 mb-6">
