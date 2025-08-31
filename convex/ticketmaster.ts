@@ -168,7 +168,8 @@ export const getTrendingShows = action({
     if (!apiKey) return [];
 
     const limit = args.limit || 50;
-    const url = `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=${limit}&sort=date,asc&apikey=${apiKey}`;
+    // Prioritize stadium and arena shows with higher capacity venues
+    const url = `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=${limit}&sort=relevance,desc&segmentName=Music&genreId=KnvZfZ7vAeA&subGenreId=KZazBEonSMnZiA&apikey=${apiKey}`;
 
     try {
       const response = await fetch(url);
@@ -186,7 +187,21 @@ export const getTrendingShows = action({
         venueCountry: String(event._embedded?.venues?.[0]?.country?.name || ''),
         date: String(event.dates?.start?.localDate || ''),
         startTime: event.dates?.start?.localTime ? String(event.dates.start.localTime) : undefined,
-        artistImage: event._embedded?.attractions?.[0]?.images?.[0]?.url ? String(event._embedded.attractions[0].images[0].url) : undefined,
+        artistImage: (() => {
+          const images = event._embedded?.attractions?.[0]?.images || [];
+          // Find highest quality image (16_9 ratio, then largest width)
+          const bestImage = images
+            .filter((img: any) => img.url && img.width && img.height)
+            .sort((a: any, b: any) => {
+              // Prefer 16:9 ratio images
+              const aRatio = Math.abs((a.width / a.height) - (16/9));
+              const bRatio = Math.abs((b.width / b.height) - (16/9));
+              if (Math.abs(aRatio - bRatio) > 0.1) return aRatio - bRatio;
+              // Then by width (higher quality)
+              return b.width - a.width;
+            })[0];
+          return bestImage?.url ? String(bestImage.url) : undefined;
+        })(),
         ticketUrl: event.url ? String(event.url) : undefined,
         priceRange: event.priceRanges?.[0] ? `$${event.priceRanges[0].min}-${event.priceRanges[0].max}` : undefined,
         status: String(event.dates?.status?.code || 'unknown'),
@@ -214,7 +229,8 @@ export const getTrendingArtists = action({
     if (!apiKey) return [];
 
     const limit = args.limit || 30;
-    const url = `https://app.ticketmaster.com/discovery/v2/attractions.json?classificationName=music&size=${limit}&sort=upcoming,desc&apikey=${apiKey}`;
+    // Prioritize top-tier artists with the most upcoming events and stadium shows
+    const url = `https://app.ticketmaster.com/discovery/v2/attractions.json?classificationName=music&size=${limit}&sort=upcoming,desc&segmentName=Music&genreId=KnvZfZ7vAeA&apikey=${apiKey}`;
 
     try {
       const response = await fetch(url);
@@ -227,7 +243,22 @@ export const getTrendingArtists = action({
         ticketmasterId: String(attraction.id || ''),
         name: String(attraction.name || ''),
         genres: attraction.classifications?.[0]?.genre?.name ? [String(attraction.classifications[0].genre.name)] : [],
-        images: (attraction.images?.map((img: any) => String(img.url)) || []),
+        images: (() => {
+          const images = attraction.images || [];
+          // Sort by quality and return top 3 highest quality images
+          return images
+            .filter((img: any) => img.url && img.width && img.height)
+            .sort((a: any, b: any) => {
+              // Prefer 16:9 ratio images first
+              const aRatio = Math.abs((a.width / a.height) - (16/9));
+              const bRatio = Math.abs((b.width / b.height) - (16/9));
+              if (Math.abs(aRatio - bRatio) > 0.1) return aRatio - bRatio;
+              // Then by width (higher quality)
+              return b.width - a.width;
+            })
+            .slice(0, 3)
+            .map((img: any) => String(img.url));
+        })(),
         upcomingEvents: Number(attraction.upcomingEvents?._total || 0),
         url: attraction.url ? String(attraction.url) : undefined,
       }));
