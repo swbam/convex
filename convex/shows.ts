@@ -141,7 +141,7 @@ export const getBySlugOrId = query({
     const bySlug = await ctx.db
       .query("shows")
       .withIndex("by_slug", (q) => q.eq("slug", args.key))
-      .unique();
+      .first(); // Use .first() instead of .unique() to handle duplicates gracefully
 
     let showDoc = bySlug;
     if (!showDoc) {
@@ -441,13 +441,25 @@ export const createFromTicketmaster = internalMutation({
     ticketUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Check for existing show by multiple criteria to avoid duplicates
     const existing = await ctx.db
       .query("shows")
       .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
       .filter((q) => q.eq(q.field("date"), args.date))
+      .filter((q) => q.eq(q.field("venueId"), args.venueId))
       .first();
 
-    if (existing) return existing._id;
+    if (existing) {
+      // Update existing show with new data if needed
+      if (args.ticketmasterId && !existing.ticketmasterId) {
+        await ctx.db.patch(existing._id, {
+          ticketmasterId: args.ticketmasterId,
+          ticketUrl: args.ticketUrl,
+          lastSynced: Date.now(),
+        });
+      }
+      return existing._id;
+    }
 
     // Get artist and venue data to generate slug
     const [artist, venue] = await Promise.all([
@@ -527,5 +539,22 @@ export const getByVenueInternal = internalQuery({
       .query("shows")
       .withIndex("by_venue", (q) => q.eq("venueId", args.venueId))
       .collect();
+  },
+});
+
+export const markCompleted = internalMutation({
+  args: { showId: v.id("shows") },
+  handler: async (ctx, args) => {
+    const show = await ctx.db.get(args.showId);
+    if (!show) {
+      throw new Error("Show not found");
+    }
+    
+    await ctx.db.patch(args.showId, {
+      status: "completed",
+      lastSynced: Date.now(),
+    });
+    
+    console.log(`✅ Marked show as completed: ${args.showId}`);
   },
 });

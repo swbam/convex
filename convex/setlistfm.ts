@@ -45,18 +45,29 @@ export const syncActualSetlist = internalAction({
 
       // Take the first matching setlist
       const setlist = setlists[0];
-      const songs: { title: string }[] = [];
+      const songs: { title: string; setNumber: number; encore: boolean; album?: string; duration?: number }[] = [];
 
-      // Extract songs from sets
+      // Extract songs from sets with proper set numbers and encore tracking
       if (setlist.sets && setlist.sets.set) {
+        let setNumber = 1;
         for (const set of setlist.sets.set) {
-          if (set.song) {
+          const isEncore = set.encore === 1 || set.encore === true;
+          
+          if (set.song && Array.isArray(set.song)) {
             for (const song of set.song) {
               if (song.name && !song.name.includes('(with ') && !song.name.includes('Jam')) {
-                songs.push({ title: song.name });
+                songs.push({ 
+                  title: song.name,
+                  setNumber: setNumber,
+                  encore: isEncore,
+                  // Include additional metadata if available
+                  album: song.info?.album || undefined,
+                  duration: song.info?.duration || undefined,
+                });
               }
             }
           }
+          setNumber++;
         }
       }
 
@@ -68,11 +79,7 @@ export const syncActualSetlist = internalAction({
       // Update existing setlist with actual setlist data using internal mutation
       await ctx.runMutation(internal.setlists.updateWithActualSetlist, {
         showId: args.showId,
-        actualSetlist: songs.map(song => ({
-          title: song.title,
-          setNumber: 1, // Default to main set
-          encore: false,
-        })),
+        actualSetlist: songs,
         setlistfmId: setlist.id,
         setlistfmData: setlist, // Store raw setlist.fm data
       });

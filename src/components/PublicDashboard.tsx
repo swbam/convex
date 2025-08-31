@@ -48,6 +48,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
         ticketmasterId: show.ticketmasterId || show._id,
         artistTicketmasterId: show.artist?.ticketmasterId,
         artistName: show.artist?.name || 'Unknown Artist',
+        artist: show.artist, // Include full artist data
         venueName: show.venue?.name || 'Unknown Venue',
         venueCity: show.venue?.city || '',
         venueCountry: show.venue?.country || '',
@@ -471,11 +472,11 @@ function PremiumShowCard({ show, onArtistClick }: {
     >
       {/* Large Artist Image at Top - Matching Artist Card Style */}
       <div className="relative w-full h-40 overflow-hidden">
-        {show.artistImage ? (
+        {(show.artist?.images?.[0] || show.artistImage) ? (
           <>
             <img 
-              src={show.artistImage} 
-              alt={show.artistName}
+              src={show.artist?.images?.[0] || show.artistImage} 
+              alt={show.artist?.name || show.artistName}
               className="w-full h-full object-cover opacity-85"
             />
 
@@ -483,17 +484,17 @@ function PremiumShowCard({ show, onArtistClick }: {
         ) : (
           <div className="w-full h-full bg-accent/20 flex items-center justify-center">
             <span className="text-foreground font-bold text-2xl">
-              {show.artistName.slice(0, 2).toUpperCase()}
+              {(show.artist?.name || show.artistName).slice(0, 2).toUpperCase()}
             </span>
           </div>
         )}
       </div>
       
-      <div className="relative z-10 p-5" onClick={() => onArtistClick(show.artistTicketmasterId || show.ticketmasterId, show.artistName, [], show.artistImage ? [show.artistImage] : [])}>
+      <div className="relative z-10 p-5" onClick={() => onArtistClick(show.artistTicketmasterId || show.ticketmasterId, show.artist?.name || show.artistName, show.artist?.genres || [], show.artist?.images || (show.artistImage ? [show.artistImage] : []))}>
         {/* Artist Info - Enhanced */}
         <div className="mb-4">
           <h3 className="font-bold text-foreground text-lg mb-2 transition-colors truncate">
-            {show.artistName}
+            {show.artist?.name || show.artistName}
           </h3>
           
           {/* Show Details Below Artist Name */}
