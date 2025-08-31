@@ -29,7 +29,17 @@ export function Shows({ onShowClick }: ShowsProps) {
     }
   );
   const isLoading = allShowsRaw === undefined;
-  const allShows = React.useMemo(() => allShowsRaw || [], [allShowsRaw]);
+  const allShows = React.useMemo(() => {
+    // Deduplicate shows by unique key (artist + venue + date)
+    const showsMap = new Map<string, any>();
+    (allShowsRaw || []).forEach(show => {
+      const key = `${show.artist?.name}-${show.venue?.name}-${show.date}`;
+      if (!showsMap.has(key)) {
+        showsMap.set(key, show);
+      }
+    });
+    return Array.from(showsMap.values());
+  }, [allShowsRaw]);
 
   const searchResults = useQuery(
     // Convex pattern: pass "skip" by narrowing type with conditional

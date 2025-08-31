@@ -12,8 +12,6 @@ export function SignUpPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verificationStep, setVerificationStep] = useState(false);
@@ -28,8 +26,6 @@ export function SignUpPage() {
       const result = await signUp.create({
         emailAddress: email,
         password,
-        firstName,
-        lastName,
       });
 
       if (result.status === "complete") {
@@ -117,39 +113,6 @@ export function SignUpPage() {
 
                 {/* Sign Up Form */}
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Name Fields */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-300">First Name</label>
-                      <div className="relative">
-                        <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                        <input
-                          type="text"
-                          value={firstName}
-                          onChange={(e) => setFirstName(e.target.value)}
-                          placeholder="First name"
-                          required
-                          className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-300">Last Name</label>
-                      <div className="relative">
-                        <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                        <input
-                          type="text"
-                          value={lastName}
-                          onChange={(e) => setLastName(e.target.value)}
-                          placeholder="Last name"
-                          required
-                          className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Email Field */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-300">Email</label>
@@ -192,7 +155,7 @@ export function SignUpPage() {
                   {/* Submit Button */}
                   <ShimmerButton
                     type="submit"
-                    disabled={isSubmitting || !email || !password || !firstName || !lastName}
+                    disabled={isSubmitting || !email || !password}
                     className="w-full bg-primary/20 hover:bg-primary/30 text-white border-primary/30 disabled:opacity-50 disabled:cursor-not-allowed"
                     shimmerColor="#ffffff"
                     shimmerDuration="2s"

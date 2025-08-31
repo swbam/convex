@@ -28,21 +28,56 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
   // Load trending data from database (cached from cron jobs)
   const dbTrendingShows = useQuery(api.trending.getTrendingShows, { limit: 20 });
   const dbTrendingArtists = useQuery(api.trending.getTrendingArtists, { limit: 20 });
+  
+  // Fallback: Load from main tables if trending data is empty
+  const fallbackArtists = useQuery(api.artists.getTrending, { limit: 20 });
+  const fallbackShows = useQuery(api.shows.getUpcoming, { limit: 20 });
 
   useEffect(() => {
-    if (dbTrendingShows) {
+    // Use trending data if available, otherwise use fallback
+    if (dbTrendingShows && dbTrendingShows.length > 0) {
       // Deduplicate shows by artist to avoid showing same artist multiple times
       const uniqueShows = dbTrendingShows.filter((show, index, self) => 
         index === self.findIndex(s => s.artistName === show.artistName)
       );
       setTrendingShows(uniqueShows);
       setIsLoadingShows(false);
+    } else if (fallbackShows) {
+      // Convert fallback shows to trending format
+      const convertedShows = fallbackShows.map(show => ({
+        ticketmasterId: show.ticketmasterId || show._id,
+        artistTicketmasterId: show.artist?.ticketmasterId,
+        artistName: show.artist?.name || 'Unknown Artist',
+        venueName: show.venue?.name || 'Unknown Venue',
+        venueCity: show.venue?.city || '',
+        venueCountry: show.venue?.country || '',
+        date: show.date,
+        startTime: show.startTime,
+        artistImage: show.artist?.images?.[0],
+        ticketUrl: show.ticketUrl,
+        status: show.status,
+      }));
+      setTrendingShows(convertedShows.slice(0, 12));
+      setIsLoadingShows(false);
     }
-    if (dbTrendingArtists) {
+    
+    if (dbTrendingArtists && dbTrendingArtists.length > 0) {
       setTrendingArtists(dbTrendingArtists);
       setIsLoadingArtists(false);
+    } else if (fallbackArtists) {
+      // Convert fallback artists to trending format
+      const convertedArtists = fallbackArtists.map(artist => ({
+        ticketmasterId: artist.ticketmasterId || artist._id,
+        name: artist.name,
+        genres: artist.genres || [],
+        images: artist.images || [],
+        upcomingEvents: artist.upcomingShows || 0,
+        url: artist.url,
+      }));
+      setTrendingArtists(convertedArtists);
+      setIsLoadingArtists(false);
     }
-  }, [dbTrendingShows, dbTrendingArtists]);
+  }, [dbTrendingShows, dbTrendingArtists, fallbackShows, fallbackArtists]);
 
   const handleArtistClick = async (ticketmasterId: string, artistName: string, genres?: string[], images?: string[]) => {
     try {
