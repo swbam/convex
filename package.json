@@ -10,7 +10,9 @@
     "build": "tsc && vite build",
     "build:check": "tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false",
     "lint": "npm run build:check",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:deployment": "node scripts/check-deployment.js",
+    "check:env": "node scripts/check-deployment.js"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.45.0",
