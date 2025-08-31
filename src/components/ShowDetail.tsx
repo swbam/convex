@@ -86,7 +86,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
   const officialSetlist = setlists?.find(s => s.isOfficial);
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8">
+    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10">
       <SEOHead
         title={`${show.artist?.name || 'Artist'} @ ${show.venue?.name || 'Venue'} – ${showDate.toLocaleDateString('en-US')} | TheSet`}
         description={`Details for ${show.artist?.name} at ${show.venue?.name} on ${showDate.toLocaleDateString('en-US')}. View setlists and vote.`}
@@ -95,7 +95,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
       />
       
       {/* Enhanced Back Button */}
-      <MagicCard className="inline-block p-0 rounded-xl border-0 hover:border-white/20">
+              <MagicCard className="inline-block p-0 rounded-xl border-0">
         <button
           onClick={onBack}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all duration-300 px-4 py-2 rounded-xl"
@@ -106,7 +106,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
       </MagicCard>
 
       {/* Enhanced Show Header with MagicCard */}
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 hover:border-white/20">
+      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0">
         {/* Background Image */}
         {show.artist?.images?.[0] && (
           <div className="absolute inset-0 z-0">
@@ -115,7 +115,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
               alt={show.artist.name}
               className="w-full h-full object-cover opacity-20 blur-sm scale-110"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/80" />
+            <div className="absolute inset-0 bg-black/60" />
           </div>
         )}
         
@@ -224,13 +224,13 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
             {/* Artist Image - Mobile Responsive */}
             {show.artist?.images?.[0] && (
               <div className="flex-shrink-0 self-center sm:self-start">
-                <MagicCard className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 xl:w-64 xl:h-64 p-0 rounded-2xl overflow-hidden border-0 hover:border-white/30">
+                <MagicCard className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 xl:w-64 xl:h-64 p-0 rounded-2xl overflow-hidden border-0">
                   <img 
                     src={show.artist.images[0]} 
                     alt={show.artist.name}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                    className="w-full h-full object-cover"
                   />
-                  <BorderBeam size={80} duration={12} className="opacity-0 hover:opacity-40 transition-opacity duration-500" />
+                  <BorderBeam size={80} duration={12} className="opacity-20" />
                 </MagicCard>
               </div>
             )}
@@ -330,27 +330,92 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
               )}
             
             {officialSetlist ? (
-              // Show official setlist (verified from setlist.fm)
-              <div className="space-y-2">
-                <div className="mb-4 p-3 bg-muted/10 border border-muted/20 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-foreground">Official Setlist</span>
-                    <span className="text-xs text-muted-foreground">Verified from setlist.fm</span>
+              // Show official setlist (verified from setlist.fm) with comparison
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Official Setlist */}
+                  <div className="space-y-3">
+                    <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl backdrop-blur-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-green-500/20 rounded-full flex items-center justify-center">
+                            <span className="text-green-400 text-xs">✓</span>
+                          </div>
+                          <span className="font-semibold text-white">Official Setlist</span>
+                        </div>
+                        <span className="text-xs text-green-400">Verified from setlist.fm</span>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {(officialSetlist.songs as any[]).map((songTitle, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10"
+                        >
+                          <div className="w-6 h-6 bg-green-500/20 text-center rounded-full flex items-center justify-center text-xs font-semibold text-green-400">
+                            {index + 1}
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-medium text-white text-base">{typeof songTitle === 'string' ? songTitle : songTitle?.title}</h3>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
+
+                  {/* Community Predictions Comparison */}
+                  {communitySetlist && (
+                    <div className="space-y-3">
+                      <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl backdrop-blur-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center">
+                              <span className="text-blue-400 text-xs">👥</span>
+                            </div>
+                            <span className="font-semibold text-white">Fan Predictions</span>
+                          </div>
+                          <span className="text-xs text-blue-400">
+                            {((communitySetlist.upvotes || 0) + (communitySetlist.downvotes || 0))} votes
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {(communitySetlist.songs || [])
+                          .map((s: any) => (typeof s === 'string' ? s : s?.title))
+                          .filter(Boolean)
+                          .map((songTitle: string, index: number) => {
+                            const wasCorrect = (officialSetlist.songs as any[]).some(
+                              officialSong => (typeof officialSong === 'string' ? officialSong : officialSong?.title) === songTitle
+                            );
+                            
+                            return (
+                              <div
+                                key={`prediction-${songTitle}-${index}`}
+                                className={`flex items-center gap-3 p-3 rounded-lg border ${
+                                  wasCorrect 
+                                    ? 'bg-green-500/10 border-green-500/20' 
+                                    : 'bg-red-500/10 border-red-500/20'
+                                }`}
+                              >
+                                <div className={`w-6 h-6 text-center rounded-full flex items-center justify-center text-xs font-semibold ${
+                                  wasCorrect 
+                                    ? 'bg-green-500/20 text-green-400' 
+                                    : 'bg-red-500/20 text-red-400'
+                                }`}>
+                                  {wasCorrect ? '✓' : '✗'}
+                                </div>
+                                <div className="flex-1">
+                                  <h3 className="font-medium text-white text-base">{songTitle}</h3>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {(officialSetlist.songs as any[]).map((songTitle, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-4 p-3 rounded-lg bg-muted/5 border border-muted/20"
-                  >
-                    <div className="w-6 h-6 bg-primary/20 text-center rounded-full flex items-center justify-center text-xs font-semibold text-primary">
-                      {index + 1}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium text-foreground text-base">{typeof songTitle === 'string' ? songTitle : songTitle?.title}</h3>
-                    </div>
-                  </div>
-                ))}
               </div>
             ) : !communitySetlist || (communitySetlist.songs?.length || 0) === 0 ? (
               // No songs in shared setlist yet

@@ -91,10 +91,10 @@ export function Artists({ onArtistClick }: ArtistsProps) {
   };
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8">
+    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10">
       {/* Enhanced Header with MagicCard */}
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 hover:border-white/20">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple/5 via-background to-blue/5" />
+      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0">
+        <div className="absolute inset-0 bg-black/40" />
         <div className="relative z-10 p-4 sm:p-6 lg:p-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
             <div className="space-y-4">
@@ -126,7 +126,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
       </MagicCard>
 
       {/* Enhanced Search and Filters */}
-      <MagicCard className="p-0 rounded-2xl border-0 hover:border-white/20">
+      <MagicCard className="p-0 rounded-2xl border-0">
         <div className="p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-4 sm:mb-6">
             <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">

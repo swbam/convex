@@ -69,7 +69,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired }: PublicDashb
   };
 
   return (
-    <div className="container mx-auto px-6 py-8 space-y-10">
+    <div className="container mx-auto px-6 py-8 space-y-10 relative z-10">
       {/* Hero Section - Refined */}
       <div className="text-center py-12">
         <h1 className="text-4xl md:text-5xl font-bold gradient-text mb-4 leading-tight">
@@ -320,7 +320,7 @@ function HorizontalScrollingSection({
   );
 }
 
-// Optimized Show Card for horizontal scrolling - Smaller Size
+// Redesigned Show Card to Match Artist Page Style
 function PremiumShowCard({ show, onArtistClick }: {
   show: any;
   onArtistClick: (artistTicketmasterId: string, artistName: string, genres?: string[], images?: string[]) => void;
@@ -337,131 +337,159 @@ function PremiumShowCard({ show, onArtistClick }: {
   if (isToday) dateText = "Tonight";
   else if (isTomorrow) dateText = "Tomorrow";
 
+  // Format time to normal format like "8pm EST"
+  const formatTime = (time: string) => {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'pm' : 'am';
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${displayHour}${minutes !== '00' ? `:${minutes}` : ''}${ampm} EST`;
+  };
+
   return (
     <MagicCard
-      className="flex-shrink-0 w-72 group relative transition-all duration-500 ease-out hover:scale-[1.03] cursor-pointer p-0 overflow-hidden border-0 hover:border-white/20"
+      className="flex-shrink-0 w-72 group relative transition-all duration-300 ease-out active:scale-[0.98] cursor-pointer p-0 overflow-hidden border-0 touch-manipulation"
       gradientColor="#ffffff"
       gradientOpacity={0.08}
       gradientSize={300}
     >
-      {/* Enhanced Artist Image Background */}
-      {show.artistImage && (
-        <div className="absolute inset-0 z-0">
-          <img 
-            src={show.artistImage} 
-            alt={show.artistName}
-            className="w-full h-full object-cover opacity-70 group-hover:opacity-95 transition-all duration-700 ease-out scale-105 group-hover:scale-110"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/85 to-background/20" />
-        </div>
-      )}
+      {/* Large Artist Image at Top - Matching Artist Card Style */}
+      <div className="relative w-full h-40 overflow-hidden">
+        {show.artistImage ? (
+          <>
+            <img 
+              src={show.artistImage} 
+              alt={show.artistName}
+              className="w-full h-full object-cover opacity-85"
+            />
+            <div className="absolute inset-0 bg-black/60" />
+          </>
+        ) : (
+          <div className="w-full h-full bg-accent/20 flex items-center justify-center">
+            <span className="text-foreground font-bold text-2xl">
+              {show.artistName.slice(0, 2).toUpperCase()}
+            </span>
+          </div>
+        )}
+      </div>
       
-      <div className="relative z-10 p-5 h-full flex flex-col justify-between min-h-[240px]">
-        {/* Artist Info - Refined */}
-        <div>
-          <h3 className="text-lg font-bold mb-2 text-white leading-tight line-clamp-2">
+      <div className="relative z-10 p-5" onClick={() => onArtistClick(show.artistTicketmasterId || show.ticketmasterId, show.artistName, [], show.artistImage ? [show.artistImage] : [])}>
+        {/* Artist Info - Enhanced */}
+        <div className="mb-4">
+          <h3 className="font-bold text-foreground text-lg mb-2 transition-colors truncate">
             {show.artistName}
           </h3>
           
-          {/* Show Details - Compact */}
-          <div className="space-y-1.5 mb-4">
-            <div className="flex items-center gap-2 text-gray-300">
+          {/* Show Details Below Artist Name */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 text-muted-foreground">
               <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-              <div className="min-w-0">
-                <div className="font-medium text-xs truncate">{show.venueName}</div>
-                <div className="text-gray-400 text-xs">{show.venueCity}</div>
-              </div>
+              <span className="text-sm font-medium truncate">{show.venueName}</span>
             </div>
             
-            <div className="flex items-center gap-2 text-gray-300">
-              <Calendar className="h-3.5 w-3.5" />
-              <span className="font-medium text-xs">{dateText}</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Calendar className="h-3.5 w-3.5" />
+                <span className="text-sm font-medium">{dateText}</span>
+              </div>
+              
               {show.startTime && (
-                <>
-                  <Clock className="h-3 w-3 ml-1" />
-                  <span className="text-xs">{show.startTime}</span>
-                </>
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  <span className="text-xs font-semibold">{formatTime(show.startTime)}</span>
+                </div>
               )}
+            </div>
+            
+            <div className="text-xs text-muted-foreground">
+              {show.venueCity}
             </div>
           </div>
         </div>
-        
-        {/* Action Button - Smaller & More Refined */}
-        <div>
-          <button
-            onClick={() => onArtistClick(show.artistTicketmasterId || show.ticketmasterId, show.artistName, [], show.artistImage ? [show.artistImage] : [])}
-            className="w-full bg-white/10 border border-white/20 text-white rounded-lg py-2 px-3 text-xs font-medium hover:bg-white/25 hover:border-white/40 transition-all duration-300 ease-out backdrop-blur-sm"
-          >
-            View Artist
-          </button>
-        </div>
+
+        {/* Status Badge */}
+        {isToday && (
+          <div className="inline-flex items-center px-2 py-1 bg-primary/20 text-primary text-xs font-semibold rounded-full">
+            Tonight
+          </div>
+        )}
       </div>
+      
+      <BorderBeam 
+        size={100} 
+        duration={12} 
+        className="opacity-20" 
+        colorFrom="#ffffff" 
+        colorTo="#888888"
+      />
     </MagicCard>
   );
 }
 
-// Optimized Artist Card for horizontal scrolling - Smaller Size
+// Redesigned Artist Card to Match Artist Page Style  
 function PremiumArtistCard({ artist, onClick }: {
   artist: any;
   onClick: () => void;
 }) {
   return (
     <MagicCard 
-      className="flex-shrink-0 w-72 group relative transition-all duration-500 ease-out hover:scale-[1.03] cursor-pointer p-0 overflow-hidden border-0 hover:border-white/20"
+      className="flex-shrink-0 w-72 group relative transition-all duration-300 ease-out active:scale-[0.98] cursor-pointer p-0 overflow-hidden border-0 touch-manipulation"
       gradientColor="#ffffff"
       gradientOpacity={0.08}
       gradientSize={300}
     >
-      <div onClick={onClick} className="w-full h-full">
+      {/* Large Artist Image at Top - Matching Artist Card Style */}
+      <div className="relative w-full h-40 overflow-hidden">
+        {artist.images?.[0] ? (
+          <>
+            <img 
+              src={artist.images[0]} 
+              alt={artist.name}
+              className="w-full h-full object-cover opacity-85"
+            />
+            <div className="absolute inset-0 bg-black/60" />
+          </>
+        ) : (
+          <div className="w-full h-full bg-accent/20 flex items-center justify-center">
+            <span className="text-foreground font-bold text-2xl">
+              {artist.name.slice(0, 2).toUpperCase()}
+            </span>
+          </div>
+        )}
+      </div>
       
-      {/* Artist Image Background */}
-      {artist.images?.[0] && (
-        <div className="absolute inset-0 z-0">
-          <img 
-            src={artist.images[0]} 
-            alt={artist.name}
-            className="w-full h-full object-cover opacity-70 group-hover:opacity-95 transition-all duration-700 ease-out scale-105 group-hover:scale-110"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/85 to-background/20" />
-        </div>
-      )}
-      
-      <div className="relative z-10 p-5 h-full flex flex-col justify-between min-h-[240px]">
-        {/* Artist Info - Refined */}
-        <div>
-          <h3 className="text-lg font-bold mb-2 text-white leading-tight line-clamp-2 group-hover:text-primary transition-colors duration-300">
+      <div className="relative z-10 p-5" onClick={onClick}>
+        {/* Artist Info - Enhanced */}
+        <div className="mb-4">
+          <h3 className="font-bold text-foreground text-lg mb-2 transition-colors truncate">
             {artist.name}
           </h3>
           
-          {artist.genres && artist.genres.length > 0 && (
-            <p className="text-gray-300 font-medium mb-3 capitalize text-xs bg-white/10 px-2 py-1 rounded-md inline-block backdrop-blur-sm">
-              {artist.genres.slice(0, 2).join(" • ")}
-            </p>
-          )}
-          
-          {artist.upcomingEvents > 0 && (
-            <div className="flex items-center gap-1.5 text-gray-300 mb-4">
-              <Calendar className="h-3.5 w-3.5" />
-              <span className="font-semibold text-sm">{artist.upcomingEvents}</span>
-              <span className="text-gray-400 text-xs">shows</span>
-            </div>
-          )}
+          <div className="flex items-center justify-between">
+            {artist.genres?.[0] && (
+              <span className="text-muted-foreground text-sm font-medium bg-accent/30 px-2 py-1 rounded-lg">
+                {artist.genres[0]}
+              </span>
+            )}
+            
+            {artist.upcomingEvents > 0 && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Calendar className="h-3 w-3" />
+                <span className="font-semibold">{artist.upcomingEvents} shows</span>
+              </div>
+            )}
+          </div>
         </div>
-        
-        {/* Action Button - Enhanced */}
-        <button className="w-full bg-white/10 border border-white/20 hover:bg-white/25 hover:border-white/40 text-white rounded-lg py-2 px-3 text-xs font-medium transition-all duration-300 ease-out backdrop-blur-sm group-hover:shadow-lg">
-          View Profile
-        </button>
       </div>
       
       <BorderBeam 
         size={100} 
         duration={12} 
-        className="opacity-0 group-hover:opacity-40 transition-opacity duration-500 ease-out" 
+        className="opacity-20" 
         colorFrom="#ffffff" 
         colorTo="#888888"
       />
-      </div>
     </MagicCard>
   );
 }
@@ -490,6 +518,16 @@ function MobileShowCard({ show, onArtistClick }: {
   const showDate = new Date(show.date);
   const isToday = showDate.toDateString() === new Date().toDateString();
   
+  // Format time to normal format like "8pm EST"
+  const formatTime = (time: string) => {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'pm' : 'am';
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${displayHour}${minutes !== '00' ? `:${minutes}` : ''}${ampm} EST`;
+  };
+  
   return (
     <div className="mobile-card cursor-pointer" onClick={() => onArtistClick(show.artistTicketmasterId, show.artistName, [], show.artistImage ? [show.artistImage] : [])}>
       <div className="flex items-center gap-4">
@@ -506,23 +544,30 @@ function MobileShowCard({ show, onArtistClick }: {
         
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-foreground hover:text-primary transition-colors truncate">
+          <h3 className="font-semibold text-foreground transition-colors truncate text-base">
             {show.artistName}
           </h3>
           <p className="text-sm text-muted-foreground truncate">{show.venueName}</p>
-          <p className="text-xs text-muted-foreground">{show.venueCity}, {show.venueCountry}</p>
+          <p className="text-xs text-muted-foreground">{show.venueCity}</p>
           <div className="flex items-center gap-2 mt-1">
             <span className={`text-xs px-2 py-1 rounded-full ${
               isToday ? 'bg-primary/20 text-primary' : 'bg-muted/20 text-muted-foreground'
             }`}>
               {isToday ? 'Tonight' : showDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </span>
+            {show.startTime && (
+              <span className="text-xs text-muted-foreground font-medium">
+                {formatTime(show.startTime)}
+              </span>
+            )}
           </div>
         </div>
         
         {/* Arrow indicator */}
         <div className="text-muted-foreground">
-          <TrendingUp className="h-4 w-4" />
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
         </div>
       </div>
     </div>
@@ -563,7 +608,9 @@ function MobileArtistCard({ artist, onClick }: {
         
         {/* Arrow indicator */}
         <div className="text-muted-foreground">
-          <TrendingUp className="h-4 w-4" />
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
         </div>
       </div>
     </div>

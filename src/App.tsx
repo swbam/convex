@@ -296,13 +296,16 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <ErrorBoundary>
-        <AppLayout>
-          {renderMainContent()}
-        </AppLayout>
-      </ErrorBoundary>
-
-
+      {/* Cohesive dark blue gradient background */}
+      <div className="fixed inset-0 bg-gradient-to-br from-black via-gray-950 to-black" />
+      
+      <div className="relative z-10">
+        <ErrorBoundary>
+          <AppLayout>
+            {renderMainContent()}
+          </AppLayout>
+        </ErrorBoundary>
+      </div>
     </div>
   );
 }
