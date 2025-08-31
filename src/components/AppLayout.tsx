@@ -159,18 +159,20 @@ export function AppLayout({ children }: AppLayoutProps) {
         <div className="rounded-none border-b border-white/10 bg-transparent backdrop-blur-sm">
           <header className="px-4 sm:px-6 py-4">
             <div className="flex items-center justify-between">
-              {/* Search Bar - Mobile First */}
-              <div className="flex-1 max-w-lg mr-2 sm:mr-4">
-                <SearchBar onResultClick={(type: string, id: string, slug?: string) => {
-                   if (type === 'artist') {
-                     const urlParam = slug || id;
-                     void navigate(`/artists/${urlParam}`)
-                   } else if (type === 'show') {
-                     const urlParam = slug || id;
-                     void navigate(`/shows/${urlParam}`)
-                   }
-                 }} />
-              </div>
+              {/* Search Bar - Only on show/artist pages */}
+              {(location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists')) && (
+                <div className="flex-1 max-w-lg mr-2 sm:mr-4">
+                  <SearchBar onResultClick={(type: string, id: string, slug?: string) => {
+                     if (type === 'artist') {
+                       const urlParam = slug || id;
+                       void navigate(`/artists/${urlParam}`)
+                     } else if (type === 'show') {
+                       const urlParam = slug || id;
+                       void navigate(`/shows/${urlParam}`)
+                     }
+                   }} />
+                </div>
+              )}
               
               {/* Right Side - Settings and Mobile Menu */}
               <div className="flex items-center space-x-2">
@@ -209,6 +211,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                   onSignInRequired={() => {
                     void navigate('/signin')
                   }}
+                  navigate={navigate}
                 />
               ) : (
                 children
