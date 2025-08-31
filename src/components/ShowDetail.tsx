@@ -108,96 +108,95 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
       </button>
       </MagicCard>
 
-      {/* Enhanced Show Header with MagicCard */}
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0">
+      {/* Enhanced Show Header with MagicCard - Improved Mobile Layout */}
+      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-white/10">
         {/* Background Image */}
         {show.artist?.images?.[0] && (
           <div className="absolute inset-0 z-0">
             <img 
               src={show.artist.images[0]} 
               alt={show.artist.name}
-              className="w-full h-full object-cover opacity-20 blur-sm scale-110"
+              className="w-full h-full object-cover opacity-15 blur-sm scale-110"
             />
-            <div className="absolute inset-0 bg-black/30" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/70 to-black/90" />
           </div>
         )}
         
-                        <div className="relative z-10 p-4 sm:p-6 lg:p-8">
-          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 sm:gap-6 lg:gap-8">
-            <div className="space-y-6 flex-1">
-              {/* Artist Name and Status */}
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <button
-                    onClick={() => onArtistClick(show.artistId)}
-                    className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white hover:text-primary transition-colors text-left leading-tight"
-                  >
-                    {show.artist?.name}
-                  </button>
-                  <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold backdrop-blur-sm ${
-                    isUpcoming 
-                      ? isToday 
-                        ? 'bg-green-500/30 text-green-300 border border-green-500/50' 
-                        : 'bg-blue-500/30 text-blue-300 border border-blue-500/50'
-                      : 'bg-gray-500/30 text-gray-300 border border-gray-500/50'
-                  }`}>
-                    <div className={`w-2 h-2 rounded-full mr-2 ${
-                      isUpcoming ? (isToday ? 'bg-green-400' : 'bg-blue-400') : 'bg-gray-400'
-                    }`} />
-                    {isUpcoming ? (isToday ? 'Tonight' : 'Upcoming') : 'Completed'}
-                  </div>
+        <div className="relative z-10 p-4 sm:p-5 lg:p-6">
+          <div className="space-y-4">
+            {/* Compact Mobile Header */}
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <button
+                  onClick={() => onArtistClick(show.artistId)}
+                  className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white hover:text-primary transition-colors text-left leading-tight flex-1 min-w-0"
+                >
+                  {show.artist?.name}
+                </button>
+                <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold backdrop-blur-sm whitespace-nowrap ${
+                  isUpcoming 
+                    ? isToday 
+                      ? 'bg-green-500/30 text-green-300 border border-green-500/50' 
+                      : 'bg-blue-500/30 text-blue-300 border border-blue-500/50'
+                    : 'bg-gray-500/30 text-gray-300 border border-gray-500/50'
+                }`}>
+                  <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                    isUpcoming ? (isToday ? 'bg-green-400' : 'bg-blue-400') : 'bg-gray-400'
+                  }`} />
+                  {isUpcoming ? (isToday ? 'Tonight' : 'Upcoming') : 'Completed'}
                 </div>
+              </div>
                 
-                {/* Venue and Date Info */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                  <div className="flex items-center gap-3 text-gray-300">
-                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                      <MapPin className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white">{show.venue?.name}</div>
-                      <div className="text-sm text-gray-400">{show.venue?.city}, {show.venue?.country}</div>
-                    </div>
+              {/* Compact Info Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
+                <div className="flex items-center gap-2.5 text-gray-300">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+                    <MapPin className="h-4 w-4 text-white" />
                   </div>
-                  
-                  <div className="flex items-center gap-3 text-gray-300">
-                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                      <Calendar className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white">
-                        {showDate.toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
-                      </div>
-                      <div className="text-sm text-gray-400">
-                        {showDate.toLocaleDateString('en-US', { weekday: 'long' })}
-                      </div>
-                    </div>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-white text-sm sm:text-base truncate">{show.venue?.name}</div>
+                    <div className="text-xs sm:text-sm text-gray-400 truncate">{show.venue?.city}, {show.venue?.country}</div>
                   </div>
-                  
-                  {show.startTime && (
-                    <div className="flex items-center gap-3 text-gray-300">
-                      <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                        <Clock className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-white">
-                          {(() => {
-                            const [hours, minutes] = show.startTime.split(':');
-                            const hour = parseInt(hours);
-                            const ampm = hour >= 12 ? 'PM' : 'AM';
-                            const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-                            return `${displayHour}:${minutes} ${ampm} EST`;
-                          })()}
-                        </div>
-                        <div className="text-sm text-gray-400">Show Time</div>
-                      </div>
-                    </div>
-                  )}
                 </div>
+                  
+                <div className="flex items-center gap-2.5 text-gray-300">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+                    <Calendar className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-white text-sm sm:text-base">
+                      {showDate.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </div>
+                    <div className="text-xs sm:text-sm text-gray-400">
+                      {showDate.toLocaleDateString('en-US', { weekday: 'long' })}
+                    </div>
+                  </div>
+                </div>
+                  
+                {show.startTime && (
+                  <div className="flex items-center gap-2.5 text-gray-300">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+                      <Clock className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-white text-sm sm:text-base">
+                        {(() => {
+                          const [hours, minutes] = show.startTime.split(':');
+                          const hour = parseInt(hours);
+                          const ampm = hour >= 12 ? 'PM' : 'AM';
+                          const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                          return `${displayHour}:${minutes} ${ampm} EST`;
+                        })()}
+                      </div>
+                      <div className="text-xs sm:text-sm text-gray-400">Show Time</div>
+                    </div>
+                  </div>
+                )}
+              </div>
                 
                 {/* Additional Info */}
                 <div className="flex flex-wrap gap-4">
@@ -257,38 +256,38 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
         <div className="lg:col-span-2 space-y-4 sm:space-y-6">
 
 
-          {/* Enhanced Shared Setlist Display */}
-          <MagicCard className="p-0 rounded-2xl border-0">
+          {/* Enhanced Shared Setlist Display with Better Border */}
+          <MagicCard className="p-0 rounded-2xl border border-white/10">
             <div className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
-                    <Music className="h-4 w-4 text-white" />
+                  <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                    <Music className="h-5 w-5 text-white" />
                   </div>
-                  <h2 className="text-2xl font-bold text-white">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-white">
                     {officialSetlist ? "Official Setlist" : "Vote on the Setlist"}
                   </h2>
                 </div>
                 <div className="flex items-center gap-4">
                   {(communitySetlist || officialSetlist) && (
-                    <div className="text-base font-medium text-gray-300">
+                    <div className="text-lg font-medium text-gray-300">
                       {(officialSetlist?.songs?.length || communitySetlist?.songs?.length || 0)} songs
               </div>
             )}
                   {communitySetlist && !officialSetlist && (
-                    <div className="text-sm text-gray-400 bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm">
+                    <div className="text-sm text-gray-400 bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm">
                       Community Predictions
             </div>
           )}
         </div>
       </div>
 
-              {/* Song Addition Dropdown - Only for upcoming shows WITHOUT actual setlist */}
+              {/* Song Addition Dropdown - Improved Design */}
               {!hasActualSetlist && isUpcoming && songs && songs.length > 0 && (
-                <div className="mb-6 p-4 bg-white/5 border border-white/10 rounded-xl backdrop-blur-sm">
+                <div className="mb-6 p-4 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl backdrop-blur-sm">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-base font-semibold text-white">Add Songs to Setlist</h3>
-                    <div className="text-sm text-gray-400">
+                    <h3 className="text-lg font-semibold text-white">Add Songs to Setlist</h3>
+                    <div className="text-sm text-gray-300">
                       {(songs || []).filter(Boolean).filter(s => s && !s.isLive && !s.isRemix).filter((s) => {
                         const songTitles = communitySetlist?.songs?.map((song: any) => 
                           typeof song === 'string' ? song : song?.title
@@ -306,7 +305,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                         e.target.value = "";
                       }
                     }}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-base text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300"
+                    className="w-full px-4 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-base sm:text-lg text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300 cursor-pointer"
                   >
                     <option value="" disabled className="bg-background text-foreground text-base">
                       {user ? "Choose a song to add instantly..." : "Sign in to add songs"}
@@ -326,7 +325,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                         <option 
                           key={song!._id} 
                           value={song!.title}
-                          className="bg-background text-foreground text-base"
+                          className="bg-background text-foreground text-base sm:text-lg py-2"
                         >
                           {song!.title} {song!.album ? `• ${song!.album}` : ''}
                         </option>
@@ -334,7 +333,8 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                     }
                   </select>
                   
-                  <div className="mt-3 text-sm text-gray-400">
+                  <div className="mt-3 text-sm text-gray-300 font-medium">
+                    <ChevronUp className="inline h-4 w-4 mr-1" />
                     Songs are added instantly - no save button needed
                   </div>
                 </div>
@@ -365,61 +365,15 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                   </div>
                   
                   <div className="space-y-3">
-                    {(communitySetlist.actualSetlist || []).map((song: any, index: number) => {
-                      // Check if this song was requested by fans
-                      const wasRequested = (communitySetlist.songs || []).some(
-                        (requestedSong: any) => (typeof requestedSong === 'string' ? requestedSong : requestedSong?.title) === song.title
-                      );
-                      
-                      // Mock vote count for songs that were requested (in real app, this would come from songVotes table)
-                      const voteCount = wasRequested ? Math.floor(Math.random() * 50) + 5 : 0;
-                      
-                      return (
-                        <div
-                          key={`actual-${index}`}
-                          className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 ${
-                            wasRequested 
-                              ? 'bg-green-500/10 border-green-500/20' 
-                              : 'bg-white/5 border-white/10'
-                          }`}
-                        >
-                          <div className="w-8 h-8 bg-green-500/20 text-center rounded-full flex items-center justify-center text-sm font-bold text-green-400">
-                            {index + 1}
-                          </div>
-                          
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-white text-lg">{song.title}</h3>
-                            {song.album && (
-                              <p className="text-sm text-gray-400">{song.album}</p>
-                            )}
-                          </div>
-                          
-                          {/* Vote Count for Requested Songs */}
-                          {wasRequested && voteCount > 0 && (
-                            <div className="flex items-center gap-2 bg-green-500/20 rounded-lg px-3 py-2">
-                              <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                              </svg>
-                              <span className="text-green-400 font-semibold text-sm">{voteCount}</span>
-            </div>
-          )}
-
-                          {/* Encore Badge */}
-                          {song.encore && (
-                            <span className="bg-yellow-500/20 text-yellow-400 text-xs font-semibold px-3 py-1 rounded-full">
-                              Encore
-                            </span>
-                          )}
-                          
-                          {/* Fan Favorite Badge */}
-                          {wasRequested && (
-                            <span className="bg-green-500/20 text-green-400 text-xs font-semibold px-3 py-1 rounded-full">
-                              Fan Favorite
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
+                    {(communitySetlist.actualSetlist || []).map((song: any, index: number) => (
+                      <ActualSetlistSongRow
+                        key={`actual-${index}`}
+                        song={song}
+                        index={index}
+                        communitySetlist={communitySetlist}
+                        setlistId={communitySetlist._id}
+                      />
+                    ))}
                   </div>
                 </div>
 
@@ -449,93 +403,15 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                       {(communitySetlist.songs || [])
                         .map((s: any) => (typeof s === 'string' ? s : s?.title))
                         .filter(Boolean)
-                        // Sort by whether they were played, then by mock vote count
-                        .sort((a, b) => {
-                          const aWasPlayed = (communitySetlist.actualSetlist || []).some(actualSong => actualSong.title === a);
-                          const bWasPlayed = (communitySetlist.actualSetlist || []).some(actualSong => actualSong.title === b);
-                          if (aWasPlayed && !bWasPlayed) return -1;
-                          if (!aWasPlayed && bWasPlayed) return 1;
-                          return 0;
-                        })
-                        .map((songTitle: string, index: number) => {
-                          const wasPlayed = (communitySetlist.actualSetlist || []).some(
-                            actualSong => actualSong.title === songTitle
-                          );
-                          
-                          // Mock vote count (in real app, this would come from songVotes aggregation)
-                          const voteCount = Math.floor(Math.random() * 80) + 5;
-                          
-                          return (
-                            <div
-                              key={`request-${songTitle}-${index}`}
-                              className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 ${
-                                wasPlayed 
-                                  ? 'bg-green-500/10 border-green-500/20' 
-                                  : 'bg-white/5 border-white/10'
-                              }`}
-                            >
-                              {/* Status Icon */}
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                wasPlayed 
-                                  ? 'bg-green-500/20' 
-                                  : 'bg-gray-500/20'
-                              }`}>
-                                {wasPlayed ? (
-                                  <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                ) : (
-                                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                )}
-                              </div>
-                              
-                              {/* Song Info */}
-                              <div className="flex-1">
-                                <h3 className={`font-semibold text-base ${
-                                  wasPlayed ? 'text-white' : 'text-gray-300'
-                                }`}>
-                                  {songTitle}
-                                </h3>
-                                <p className={`text-sm ${
-                                  wasPlayed ? 'text-green-400' : 'text-gray-500'
-                                }`}>
-                                  {wasPlayed ? 'Played in setlist' : 'Not played'}
-                                </p>
-                              </div>
-                              
-                              {/* Vote Count */}
-                              <div className={`flex items-center gap-2 rounded-lg px-3 py-2 ${
-                                wasPlayed 
-                                  ? 'bg-green-500/20' 
-                                  : 'bg-white/10'
-                              }`}>
-                                <svg className={`w-4 h-4 ${
-                                  wasPlayed ? 'text-green-400' : 'text-gray-400'
-                                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                </svg>
-                                <span className={`font-bold text-sm ${
-                                  wasPlayed ? 'text-green-400' : 'text-gray-400'
-                                }`}>
-                                  {voteCount}
-                                </span>
-                              </div>
-                              
-                              {/* Rank Badge for High-Voted Songs */}
-                              {voteCount > 50 && (
-                                <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                                  wasPlayed 
-                                    ? 'bg-yellow-500/20 text-yellow-400' 
-                                    : 'bg-orange-500/20 text-orange-400'
-                                }`}>
-                                  #{index + 1}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })}
+                        .map((songTitle: string, index: number) => (
+                          <FanRequestSongRow
+                            key={`request-${songTitle}-${index}`}
+                            songTitle={songTitle}
+                            index={index}
+                            communitySetlist={communitySetlist}
+                            setlistId={communitySetlist._id}
+                          />
+                        ))}
                     </div>
                   </div>
                 )}
@@ -723,6 +599,167 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
   );
 }
 
+// Fan request song row component
+function FanRequestSongRow({
+  songTitle,
+  index,
+  communitySetlist,
+  setlistId
+}: {
+  songTitle: string;
+  index: number;
+  communitySetlist: any;
+  setlistId: Id<"setlists">;
+}) {
+  const wasPlayed = (communitySetlist.actualSetlist || []).some(
+    (actualSong: any) => actualSong.title === songTitle
+  );
+  
+  // Get real vote count
+  const songVotes = useQuery(api.songVotes.getSongVotes, { 
+    setlistId, 
+    songTitle 
+  });
+  
+  const voteCount = songVotes?.upvotes || 0;
+  
+  return (
+    <div
+      className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 ${
+        wasPlayed 
+          ? 'bg-green-500/10 border-green-500/20' 
+          : 'bg-white/5 border-white/10'
+      }`}
+    >
+      {/* Status Icon */}
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+        wasPlayed 
+          ? 'bg-green-500/20' 
+          : 'bg-gray-500/20'
+      }`}>
+        {wasPlayed ? (
+          <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        ) : (
+          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        )}
+      </div>
+      
+      {/* Song Info */}
+      <div className="flex-1">
+        <h3 className={`font-semibold text-base ${
+          wasPlayed ? 'text-white' : 'text-gray-300'
+        }`}>
+          {songTitle}
+        </h3>
+        <p className={`text-sm ${
+          wasPlayed ? 'text-green-400' : 'text-gray-500'
+        }`}>
+          {wasPlayed ? 'Played in setlist' : 'Not played'}
+        </p>
+      </div>
+      
+      {/* Vote Count */}
+      <div className={`flex items-center gap-2 rounded-lg px-3 py-2 ${
+        wasPlayed 
+          ? 'bg-green-500/20' 
+          : 'bg-white/10'
+      }`}>
+        <Heart className={`h-4 w-4 ${
+          wasPlayed ? 'text-green-400' : 'text-gray-400'
+        } fill-current`} />
+        <span className={`font-bold text-sm ${
+          wasPlayed ? 'text-green-400' : 'text-gray-400'
+        }`}>
+          {voteCount}
+        </span>
+      </div>
+      
+      {/* Rank Badge for High-Voted Songs */}
+      {voteCount > 10 && (
+        <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+          wasPlayed 
+            ? 'bg-yellow-500/20 text-yellow-400' 
+            : 'bg-orange-500/20 text-orange-400'
+        }`}>
+          TOP {index + 1}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// Actual setlist song row component
+function ActualSetlistSongRow({
+  song,
+  index,
+  communitySetlist,
+  setlistId
+}: {
+  song: any;
+  index: number;
+  communitySetlist: any;
+  setlistId: Id<"setlists">;
+}) {
+  // Check if this song was requested by fans
+  const wasRequested = (communitySetlist.songs || []).some(
+    (requestedSong: any) => (typeof requestedSong === 'string' ? requestedSong : requestedSong?.title) === song.title
+  );
+  
+  // Get real vote count if the song was requested
+  const songVotes = useQuery(api.songVotes.getSongVotes, 
+    wasRequested ? { setlistId, songTitle: song.title } : 'skip'
+  );
+  
+  const voteCount = songVotes?.upvotes || 0;
+  
+  return (
+    <div
+      className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 ${
+        wasRequested 
+          ? 'bg-green-500/10 border-green-500/20' 
+          : 'bg-white/5 border-white/10'
+      }`}
+    >
+      <div className="w-8 h-8 bg-green-500/20 text-center rounded-full flex items-center justify-center text-sm font-bold text-green-400">
+        {index + 1}
+      </div>
+      
+      <div className="flex-1">
+        <h3 className="font-semibold text-white text-lg sm:text-xl">{song.title}</h3>
+        {song.album && (
+          <p className="text-sm sm:text-base text-gray-400">{song.album}</p>
+        )}
+      </div>
+      
+      {/* Real Vote Count for Requested Songs */}
+      {wasRequested && voteCount > 0 && (
+        <div className="flex items-center gap-2 bg-green-500/20 rounded-lg px-3 py-2">
+          <Heart className="h-4 w-4 text-green-400 fill-current" />
+          <span className="text-green-400 font-semibold text-sm">{voteCount}</span>
+        </div>
+      )}
+
+      {/* Encore Badge */}
+      {song.encore && (
+        <span className="bg-yellow-500/20 text-yellow-400 text-xs font-semibold px-3 py-1 rounded-full">
+          Encore
+        </span>
+      )}
+      
+      {/* Fan Favorite Badge */}
+      {wasRequested && voteCount >= 10 && (
+        <span className="bg-green-500/20 text-green-400 text-xs font-semibold px-3 py-1 rounded-full">
+          Fan Favorite
+        </span>
+      )}
+    </div>
+  );
+}
+
 // Individual Song in Shared Setlist with Always-Visible Voting
 function SongVoteRow({ 
   setlistId, 
@@ -762,26 +799,26 @@ function SongVoteRow({
   };
 
   return (
-    <div className="flex items-center justify-between py-3 px-4 bg-muted/5 rounded-lg hover:bg-muted/10 transition-all duration-200 group">
+    <div className="flex items-center justify-between py-3.5 px-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-200 group">
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div className="w-6 h-6 bg-muted/30 text-center rounded-full flex items-center justify-center text-xs font-semibold text-muted-foreground">
+        <div className="w-8 h-8 bg-primary/20 text-center rounded-full flex items-center justify-center text-sm font-semibold text-primary">
           {position}
         </div>
-        <span className="font-medium text-sm text-foreground truncate">{songTitle}</span>
+        <span className="font-medium text-base sm:text-lg text-white truncate">{songTitle}</span>
       </div>
       
       {/* Always-visible vote button with count */}
       <AnimatedSubscribeButton
         subscribeStatus={songVotes?.userVoted || false}
         onClick={() => void handleSongVote()}
-        className="ml-3 h-7 min-w-[60px] text-xs"
+        className="ml-3 h-8 sm:h-9 min-w-[70px] text-sm sm:text-base"
       >
-        <span className="flex items-center gap-1">
-          <ChevronUp className="h-3 w-3" />
+        <span className="flex items-center gap-1.5">
+          <ChevronUp className="h-4 w-4" />
           <span className="font-semibold">{songVotes?.upvotes || 0}</span>
         </span>
-        <span className="flex items-center gap-1">
-          <Heart className="h-3 w-3 fill-current" />
+        <span className="flex items-center gap-1.5">
+          <Heart className="h-4 w-4 fill-current" />
           <span className="font-semibold">{songVotes?.upvotes || 0}</span>
         </span>
       </AnimatedSubscribeButton>

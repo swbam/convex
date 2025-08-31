@@ -28,47 +28,80 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
   // Load trending data from database (cached from cron jobs)
   const dbTrendingShows = useQuery(api.trending.getTrendingShows, { limit: 20 });
   const dbTrendingArtists = useQuery(api.trending.getTrendingArtists, { limit: 20 });
+  
+  // Fallback: Load from main tables if trending data is empty
+  const fallbackArtists = useQuery(api.artists.getTrending, { limit: 20 });
+  const fallbackShows = useQuery(api.shows.getUpcoming, { limit: 20 });
 
   useEffect(() => {
-    if (dbTrendingShows) {
+    // Use trending data if available, otherwise use fallback
+    if (dbTrendingShows && dbTrendingShows.length > 0) {
       // Deduplicate shows by artist to avoid showing same artist multiple times
       const uniqueShows = dbTrendingShows.filter((show, index, self) => 
         index === self.findIndex(s => s.artistName === show.artistName)
       );
       setTrendingShows(uniqueShows);
       setIsLoadingShows(false);
+    } else if (fallbackShows) {
+      // Convert fallback shows to trending format
+      const convertedShows = fallbackShows.map(show => ({
+        ticketmasterId: show.ticketmasterId || show._id,
+        artistTicketmasterId: show.artist?.ticketmasterId,
+        artistName: show.artist?.name || 'Unknown Artist',
+        venueName: show.venue?.name || 'Unknown Venue',
+        venueCity: show.venue?.city || '',
+        venueCountry: show.venue?.country || '',
+        date: show.date,
+        startTime: show.startTime,
+        artistImage: show.artist?.images?.[0],
+        ticketUrl: show.ticketUrl,
+        status: show.status,
+      }));
+      setTrendingShows(convertedShows.slice(0, 12));
+      setIsLoadingShows(false);
     }
-    if (dbTrendingArtists) {
+    
+    if (dbTrendingArtists && dbTrendingArtists.length > 0) {
       setTrendingArtists(dbTrendingArtists);
       setIsLoadingArtists(false);
+    } else if (fallbackArtists) {
+      // Convert fallback artists to trending format
+      const convertedArtists = fallbackArtists.map(artist => ({
+        ticketmasterId: artist.ticketmasterId || artist._id,
+        name: artist.name,
+        genres: artist.genres || [],
+        images: artist.images || [],
+        upcomingEvents: artist.upcomingShows || 0,
+        url: artist.url,
+      }));
+      setTrendingArtists(convertedArtists);
+      setIsLoadingArtists(false);
     }
-  }, [dbTrendingShows, dbTrendingArtists]);
+  }, [dbTrendingShows, dbTrendingArtists, fallbackShows, fallbackArtists]);
 
   const handleArtistClick = async (ticketmasterId: string, artistName: string, genres?: string[], images?: string[]) => {
-    try {
-      toast.info(`Loading ${artistName}...`);
-      
-      // Trigger full sync to create artist in DB
-      await triggerFullSync({
-        ticketmasterId,
-        artistName,
-        genres,
-        images,
-      });
-      
-      // Generate SEO-friendly slug for navigation
-      const slug = artistName.toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '');
-      
-      // Navigate to artist page using slug (will fallback to ID if needed)
-      onArtistClick(slug);
-      
-      toast.success(`${artistName} loaded successfully!`);
-    } catch (error) {
+    // Generate SEO-friendly slug for navigation
+    const slug = artistName.toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    
+    // Navigate immediately using the slug
+    onArtistClick(slug);
+    
+    toast.info(`Loading ${artistName} data...`);
+    
+    // Trigger sync in the background
+    triggerFullSync({
+      ticketmasterId,
+      artistName,
+      genres,
+      images,
+    }).then(() => {
+      console.log(`✅ ${artistName} data imported successfully`);
+    }).catch(error => {
       console.error("Failed to sync artist:", error);
-      toast.error("Failed to load artist");
-    }
+      toast.error("Failed to import complete artist data");
+    });
   };
 
   return (
@@ -107,13 +140,11 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
 
           {/* Center Content */}
           <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8">
-            <h1 className="text-responsive-3xl sm:text-responsive-4xl font-bold tracking-tight text-white mb-2 sm:mb-3 lg:mb-4">
-              Crowd-Curated
-              <br className="sm:hidden" />
-              <span className="hidden sm:inline"> </span>Setlists
+            <h1 className="text-responsive-3xl sm:text-responsive-4xl lg:text-responsive-5xl font-bold tracking-tight text-white mb-2 sm:mb-3 lg:mb-4">
+              Crowd-Curated<br />Setlists
             </h1>
             <p className="text-responsive-sm sm:text-responsive-base lg:text-responsive-lg text-gray-300 max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto leading-relaxed mb-4 sm:mb-6 lg:mb-8">
-              Vote on songs you want to hear at concerts<span className="hidden sm:inline"> and see what other fans are predicting</span>.
+              Vote on the songs you want to hear at upcoming concerts and see what other fans are predicting.
             </p>
             
             {/* Search Input - Homepage Only */}
@@ -299,7 +330,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
         
         <button 
           onClick={onSignInRequired}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-xl font-semibold transition-all duration-200"
         >
           Get Started
         </button>

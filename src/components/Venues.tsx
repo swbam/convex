@@ -158,7 +158,7 @@ export function Venues({ onVenueClick }: VenuesProps) {
 function VenueListCard({ venue, onClick }: { venue: any; onClick: () => void }) {
   return (
     <div 
-      className="group cursor-pointer bg-card border border-border rounded-xl hover:bg-accent/30 transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl p-6"
+      className="group cursor-pointer bg-card border border-border rounded-xl hover:bg-accent/30 transition-all duration-300 hover:scale-[1.01] p-6"
       onClick={onClick}
     >
       <div className="flex items-start gap-5">
