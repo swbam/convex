@@ -59,16 +59,73 @@ export const populateTestData = action({
           capacity: 20000,
         });
         
-        // Create test shows
+        // Create test shows (mix of upcoming and completed)
         const today = new Date();
         const futureDate = new Date(today.getTime() + (Math.random() * 30 + 1) * 24 * 60 * 60 * 1000);
+        const pastDate = new Date(today.getTime() - (Math.random() * 30 + 1) * 24 * 60 * 60 * 1000);
         
-        await ctx.runMutation(internal.shows.createInternal, {
+        // Create upcoming show
+        const upcomingShowId = await ctx.runMutation(internal.shows.createInternal, {
           artistId,
           venueId,
           date: futureDate.toISOString().split('T')[0],
           startTime: "20:00",
           status: "upcoming",
+        });
+        
+        // Create completed show with sample setlist
+        const completedShowId = await ctx.runMutation(internal.shows.createInternal, {
+          artistId,
+          venueId,
+          date: pastDate.toISOString().split('T')[0],
+          startTime: "20:00",
+          status: "completed",
+        });
+        
+        // Create official setlist for completed show
+        const sampleSongs = [
+          { title: "Do I Wanna Know?", album: "AM" },
+          { title: "R U Mine?", album: "AM" },
+          { title: "Arabella", album: "AM" },
+          { title: "505", album: "Favourite Worst Nightmare" },
+          { title: "I Bet You Look Good on the Dancefloor", album: "Whatever People Say I Am, That's What I'm Not" }
+        ];
+        
+        // Create the official setlist using the internal function
+        await ctx.db.insert("setlists", {
+          showId: completedShowId,
+          userId: undefined,
+          songs: sampleSongs,
+          verified: true,
+          source: "setlistfm",
+          lastUpdated: Date.now(),
+          isOfficial: true,
+          confidence: 1.0,
+          upvotes: 0,
+          downvotes: 0,
+          setlistfmId: `setlistfm_${artistData.name.toLowerCase().replace(/\s+/g, '_')}`,
+        });
+        
+        // Also create a community prediction setlist for comparison
+        const communityPredictions = [
+          { title: "Do I Wanna Know?" }, // Correct prediction
+          { title: "Fluorescent Adolescent" }, // Wrong prediction
+          { title: "R U Mine?" }, // Correct prediction
+          { title: "Crying Lightning" }, // Wrong prediction
+          { title: "505" }, // Correct prediction
+        ];
+        
+        await ctx.db.insert("setlists", {
+          showId: completedShowId,
+          userId: undefined,
+          songs: communityPredictions,
+          verified: false,
+          source: "user_submitted",
+          lastUpdated: Date.now(),
+          isOfficial: false,
+          confidence: 0.7,
+          upvotes: 15,
+          downvotes: 3,
         });
       }
       

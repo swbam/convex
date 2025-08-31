@@ -28,11 +28,11 @@ export function AppLayout({ children }: AppLayoutProps) {
   const { user, isSignedIn } = useUser()
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <div className="flex h-screen bg-transparent text-foreground">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -43,9 +43,9 @@ export function AppLayout({ children }: AppLayoutProps) {
         lg:translate-x-0 lg:static lg:inset-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <MagicCard className="h-full rounded-none border-r border-border bg-background/95 backdrop-blur-xl">
+        <MagicCard className="h-full rounded-none border-r border-white/10 bg-transparent backdrop-blur-xl">
           {/* Sidebar Header with Magic UI */}
-          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border">
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/10">
             <button 
               onClick={(e) => { e.preventDefault(); void navigate('/') }}
               className="flex items-center space-x-2 group"
@@ -110,7 +110,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           </nav>
           
           {/* Enhanced User Section with Magic UI */}
-          <div className="p-4 border-t border-border">
+          <div className="p-4 border-t border-white/10">
             {isSignedIn && user ? (
               <div className="space-y-3">
                 <MagicCard className="p-4 bg-accent/20 rounded-xl">
@@ -156,7 +156,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Enhanced Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         {/* Enhanced Top Header with Magic UI */}
-        <MagicCard className="rounded-none border-b border-border bg-background/95 backdrop-blur-xl">
+        <MagicCard className="rounded-none border-b border-white/10 bg-transparent backdrop-blur-xl">
           <header className="px-4 sm:px-6 py-4">
             <div className="flex items-center justify-between">
               {/* Search Bar - Mobile First */}
@@ -193,7 +193,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </MagicCard>
         
         {/* Main Content Area with Enhanced Background */}
-        <main className="flex-1 overflow-y-auto bg-background flex flex-col">
+        <main className="flex-1 overflow-y-auto bg-transparent flex flex-col">
           <div className="flex-1">
             <div className="p-4 sm:p-6">
               <SyncProgress />

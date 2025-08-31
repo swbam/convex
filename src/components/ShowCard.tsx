@@ -72,7 +72,7 @@ export function ShowCard({
   if (compact) {
     return (
       <MagicCard
-        className="group cursor-pointer p-0 transition-all duration-500 ease-out hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden border-0 hover:border-white/20 touch-manipulation"
+        className="group cursor-pointer p-0 transition-all duration-300 ease-out active:scale-[0.98] relative overflow-hidden border-0 touch-manipulation"
         gradientColor="#ffffff"
         gradientOpacity={0.08}
         gradientSize={300}
@@ -85,7 +85,7 @@ export function ShowCard({
               alt={show.artist.name}
               className="w-full h-full object-cover opacity-40 group-hover:opacity-50 transition-all duration-500"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/80" />
+            <div className="absolute inset-0 bg-black/60" />
           </div>
         )}
         
@@ -136,7 +136,7 @@ export function ShowCard({
   return (
     <div className="halo-card group cursor-pointer p-0 transition-all duration-300 hover:scale-[1.01]">
       {/* Halo-style gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/4 via-transparent to-white/2 pointer-events-none" />
+      <div className="absolute inset-0 bg-black/20 pointer-events-none" />
       {/* Enhanced Artist Image Background */}
       {showArtist && show.artist?.images?.[0] && (
         <div className="absolute inset-0 z-0">
@@ -145,7 +145,7 @@ export function ShowCard({
             alt={show.artist.name}
             className="w-full h-full object-cover opacity-70 group-hover:opacity-85 transition-all duration-500 scale-105 group-hover:scale-110"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/90 to-background/30" />
+          <div className="absolute inset-0 bg-black/60" />
         </div>
       )}
       
@@ -214,7 +214,7 @@ export function ShowCard({
       </div>
       
       {/* Halo-style border glow on hover */}
-      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-white/8 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      <div className="absolute inset-0 rounded-xl bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
     </div>
   )
 }

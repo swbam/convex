@@ -77,15 +77,13 @@ export function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      {/* Background Effects */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue/5 via-background to-purple/5" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(59,130,246,0.15),transparent_50%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_70%,rgba(147,51,234,0.15),transparent_50%)]" />
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      {/* Simple black gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-black via-gray-950 to-black" />
       
       <div className="relative z-10 w-full max-w-md">
         {/* Back Button */}
-        <MagicCard className="inline-block p-0 rounded-xl border-0 hover:border-white/20 mb-6">
+        <MagicCard className="inline-block p-0 rounded-xl border-0 mb-6">
           <button
             onClick={() => navigate('/')}
             className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all duration-300 px-4 py-2 rounded-xl"
@@ -96,7 +94,7 @@ export function SignUpPage() {
         </MagicCard>
 
         {/* Main Sign Up Card */}
-        <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 hover:border-white/20">
+        <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0">
           <div className="relative z-10 p-8">
             {!verificationStep ? (
               <>

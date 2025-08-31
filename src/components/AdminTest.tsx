@@ -41,8 +41,12 @@ export function AdminTest() {
   };
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6">
-      <MagicCard className="p-0 rounded-2xl border-0 hover:border-white/20">
+    <div className="min-h-screen bg-black text-white">
+      {/* Cohesive dark gradient background */}
+      <div className="fixed inset-0 bg-gradient-to-br from-black via-gray-950 to-black" />
+      
+      <div className="relative z-10 container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6">
+      <MagicCard className="p-0 rounded-2xl border-0 ">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-8 h-8 bg-red-500/20 rounded-xl flex items-center justify-center">
@@ -53,19 +57,15 @@ export function AdminTest() {
           
           <div className="space-y-4">
             <p className="text-gray-300">
-              The database is empty. Use these admin tools to populate data:
+              Sync real data from Ticketmaster API to populate the app:
             </p>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <ShimmerButton
-                onClick={handlePopulateData}
-                disabled={isPopulating}
-                className="bg-blue-500/20 hover:bg-blue-500/30 text-white border-blue-500/30"
-                shimmerColor="#3b82f6"
-              >
-                <Database className="h-4 w-4 mr-2" />
-                {isPopulating ? "Creating..." : "Create Test Shows"}
-              </ShimmerButton>
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+                <p className="text-red-300 text-sm font-medium">
+                  ⚠️ Test data creation disabled - using real data only
+                </p>
+              </div>
               
               <ShimmerButton
                 onClick={handleSyncTrending}
@@ -74,7 +74,7 @@ export function AdminTest() {
                 shimmerColor="#10b981"
               >
                 <TrendingUp className="h-4 w-4 mr-2" />
-                {isSyncing ? "Syncing..." : "Sync Trending Data"}
+                {isSyncing ? "Syncing..." : "Sync Real Trending Data"}
               </ShimmerButton>
             </div>
           </div>
@@ -82,7 +82,7 @@ export function AdminTest() {
         <BorderBeam size={120} duration={10} className="opacity-30" />
       </MagicCard>
 
-      <MagicCard className="p-0 rounded-2xl border-0 hover:border-white/20">
+      <MagicCard className="p-0 rounded-2xl border-0 ">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-8 h-8 bg-yellow-500/20 rounded-xl flex items-center justify-center">
@@ -110,6 +110,7 @@ export function AdminTest() {
         </div>
         <BorderBeam size={120} duration={10} className="opacity-30" />
       </MagicCard>
+      </div>
     </div>
   );
 }
