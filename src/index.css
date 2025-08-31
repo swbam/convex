@@ -28,6 +28,59 @@
     -webkit-line-clamp: 3;
   }
 
+  /* Responsive text utilities using clamp */
+  .text-responsive-xs {
+    font-size: clamp(0.75rem, 2vw, 0.875rem);
+  }
+  
+  .text-responsive-sm {
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
+  }
+  
+  .text-responsive-base {
+    font-size: clamp(1rem, 3vw, 1.125rem);
+  }
+  
+  .text-responsive-lg {
+    font-size: clamp(1.125rem, 3.5vw, 1.25rem);
+  }
+  
+  .text-responsive-xl {
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
+  }
+  
+  .text-responsive-2xl {
+    font-size: clamp(1.5rem, 5vw, 2rem);
+  }
+  
+  .text-responsive-3xl {
+    font-size: clamp(1.875rem, 6vw, 2.5rem);
+  }
+  
+  .text-responsive-4xl {
+    font-size: clamp(2.25rem, 7vw, 3rem);
+  }
+
+  /* Touch-friendly tap targets */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Safe area padding utilities */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-area-x {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
   /* Shimmer animations for MagicUI components */
   @keyframes shimmer-slide {
     to {
@@ -74,6 +127,31 @@
 
   .animate-spin-around {
     animation: spin-around calc(var(--speed) * 2) infinite linear;
+  }
+}
+
+/* Global responsive improvements */
+@layer base {
+  /* Smooth scrolling on iOS */
+  html {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Prevent zoom on input focus on iOS */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+
+  /* Better tap highlight for mobile */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Ensure proper viewport behavior */
+  body {
+    overflow-x: hidden;
+    position: relative;
   }
 }
 
