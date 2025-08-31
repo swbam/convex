@@ -213,7 +213,6 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                     </div>
                   )}
                 </div>
-              </div>
               
               {/* Action Buttons */}
               <div className="flex flex-wrap gap-4">
