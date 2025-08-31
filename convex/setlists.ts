@@ -505,3 +505,55 @@ export const autoGenerateSetlist = internalMutation({
     return setlistId;
   },
 });
+
+// Internal function to update setlist with actual setlist data from setlist.fm
+export const updateWithActualSetlist = internalMutation({
+  args: {
+    showId: v.id("shows"),
+    actualSetlist: v.array(v.object({
+      title: v.string(),
+      setNumber: v.number(),
+      encore: v.boolean(),
+    })),
+    setlistfmId: v.string(),
+    setlistfmData: v.any(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Find existing community setlist for this show
+    const existingSetlist = await ctx.db
+      .query("setlists")
+      .withIndex("by_show", (q) => q.eq("showId", args.showId))
+      .filter((q) => q.eq(q.field("isOfficial"), false))
+      .first();
+
+    if (existingSetlist) {
+      // Update existing setlist with actual data
+      await ctx.db.patch(existingSetlist._id, {
+        actualSetlist: args.actualSetlist,
+        setlistfmId: args.setlistfmId,
+        setlistfmData: args.setlistfmData,
+        lastUpdated: Date.now(),
+      });
+    } else {
+      // Create new setlist with actual data only
+      await ctx.db.insert("setlists", {
+        showId: args.showId,
+        userId: undefined,
+        songs: [], // Empty user predictions
+        actualSetlist: args.actualSetlist,
+        verified: true,
+        source: "setlistfm",
+        lastUpdated: Date.now(),
+        isOfficial: true,
+        confidence: 1.0,
+        upvotes: 0,
+        downvotes: 0,
+        setlistfmId: args.setlistfmId,
+        setlistfmData: args.setlistfmData,
+      });
+    }
+    
+    return null;
+  },
+});

@@ -6,6 +6,7 @@ import { TrendingUp, Calendar, MapPin, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
+import { Marquee } from "./ui/marquee";
 
 interface PublicDashboardProps {
   onArtistClick: (artistSlug: string) => void;
@@ -70,17 +71,83 @@ export function PublicDashboard({ onArtistClick, onSignInRequired }: PublicDashb
 
   return (
     <div className="container mx-auto px-6 py-8 space-y-10 relative z-10">
-      {/* Hero Section - Refined */}
-      <div className="text-center py-12">
-        <h1 className="text-4xl md:text-5xl font-bold gradient-text mb-4 leading-tight">
-          Live Music Discovery
-        </h1>
-        <p className="text-lg text-muted-foreground mb-3 max-w-xl mx-auto">
-          Trending artists and shows from Ticketmaster. Request songs you want to hear and upvote fan favorites.
-        </p>
-        <p className="text-sm text-muted-foreground/60">
-          Updated live every 3 hours from Ticketmaster API
-        </p>
+      {/* Apple-Level Hero Section with Dynamic Marquee */}
+      <div className="relative overflow-hidden">
+        {/* Dynamic Marquee Banners */}
+        <div className="relative h-32 sm:h-40 lg:h-48 flex flex-col justify-center space-y-2 sm:space-y-4">
+          {/* Top Marquee - Artists sliding right to left */}
+          <div className="relative">
+            <Marquee className="[--duration:25s] [--gap:2rem]" reverse={false}>
+              {trendingArtists.slice(0, 10).map((artist, index) => (
+                <div
+                  key={`top-${artist.name}-${index}`}
+                  className="flex items-center space-x-3 px-6 py-2 bg-white/5 backdrop-blur-sm rounded-full border border-white/10"
+                >
+                  {artist.images?.[0] && (
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-white/10">
+                      <img 
+                        src={artist.images[0]} 
+                        alt={artist.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <span className="text-white font-medium text-sm sm:text-base lg:text-lg whitespace-nowrap">
+                    {artist.name}
+                  </span>
+                </div>
+              ))}
+            </Marquee>
+            {/* Gradient overlays for smooth edges */}
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-black via-black/80 to-transparent"></div>
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-black via-black/80 to-transparent"></div>
+          </div>
+
+          {/* Center Content */}
+          <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-white mb-3 sm:mb-4">
+              Crowd-Curated
+              <br />
+              <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                Setlists
+              </span>
+            </h1>
+            <p className="text-base sm:text-lg lg:text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
+              Vote on the songs you want to hear at upcoming concerts and see what other fans are predicting.
+            </p>
+          </div>
+
+          {/* Bottom Marquee - Artists sliding left to right */}
+          <div className="relative">
+            <Marquee className="[--duration:30s] [--gap:2rem]" reverse={true}>
+              {trendingArtists.slice(10, 20).map((artist, index) => (
+                <div
+                  key={`bottom-${artist.name}-${index}`}
+                  className="flex items-center space-x-3 px-6 py-2 bg-white/5 backdrop-blur-sm rounded-full border border-white/10"
+                >
+                  {artist.images?.[0] && (
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-white/10">
+                      <img 
+                        src={artist.images[0]} 
+                        alt={artist.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <span className="text-white font-medium text-sm sm:text-base lg:text-lg whitespace-nowrap">
+                    {artist.name}
+                  </span>
+                </div>
+              ))}
+            </Marquee>
+            {/* Gradient overlays for smooth edges */}
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-black via-black/80 to-transparent"></div>
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-black via-black/80 to-transparent"></div>
+          </div>
+        </div>
+
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-950/5 to-transparent pointer-events-none"></div>
       </div>
 
       {/* Horizontal Scrolling Sections */}
