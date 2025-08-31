@@ -89,7 +89,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
   const officialSetlist = setlists?.find(s => s.isOfficial);
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10">
+    <div className="w-full px-4 py-4 space-y-6 relative z-10 max-w-4xl mx-auto lg:px-6 lg:py-8 lg:space-y-8">
       <SEOHead
         title={`${show.artist?.name || 'Artist'} @ ${show.venue?.name || 'Venue'} – ${showDate.toLocaleDateString('en-US')} | TheSet`}
         description={`Details for ${show.artist?.name} at ${show.venue?.name} on ${showDate.toLocaleDateString('en-US')}. View setlists and vote.`}
@@ -99,13 +99,13 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
       
       {/* Enhanced Back Button */}
               <MagicCard className="inline-block p-0 rounded-xl border-0">
-        <button
-          onClick={onBack}
+      <button
+        onClick={onBack}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all duration-300 px-4 py-2 rounded-xl"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Dashboard
-        </button>
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Dashboard
+      </button>
       </MagicCard>
 
       {/* Enhanced Show Header with MagicCard */}
@@ -122,131 +122,94 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
           </div>
         )}
         
-        <div className="relative z-10 p-4 sm:p-6 lg:p-8">
-          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 sm:gap-6 lg:gap-8">
-            <div className="space-y-6 flex-1">
-              {/* Artist Name and Status */}
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <button
-                    onClick={() => onArtistClick(show.artistId)}
-                    className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white hover:text-primary transition-colors text-left leading-tight"
-                  >
-                    {show.artist?.name}
-                  </button>
-                  <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold backdrop-blur-sm ${
-                    isUpcoming 
-                      ? isToday 
-                        ? 'bg-green-500/30 text-green-300 border border-green-500/50' 
-                        : 'bg-blue-500/30 text-blue-300 border border-blue-500/50'
-                      : 'bg-gray-500/30 text-gray-300 border border-gray-500/50'
-                  }`}>
-                    <div className={`w-2 h-2 rounded-full mr-2 ${
-                      isUpcoming ? (isToday ? 'bg-green-400' : 'bg-blue-400') : 'bg-gray-400'
-                    }`} />
-                    {isUpcoming ? (isToday ? 'Tonight' : 'Upcoming') : 'Completed'}
-                  </div>
-                </div>
-                
-                {/* Venue and Date Info */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                  <div className="flex items-center gap-3 text-gray-300">
-                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                      <MapPin className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white">{show.venue?.name}</div>
-                      <div className="text-sm text-gray-400">{show.venue?.city}, {show.venue?.country}</div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 text-gray-300">
-                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                      <Calendar className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white">
-                        {showDate.toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
-                      </div>
-                      <div className="text-sm text-gray-400">
-                        {showDate.toLocaleDateString('en-US', { weekday: 'long' })}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {show.startTime && (
-                    <div className="flex items-center gap-3 text-gray-300">
-                      <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                        <Clock className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-white">{show.startTime}</div>
-                        <div className="text-sm text-gray-400">Show Time</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Additional Info */}
-                <div className="flex flex-wrap gap-4">
-                  {show.venue?.capacity && (
-                    <div className="flex items-center gap-2 bg-white/5 rounded-lg p-3 backdrop-blur-sm">
-                      <Users className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm text-gray-300">{show.venue.capacity.toLocaleString()} capacity</span>
-                    </div>
-                  )}
-                  
-                  {show.venue?.address && (
-                    <div className="text-gray-400 bg-white/5 rounded-lg p-3 backdrop-blur-sm">
-                      <div className="text-sm">{show.venue.address}</div>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-4">
-                {show.ticketUrl && (
-                  <a 
-                    href={show.ticketUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-6 py-3 bg-primary/20 hover:bg-primary/30 text-white rounded-xl font-medium transition-all duration-300 border border-primary/30 backdrop-blur-sm"
-                  >
-                    <Star className="h-4 w-4 mr-2" />
-                    Get Tickets
-                  </a>
-                )}
-              </div>
-            </div>
-
-            {/* Artist Image - Mobile Responsive */}
+        <div className="relative z-10 p-6">
+                  {/* Mobile-Native Header Design */}
+          <div className="text-center space-y-4">
+            {/* Artist Image - Mobile First */}
             {show.artist?.images?.[0] && (
-              <div className="flex-shrink-0 self-center sm:self-start">
-                <MagicCard className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 xl:w-64 xl:h-64 p-0 rounded-2xl overflow-hidden border-0">
-                  <img 
-                    src={show.artist.images[0]} 
-                    alt={show.artist.name}
-                    className="w-full h-full object-cover"
-                  />
-                  <BorderBeam size={80} duration={12} className="opacity-20" />
-                </MagicCard>
+              <div className="w-32 h-32 mx-auto rounded-2xl overflow-hidden">
+                <img 
+                  src={show.artist.images[0]} 
+                  alt={show.artist.name}
+                  className="w-full h-full object-cover"
+                />
               </div>
             )}
+            
+            {/* Artist Name - Mobile Optimized */}
+            <button
+              onClick={() => onArtistClick(show.artistId)}
+              className="text-3xl font-bold text-white hover:text-primary transition-colors"
+            >
+              {show.artist?.name}
+            </button>
+            
+            {/* Status Badge */}
+            <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold ${
+              isUpcoming 
+                ? isToday 
+                  ? 'bg-green-500/30 text-green-300 border border-green-500/50' 
+                  : 'bg-blue-500/30 text-blue-300 border border-blue-500/50'
+                : 'bg-gray-500/30 text-gray-300 border border-gray-500/50'
+            }`}>
+              <div className={`w-2 h-2 rounded-full mr-2 ${
+                isUpcoming ? (isToday ? 'bg-green-400' : 'bg-blue-400') : 'bg-gray-400'
+              }`} />
+              {isUpcoming ? (isToday ? 'Tonight' : 'Upcoming') : 'Completed'}
+            </div>
+            
+            {/* Show Info - Mobile Stack */}
+            <div className="space-y-3 text-center">
+              <div className="text-white">
+                <div className="text-lg font-semibold">{show.venue?.name}</div>
+                <div className="text-gray-400">{show.venue?.city}, {show.venue?.country}</div>
+              </div>
+              
+              <div className="text-white">
+                <div className="text-lg font-semibold">
+                  {showDate.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
+                </div>
+                {show.startTime && (
+                  <div className="text-gray-400">
+                    {(() => {
+                      const [hours, minutes] = show.startTime.split(':');
+                      const hour = parseInt(hours);
+                      const ampm = hour >= 12 ? 'PM' : 'AM';
+                      const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                      return `${displayHour}:${minutes} ${ampm} EST`;
+                    })()}
+                  </div>
+                )}
+              </div>
+              
+              {/* Ticket Button - Mobile Optimized */}
+              {show.ticketUrl && (
+                <a 
+                  href={show.ticketUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-8 py-3 bg-primary/20 hover:bg-primary/30 text-white rounded-xl font-medium transition-all duration-300 border border-primary/30"
+                >
+                  <Star className="h-4 w-4 mr-2" />
+                  Get Tickets
+                </a>
+              )}
+            </div>
           </div>
-        </div>
-        
+            </div>
+            
         <BorderBeam size={200} duration={15} className="opacity-30" />
       </MagicCard>
 
-      {/* Mobile-Responsive Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-        {/* Setlist Section - Mobile First */}
-        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+      {/* Mobile-Native Content Layout */}
+      <div className="space-y-6">
+        {/* Main Setlist Section */}
+        <div className="space-y-6">
 
 
           {/* Enhanced Shared Setlist Display */}
@@ -265,15 +228,15 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                   {(communitySetlist || officialSetlist) && (
                     <div className="text-base font-medium text-gray-300">
                       {(officialSetlist?.songs?.length || communitySetlist?.songs?.length || 0)} songs
-                    </div>
-                  )}
+              </div>
+            )}
                   {communitySetlist && !officialSetlist && (
                     <div className="text-sm text-gray-400 bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm">
                       Community Predictions
-                    </div>
-                  )}
-                </div>
-              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
               {/* Song Addition Dropdown - Moved into setlist section */}
               {!officialSetlist && isUpcoming && songs && songs.length > 0 && (
@@ -393,9 +356,9 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                               </svg>
                               <span className="text-green-400 font-semibold text-sm">{voteCount}</span>
-                            </div>
-                          )}
-                          
+            </div>
+          )}
+
                           {/* Encore Badge */}
                           {song.encore && (
                             <span className="bg-yellow-500/20 text-yellow-400 text-xs font-semibold px-3 py-1 rounded-full">
@@ -546,9 +509,9 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                           <div>
                             <h3 className="text-lg font-bold text-white">Fan Prediction Accuracy</h3>
                             <p className="text-purple-400 text-sm">How well did the community predict?</p>
-                          </div>
-                        </div>
-                        
+              </div>
+            </div>
+            
                         <div className="text-right">
                           <div className="text-3xl font-bold text-purple-400">
                             {Math.round(((communitySetlist.songs || []).filter((s: any) => {
@@ -557,8 +520,8 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                             }).length / (communitySetlist.songs || []).length) * 100)}%
                           </div>
                           <div className="text-xs text-gray-400">accuracy rate</div>
-                        </div>
-                      </div>
+                  </div>
+                </div>
                     </div>
                   </div>
                 )}
@@ -595,110 +558,83 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                   ))}
               </div>
             )}
-            </div>
+          </div>
             <BorderBeam size={120} duration={10} className="opacity-20" />
           </MagicCard>
         </div>
 
-        {/* Enhanced Sidebar - Mobile Responsive */}
-        <div className="space-y-4 sm:space-y-6 lg:order-last">
-          {/* Enhanced Venue Details */}
+                {/* Mobile-Native Stats Section */}
+        {(hasActualSetlist || (communitySetlist && communitySetlist.songs && communitySetlist.songs.length > 0)) && (
           <MagicCard className="p-0 rounded-2xl border-0">
-            <div className="p-4 sm:p-6">
-            <h3 className="text-lg sm:text-xl font-bold mb-4 text-white">Venue Details</h3>
-            <div className="space-y-3">
-              <div>
-                <div className="font-medium">{show.venue?.name}</div>
-                <div className="text-sm text-muted-foreground">
-                  {show.venue?.city}, {show.venue?.country}
+            <div className="p-6 bg-black">
+              <h3 className="text-xl font-bold mb-4 text-white text-center">Show Stats</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center bg-white/5 rounded-lg p-3">
+                  <div className="text-2xl font-bold text-white">
+                    {hasActualSetlist ? communitySetlist.actualSetlist?.length || 0 : communitySetlist?.songs?.length || 0}
+                  </div>
+                  <div className="text-xs text-gray-400">Songs {hasActualSetlist ? 'Played' : 'Requested'}</div>
                 </div>
+                
+                <div className="text-center bg-white/5 rounded-lg p-3">
+                  <div className="text-2xl font-bold text-white">
+                    {songs?.filter(Boolean).filter(s => s && !s.isLive && !s.isRemix).length || 0}
+              </div>
+                  <div className="text-xs text-gray-400">Available Songs</div>
+                </div>
+                
+                {communitySetlist && (
+                  <>
+                    <div className="text-center bg-white/5 rounded-lg p-3">
+                      <div className="text-2xl font-bold text-white">
+                        {((communitySetlist.upvotes || 0) + (communitySetlist.downvotes || 0))}
+                      </div>
+                      <div className="text-xs text-gray-400">Total Votes</div>
+                    </div>
+                    
+                    <div className="text-center bg-white/5 rounded-lg p-3">
+                      <div className="text-2xl font-bold text-white capitalize">{show.status}</div>
+                      <div className="text-xs text-gray-400">Status</div>
+                    </div>
+                  </>
+                )}
               </div>
               
-              {show.venue?.capacity && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <span>{show.venue.capacity.toLocaleString()} capacity</span>
-                </div>
-              )}
-              
+              {/* Venue Info */}
               {show.venue?.address && (
-                <div className="text-sm text-muted-foreground">
+                <div className="mt-4 text-center text-sm text-gray-400 bg-white/5 rounded-lg p-3">
                   {show.venue.address}
                 </div>
               )}
             </div>
-            </div>
-            <BorderBeam size={100} duration={8} className="opacity-20" />
+            <BorderBeam size={120} duration={10} className="opacity-20" />
           </MagicCard>
+        )}
 
-          {/* Enhanced Show Stats */}
+        {/* Enhanced Call to Action */}
+        {!user && (
           <MagicCard className="p-0 rounded-2xl border-0">
-            <div className="p-4 sm:p-6">
-            <h3 className="text-lg sm:text-xl font-bold mb-4 text-white">Show Stats</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Songs in setlist</span>
-                <span className="font-medium">{officialSetlist?.songs?.length || communitySetlist?.songs?.length || 0}</span>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Studio songs available</span>
-                <span className="font-medium">{songs?.filter(Boolean).filter(s => s && !s.isLive && !s.isRemix).length || 0}</span>
-              </div>
-              
-              {communitySetlist && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Song votes</span>
-                    <span className="font-medium">
-                      {(communitySetlist.songs || []).reduce((total: number, _: any, index: number) => {
-                        // This would need to be calculated properly with individual song votes
-                        return total + (index + 1); // Placeholder calculation
-                      }, 0)}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Setlist upvotes</span>
-                    <span className="font-medium">{communitySetlist.upvotes || 0}</span>
-                  </div>
-                </>
-              )}
-              
-                            <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Show status</span>
-                <span className="font-medium capitalize">{show.status}</span>
-              </div>
-            </div>
-            </div>
-            <BorderBeam size={100} duration={8} className="opacity-20" />
-          </MagicCard>
-
-          {/* Enhanced Call to Action */}
-          {!user && (
-            <MagicCard className="p-0 rounded-2xl border-0">
-              <div className="p-6 text-center">
-                <div className="flex items-center justify-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
-                    <Vote className="h-5 w-5 text-primary" />
-                  </div>
-                  <h3 className="text-xl font-bold text-white">Join the Voting</h3>
+            <div className="p-6 text-center bg-black">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
+                  <Vote className="h-5 w-5 text-primary" />
                 </div>
-                <p className="text-gray-300 mb-6">
-                  Sign in to request unlimited songs and vote on others
-                </p>
-                <button
-                  onClick={onSignInRequired}
-                  className="w-full bg-primary/20 hover:bg-primary/30 text-white border border-primary/30 rounded-xl py-3 px-6 font-medium transition-all duration-300 backdrop-blur-sm"
-                >
-                  <Music className="h-4 w-4 mr-2 inline" />
-                  Sign In to Vote
-                </button>
+                <h3 className="text-xl font-bold text-white">Join the Voting</h3>
               </div>
-              <BorderBeam size={120} duration={10} className="opacity-30" />
-            </MagicCard>
+              <p className="text-gray-300 mb-6">
+                Sign in to request unlimited songs and vote on others
+              </p>
+              <button
+                onClick={onSignInRequired}
+                className="w-full bg-primary/20 hover:bg-primary/30 text-white border border-primary/30 rounded-xl py-4 px-6 font-medium transition-all duration-300 text-lg"
+              >
+                <Music className="h-5 w-5 mr-2 inline" />
+                Sign In to Vote
+              </button>
+            </div>
+            <BorderBeam size={120} duration={10} className="opacity-30" />
+          </MagicCard>
           )}
-        </div>
       </div>
     </div>
   );
