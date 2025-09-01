@@ -109,18 +109,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
       </MagicCard>
 
       {/* Enhanced Show Header with MagicCard - Improved Mobile Layout */}
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-white/10">
-        {/* Background Image */}
-        {show.artist?.images?.[0] && (
-          <div className="absolute inset-0 z-0">
-            <img 
-              src={show.artist.images[0]} 
-              alt={show.artist.name}
-              className="w-full h-full object-cover opacity-15 blur-sm scale-110"
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/70 to-black/90" />
-          </div>
-        )}
+      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-white/10 bg-black">
         
         <div className="relative z-10 p-4 sm:p-5 lg:p-6">
           <div className="space-y-4">

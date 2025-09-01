@@ -36,7 +36,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
   return (
     <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 relative z-10">
       {/* Header */}
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-white/10">
+      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-white/10 bg-black">
         <div className="relative z-10 p-4 sm:p-6 lg:p-8">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
@@ -78,7 +78,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2">
-          <MagicCard className="p-0 rounded-2xl border border-white/10">
+          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
@@ -251,7 +251,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Trending Cities */}
-          <MagicCard className="p-0 rounded-2xl border border-white/10">
+          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <MapPin className="h-5 w-5 text-white" />
@@ -266,7 +266,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
           </MagicCard>
 
           {/* Recent Activity */}
-          <MagicCard className="p-0 rounded-2xl border border-white/10">
+          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <Clock className="h-5 w-5 text-white" />

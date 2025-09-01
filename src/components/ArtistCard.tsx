@@ -35,7 +35,7 @@ export function ArtistCard({
   }
 
   return (
-    <MagicCard className="group cursor-pointer p-0 transition-all duration-300 ease-out active:scale-[0.98] relative overflow-hidden border-0 touch-manipulation h-full" onClick={handleClick} gradientColor="#000000" gradientOpacity={0} gradientSize={0}>
+    <MagicCard className="group cursor-pointer p-0 transition-all duration-300 ease-out active:scale-[0.98] relative overflow-hidden border-0 touch-manipulation h-full bg-black" onClick={handleClick} gradientColor="#000000" gradientOpacity={0} gradientSize={0}>
       {/* Halo-style gradient overlay */}
 
       {/* Enhanced Artist Image with Better Visibility */}

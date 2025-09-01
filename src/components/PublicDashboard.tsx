@@ -6,7 +6,6 @@ import { TrendingUp, Calendar, MapPin, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
-import { Marquee } from "./ui/marquee";
 import { SearchBar } from "./SearchBar";
 
 interface PublicDashboardProps {
@@ -43,21 +42,23 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
       setTrendingShows(uniqueShows);
       setIsLoadingShows(false);
     } else if (fallbackShows) {
-      // Convert fallback shows to trending format
-      const convertedShows = fallbackShows.map(show => ({
-        ticketmasterId: show.ticketmasterId || show._id,
-        artistTicketmasterId: show.artist?.ticketmasterId,
-        artistName: show.artist?.name || 'Unknown Artist',
-        artist: show.artist, // Include full artist data
-        venueName: show.venue?.name || 'Unknown Venue',
-        venueCity: show.venue?.city || '',
-        venueCountry: show.venue?.country || '',
-        date: show.date,
-        startTime: show.startTime,
-        artistImage: show.artist?.images?.[0],
-        ticketUrl: show.ticketUrl,
-        status: show.status,
-      }));
+      // Convert fallback shows to trending format - filter out shows without proper artist names
+      const convertedShows = fallbackShows
+        .filter(show => show.artist?.name && show.artist.name.trim() !== '' && show.artist.name !== 'Unknown Artist')
+        .map(show => ({
+          ticketmasterId: show.ticketmasterId || show._id,
+          artistTicketmasterId: show.artist?.ticketmasterId,
+          artistName: show.artist.name,
+          artist: show.artist, // Include full artist data
+          venueName: show.venue?.name || 'Unknown Venue',
+          venueCity: show.venue?.city || '',
+          venueCountry: show.venue?.country || '',
+          date: show.date,
+          startTime: show.startTime,
+          artistImage: show.artist?.images?.[0],
+          ticketUrl: show.ticketUrl,
+          status: show.status,
+        }));
       setTrendingShows(convertedShows.slice(0, 12));
       setIsLoadingShows(false);
     }
@@ -66,15 +67,17 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
       setTrendingArtists(dbTrendingArtists);
       setIsLoadingArtists(false);
     } else if (fallbackArtists) {
-      // Convert fallback artists to trending format
-      const convertedArtists = fallbackArtists.map(artist => ({
-        ticketmasterId: artist.ticketmasterId || artist._id,
-        name: artist.name,
-        genres: artist.genres || [],
-        images: artist.images || [],
-        upcomingEvents: artist.upcomingShows || 0,
-        url: artist.url,
-      }));
+      // Convert fallback artists to trending format - filter out artists without proper names
+      const convertedArtists = fallbackArtists
+        .filter(artist => artist.name && artist.name.trim() !== '' && artist.name !== 'Unknown Artist')
+        .map(artist => ({
+          ticketmasterId: artist.ticketmasterId || artist._id,
+          name: artist.name,
+          genres: artist.genres || [],
+          images: artist.images || [],
+          upcomingEvents: artist.upcomingShows || 0,
+          url: artist.url,
+        }));
       setTrendingArtists(convertedArtists);
       setIsLoadingArtists(false);
     }
@@ -109,36 +112,8 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
     <div className="w-full space-y-6 sm:space-y-8 lg:space-y-10 relative z-10">
       {/* Apple-Level Hero Section with Dynamic Marquee */}
       <div className="relative overflow-hidden">
-        {/* Dynamic Marquee Banners */}
+        {/* Clean Hero Section */}
         <div className="relative min-h-[280px] sm:min-h-[320px] lg:min-h-[400px] flex flex-col justify-center space-y-3 sm:space-y-4 py-4 sm:py-6">
-          {/* Top Marquee - Artists sliding right to left */}
-          <div className="relative">
-            <Marquee className="[--duration:25s] [--gap:2rem]" reverse={false}>
-              {trendingArtists.slice(0, 10).map((artist, index) => (
-                <div
-                  key={`top-${artist.name}-${index}`}
-                  className="flex items-center space-x-2 sm:space-x-3 px-4 sm:px-6 py-1.5 sm:py-2 bg-white/5 backdrop-blur-sm rounded-full border border-white/10"
-                >
-                  {artist.images?.[0] && (
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-white/10">
-                      <img 
-                        src={artist.images[0]} 
-                        alt={artist.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                  <span className="text-white font-medium text-sm sm:text-base lg:text-lg whitespace-nowrap">
-                    {artist.name}
-                  </span>
-                </div>
-              ))}
-            </Marquee>
-            {/* Gradient overlays for smooth edges */}
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-black via-black/80 to-transparent"></div>
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-black via-black/80 to-transparent"></div>
-          </div>
-
           {/* Center Content */}
           <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8">
             <h1 className="text-responsive-3xl sm:text-responsive-4xl lg:text-responsive-5xl font-bold tracking-tight text-white mb-2 sm:mb-3 lg:mb-4">
@@ -164,34 +139,6 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
                 className="w-full"
               />
             </div>
-          </div>
-
-          {/* Bottom Marquee - Artists sliding left to right */}
-          <div className="relative">
-            <Marquee className="[--duration:30s] [--gap:2rem]" reverse={true}>
-              {trendingArtists.slice(10, 20).map((artist, index) => (
-                <div
-                  key={`bottom-${artist.name}-${index}`}
-                  className="flex items-center space-x-2 sm:space-x-3 px-4 sm:px-6 py-1.5 sm:py-2 bg-white/5 backdrop-blur-sm rounded-full border border-white/10"
-                >
-                  {artist.images?.[0] && (
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-white/10">
-                      <img 
-                        src={artist.images[0]} 
-                        alt={artist.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                  <span className="text-white font-medium text-sm sm:text-base lg:text-lg whitespace-nowrap">
-                    {artist.name}
-                  </span>
-                </div>
-              ))}
-            </Marquee>
-            {/* Gradient overlays for smooth edges */}
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-black via-black/80 to-transparent"></div>
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-black via-black/80 to-transparent"></div>
           </div>
         </div>
 

@@ -71,24 +71,11 @@ export function ShowCard({
   if (compact) {
     return (
       <MagicCard
-        className="group cursor-pointer p-0 transition-all duration-300 ease-out active:scale-[0.98] relative overflow-hidden border-0 touch-manipulation"
+        className="group cursor-pointer p-0 transition-all duration-300 ease-out active:scale-[0.98] relative overflow-hidden border-0 touch-manipulation bg-black"
         gradientColor="#000000"
         gradientOpacity={0}
         gradientSize={0}
       >
-        {/* Background Image for Compact */}
-        {showArtist && show.artist?.images?.[0] && (
-          <div className="absolute inset-0 z-0">
-            <img 
-              src={show.artist.images[0]} 
-              alt={show.artist.name}
-              loading="lazy"
-              decoding="async"
-              className="w-full h-full object-cover opacity-40 group-hover:opacity-50 transition-all duration-500"
-            />
-
-          </div>
-        )}
         
         <div className="relative z-10 p-3 sm:p-4" onClick={handleClick}>
           <div className="flex items-center gap-2.5 sm:gap-3">
@@ -143,23 +130,22 @@ export function ShowCard({
 
   return (
     <MagicCard
-      className="group cursor-pointer p-0 transition-all duration-300 ease-out hover:scale-[1.01] active:scale-[0.98] relative overflow-hidden border-0 touch-manipulation h-full"
+      className="group cursor-pointer p-0 transition-all duration-300 ease-out hover:scale-[1.01] active:scale-[0.98] relative overflow-hidden border-0 touch-manipulation h-full bg-black"
       onClick={handleClick}
       gradientColor="#000000"
       gradientOpacity={0}
       gradientSize={0}
     >
-      {/* Enhanced Artist Image Background */}
+      {/* Enhanced Artist Image at Top */}
       {showArtist && show.artist?.images?.[0] && (
-        <div className="absolute inset-0 z-0">
+        <div className="relative w-full h-40 overflow-hidden">
           <img 
             src={show.artist.images[0]} 
             alt={show.artist.name}
             loading="lazy"
             decoding="async"
-            className="w-full h-full object-cover opacity-40 group-hover:opacity-50 transition-all duration-500"
+            className="w-full h-full object-cover opacity-85"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
         </div>
       )}
       
