@@ -171,15 +171,21 @@ export const getTrendingShows = action({
   })),
   handler: async (ctx, args) => {
     const apiKey = process.env.TICKETMASTER_API_KEY;
-    if (!apiKey) return [];
+    if (!apiKey) {
+      console.error("TICKETMASTER_API_KEY not set");
+      return [];
+    }
 
     const limit = args.limit || 50;
-    // Prioritize stadium and arena shows with higher capacity venues
-    const url = `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=${limit}&sort=relevance,desc&segmentName=Music&genreId=KnvZfZ7vAeA&subGenreId=KZazBEonSMnZiA&apikey=${apiKey}`;
+    // Simplified query - just get music events sorted by date
+    const url = `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=${limit}&sort=date,asc&apikey=${apiKey}`;
 
     try {
       const response = await fetch(url);
-      if (!response.ok) return [];
+      if (!response.ok) {
+        console.error("Ticketmaster API error:", response.status, response.statusText);
+        return [];
+      }
 
       const data = await response.json();
       const events = data._embedded?.events || [];
@@ -232,15 +238,21 @@ export const getTrendingArtists = action({
   })),
   handler: async (ctx, args) => {
     const apiKey = process.env.TICKETMASTER_API_KEY;
-    if (!apiKey) return [];
+    if (!apiKey) {
+      console.error("TICKETMASTER_API_KEY not set");
+      return [];
+    }
 
     const limit = args.limit || 30;
-    // Prioritize top-tier artists with the most upcoming events and stadium shows
-    const url = `https://app.ticketmaster.com/discovery/v2/attractions.json?classificationName=music&size=${limit}&sort=upcoming,desc&segmentName=Music&genreId=KnvZfZ7vAeA&apikey=${apiKey}`;
+    // Simplified query - just get music attractions
+    const url = `https://app.ticketmaster.com/discovery/v2/attractions.json?classificationName=music&size=${limit}&apikey=${apiKey}`;
 
     try {
       const response = await fetch(url);
-      if (!response.ok) return [];
+      if (!response.ok) {
+        console.error("Ticketmaster API error:", response.status, response.statusText);
+        return [];
+      }
 
       const data = await response.json();
       const attractions = data._embedded?.attractions || [];
