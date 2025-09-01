@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { App } from './App';
 import { SignInPage } from './pages/SignInPage';
 import { SignUpPage } from './pages/SignUpPage';
+import { UserProfilePage } from './pages/UserProfilePage';
 import { AdminTest } from './components/AdminTest';
 
 export const router = createBrowserRouter([
@@ -48,7 +49,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/profile',
-    element: <App />,
+    element: <UserProfilePage />,
   },
   {
     path: '/admin',

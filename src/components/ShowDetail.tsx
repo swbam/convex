@@ -108,134 +108,50 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
       </button>
       </MagicCard>
 
-      {/* Enhanced Show Header with MagicCard - Improved Mobile Layout */}
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-white/10 bg-black">
-        
-        <div className="relative z-10 p-4 sm:p-5 lg:p-6">
-          <div className="space-y-4">
-            {/* Compact Mobile Header */}
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <button
-                  onClick={() => onArtistClick(show.artistId)}
-                  className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white hover:text-primary transition-colors text-left leading-tight flex-1 min-w-0"
-                >
-                  {show.artist?.name}
-                </button>
-                <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold backdrop-blur-sm whitespace-nowrap ${
-                  isUpcoming 
-                    ? isToday 
-                      ? 'bg-green-500/30 text-green-300 border border-green-500/50' 
-                      : 'bg-blue-500/30 text-blue-300 border border-blue-500/50'
-                    : 'bg-gray-500/30 text-gray-300 border border-gray-500/50'
-                }`}>
-                  <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                    isUpcoming ? (isToday ? 'bg-green-400' : 'bg-blue-400') : 'bg-gray-400'
-                  }`} />
-                  {isUpcoming ? (isToday ? 'Tonight' : 'Upcoming') : 'Completed'}
-                </div>
+      {/* Clean Apple-Style Show Header */}
+      <MagicCard className="relative overflow-hidden rounded-xl p-0 border-0 bg-black">
+        <div className="relative z-10 p-3 sm:p-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            {/* Compact Artist Image */}
+            {show.artist?.images?.[0] && (
+              <div className="flex-shrink-0">
+                <img
+                  src={show.artist.images[0]}
+                  alt={show.artist.name}
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover"
+                />
               </div>
-                
-              {/* Compact Info Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
-                <div className="flex items-center gap-2.5 text-gray-300">
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0">
-                    <MapPin className="h-4 w-4 text-white" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="font-semibold text-white text-sm sm:text-base truncate">{show.venue?.name}</div>
-                    <div className="text-xs sm:text-sm text-gray-400 truncate">{show.venue?.city}, {show.venue?.country}</div>
-                  </div>
-                </div>
-                  
-                <div className="flex items-center gap-2.5 text-gray-300">
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0">
-                    <Calendar className="h-4 w-4 text-white" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="font-semibold text-white text-sm sm:text-base">
-                      {showDate.toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
-                    </div>
-                    <div className="text-xs sm:text-sm text-gray-400">
-                      {showDate.toLocaleDateString('en-US', { weekday: 'long' })}
-                    </div>
-                  </div>
-                </div>
-                  
-                {show.startTime && (
-                  <div className="flex items-center gap-2.5 text-gray-300">
-                    <div className="w-8 h-8 sm:w-9 sm:h-9 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0">
-                      <Clock className="h-4 w-4 text-white" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-semibold text-white text-sm sm:text-base">
-                        {(() => {
-                          const [hours, minutes] = show.startTime.split(':');
-                          const hour = parseInt(hours);
-                          const ampm = hour >= 12 ? 'PM' : 'AM';
-                          const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-                          return `${displayHour}:${minutes} ${ampm} EST`;
-                        })()}
-                      </div>
-                      <div className="text-xs sm:text-sm text-gray-400">Show Time</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-                
-                {/* Additional Info */}
-                <div className="flex flex-wrap gap-4">
-                  {show.venue?.capacity && (
-                    <div className="flex items-center gap-2 bg-white/5 rounded-lg p-3 backdrop-blur-sm">
-                      <Users className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm text-gray-300">{show.venue.capacity.toLocaleString()} capacity</span>
-                    </div>
-                  )}
-                  
-                  {show.venue?.address && (
-                    <div className="text-gray-400 bg-white/5 rounded-lg p-3 backdrop-blur-sm">
-                      <div className="text-sm">{show.venue.address}</div>
-                    </div>
-                  )}
-                </div>
-              
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-4">
-                {show.ticketUrl && (
-                  <a 
-                    href={show.ticketUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-6 py-3 bg-primary/20 hover:bg-primary/30 text-white rounded-xl font-medium transition-all duration-300 border border-primary/30 backdrop-blur-sm"
-                  >
-                    <Star className="h-4 w-4 mr-2" />
-                    Get Tickets
-                  </a>
-                )}
+            )}
+            
+            {/* Show Info - Clean Typography */}
+            <div className="flex-1 min-w-0">
+              <button
+                onClick={() => onArtistClick(show.artistId)}
+                className="text-xl sm:text-2xl lg:text-3xl font-bold text-white hover:text-primary transition-colors text-left truncate block"
+              >
+                {show.artist?.name}
+              </button>
+              <div className="flex items-center gap-2 text-sm text-gray-400 mt-1">
+                <MapPin className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{show.venue?.name}</span>
+                <span>•</span>
+                <span className="truncate">
+                  {showDate.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric'
+                  })}
+                </span>
               </div>
             </div>
-
-            {/* Artist Image - Mobile Responsive */}
-            {show.artist?.images?.[0] && (
-              <div className="flex-shrink-0 self-center sm:self-start">
-                <MagicCard className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 xl:w-64 xl:h-64 p-0 rounded-2xl overflow-hidden border-0">
-                  <img 
-                    src={show.artist.images[0]} 
-                    alt={show.artist.name}
-                    className="w-full h-full object-cover"
-                  />
-                  <BorderBeam size={80} duration={12} className="opacity-20" />
-                </MagicCard>
+            
+            {/* Status Badge - Minimal */}
+            {isToday && (
+              <div className="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-semibold">
+                Tonight
               </div>
             )}
           </div>
         </div>
-        
-        <BorderBeam size={200} duration={15} className="opacity-30" />
       </MagicCard>
 
       {/* Two-Column Content Grid */}

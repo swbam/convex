@@ -13,71 +13,42 @@ interface ArtistsProps {
 
 export function Artists({ onArtistClick }: ArtistsProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<'trending' | 'followers' | 'name'>('trending');
-  const [filterGenre, setFilterGenre] = useState<string>('');
   const [page, setPage] = useState(1);
   const pageSize = 18;
 
-  // Use canonical artists collection; trending is reflected via trendingScore
+  // Use canonical artists collection - simplified
   const allArtistsRaw = useQuery(api.artists.getAll, { limit: 200 });
   const isLoading = allArtistsRaw === undefined;
+  
   const allArtists = React.useMemo(() => {
-    // Deduplicate artists by name to avoid showing duplicates
+    // Filter out invalid artists and deduplicate
     const artistsMap = new Map<string, any>();
     (allArtistsRaw || []).forEach(artist => {
-      if (!artistsMap.has(artist.name)) {
-        artistsMap.set(artist.name, artist);
+      if (artist.name && artist.name.trim() !== '' && artist.name !== 'Unknown Artist') {
+        if (!artistsMap.has(artist.name)) {
+          artistsMap.set(artist.name, artist);
+        }
       }
     });
-    return Array.from(artistsMap.values());
+    
+    // Sort by trending score, then name
+    return Array.from(artistsMap.values()).sort((a, b) => {
+      if ((b.trendingScore || 0) !== (a.trendingScore || 0)) {
+        return (b.trendingScore || 0) - (a.trendingScore || 0);
+      }
+      return a.name.localeCompare(b.name);
+    });
   }, [allArtistsRaw]);
 
-  // Get unique genres for filter
-  const genres = React.useMemo(() => {
-    const genreSet = new Set<string>();
-    (allArtists || []).forEach(artist => {
-      artist.genres?.forEach((genre: string) => genreSet.add(genre));
-    });
-    return Array.from(genreSet).sort();
-  }, [allArtists]);
-
-  // Filter and sort artists
+  // Simple search filter
   const filteredArtists = React.useMemo(() => {
-    let filtered = allArtists;
-
-    // Apply search filter
-    if (searchQuery) {
-      filtered = filtered.filter(artist => 
-        artist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        artist.genres?.some((genre: string) => 
-          genre.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      );
-    }
-
-    // Apply genre filter
-    if (filterGenre) {
-      filtered = filtered.filter(artist => 
-        artist.genres?.includes(filterGenre)
-      );
-    }
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'trending':
-          return (b.trendingScore || 0) - (a.trendingScore || 0);
-        case 'followers':
-          return (b.followers || 0) - (a.followers || 0);
-        case 'name':
-          return a.name.localeCompare(b.name);
-        default:
-          return 0;
-      }
-    });
-
-    return filtered;
-  }, [allArtists, searchQuery, filterGenre, sortBy]);
+    if (!searchQuery.trim()) return allArtists;
+    
+    return allArtists.filter(artist =>
+      artist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      artist.genres?.some((genre: string) => genre.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+  }, [allArtists, searchQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filteredArtists.length / pageSize));
   const paginatedArtists = React.useMemo(() => {
@@ -94,102 +65,39 @@ export function Artists({ onArtistClick }: ArtistsProps) {
     setPage(1); // Reset to first page on search
   };
 
-  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFilterGenre(e.target.value);
-  };
-
-  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSortBy(e.target.value as 'trending' | 'followers' | 'name');
-  };
-
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8 relative z-10">
-      {/* Enhanced Header with MagicCard */}
-      <MagicCard className="relative overflow-hidden rounded-xl sm:rounded-2xl p-0 border-0 bg-black">
-        <div className="relative z-10 p-3 sm:p-5 lg:p-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 rounded-xl sm:rounded-2xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
-                  <Mic className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-responsive-2xl sm:text-responsive-3xl lg:text-responsive-4xl font-bold text-white leading-tight">Artists</h1>
-                  <p className="text-gray-300 text-responsive-xs sm:text-responsive-sm lg:text-responsive-base">
-                    Discover {filteredArtists.length} artists<span className="hidden sm:inline"> across all genres</span>
-                  </p>
-                </div>
-              </div>
+      {/* Clean Apple-Style Artists Header */}
+      <MagicCard className="relative overflow-hidden rounded-xl p-0 border-0 bg-black">
+        <div className="relative z-10 p-3 sm:p-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/10 rounded-xl flex items-center justify-center">
+              <Mic className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
             </div>
-            
-            <div className="hidden sm:flex items-center gap-2 sm:gap-3 bg-white/5 rounded-lg sm:rounded-xl p-3 sm:p-4 backdrop-blur-sm">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-purple-500/20 rounded-md sm:rounded-lg flex items-center justify-center">
-                <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-400" />
-              </div>
-              <div>
-                <div className="text-responsive-xs sm:text-responsive-sm font-medium text-white">Trending</div>
-                <div className="text-[10px] sm:text-xs text-gray-400">Updated daily</div>
-              </div>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white truncate">Artists</h1>
+              <p className="text-sm text-gray-400 mt-1">{filteredArtists.length} artists</p>
             </div>
           </div>
         </div>
-        <BorderBeam size={150} duration={12} className="opacity-30" />
       </MagicCard>
 
-      {/* Enhanced Search and Filters */}
-      <MagicCard className="p-0 rounded-2xl border-0 bg-black">
-        <div className="p-4 sm:p-6">
-          <div className="flex items-center gap-3 mb-4 sm:mb-6">
-            <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
-              <Filter className="h-4 w-4 text-white" />
-            </div>
-            <h2 className="text-lg sm:text-xl font-semibold text-white">Search & Filter</h2>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-          {/* Search */}
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <input
-              type="text"
-              placeholder="Search artists or genres..."
-              value={searchQuery}
-              onChange={handleSearch}
-              className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300 text-base"
-            />
-          </div>
-
-            {/* Enhanced Genre Filter */}
+      {/* Simple Artist Search */}
+      <MagicCard className="p-0 rounded-xl border-0 bg-black">
+        <div className="p-3 sm:p-4">
+          <div className="max-w-md">
             <div className="relative">
-              <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none z-10" />
-              <select
-                value={filterGenre}
-                onChange={handleFilterChange}
-                className="w-full pl-12 pr-8 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white backdrop-blur-sm appearance-none cursor-pointer transition-all duration-300"
-              >
-                <option value="" className="bg-background text-foreground">All Genres</option>
-                {genres.map((genre: string) => (
-                  <option key={genre} value={genre} className="bg-background text-foreground">{genre}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Enhanced Sort */}
-            <div className="relative">
-              <TrendingUp className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none z-10" />
-              <select
-                value={sortBy}
-                onChange={handleSortChange}
-                className="w-full pl-12 pr-8 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white backdrop-blur-sm appearance-none cursor-pointer transition-all duration-300"
-              >
-                <option value="trending" className="bg-background text-foreground">Trending</option>
-                <option value="followers" className="bg-background text-foreground">Most Followers</option>
-                <option value="name" className="bg-background text-foreground">Alphabetical</option>
-              </select>
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <input
+                type="text"
+                placeholder="Search artists..."
+                value={searchQuery}
+                onChange={handleSearch}
+                className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-400 text-sm"
+              />
             </div>
           </div>
         </div>
-        <BorderBeam size={120} duration={8} className="opacity-20" />
       </MagicCard>
 
       {/* Results */}
@@ -212,23 +120,20 @@ export function Artists({ onArtistClick }: ArtistsProps) {
         ) : filteredArtists.length === 0 ? (
           // No results
           <div className="text-center py-12">
-            <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold mb-2">No artists found</h3>
-            <p className="text-muted-foreground mb-4">
-              {searchQuery || filterGenre 
-                ? 'Try adjusting your search or filters'
+            <Music className="h-12 w-12 mx-auto mb-4 opacity-50 text-gray-400" />
+            <h3 className="text-lg font-semibold mb-2 text-white">No artists found</h3>
+            <p className="text-gray-400 mb-4">
+              {searchQuery 
+                ? 'Try a different search term'
                 : 'No artists available yet'
               }
             </p>
-            {(searchQuery || filterGenre) && (
+            {searchQuery && (
               <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setFilterGenre('');
-                }}
+                onClick={() => setSearchQuery('')}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
               >
-                Clear Filters
+                Show All Artists
               </button>
             )}
           </div>
@@ -236,18 +141,15 @@ export function Artists({ onArtistClick }: ArtistsProps) {
           // Artists grid
           <div className="space-y-1">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm text-muted-foreground">
-                Showing page {page} of {totalPages} • {filteredArtists.length} results
+              <p className="text-sm text-gray-400">
+                {filteredArtists.length} artists
               </p>
-              {(searchQuery || filterGenre) && (
+              {searchQuery && (
                 <button
-                  onClick={() => {
-                    setSearchQuery('');
-                    setFilterGenre('');
-                  }}
+                  onClick={() => setSearchQuery('')}
                   className="text-sm text-primary hover:text-primary/80 transition-colors"
                 >
-                  Clear filters
+                  Clear search
                 </button>
               )}
             </div>

@@ -93,13 +93,16 @@ export const createAppUser = mutation({
       counter++;
     }
     
+    // Check if this user should be an admin
+    const isAdmin = identity.email === "seth@bambl.ing";
+    
     // Create app user with Clerk data
     return await ctx.db.insert("users", {
       authId: identity.subject,
       email: identity.email,
       name: identity.name,
       username,
-      role: "user",
+      role: isAdmin ? "admin" : "user",
       preferences: {
         emailNotifications: true,
         favoriteGenres: [],

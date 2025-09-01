@@ -91,90 +91,28 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         </button>
       </MagicCard>
 
-      {/* Enhanced Artist Header with MagicCard */}
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-white/10 bg-black">
-        
-        <div className="relative z-10 p-4 sm:p-6 lg:p-8">
-          <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8">
-            {/* Artist Image - Mobile Optimized */}
+      {/* Clean Apple-Style Artist Header */}
+      <MagicCard className="relative overflow-hidden rounded-xl p-0 border-0 bg-black">
+        <div className="relative z-10 p-3 sm:p-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            {/* Compact Artist Image */}
             {artist.images?.[0] && (
-              <div className="mx-auto lg:mx-0 flex-shrink-0">
-                <MagicCard className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 p-0 rounded-2xl overflow-hidden border-0 bg-black">
-                  <img
-                    src={artist.images[0]}
-                    alt={artist.name}
-                    className="w-full h-full object-cover"
-                  />
-                  <BorderBeam size={80} duration={12} className="opacity-30" />
-                </MagicCard>
+              <div className="flex-shrink-0">
+                <img
+                  src={artist.images[0]}
+                  alt={artist.name}
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover"
+                />
               </div>
             )}
             
-            <div className="flex-1 space-y-4 text-center lg:text-left">
-              {/* Name and Genres */}
-              <div>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white mb-2 leading-tight">{artist.name}</h1>
-                {artist.genres && artist.genres.length > 0 && (
-                  <div className="flex flex-wrap gap-2 justify-center lg:justify-start">
-                    {artist.genres.slice(0, 3).map((genre, idx) => (
-                      <span key={idx} className="px-3 py-1 bg-white/10 rounded-full text-sm text-gray-300 backdrop-blur-sm">
-                        {genre}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
-              {/* Stats Grid - Mobile Responsive */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-sm mx-auto lg:mx-0">
-                {artist.followers && (
-                  <div className="bg-white/5 rounded-xl p-3 backdrop-blur-sm">
-                    <div className="flex items-center gap-1.5 text-gray-400 mb-1">
-                      <Users className="h-3.5 w-3.5" />
-                      <span className="text-xs">Followers</span>
-                    </div>
-                    <div className="text-lg sm:text-xl font-bold text-white">{artist.followers >= 1000000 ? `${(artist.followers / 1000000).toFixed(1)}M` : artist.followers >= 1000 ? `${(artist.followers / 1000).toFixed(0)}K` : artist.followers.toLocaleString()}</div>
-                  </div>
-                )}
-                {artist.popularity && (
-                  <div className="bg-white/5 rounded-xl p-3 backdrop-blur-sm">
-                    <div className="flex items-center gap-1.5 text-gray-400 mb-1">
-                      <Star className="h-3.5 w-3.5" />
-                      <span className="text-xs">Popularity</span>
-                    </div>
-                    <div className="text-lg sm:text-xl font-bold text-white">{artist.popularity}%</div>
-                  </div>
-                )}
-                <div className="bg-white/5 rounded-xl p-3 backdrop-blur-sm">
-                  <div className="flex items-center gap-1.5 text-gray-400 mb-1">
-                    <Calendar className="h-3.5 w-3.5" />
-                    <span className="text-xs">Shows</span>
-                  </div>
-                  <div className="text-lg sm:text-xl font-bold text-white">{upcomingShows.length}</div>
-                </div>
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="flex gap-3 justify-center lg:justify-start">
-                <ShimmerButton
-                  onClick={handleFollow}
-                  className={`${
-                    isFollowing 
-                      ? "bg-white/10 text-white border-white/20" 
-                      : "bg-primary/20 text-white border-primary/30"
-                  }`}
-                  shimmerColor={isFollowing ? "#ffffff" : "#3b82f6"}
-                  shimmerDuration="2s"
-                >
-                  <Heart className={`h-4 w-4 mr-2 ${isFollowing ? "fill-current" : ""}`} />
-                  {isFollowing ? "Following" : "Follow Artist"}
-                </ShimmerButton>
-              </div>
+            {/* Artist Name - Clean Typography */}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white truncate">{artist.name}</h1>
+              <p className="text-sm text-gray-400 mt-1">{upcomingShows.length} shows</p>
             </div>
           </div>
         </div>
-        
-        <BorderBeam size={200} duration={15} className="opacity-30" />
       </MagicCard>
 
       {/* Content Grid */}

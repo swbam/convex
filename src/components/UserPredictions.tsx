@@ -39,16 +39,16 @@ export function UserPredictions() {
     <div className="space-y-8">
       {/* Simple Stats */}
       <div className="grid grid-cols-2 gap-4">
-        <MagicCard className="p-6 text-center">
-          <div className="text-3xl font-bold mb-2">{songVotes.length}</div>
-          <div className="text-sm text-muted-foreground">Total Votes</div>
+        <MagicCard className="p-6 text-center bg-black">
+          <div className="text-3xl font-bold mb-2 text-white">{songVotes.length}</div>
+          <div className="text-sm text-gray-400">Total Votes</div>
         </MagicCard>
         
-        <MagicCard className="p-6 text-center">
-          <div className="text-3xl font-bold mb-2">
+        <MagicCard className="p-6 text-center bg-black">
+          <div className="text-3xl font-bold mb-2 text-white">
             {new Set(songVotes.map(v => v.setlistId)).size}
           </div>
-          <div className="text-sm text-muted-foreground">Shows Voted On</div>
+          <div className="text-sm text-gray-400">Shows Voted On</div>
         </MagicCard>
       </div>
 
@@ -57,7 +57,7 @@ export function UserPredictions() {
         <h2 className="text-xl font-semibold mb-6">Your Recent Votes</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {songVotes.map((vote) => (
-            <MagicCard key={vote._id} className="p-4">
+            <MagicCard key={vote._id} className="p-4 bg-black">
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <h3 className="font-medium text-base mb-1 truncate">
