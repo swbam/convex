@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
+import { useQuery } from 'convex/react'
+import { api } from '../../convex/_generated/api'
 import { SearchBar } from './SearchBar'
 import { SyncProgress } from './SyncProgress'
 import { PublicDashboard } from './PublicDashboard'
@@ -11,7 +13,9 @@ import { BorderBeam } from './ui/border-beam'
 import { Footer } from './Footer'
 import { MobileBottomNav } from './MobileBottomNav'
 import { PageContainer } from './PageContainer'
-import { Home, Mic, Music, Menu, X } from 'lucide-react'
+import { Button } from './ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from './ui/dropdown-menu'
+import { Home, Mic, Music, Menu, X, User, Settings, Shield, LogOut, LogIn } from 'lucide-react'
 
 interface AppLayoutProps {
   children?: React.ReactNode
@@ -28,6 +32,9 @@ export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { user, isSignedIn } = useUser()
+  
+  // Get user's app data to check admin status
+  const appUser = useQuery(api.auth.loggedInUser)
 
   // Close sidebar on route change
   React.useEffect(() => {
@@ -117,6 +124,76 @@ export function AppLayout({ children }: AppLayoutProps) {
                 </MagicCard>
               )
             })}
+            
+            {/* Profile and Admin Links - Mobile */}
+            {isSignedIn && (
+              <>
+                <MagicCard
+                  className={`relative overflow-hidden rounded-xl transition-all duration-200 ${
+                    location.pathname === '/profile' ? 'bg-primary/10 border-primary/20' : 'hover:bg-accent/50'
+                  }`}
+                  gradientSize={0}
+                  gradientColor="#000000"
+                  gradientOpacity={0}
+                >
+                  <button
+                    onClick={() => {
+                       void navigate('/profile')
+                       setSidebarOpen(false)
+                     }}
+                    className={`
+                      w-full flex items-center px-4 py-3.5 text-responsive-base font-medium transition-all group touch-target
+                      ${location.pathname === '/profile'
+                        ? 'text-primary' 
+                        : 'text-muted-foreground hover:text-foreground'
+                      }
+                    `}
+                  >
+                    <User className={`mr-3 h-5 w-5 transition-colors ${
+                      location.pathname === '/profile' ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                    }`} />
+                    <span className="font-medium">Profile</span>
+                    {location.pathname === '/profile' && (
+                      <div className="ml-auto w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    )}
+                  </button>
+                </MagicCard>
+                
+                {/* Admin Link - Mobile */}
+                {appUser?.appUser?.role === 'admin' && (
+                  <MagicCard
+                    className={`relative overflow-hidden rounded-xl transition-all duration-200 ${
+                      location.pathname.startsWith('/admin') ? 'bg-primary/10 border-primary/20' : 'hover:bg-accent/50'
+                    }`}
+                    gradientSize={0}
+                    gradientColor="#000000"
+                    gradientOpacity={0}
+                  >
+                    <button
+                      onClick={() => {
+                         void navigate('/admin')
+                         setSidebarOpen(false)
+                       }}
+                      className={`
+                        w-full flex items-center px-4 py-3.5 text-responsive-base font-medium transition-all group touch-target
+                        ${location.pathname.startsWith('/admin')
+                          ? 'text-primary' 
+                          : 'text-muted-foreground hover:text-foreground'
+                        }
+                      `}
+                    >
+                      <Shield className={`mr-3 h-5 w-5 transition-colors ${
+                        location.pathname.startsWith('/admin') ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                      }`} />
+                      <span className="font-medium">Admin</span>
+                      {location.pathname.startsWith('/admin') && (
+                        <div className="ml-auto w-2 h-2 rounded-full bg-primary animate-pulse" />
+                      )}
+                    </button>
+                  </MagicCard>
+                )}
+              </>
+            )}
           </nav>
           
           {/* Enhanced User Section with Magic UI */}
@@ -181,6 +258,10 @@ export function AppLayout({ children }: AppLayoutProps) {
                 <button onClick={()=>void navigate('/artists')} className={`px-3 lg:px-4 py-2 rounded-md text-responsive-sm font-medium transition-all ${location.pathname.startsWith('/artists')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Artists</button>
                 <button onClick={()=>void navigate('/shows')} className={`px-3 lg:px-4 py-2 rounded-md text-responsive-sm font-medium transition-all ${location.pathname.startsWith('/shows')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Shows</button>
                 <button onClick={()=>void navigate('/trending')} className={`px-3 lg:px-4 py-2 rounded-md text-responsive-sm font-medium transition-all ${location.pathname.startsWith('/trending')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Trending</button>
+                {/* Admin link - only show for admin users */}
+                {appUser?.appUser?.role === 'admin' && (
+                  <button onClick={()=>void navigate('/admin')} className={`px-3 lg:px-4 py-2 rounded-md text-responsive-sm font-medium transition-all ${location.pathname.startsWith('/admin')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Admin</button>
+                )}
               </nav>
 
               <div className="flex-1" />
@@ -198,14 +279,64 @@ export function AppLayout({ children }: AppLayoutProps) {
                 }} />
               </div>
 
-              {/* Mobile menu button */}
-              <button 
-                className="md:hidden touch-target flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all active:scale-95"
-                onClick={() => setSidebarOpen(true)}
-                aria-label="Open menu"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
+              {/* User dropdown and mobile menu */}
+              <div className="flex items-center gap-2">
+                {/* User Account Dropdown */}
+                {isSignedIn && user ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="hidden md:flex items-center gap-2">
+                        <div className="w-6 h-6 bg-primary/20 border border-primary/30 rounded-full flex items-center justify-center text-xs font-semibold text-primary">
+                          {user.firstName?.[0] || user.emailAddresses[0]?.emailAddress[0]?.toUpperCase() || 'U'}
+                        </div>
+                        <span className="text-sm font-medium">{user.firstName || 'Account'}</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem onClick={() => void navigate('/profile')}>
+                        <User className="h-4 w-4 mr-2" />
+                        Profile
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => void navigate('/library')}>
+                        <Music className="h-4 w-4 mr-2" />
+                        My Library
+                      </DropdownMenuItem>
+                      {appUser?.appUser?.role === 'admin' && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => void navigate('/admin')}>
+                            <Shield className="h-4 w-4 mr-2" />
+                            Admin Dashboard
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <SignOutButton />
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <div className="hidden md:flex items-center gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => void navigate('/signin')}>
+                      <LogIn className="h-4 w-4 mr-2" />
+                      Sign In
+                    </Button>
+                    <Button variant="default" size="sm" onClick={() => void navigate('/signup')}>
+                      Sign Up
+                    </Button>
+                  </div>
+                )}
+
+                {/* Mobile menu button */}
+                <button 
+                  className="md:hidden touch-target flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all active:scale-95"
+                  onClick={() => setSidebarOpen(true)}
+                  aria-label="Open menu"
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+              </div>
             </div>
           </header>
         </div>

@@ -13,80 +13,42 @@ interface ShowsProps {
 }
 
 export function Shows({ onShowClick }: ShowsProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'upcoming' | 'completed'>('all');
   const [cityFilter, setCityFilter] = useState('');
-  const [sortBy, setSortBy] = useState<'date' | 'artist' | 'popularity'>('date');
   const [page, setPage] = useState(1);
   const pageSize = 18;
 
-  // Fetch shows based on filters
-  const allShowsRaw = useQuery(
-    api.shows.getAll, 
-    { 
-      limit: 500,
-      status: statusFilter === 'all' ? undefined : statusFilter
-    }
-  );
+  // Fetch all shows - simplified
+  const allShowsRaw = useQuery(api.shows.getAll, { limit: 500 });
   const isLoading = allShowsRaw === undefined;
+  
   const allShows = React.useMemo(() => {
-    // Deduplicate shows by unique key (artist + venue + date)
+    // Deduplicate shows by unique key and filter out invalid data
     const showsMap = new Map<string, any>();
     (allShowsRaw || []).forEach(show => {
-      const key = `${show.artist?.name}-${show.venue?.name}-${show.date}`;
-      if (!showsMap.has(key)) {
-        showsMap.set(key, show);
+      // Only include shows with proper artist names
+      if (show.artist?.name && show.artist.name.trim() !== '' && show.artist.name !== 'Unknown Artist') {
+        const key = `${show.artist.name}-${show.venue?.name}-${show.date}`;
+        if (!showsMap.has(key)) {
+          showsMap.set(key, show);
+        }
       }
     });
-    return Array.from(showsMap.values());
+    
+    // Sort by date (newest first)
+    return Array.from(showsMap.values()).sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
   }, [allShowsRaw]);
 
-  const searchResults = useQuery(
-    // Convex pattern: pass "skip" by narrowing type with conditional
-    searchQuery.length > 2 ? api.shows.searchShows : ("skip" as any),
-    searchQuery.length > 2 ? { query: searchQuery, limit: 50 } : ("skip" as any)
-  );
-
-  const cityShows = useQuery(
-    cityFilter ? api.shows.getByCity : ("skip" as any),
-    cityFilter ? { city: cityFilter, limit: 50 } : ("skip" as any)
-  );
-
-  // Get unique cities for filter dropdown
-  const cities = React.useMemo(() => {
-    const citySet = new Set<string>();
-    allShows.forEach(show => {
-      if (show.venue?.city) citySet.add(show.venue.city);
-    });
-    return Array.from(citySet).sort();
-  }, [allShows]);
-
-  // Determine which shows to display
+  // Simple city/zip filter
   const displayShows = React.useMemo(() => {
-    let shows = allShows;
+    if (!cityFilter.trim()) return allShows;
     
-    if (searchQuery.length > 2 && searchResults) {
-      shows = searchResults;
-    } else if (cityFilter && cityShows) {
-      shows = cityShows;
-    }
-
-    // Apply sorting
-    shows.sort((a, b) => {
-      switch (sortBy) {
-        case 'date':
-          return new Date(b.date).getTime() - new Date(a.date).getTime();
-        case 'artist':
-          return (a.artist?.name || '').localeCompare(b.artist?.name || '');
-        case 'popularity':
-          return (b.artist?.popularity || 0) - (a.artist?.popularity || 0);
-        default:
-          return 0;
-      }
-    });
-
-    return shows;
-  }, [allShows, searchResults, cityShows, searchQuery, cityFilter, sortBy]);
+    return allShows.filter(show => 
+      show.venue?.city?.toLowerCase().includes(cityFilter.toLowerCase()) ||
+      show.venue?.state?.toLowerCase().includes(cityFilter.toLowerCase())
+    );
+  }, [allShows, cityFilter]);
 
   const totalPages = Math.max(1, Math.ceil(displayShows.length / pageSize));
   const paginatedShows = React.useMemo(() => {
@@ -98,114 +60,42 @@ export function Shows({ onShowClick }: ShowsProps) {
     onShowClick(showId, slug);
   };
 
-  const upcomingCount = allShows.filter(s => s.status === 'upcoming').length;
-  const completedCount = allShows.filter(s => s.status === 'completed').length;
-
   return (
     <div className="space-y-4 sm:space-y-8 relative z-10">
-      {/* Enhanced Header with MagicCard */}
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 bg-black">
-        <div className="relative z-10 p-4 sm:p-6 lg:p-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                  <Calendar className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white leading-tight">Shows</h1>
-                  <p className="text-gray-300 text-sm sm:text-base lg:text-lg">
-                    Discover {allShows.length} concerts • {upcomingCount} upcoming • {completedCount} completed
-                  </p>
-                </div>
-              </div>
+      {/* Clean Apple-Style Shows Header */}
+      <MagicCard className="relative overflow-hidden rounded-xl p-0 border-0 bg-black">
+        <div className="relative z-10 p-3 sm:p-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/10 rounded-xl flex items-center justify-center">
+              <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
             </div>
-            
-            <div className="flex items-center gap-3 bg-white/5 rounded-xl p-4 backdrop-blur-sm">
-              <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-4 w-4 text-green-400" />
-              </div>
-              <div>
-                <div className="text-sm font-medium text-white">Live Data</div>
-                <div className="text-xs text-gray-400">Updated from Ticketmaster</div>
-              </div>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white truncate">Shows</h1>
+              <p className="text-sm text-gray-400 mt-1">{allShows.length} concerts</p>
             </div>
           </div>
         </div>
-        <BorderBeam size={150} duration={12} className="opacity-30" />
       </MagicCard>
 
-      {/* Enhanced Filters and Search */}
-      <MagicCard className="p-0 rounded-2xl border-0 bg-black">
-        <div className="p-4 sm:p-6">
-          <div className="flex items-center gap-3 mb-4 sm:mb-6">
-            <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
-              <Filter className="h-4 w-4 text-white" />
-            </div>
-            <h2 className="text-lg sm:text-xl font-semibold text-white">Filters & Search</h2>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {/* Enhanced Search */}
+      {/* Simple Zip Code Search */}
+      <MagicCard className="p-0 rounded-xl border-0 bg-black">
+        <div className="p-3 sm:p-4">
+          <div className="max-w-md">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <input
                 type="text"
-                placeholder="Search shows, artists, venues..."
-                value={searchQuery}
+                placeholder="Enter zip code..."
+                value={cityFilter}
                 onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setPage(1); // Reset to first page on search
+                  setCityFilter(e.target.value);
+                  setPage(1);
                 }}
-                className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300"
+                className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-400 text-sm"
               />
             </div>
-
-            {/* Enhanced Status Filter */}
-            <div className="relative">
-              <Calendar className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none z-10" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="w-full pl-12 pr-8 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white backdrop-blur-sm appearance-none cursor-pointer transition-all duration-300"
-              >
-                <option value="all" className="bg-background text-foreground">All Shows</option>
-                <option value="upcoming" className="bg-background text-foreground">Upcoming</option>
-                <option value="completed" className="bg-background text-foreground">Completed</option>
-              </select>
-            </div>
-
-            {/* Enhanced City Filter */}
-            <div className="relative">
-              <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none z-10" />
-              <select
-                value={cityFilter}
-                onChange={(e) => setCityFilter(e.target.value)}
-                className="w-full pl-12 pr-8 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white backdrop-blur-sm appearance-none cursor-pointer transition-all duration-300"
-              >
-                <option value="" className="bg-background text-foreground">All Cities</option>
-                {cities.map((city: string) => (
-                  <option key={city} value={city} className="bg-background text-foreground">{city}</option>
-                ))}
-              </select>
-            </div>
-
-          {/* Enhanced Sort */}
-          <div className="relative">
-            <TrendingUp className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none z-10" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="w-full pl-12 pr-8 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white backdrop-blur-sm appearance-none cursor-pointer transition-all duration-300"
-            >
-              <option value="date" className="bg-background text-foreground">Latest First</option>
-              <option value="artist" className="bg-background text-foreground">Artist Name</option>
-              <option value="popularity" className="bg-background text-foreground">Most Popular</option>
-            </select>
-          </div>
           </div>
         </div>
-        <BorderBeam size={120} duration={8} className="opacity-20" />
       </MagicCard>
 
       {/* Results */}
@@ -229,23 +119,20 @@ export function Shows({ onShowClick }: ShowsProps) {
         ) : displayShows.length === 0 ? (
           // No results
           <div className="text-center py-16">
-            <Music className="h-16 w-16 mx-auto mb-6 opacity-50" />
-            <h3 className="text-2xl font-semibold mb-4">No shows found</h3>
-            <p className="text-muted-foreground text-lg mb-6">
-              {searchQuery || cityFilter 
-                ? 'Try adjusting your search or filters'
+            <Music className="h-16 w-16 mx-auto mb-6 opacity-50 text-gray-400" />
+            <h3 className="text-2xl font-semibold mb-4 text-white">No shows found</h3>
+            <p className="text-gray-400 text-lg mb-6">
+              {cityFilter 
+                ? 'No shows found in that area'
                 : 'No shows available yet'
               }
             </p>
-            {(searchQuery || cityFilter) && (
+            {cityFilter && (
               <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setCityFilter('');
-                }}
+                onClick={() => setCityFilter('')}
                 className="px-6 py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors font-semibold"
               >
-                Clear Filters
+                Show All Shows
               </button>
             )}
           </div>
@@ -253,19 +140,15 @@ export function Shows({ onShowClick }: ShowsProps) {
           // Shows grid
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <p className="text-muted-foreground">
-                Showing page {page} of {totalPages} • {displayShows.length} results
+              <p className="text-gray-400 text-sm">
+                {displayShows.length} shows
               </p>
-              {(searchQuery || cityFilter || statusFilter !== 'all') && (
+              {cityFilter && (
                 <button
-                  onClick={() => {
-                    setSearchQuery('');
-                    setCityFilter('');
-                    setStatusFilter('all');
-                  }}
-                  className="text-primary hover:text-primary/80 transition-colors font-medium"
+                  onClick={() => setCityFilter('')}
+                  className="text-primary hover:text-primary/80 transition-colors text-sm font-medium"
                 >
-                  Clear all filters
+                  Clear search
                 </button>
               )}
             </div>
