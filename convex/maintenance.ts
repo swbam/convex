@@ -137,8 +137,8 @@ export const syncTrendingData = internalAction({
     
     try {
       // Get existing artists and shows from database as fallback
-      const allArtists = await ctx.runQuery(api.artists.getTrending, { limit: 30 });
-      const allShows = await ctx.runQuery(api.shows.getUpcoming, { limit: 50 });
+      const allArtists = await ctx.runQuery(internal.artists.getAllForMaintenance, {});
+      const allShows = await ctx.runQuery(internal.shows.getAllInternal, {});
       
       // Format artists for trending
       const trendingArtists = allArtists

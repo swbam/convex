@@ -535,6 +535,31 @@ export const getByVenueInternal = internalQuery({
   },
 });
 
+// Get all shows for internal maintenance
+export const getAllInternal = internalQuery({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => {
+    const shows = await ctx.db.query("shows").take(100);
+    
+    // Enrich with artist and venue data
+    const enrichedShows = await Promise.all(
+      shows.map(async (show) => {
+        const artist = show.artistId ? await ctx.db.get(show.artistId) : null;
+        const venue = show.venueId ? await ctx.db.get(show.venueId) : null;
+        
+        return {
+          ...show,
+          artist,
+          venue
+        };
+      })
+    );
+    
+    return enrichedShows;
+  },
+});
+
 export const markCompleted = internalMutation({
   args: { showId: v.id("shows") },
   handler: async (ctx, args) => {
