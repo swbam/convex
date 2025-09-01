@@ -92,25 +92,14 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
       </MagicCard>
 
       {/* Enhanced Artist Header with MagicCard */}
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-white/10">
-        {/* Background gradient with artist image */}
-        {artist.images?.[0] && (
-          <div className="absolute inset-0 z-0">
-            <img 
-              src={artist.images[0]} 
-              alt={artist.name}
-              className="w-full h-full object-cover opacity-10 blur-xl scale-110"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/60" />
-          </div>
-        )}
+      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-white/10 bg-black">
         
         <div className="relative z-10 p-4 sm:p-6 lg:p-8">
           <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8">
             {/* Artist Image - Mobile Optimized */}
             {artist.images?.[0] && (
               <div className="mx-auto lg:mx-0 flex-shrink-0">
-                <MagicCard className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 p-0 rounded-2xl overflow-hidden border-0">
+                <MagicCard className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 p-0 rounded-2xl overflow-hidden border-0 bg-black">
                   <img
                     src={artist.images[0]}
                     alt={artist.name}

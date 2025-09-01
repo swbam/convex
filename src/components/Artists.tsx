@@ -105,8 +105,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8 relative z-10">
       {/* Enhanced Header with MagicCard */}
-      <MagicCard className="relative overflow-hidden rounded-xl sm:rounded-2xl p-0 border-0">
-        <div className="absolute inset-0 bg-black" />
+      <MagicCard className="relative overflow-hidden rounded-xl sm:rounded-2xl p-0 border-0 bg-black">
         <div className="relative z-10 p-3 sm:p-5 lg:p-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
             <div className="space-y-4">
@@ -138,7 +137,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
       </MagicCard>
 
       {/* Enhanced Search and Filters */}
-      <MagicCard className="p-0 rounded-2xl border-0">
+      <MagicCard className="p-0 rounded-2xl border-0 bg-black">
         <div className="p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-4 sm:mb-6">
             <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
@@ -194,8 +193,8 @@ export function Artists({ onArtistClick }: ArtistsProps) {
       </MagicCard>
 
       {/* Results */}
-      <MagicCard className="p-0 rounded-2xl border-0">
-        <div className="p-4 sm:p-6 bg-black">
+      <MagicCard className="p-0 rounded-2xl border-0 bg-black">
+        <div className="p-4 sm:p-6">
         {isLoading ? (
           // Loading state
           <div className="space-y-4">

@@ -104,8 +104,7 @@ export function Shows({ onShowClick }: ShowsProps) {
   return (
     <div className="space-y-4 sm:space-y-8 relative z-10">
       {/* Enhanced Header with MagicCard */}
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0">
-        <div className="absolute inset-0 bg-black" />
+      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 bg-black">
         <div className="relative z-10 p-4 sm:p-6 lg:p-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
             <div className="space-y-4">
@@ -137,7 +136,7 @@ export function Shows({ onShowClick }: ShowsProps) {
       </MagicCard>
 
       {/* Enhanced Filters and Search */}
-      <MagicCard className="p-0 rounded-2xl border-0">
+      <MagicCard className="p-0 rounded-2xl border-0 bg-black">
         <div className="p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-4 sm:mb-6">
             <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
@@ -179,17 +178,17 @@ export function Shows({ onShowClick }: ShowsProps) {
             {/* Enhanced City Filter */}
             <div className="relative">
               <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none z-10" />
-            <select
-              value={cityFilter}
-              onChange={(e) => setCityFilter(e.target.value)}
-              className="w-full pl-10 pr-8 py-3 bg-muted/20 border border-muted rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none cursor-pointer"
-            >
-              <option value="">All Cities</option>
-              {cities.map((city: string) => (
-                <option key={city} value={city}>{city}</option>
-              ))}
-            </select>
-          </div>
+              <select
+                value={cityFilter}
+                onChange={(e) => setCityFilter(e.target.value)}
+                className="w-full pl-12 pr-8 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white backdrop-blur-sm appearance-none cursor-pointer transition-all duration-300"
+              >
+                <option value="" className="bg-background text-foreground">All Cities</option>
+                {cities.map((city: string) => (
+                  <option key={city} value={city} className="bg-background text-foreground">{city}</option>
+                ))}
+              </select>
+            </div>
 
           {/* Enhanced Sort */}
           <div className="relative">
@@ -210,8 +209,8 @@ export function Shows({ onShowClick }: ShowsProps) {
       </MagicCard>
 
       {/* Results */}
-      <MagicCard className="p-0 rounded-2xl border-0">
-        <div className="p-4 sm:p-6 bg-black">
+      <MagicCard className="p-0 rounded-2xl border-0 bg-black">
+        <div className="p-4 sm:p-6">
         {isLoading ? (
           // Loading state
           <div className="space-y-4">

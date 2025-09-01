@@ -59,11 +59,9 @@ export function AdminTest() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Cohesive dark gradient background */}
-      <div className="fixed inset-0 bg-gradient-to-br from-black via-gray-950 to-black" />
       
       <div className="relative z-10 container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6">
-      <MagicCard className="p-0 rounded-2xl border-0 ">
+      <MagicCard className="p-0 rounded-2xl border-0 bg-black">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-8 h-8 bg-red-500/20 rounded-xl flex items-center justify-center">
@@ -163,7 +161,7 @@ export function AdminTest() {
         <BorderBeam size={120} duration={10} className="opacity-30" />
       </MagicCard>
 
-      <MagicCard className="p-0 rounded-2xl border-0 ">
+      <MagicCard className="p-0 rounded-2xl border-0 bg-black">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-8 h-8 bg-yellow-500/20 rounded-xl flex items-center justify-center">
