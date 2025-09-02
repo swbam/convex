@@ -202,6 +202,34 @@ const applicationTables = {
     .index("by_status", ["status"])
     .index("by_priority", ["priority"]),
 
+// Add cached trending tables back for compatibility
+  trendingShows: defineTable({
+    ticketmasterId: v.string(),
+    artistTicketmasterId: v.optional(v.string()),
+    artistName: v.string(),
+    artistId: v.optional(v.id("artists")),
+    venueName: v.string(),
+    venueCity: v.string(),
+    venueCountry: v.string(),
+    date: v.string(),
+    startTime: v.optional(v.string()),
+    artistImage: v.optional(v.string()),
+    ticketUrl: v.optional(v.string()),
+    priceRange: v.optional(v.string()),
+    status: v.string(),
+    lastUpdated: v.number(),
+  }).index("by_last_updated", ["lastUpdated"]),
+
+  trendingArtists: defineTable({
+    ticketmasterId: v.string(),
+    name: v.string(),
+    artistId: v.optional(v.id("artists")),
+    genres: v.array(v.string()),
+    images: v.array(v.string()),
+    upcomingEvents: v.number(),
+    url: v.optional(v.string()),
+    lastUpdated: v.number(),
+  }).index("by_last_updated", ["lastUpdated"]),
 
 
   // Individual song votes within setlists (ProductHunt style)

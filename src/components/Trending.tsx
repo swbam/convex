@@ -15,8 +15,8 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
   const [activeTab, setActiveTab] = useState<'artists' | 'shows'>('artists');
   
   // Get trending data directly from main tables with trending ranks!
-  const trendingArtists = useQuery(api.trending_v2.getTrendingArtists, { limit: 20 });
-  const trendingShows = useQuery(api.trending_v2.getTrendingShows, { limit: 20 });
+  const trendingArtists = useQuery(api.trending.getTrendingArtists, { limit: 20 });
+  const trendingShows = useQuery(api.trending.getTrendingShows, { limit: 20 });
   
   // Get recent activity/updates
   const recentActivity = useQuery(api.shows.getRecentlyUpdated, { limit: 10 });

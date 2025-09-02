@@ -170,7 +170,7 @@ export const syncTrending = action({
       console.log("📊 Admin triggered trending sync...");
       
       // Use the optimized maintenance action to sync trending data
-      await ctx.runAction(internal.maintenance_v2.syncTrendingData, {});
+      await ctx.runAction(internal.maintenance.syncTrendingData, {});
       
       return {
         success: true,
@@ -242,7 +242,7 @@ export const importTrendingFromTicketmaster = action({
       
       // After importing, trigger trending sync
       if (imported > 0) {
-        await ctx.runAction(internal.maintenance_v2.syncTrendingData, {});
+        await ctx.runAction(internal.maintenance.syncTrendingData, {});
       }
       
       return {

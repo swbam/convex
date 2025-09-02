@@ -5,8 +5,8 @@
 ### 1. ✅ Homepage Trending Data Not Updating
 **Problem**: The homepage was trying to use `api.trending.getTrendingShows/Artists` which didn't exist.
 **Solution**: 
-- Created `convex/trending.ts` as an adapter to bridge PublicDashboard to the new `trending_v2` system
-- Updated `PublicDashboard.tsx` to use `api.trending_v2` queries directly
+- Created `convex/trending.ts` as an adapter to bridge PublicDashboard to the new `trending` system
+- Updated `PublicDashboard.tsx` to use `api.trending` queries directly
 - Modified the data transformation logic to handle the new data format with enriched artist/venue data
 - Fixed artist click handlers to use actual artist IDs when available instead of always triggering import
 
@@ -63,5 +63,5 @@
   - Number of upcoming shows
   - Recent sync activity
 - Top 20 artists/shows get assigned `trendingRank` (1-20)
-- The `trending_v2` system is more efficient than the old separate trending tables
+- The `trending` system is more efficient than the old separate trending tables
 - All data flows through Convex actions/mutations for security and consistency

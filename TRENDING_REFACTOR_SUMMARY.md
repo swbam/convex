@@ -31,8 +31,8 @@ Instead of maintaining separate `trendingArtists` and `trendingShows` tables tha
 - ❌ `convex/maintenance.ts` - Replaced with v2
 
 ### Added:
-- ✅ `convex/trending_v2.ts` - Simple, direct queries
-- ✅ `convex/maintenance_v2.ts` - Cleaner maintenance tasks
+- ✅ `convex/trending.ts` - Simple, direct queries
+- ✅ `convex/maintenance.ts` - Cleaner maintenance tasks
 - ✅ `convex/admin_v2.ts` - Simplified admin actions
 
 ### Updated:

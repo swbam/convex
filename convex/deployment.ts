@@ -14,7 +14,7 @@ export const onDeploy = internalAction({
     try {
       // Update trending rankings on deployment
       console.log("📊 Updating trending rankings...");
-      await ctx.runAction(internal.maintenance_v2.syncTrendingData, {});
+      await ctx.runAction(internal.maintenance.syncTrendingData, {});
       
       console.log("✅ Deployment tasks completed successfully");
     } catch (error) {
