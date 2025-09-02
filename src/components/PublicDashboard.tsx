@@ -24,7 +24,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
 
   const triggerFullSync = useAction(api.ticketmaster.triggerFullArtistSync);
 
-  // Load trending data from database (cached from cron jobs)
+  // Load trending data directly from the optimized trending system
   const dbTrendingShows = useQuery(api.trending_v2.getTrendingShows, { limit: 20 });
   const dbTrendingArtists = useQuery(api.trending_v2.getTrendingArtists, { limit: 20 });
   
