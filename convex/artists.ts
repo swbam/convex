@@ -348,6 +348,16 @@ export const getByIdInternal = internalQuery({
   },
 });
 
+export const getByTicketmasterIdInternal = internalQuery({
+  args: { ticketmasterId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("artists")
+      .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.ticketmasterId))
+      .first();
+  },
+});
+
 export const createInternal = internalMutation({
   args: {
     name: v.string(),
