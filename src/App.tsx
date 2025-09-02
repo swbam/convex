@@ -15,6 +15,7 @@ import { Trending } from "./components/Trending";
 import { AppLayout } from "./components/AppLayout";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { UserDashboard } from "./components/UserDashboard";
+import { ActivityPage } from "./components/ActivityPage";
 import { toast } from "sonner";
 
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -313,7 +314,7 @@ function App() {
         );
       case "activity":
         return (
-          <UserDashboard 
+          <ActivityPage 
             onArtistClick={handleArtistClick}
             onShowClick={handleShowClick}
           />

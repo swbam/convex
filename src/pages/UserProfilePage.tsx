@@ -1,19 +1,29 @@
 import React, { useState } from 'react';
-import { UserProfile, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
+import { UserProfile, SignedIn, SignedOut, RedirectToSignIn, useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
 import { MagicCard } from '../components/ui/magic-card';
 import { BorderBeam } from '../components/ui/border-beam';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { ArrowLeft, User, Settings, Activity, Vote, Shield, Bell, Star } from 'lucide-react';
+import { ArrowLeft, User, Settings, Activity, Vote, Shield, Bell, Star, Music, RefreshCw, Calendar } from 'lucide-react';
+import { useSpotifyAuth } from '../hooks/useSpotifyAuth';
+import { ArtistCard } from '../components/ArtistCard';
 
 export function UserProfilePage() {
   const navigate = useNavigate();
+  const { user } = useUser();
   const appUser = useQuery(api.auth.loggedInUser);
   const userVotes = useQuery(api.songVotes.getUserVotes, { limit: 10 });
+  const spotifyArtists = useQuery(api.spotifyAuth.getUserSpotifyArtists, { limit: 50, onlyWithShows: true });
+  const { hasSpotify, isImporting, refreshSpotifyArtists } = useSpotifyAuth();
   const [activeTab, setActiveTab] = useState('general');
+  
+  const handleArtistClick = (artistId: Id<'artists'>, slug?: string) => {
+    navigate(`/artists/${slug || artistId}`);
+  };
   
   const renderActivityContent = () => {
     if (!userVotes) {
@@ -71,7 +81,7 @@ export function UserProfilePage() {
   return (
     <>
       <SignedOut>
-        <RedirectToSignIn />
+        <RedirectToSignIn signInUrl="/signin" />
       </SignedOut>
       <SignedIn>
         <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 relative z-10">
@@ -106,22 +116,28 @@ export function UserProfilePage() {
           <MagicCard className="p-0 rounded-2xl border-0 bg-black">
             <div className="p-4 sm:p-6">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-4 bg-white/5 rounded-lg p-1">
+                <TabsList className={`grid w-full ${hasSpotify ? 'grid-cols-5' : 'grid-cols-4'} bg-white/5 rounded-lg p-1`}>
                   <TabsTrigger value="general" className="data-[state=active]:bg-white/10">
                     <User className="h-4 w-4 mr-2" />
-                    General
+                    <span className="hidden sm:inline">General</span>
                   </TabsTrigger>
+                  {hasSpotify && (
+                    <TabsTrigger value="spotify" className="data-[state=active]:bg-white/10">
+                      <Music className="h-4 w-4 mr-2" />
+                      <span className="hidden sm:inline">My Artists</span>
+                    </TabsTrigger>
+                  )}
                   <TabsTrigger value="security" className="data-[state=active]:bg-white/10">
                     <Shield className="h-4 w-4 mr-2" />
-                    Security
+                    <span className="hidden sm:inline">Security</span>
                   </TabsTrigger>
                   <TabsTrigger value="notifications" className="data-[state=active]:bg-white/10">
                     <Bell className="h-4 w-4 mr-2" />
-                    Notifications
+                    <span className="hidden sm:inline">Alerts</span>
                   </TabsTrigger>
                   <TabsTrigger value="activity" className="data-[state=active]:bg-white/10 lg:hidden">
                     <Activity className="h-4 w-4 mr-2" />
-                    Activity
+                    <span className="hidden sm:inline">Activity</span>
                   </TabsTrigger>
                 </TabsList>
                 
@@ -178,6 +194,72 @@ export function UserProfilePage() {
                     </div>
                   </div>
                 </TabsContent>
+                
+                {hasSpotify && (
+                  <TabsContent value="spotify" className="mt-6 space-y-6">
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-white">Your Spotify Artists</h3>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => refreshSpotifyArtists()}
+                          disabled={isImporting}
+                        >
+                          <RefreshCw className={`h-4 w-4 mr-2 ${isImporting ? 'animate-spin' : ''}`} />
+                          Refresh
+                        </Button>
+                      </div>
+                      
+                      {isImporting ? (
+                        <div className="text-center py-8">
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+                          <p className="text-gray-400">Importing your Spotify artists...</p>
+                        </div>
+                      ) : !spotifyArtists || spotifyArtists.length === 0 ? (
+                        <div className="text-center py-8">
+                          <Music className="h-12 w-12 mx-auto mb-4 text-gray-500" />
+                          <p className="text-gray-400 mb-2">No artists with upcoming shows found</p>
+                          <p className="text-sm text-gray-500">We'll show your Spotify artists here when they have concerts scheduled</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-sm text-gray-400 mb-4">
+                            Showing {spotifyArtists.length} of your Spotify artists with upcoming concerts
+                          </p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {spotifyArtists.map(({ artist, isFollowed, isTopArtist, topArtistRank, upcomingShowsCount }) => (
+                              <div key={artist._id} className="relative">
+                                {isTopArtist && topArtistRank && topArtistRank <= 10 && (
+                                  <div className="absolute -top-2 -right-2 z-10 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full font-bold">
+                                    Top {topArtistRank}
+                                  </div>
+                                )}
+                                <ArtistCard
+                                  artist={artist}
+                                  onClick={handleArtistClick}
+                                  showFollowButton={false}
+                                />
+                                <div className="mt-2 flex items-center gap-4 text-xs text-gray-400">
+                                  {isFollowed && (
+                                    <span className="flex items-center gap-1">
+                                      <Star className="h-3 w-3" />
+                                      Followed
+                                    </span>
+                                  )}
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {upcomingShowsCount} upcoming {upcomingShowsCount === 1 ? 'show' : 'shows'}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                )}
                 
                 <TabsContent value="activity" className="mt-6 space-y-6 lg:hidden">
                   {/* Mobile activity view */}

@@ -1,408 +1,261 @@
-import { query, mutation, action } from "./_generated/server";
+import { action, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "./auth";
-import { internal, api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
-// Check if user is admin
-const requireAdmin = async (ctx: any) => {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Not authenticated");
-  }
+// ===== USER MANAGEMENT =====
 
-  const user = await ctx.db.get(userId);
-  if (!user || user.role !== "admin") {
-    throw new Error("Admin access required");
-  }
-
-  return user;
-};
-
-// Get all users for admin management
 export const getAllUsers = query({
-  args: { 
-    limit: v.optional(v.number()),
-    role: v.optional(v.union(v.literal("user"), v.literal("admin")))
-  },
-  returns: v.array(v.any()),
+  args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
-    
     const limit = args.limit || 50;
-    let query = ctx.db.query("users");
-    
-    const users = await query
-      .order("desc")
-      .take(limit);
-    
-    // Filter by role if specified
-    if (args.role) {
-      return users.filter(user => user.role === args.role);
-    }
-    
+    const users = await ctx.db.query("users").take(limit);
     return users;
   },
 });
 
-// Ban/unban user
 export const toggleUserBan = mutation({
-  args: {
-    userId: v.id("users"),
-    banned: v.boolean(),
-  },
-  returns: v.null(),
+  args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const user = await ctx.db.get(args.userId);
+    if (!user) throw new Error("User not found");
     
-    await ctx.db.patch(args.userId, {
-      role: args.banned ? "banned" : "user",
-    });
+    const newRole = user.role === "banned" ? "user" : "banned";
+    await ctx.db.patch(args.userId, { role: newRole });
     
-    return null;
+    return { success: true, newRole };
   },
 });
 
-// Flag content for review
+// ===== CONTENT MODERATION =====
+
 export const flagContent = mutation({
   args: {
-    contentType: v.union(v.literal("setlist"), v.literal("vote"), v.literal("comment")),
+    contentType: v.union(v.literal("setlist"), v.literal("comment")),
     contentId: v.string(),
     reason: v.string(),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Must be logged in to flag content");
-    }
-
-    await ctx.db.insert("contentFlags", {
-      reporterId: userId,
+    const authId = await ctx.auth.getUserIdentity();
+    if (!authId) throw new Error("Must be logged in to flag content");
+    
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth_id", (q) => q.eq("authId", authId.subject))
+      .unique();
+    
+    if (!user) throw new Error("User not found");
+    
+    await ctx.db.insert("flaggedContent", {
       contentType: args.contentType,
       contentId: args.contentId,
       reason: args.reason,
+      flaggedBy: user._id,
+      flaggedAt: Date.now(),
       status: "pending",
-      createdAt: Date.now(),
     });
     
-    return null;
+    return { success: true };
   },
 });
 
-// Get flagged content for admin review
 export const getFlaggedContent = query({
   args: { 
-    status: v.optional(v.union(v.literal("pending"), v.literal("reviewed"), v.literal("dismissed")))
+    status: v.optional(v.union(v.literal("pending"), v.literal("resolved"), v.literal("dismissed")))
   },
-  returns: v.array(v.any()),
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const query = ctx.db.query("flaggedContent");
     
     if (args.status) {
-      // Narrowed branch ensures type for withIndex closure
-      const flags = await ctx.db
-        .query("contentFlags")
-        .withIndex("by_status", (q) => q.eq("status", args.status as "pending" | "reviewed" | "dismissed"))
-        .order("desc")
-        .take(50);
-      return flags;
-    } else {
-      const flags = await ctx.db
-        .query("contentFlags")
-        .order("desc")
-        .take(50);
-      return flags;
+      return await query.filter((q) => q.eq(q.field("status"), args.status)).collect();
     }
+    
+    return await query.collect();
   },
 });
 
-// Verify setlist as official
+// ===== SETLIST MANAGEMENT =====
+
 export const verifySetlist = mutation({
   args: {
     setlistId: v.id("setlists"),
-    verified: v.boolean(),
+    isVerified: v.boolean(),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
-    
-    await ctx.db.patch(args.setlistId, {
-      verified: args.verified,
-      isOfficial: args.verified,
+    await ctx.db.patch(args.setlistId, { 
+      isOfficial: args.isVerified,
+      verifiedAt: args.isVerified ? Date.now() : undefined,
     });
     
-    return null;
+    return { success: true };
   },
 });
 
-// Get admin dashboard stats
+// ===== ANALYTICS & STATISTICS =====
+
 export const getAdminStats = query({
   args: {},
-  returns: v.object({
-    totalUsers: v.number(),
-    totalArtists: v.number(),
-    totalShows: v.number(),
-    totalSetlists: v.number(),
-    totalVotes: v.number(),
-    pendingFlags: v.number(),
-    recentActivity: v.array(v.any()),
-  }),
   handler: async (ctx) => {
-    await requireAdmin(ctx);
-    
-    // Get counts
-    const [users, artists, shows, setlists, votes, flags] = await Promise.all([
+    const [users, artists, shows, setlists, votes] = await Promise.all([
       ctx.db.query("users").collect(),
       ctx.db.query("artists").collect(),
       ctx.db.query("shows").collect(),
       ctx.db.query("setlists").collect(),
       ctx.db.query("votes").collect(),
-      ctx.db.query("contentFlags").withIndex("by_status", (q) => q.eq("status", "pending")).collect(),
     ]);
-
-    // Get recent activity (last 10 setlists)
-    const recentSetlists = await ctx.db
-      .query("setlists")
-      .order("desc")
-      .take(10);
-
-    const recentActivity = await Promise.all(
-      recentSetlists.map(async (setlist) => {
+    
+    // Calculate trending metrics
+    const activeUsers = users.filter(u => u.role !== "banned").length;
+    const last7Days = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    const recentVotes = votes.filter(v => v.createdAt > last7Days).length;
+    
+    // Top voted setlists
+    const setlistVoteCounts = new Map<Id<"setlists">, number>();
+    votes.forEach(vote => {
+      const count = setlistVoteCounts.get(vote.setlistId) || 0;
+      setlistVoteCounts.set(vote.setlistId, count + 1);
+    });
+    
+    const topSetlists = Array.from(setlistVoteCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(async ([setlistId, voteCount]) => {
+        const setlist = await ctx.db.get(setlistId);
+        if (!setlist) return null;
+        
         const show = await ctx.db.get(setlist.showId);
         const artist = show ? await ctx.db.get(show.artistId) : null;
-        const venue = show ? await ctx.db.get(show.venueId) : null;
         
         return {
-          type: "setlist_created",
-          setlist,
-          show: show ? { ...show, artist, venue } : null,
-          timestamp: setlist._creationTime,
+          setlistId,
+          voteCount,
+          showName: show && artist ? `${artist.name} - ${show.date}` : "Unknown",
         };
-      })
-    );
-
+      });
+    
+    const topSetlistsResolved = (await Promise.all(topSetlists)).filter(Boolean);
+    
     return {
       totalUsers: users.length,
+      activeUsers,
+      bannedUsers: users.filter(u => u.role === "banned").length,
       totalArtists: artists.length,
       totalShows: shows.length,
+      upcomingShows: shows.filter(s => s.status === "upcoming").length,
       totalSetlists: setlists.length,
+      officialSetlists: setlists.filter(s => s.isOfficial).length,
       totalVotes: votes.length,
-      pendingFlags: flags.length,
-      recentActivity,
+      recentVotes,
+      topSetlists: topSetlistsResolved,
     };
   },
 });
 
-// Trigger trending artists sync
-export const syncTrendingArtists = action({
+// ===== OPTIMIZED TRENDING SYNC =====
+
+export const syncTrending = action({
   args: {},
   returns: v.object({
     success: v.boolean(),
     message: v.string(),
-    artistsProcessed: v.number(),
   }),
   handler: async (ctx) => {
-    // Check admin permissions in action context
+    // Check admin permissions
     const user = await ctx.runQuery(api.auth.loggedInUser);
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
 
     try {
-      console.log("🎤 Admin triggered trending artists sync...");
+      console.log("📊 Admin triggered trending sync...");
+      
+      // Use the optimized maintenance action to sync trending data
+      await ctx.runAction(internal.maintenance_v2.syncTrendingData, {});
+      
+      return {
+        success: true,
+        message: "Successfully updated trending rankings for artists and shows",
+      };
+    } catch (error) {
+      console.error("❌ Failed to sync trending data:", error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error occurred",
+      };
+    }
+  },
+});
+
+// ===== DATA IMPORT FROM TICKETMASTER =====
+
+export const importTrendingFromTicketmaster = action({
+  args: {},
+  returns: v.object({
+    success: v.boolean(),
+    message: v.string(),
+    artistsImported: v.number(),
+  }),
+  handler: async (ctx) => {
+    // Check admin permissions
+    const user = await ctx.runQuery(api.auth.loggedInUser);
+    if (!user?.appUser || user.appUser.role !== "admin") {
+      throw new Error("Admin access required");
+    }
+
+    try {
+      console.log("🎤 Importing trending artists from Ticketmaster...");
       
       // Fetch trending artists from Ticketmaster API
-      const trendingArtists: any[] = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 30 });
+      const trendingArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 50 });
       
       if (!trendingArtists || trendingArtists.length === 0) {
         return {
           success: false,
           message: "No trending artists data retrieved from Ticketmaster API",
-          artistsProcessed: 0,
+          artistsImported: 0,
         };
       }
 
-      // Process trending artists to ensure they exist in database
-      const processedArtists: any[] = [];
+      let imported = 0;
+      
+      // Import artists that don't exist yet
       for (const artist of trendingArtists) {
         try {
-          // Check if artist exists
-          const existingArtist = await ctx.runQuery(internal.artists.getByTicketmasterIdInternal, { 
+          const existing = await ctx.runQuery(internal.artists.getByTicketmasterIdInternal, { 
             ticketmasterId: artist.ticketmasterId 
           });
           
-          if (!existingArtist) {
-            // Import the artist
-            console.log(`🎤 Importing trending artist: ${artist.name}`);
+          if (!existing && artist.ticketmasterId && artist.name) {
+            console.log(`📥 Importing new artist: ${artist.name}`);
             await ctx.runAction(api.ticketmaster.triggerFullArtistSync, {
               ticketmasterId: artist.ticketmasterId,
               artistName: artist.name,
               genres: artist.genres || [],
               images: artist.images || [],
             });
+            imported++;
           }
-          
-          processedArtists.push(artist);
         } catch (error) {
-          console.error(`Failed to process artist ${artist.name}:`, error);
-          processedArtists.push(artist);
+          console.error(`Failed to import artist ${artist.name}:`, error);
         }
       }
       
-      // Save to database tables for fast querying
-      await ctx.runMutation(internal.trending.saveTrendingArtists, { artists: processedArtists });
-      
-      console.log(`✅ Successfully synced and saved ${processedArtists.length} trending artists to database`);
+      // After importing, trigger trending sync
+      if (imported > 0) {
+        await ctx.runAction(internal.maintenance_v2.syncTrendingData, {});
+      }
       
       return {
         success: true,
-        message: `Successfully synced ${processedArtists.length} trending artists`,
-        artistsProcessed: processedArtists.length,
+        message: `Successfully imported ${imported} new artists and updated trending rankings`,
+        artistsImported: imported,
       };
-      
     } catch (error) {
-      console.error("❌ Failed to sync trending artists:", error);
+      console.error("❌ Failed to import from Ticketmaster:", error);
       return {
         success: false,
         message: error instanceof Error ? error.message : "Unknown error occurred",
-        artistsProcessed: 0,
-      };
-    }
-  },
-});
-
-// Trigger trending shows sync
-export const syncTrendingShows = action({
-  args: {},
-  returns: v.object({
-    success: v.boolean(),
-    message: v.string(),
-    showsProcessed: v.number(),
-  }),
-  handler: async (ctx) => {
-    // Check admin permissions in action context
-    const user = await ctx.runQuery(api.auth.loggedInUser);
-    if (!user?.appUser || user.appUser.role !== "admin") {
-      throw new Error("Admin access required");
-    }
-
-    try {
-      console.log("🎵 Admin triggered trending shows sync...");
-      
-      // Fetch trending shows from Ticketmaster API
-      const trendingShows: any[] = await ctx.runAction(api.ticketmaster.getTrendingShows, { limit: 50 });
-      
-      if (!trendingShows || trendingShows.length === 0) {
-        return {
-          success: false,
-          message: "No trending shows data retrieved from Ticketmaster API",
-          showsProcessed: 0,
-        };
-      }
-
-      // Process trending shows to ensure artist data is properly linked
-      const processedShows: any[] = [];
-      for (const show of trendingShows) {
-        try {
-          // Check if artist exists in database
-          let artistId: string | null = null;
-          if (show.artistTicketmasterId) {
-            const artist = await ctx.runQuery(internal.artists.getByTicketmasterIdInternal, { 
-              ticketmasterId: show.artistTicketmasterId 
-            });
-            
-            if (artist) {
-              artistId = artist._id;
-            } else {
-              // Import the artist if not exists
-              console.log(`🎤 Importing artist for show: ${show.artistName}`);
-              artistId = await ctx.runAction(api.ticketmaster.triggerFullArtistSync, {
-                ticketmasterId: show.artistTicketmasterId,
-                artistName: show.artistName,
-                genres: [],
-                images: show.artistImage ? [show.artistImage] : [],
-              });
-            }
-          }
-          
-          processedShows.push({
-            ...show,
-            artistId: artistId || null,
-          });
-        } catch (error) {
-          console.error(`Failed to process show for ${show.artistName}:`, error);
-          processedShows.push(show);
-        }
-      }
-      
-      // Save to database tables for fast querying
-      await ctx.runMutation(internal.trending.saveTrendingShows, { shows: processedShows });
-      
-      console.log(`✅ Successfully synced and saved ${processedShows.length} trending shows to database`);
-      
-      return {
-        success: true,
-        message: `Successfully synced ${processedShows.length} trending shows`,
-        showsProcessed: processedShows.length,
-      };
-      
-    } catch (error) {
-      console.error("❌ Failed to sync trending shows:", error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : "Unknown error occurred",
-        showsProcessed: 0,
-      };
-    }
-  },
-});
-
-// Trigger both trending syncs (convenience function)  
-export const syncAllTrending = action({
-  args: {},
-  returns: v.object({
-    success: v.boolean(),
-    message: v.string(),
-    artistsProcessed: v.number(),
-    showsProcessed: v.number(),
-  }),
-  handler: async (ctx): Promise<{
-    success: boolean;
-    message: string;
-    artistsProcessed: number;
-    showsProcessed: number;
-  }> => {
-    // Check admin permissions in action context
-    const user = await ctx.runQuery(api.auth.loggedInUser);
-    if (!user?.appUser || user.appUser.role !== "admin") {
-      throw new Error("Admin access required");
-    }
-
-    try {
-      console.log("🚀 Admin triggered complete trending sync...");
-      
-      // Run both syncs sequentially to avoid overwhelming the API
-      const artistsResult = await ctx.runAction(api.admin.syncTrendingArtists, {});
-      const showsResult = await ctx.runAction(api.admin.syncTrendingShows, {});
-      
-      const bothSucceeded = artistsResult.success && showsResult.success;
-      
-      return {
-        success: bothSucceeded,
-        message: bothSucceeded 
-          ? `Successfully synced ${artistsResult.artistsProcessed} artists and ${showsResult.showsProcessed} shows`
-          : `Artists: ${artistsResult.message} | Shows: ${showsResult.message}`,
-        artistsProcessed: artistsResult.artistsProcessed,
-        showsProcessed: showsResult.showsProcessed,
-      };
-      
-    } catch (error) {
-      console.error("❌ Failed to sync all trending data:", error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : "Unknown error occurred",
-        artistsProcessed: 0,
-        showsProcessed: 0,
+        artistsImported: 0,
       };
     }
   },

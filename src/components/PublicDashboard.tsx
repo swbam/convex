@@ -24,9 +24,9 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
 
   const triggerFullSync = useAction(api.ticketmaster.triggerFullArtistSync);
 
-  // Load trending data from database (cached from cron jobs)
-  const dbTrendingShows = useQuery(api.trending.getTrendingShows, { limit: 20 });
-  const dbTrendingArtists = useQuery(api.trending.getTrendingArtists, { limit: 20 });
+  // Load trending data directly from the optimized trending system
+  const dbTrendingShows = useQuery(api.trending_v2.getTrendingShows, { limit: 20 });
+  const dbTrendingArtists = useQuery(api.trending_v2.getTrendingArtists, { limit: 20 });
   
   // Fallback: Load from main tables if trending data is empty
   const fallbackArtists = useQuery(api.artists.getTrending, { limit: 20 });
@@ -35,11 +35,28 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
   useEffect(() => {
     // Use trending data if available, otherwise use fallback
     if (dbTrendingShows && dbTrendingShows.length > 0) {
-      // Deduplicate shows by artist to avoid showing same artist multiple times
+      // The data from trending_v2 already includes artist and venue data
       const uniqueShows = dbTrendingShows.filter((show, index, self) => 
-        index === self.findIndex(s => s.artistName === show.artistName)
+        index === self.findIndex(s => s.artist?.name === show.artist?.name)
       );
-      setTrendingShows(uniqueShows);
+      
+      // Transform to expected format
+      const formattedShows = uniqueShows.map(show => ({
+        ticketmasterId: show.ticketmasterId || show._id,
+        artistTicketmasterId: show.artist?.ticketmasterId,
+        artistName: show.artist?.name || 'Unknown Artist',
+        artist: show.artist,
+        venueName: show.venue?.name || 'Unknown Venue',
+        venueCity: show.venue?.city || '',
+        venueCountry: show.venue?.country || '',
+        date: show.date,
+        startTime: show.startTime,
+        artistImage: show.artist?.images?.[0],
+        ticketUrl: show.ticketUrl,
+        status: show.status,
+      }));
+      
+      setTrendingShows(formattedShows);
       setIsLoadingShows(false);
     } else if (fallbackShows) {
       // Convert fallback shows to trending format - filter out shows without proper artist names
@@ -64,7 +81,17 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
     }
     
     if (dbTrendingArtists && dbTrendingArtists.length > 0) {
-      setTrendingArtists(dbTrendingArtists);
+      // The data from trending_v2 is already in the correct format
+      const formattedArtists = dbTrendingArtists.map(artist => ({
+        ticketmasterId: artist.ticketmasterId || artist._id,
+        name: artist.name,
+        genres: artist.genres || [],
+        images: artist.images || [],
+        upcomingEvents: artist.upcomingShowsCount || 0,
+        url: artist.url,
+        _id: artist._id, // Include the real ID
+      }));
+      setTrendingArtists(formattedArtists);
       setIsLoadingArtists(false);
     } else if (fallbackArtists) {
       // Convert fallback artists to trending format - filter out artists without proper names
@@ -75,16 +102,23 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
           name: artist.name,
           genres: artist.genres || [],
           images: artist.images || [],
-          upcomingEvents: artist.upcomingShows || 0,
+          upcomingEvents: artist.upcomingShowsCount || 0,
           url: artist.url,
+          _id: artist._id,
         }));
       setTrendingArtists(convertedArtists);
       setIsLoadingArtists(false);
     }
   }, [dbTrendingShows, dbTrendingArtists, fallbackShows, fallbackArtists]);
 
-  const handleArtistClick = async (ticketmasterId: string, artistName: string, genres?: string[], images?: string[]) => {
-    // Generate SEO-friendly slug for navigation
+  const handleArtistClick = async (artistOrTicketmasterId: string, artistName: string, genres?: string[], images?: string[], artistId?: string) => {
+    // If we have the actual artist ID, use it directly
+    if (artistId && artistId.startsWith('k')) {
+      onArtistClick(artistId);
+      return;
+    }
+    
+    // Otherwise, generate SEO-friendly slug for navigation
     const slug = artistName.toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
@@ -92,20 +126,23 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
     // Navigate immediately using the slug
     onArtistClick(slug);
     
-    toast.info(`Loading ${artistName} data...`);
-    
-    // Trigger sync in the background
-    triggerFullSync({
-      ticketmasterId,
-      artistName,
-      genres,
-      images,
-    }).then(() => {
-      console.log(`✅ ${artistName} data imported successfully`);
-    }).catch(error => {
-      console.error("Failed to sync artist:", error);
-      toast.error("Failed to import complete artist data");
-    });
+    // Only trigger sync if we don't have the artist ID (meaning it's not in the DB yet)
+    if (!artistId) {
+      toast.info(`Loading ${artistName} data...`);
+      
+      // Trigger sync in the background
+      triggerFullSync({
+        ticketmasterId: artistOrTicketmasterId,
+        artistName,
+        genres,
+        images,
+      }).then(() => {
+        console.log(`✅ ${artistName} data imported successfully`);
+      }).catch(error => {
+        console.error("Failed to sync artist:", error);
+        toast.error("Failed to import complete artist data");
+      });
+    }
   };
 
   return (
@@ -234,7 +271,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
                   key={`${artist.ticketmasterId}-${index}`}
                   artist={artist}
                   onClick={() => {
-                    handleArtistClick(artist.ticketmasterId, artist.name, artist.genres, artist.images).catch(console.error);
+                    handleArtistClick(artist.ticketmasterId, artist.name, artist.genres, artist.images, artist._id).catch(console.error);
                   }}
                 />
               ))}
@@ -261,7 +298,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
                 <MobileArtistCard
                   key={artist.ticketmasterId}
                   artist={artist}
-                  onClick={() => void handleArtistClick(artist.ticketmasterId, artist.name, artist.genres, artist.images)}
+                  onClick={() => void handleArtistClick(artist.ticketmasterId, artist.name, artist.genres, artist.images, artist._id)}
                 />
               ))
             )}
