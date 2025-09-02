@@ -15,7 +15,7 @@ import { MobileBottomNav } from './MobileBottomNav'
 import { PageContainer } from './PageContainer'
 import { Button } from './ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from './ui/dropdown-menu'
-import { Home, Mic, Music, Menu, X, User, Settings, Shield, LogOut, LogIn } from 'lucide-react'
+import { Home, Mic, Menu, X, User, Settings, Shield, LogOut, LogIn, Calendar, Activity } from 'lucide-react'
 
 interface AppLayoutProps {
   children?: React.ReactNode
@@ -24,7 +24,7 @@ interface AppLayoutProps {
 const navigationItems = [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Artists', href: '/artists', icon: Mic },
-  { name: 'Shows', href: '/shows', icon: Music },
+  { name: 'Shows', href: '/shows', icon: Calendar },
 ]
 
 export function AppLayout({ children }: AppLayoutProps) {
@@ -63,15 +63,9 @@ export function AppLayout({ children }: AppLayoutProps) {
             <div className="flex items-center justify-between p-4 sm:p-5">
               <button 
                 onClick={(e) => { e.preventDefault(); void navigate('/'); setSidebarOpen(false); }}
-                className="flex items-center space-x-2.5 group touch-target"
+                className="flex items-center group touch-target"
               >
-                <div className="relative">
-                  <div className="w-9 h-9 bg-foreground rounded-lg flex items-center justify-center">
-                    <Music className="h-5 w-5 text-background" />
-                  </div>
-                  <BorderBeam size={40} duration={8} className="opacity-50 group-hover:opacity-100" />
-                </div>
-                <span className="text-responsive-xl font-bold text-foreground group-hover:text-primary transition-colors">TheSet</span>
+                <span className="text-2xl font-bold text-foreground group-hover:text-primary transition-colors" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>TheSet</span>
               </button>
               <button 
                 className="touch-target flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all active:scale-95"
@@ -246,11 +240,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         <div className="sticky top-0 z-40 border-b border-white/10 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 safe-area-top">
           <header className="px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 h-14 md:h-16 flex items-center">
             <div className="mx-auto w-full max-w-page-full flex items-center gap-2 sm:gap-3 md:gap-4">
-              <button onClick={(e)=>{e.preventDefault(); void navigate('/')}} className="flex items-center gap-2 touch-target flex-shrink-0">
-                <div className="w-8 h-8 md:w-9 md:h-9 bg-foreground rounded-lg flex items-center justify-center">
-                  <Music className="h-4 w-4 md:h-5 md:w-5 text-background" />
-                </div>
-                <span className="hidden md:inline text-responsive-lg font-bold">TheSet</span>
+              <button onClick={(e)=>{e.preventDefault(); void navigate('/')}} className="flex items-center touch-target flex-shrink-0">
+                <span className="text-2xl md:text-3xl font-bold" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>TheSet</span>
               </button>
 
               <nav className="hidden md:flex items-center gap-1 lg:gap-2">
@@ -298,7 +289,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                         Profile
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => void navigate('/library')}>
-                        <Music className="h-4 w-4 mr-2" />
+                        <Activity className="h-4 w-4 mr-2" />
                         My Library
                       </DropdownMenuItem>
                       {appUser?.appUser?.role === 'admin' && (

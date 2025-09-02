@@ -52,6 +52,10 @@ export const router = createBrowserRouter([
     element: <UserProfilePage />,
   },
   {
+    path: '/activity',
+    element: <App />,
+  },
+  {
     path: '/admin',
     element: <App />,
   },

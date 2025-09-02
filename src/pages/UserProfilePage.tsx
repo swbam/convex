@@ -7,7 +7,7 @@ import { MagicCard } from '../components/ui/magic-card';
 import { BorderBeam } from '../components/ui/border-beam';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { ArrowLeft, User, Settings, Activity, Vote, Music, Shield, Bell } from 'lucide-react';
+import { ArrowLeft, User, Settings, Activity, Vote, Shield, Bell, Star } from 'lucide-react';
 
 export function UserProfilePage() {
   const navigate = useNavigate();
@@ -46,7 +46,7 @@ export function UserProfilePage() {
           {userVotes.slice(0, 5).map((vote) => (
             <div key={vote._id} className="bg-white/5 border border-white/10 rounded-lg p-3">
               <div className="flex items-center gap-2">
-                <Music className="h-3 w-3 text-primary flex-shrink-0" />
+                <Star className="h-3 w-3 text-primary flex-shrink-0" />
                 <span className="text-sm text-white truncate">{vote.songTitle}</span>
               </div>
               <div className="text-xs text-gray-400 mt-1">
