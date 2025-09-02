@@ -243,9 +243,30 @@ export const createFromTicketmaster = internalMutation({
     }
 
     // Create slug from name
-    const slug = args.name.toLowerCase()
+    let baseSlug = args.name.toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
+    
+    // Check for existing slugs and add a number if needed
+    let slug = baseSlug;
+    let counter = 1;
+    while (true) {
+      const existingWithSlug = await ctx.db
+        .query("artists")
+        .withIndex("by_slug", (q) => q.eq("slug", slug))
+        .first();
+      
+      if (!existingWithSlug) break;
+      
+      // If an artist with this slug exists but it's the same ticketmaster ID, return it
+      if (existingWithSlug.ticketmasterId === args.ticketmasterId) {
+        return existingWithSlug._id;
+      }
+      
+      // Otherwise, try a new slug
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
 
     return await ctx.db.insert("artists", {
       slug,

@@ -64,32 +64,38 @@ export const triggerFullArtistSync = action({
   handler: async (ctx, args): Promise<Id<"artists">> => {
     console.log(`🚀 Starting full sync for artist: ${args.artistName}`);
 
-    // Phase 1: Create basic artist record immediately for instant response
-    const artistId: Id<"artists"> = await ctx.runMutation(internal.artists.createFromTicketmaster, {
-      ticketmasterId: args.ticketmasterId,
-      name: args.artistName,
-      genres: args.genres || [],
-      images: args.images || [],
-    });
+    try {
+      // Phase 1: Create basic artist record immediately for instant response
+      const artistId: Id<"artists"> = await ctx.runMutation(internal.artists.createFromTicketmaster, {
+        ticketmasterId: args.ticketmasterId,
+        name: args.artistName,
+        genres: args.genres || [],
+        images: args.images || [],
+      });
 
-    // Phase 2 & 3: Run shows and catalog sync in parallel background jobs
-    // Don't await - let them run in the background
-    ctx.runAction(internal.ticketmaster.syncArtistShows, {
-      artistId,
-      ticketmasterId: args.ticketmasterId,
-    }).catch(error => {
-      console.error(`Failed to sync shows for ${args.artistName}:`, error);
-    });
+      // Phase 2 & 3: Run shows and catalog sync in parallel background jobs
+      // Don't await - let them run in the background
+      ctx.runAction(internal.ticketmaster.syncArtistShows, {
+        artistId,
+        ticketmasterId: args.ticketmasterId,
+      }).catch(error => {
+        console.error(`Failed to sync shows for ${args.artistName}:`, error);
+      });
 
-    ctx.runAction(internal.spotify.syncArtistCatalog, {
-      artistId,
-      artistName: args.artistName,
-    }).catch(error => {
-      console.error(`Failed to sync catalog for ${args.artistName}:`, error);
-    });
+      ctx.runAction(internal.spotify.syncArtistCatalog, {
+        artistId,
+        artistName: args.artistName,
+      }).catch(error => {
+        console.error(`Failed to sync catalog for ${args.artistName}:`, error);
+      });
 
-    console.log(`✅ Artist ${args.artistName} created with ID: ${artistId}, background sync started`);
-    return artistId;
+      console.log(`✅ Artist ${args.artistName} created with ID: ${artistId}, background sync started`);
+      return artistId;
+    } catch (error) {
+      console.error(`❌ Failed to create artist ${args.artistName}:`, error);
+      // Re-throw with a more user-friendly message
+      throw new Error(`Failed to import artist "${args.artistName}". Please try again.`);
+    }
   },
 });
 
