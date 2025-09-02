@@ -239,6 +239,20 @@ const applicationTables = {
     unlockedAt: v.number(),
   }).index("by_user", ["userId"])
     .index("by_user_and_achievement", ["userId", "achievementId"]),
+
+  // User's Spotify artists (for users who login with Spotify)
+  userSpotifyArtists: defineTable({
+    userId: v.id("users"),
+    artistId: v.id("artists"),
+    isFollowed: v.boolean(), // User follows on Spotify
+    isTopArtist: v.boolean(), // In user's top artists
+    topArtistRank: v.optional(v.number()), // 1-50 ranking in top artists
+    importedAt: v.number(),
+    lastUpdated: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_artist", ["artistId"])
+    .index("by_user_artist", ["userId", "artistId"]),
 };
 
 export default defineSchema({
