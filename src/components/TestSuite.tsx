@@ -12,6 +12,7 @@ export function TestSuite() {
   const createAppUser = useMutation(api.auth.createAppUser);
   const healthCheck = useQuery(api.health.healthCheck);
   const dashboardStats = useQuery(api.dashboard.getStats);
+  const systemStats = useQuery(api.health.getSystemStats);
 
   const runTest = async (testName: string, testFn: () => Promise<boolean>) => {
     try {
