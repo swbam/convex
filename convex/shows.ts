@@ -392,6 +392,19 @@ export const getByArtistAndDateInternal = internalQuery({
 // Back-compat alias for callers expecting `getByArtistAndDate`
 export const getByArtistAndDate = getByArtistAndDateInternal;
 
+// Count upcoming shows for an artist
+export const countUpcomingByArtist = internalQuery({
+  args: { artistId: v.id("artists") },
+  handler: async (ctx, args) => {
+    const shows = await ctx.db
+      .query("shows")
+      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
+      .filter((q) => q.eq(q.field("status"), "upcoming"))
+      .collect();
+    return shows.length;
+  },
+});
+
 export const createInternal = internalMutation({
   args: {
     artistId: v.id("artists"),
@@ -476,6 +489,7 @@ export const createFromTicketmaster = internalMutation({
       ticketmasterId: args.ticketmasterId,
       ticketUrl: args.ticketUrl,
       slug,
+      lastSynced: Date.now(), // Set sync timestamp
     });
 
     // Auto-generate initial setlist for the new show

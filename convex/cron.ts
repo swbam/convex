@@ -3,31 +3,31 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-// CRITICAL: Data integrity maintenance - fix missing spotifyId and ticketmasterId fields
+// Update trending scores and rankings
+crons.interval(
+  "update-trending",
+  { hours: 4 }, // Every 4 hours for fresh trending data
+  internal.maintenance_v2.syncTrendingData,
+  {}
+);
+
+// Fix missing artist data (Spotify sync)
 crons.interval(
   "fix-missing-artist-data",
   { hours: 6 }, // Every 6 hours
-  internal.maintenance.fixMissingArtistData,
+  internal.maintenance_v2.fixMissingArtistData,
   {}
 );
 
-// Sync trending data to populate database
-crons.interval(
-  "sync-trending-data", 
-  { hours: 12 }, // Every 12 hours
-  internal.maintenance.syncTrendingData,
-  {}
-);
-
-// Clean up orphaned records and maintain data quality
+// Clean up orphaned records
 crons.interval(
   "data-cleanup",
   { hours: 24 }, // Daily cleanup
-  internal.maintenance.cleanupOrphanedRecords,
+  internal.maintenance_v2.cleanupOrphanedRecords,
   {}
 );
 
-// Check for completed shows and import setlists from setlist.fm
+// Check for completed shows and import setlists
 crons.interval(
   "check-completed-shows",
   { hours: 6 }, // Every 6 hours

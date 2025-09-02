@@ -1,5 +1,5 @@
 import React from 'react'
-import { Music, Heart, Github, Twitter, Instagram, Mail } from 'lucide-react'
+import { Heart, Github, Twitter, Instagram, Mail } from 'lucide-react'
 
 export function Footer() {
   return (
@@ -9,11 +9,8 @@ export function Footer() {
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-12">
           {/* Brand */}
           <div className="col-span-2 sm:col-span-1 space-y-4 sm:space-y-6">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-primary to-primary/80 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg">
-                <Music className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
-              </div>
-              <span className="text-responsive-xl sm:text-responsive-2xl font-bold text-foreground">TheSet</span>
+            <div className="flex items-center">
+              <span className="text-2xl sm:text-3xl font-bold text-foreground" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>TheSet</span>
             </div>
             <p className="text-responsive-xs sm:text-responsive-sm text-muted-foreground max-w-xs leading-relaxed hidden sm:block">
               The ultimate platform for concert setlist voting and music discovery. Join thousands of fans predicting their favorite shows.
@@ -98,8 +95,7 @@ export function Footer() {
             </div>
             
             {/* Simple Brand */}
-            <div className="flex items-center gap-1.5 sm:gap-2 text-responsive-xs sm:text-responsive-sm text-muted-foreground">
-              <Music className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <div className="text-responsive-xs sm:text-responsive-sm text-muted-foreground">
               <span className="hidden sm:inline">TheSet - Concert Setlist Platform</span>
               <span className="sm:hidden">TheSet</span>
             </div>

@@ -43,13 +43,14 @@ export const router = createBrowserRouter([
     path: '/search',
     element: <App />,
   },
-  {
-    path: '/library',
-    element: <App />,
-  },
+
   {
     path: '/profile',
     element: <UserProfilePage />,
+  },
+  {
+    path: '/activity',
+    element: <App />,
   },
   {
     path: '/admin',
