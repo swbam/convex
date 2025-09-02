@@ -14,23 +14,21 @@ interface TrendingProps {
 export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
   const [activeTab, setActiveTab] = useState<'artists' | 'shows'>('artists');
   
-  // Get trending data from the database tables
-  const trendingArtists = useQuery(api.trending.getTrendingArtists, { limit: 20 });
-  const trendingShows = useQuery(api.trending.getTrendingShows, { limit: 20 });
+  // Get trending data directly from main tables with trending ranks!
+  const trendingArtists = useQuery(api.trending_v2.getTrendingArtists, { limit: 20 });
+  const trendingShows = useQuery(api.trending_v2.getTrendingShows, { limit: 20 });
   
   // Get recent activity/updates
   const recentActivity = useQuery(api.shows.getRecentlyUpdated, { limit: 10 });
 
   const handleArtistClick = (artist: any) => {
-    // Navigate using artist's ID or slug if available
-    const artistId = artist._id || artist.ticketmasterId;
-    onArtistClick(artistId as Id<'artists'>, artist.slug);
+    // Now we always have the real artist ID since it's from the artists table
+    onArtistClick(artist._id as Id<'artists'>, artist.slug);
   };
 
   const handleShowClick = (show: any) => {
-    // Navigate using show's ID or slug if available
-    const showId = show._id || show.ticketmasterId;
-    onShowClick(showId as Id<'shows'>, show.slug);
+    // Now we always have the real show ID since it's from the shows table
+    onShowClick(show._id as Id<'shows'>, show.slug);
   };
 
   return (
@@ -142,7 +140,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                             </span>
                             <span className="flex items-center gap-1">
                               <Music className="h-3.5 w-3.5" />
-                              {artist.upcomingEvents || 0} recent shows
+                              {artist.upcomingShowsCount || 0} upcoming shows
                             </span>
                           </div>
                           {artist.genres?.length > 0 && (
