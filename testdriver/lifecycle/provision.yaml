@@ -1,0 +1,56 @@
+version: 6.0.19
+session: 68b5d87acbb2c2e251994c61
+steps:
+  - prompt: launch chrome
+    commands:
+      - command: exec
+        lang: pwsh
+        code: >
+          Start-Process "C:/Program Files/Google/Chrome/Application/chrome.exe"
+          -ArgumentList "--start-maximized", "--guest",
+          "https://testdriver-sandbox.vercel.app/login"
+      - command: wait-for-text
+        text: TestDriver.ai Sandbox
+        timeout: 60000
+  - prompt: >-
+      review the codebase for my concert setlist voting web app. then start it
+      and search for the artist "ariana grande", view the artist page, click a
+      show, then on the show page vote on one song and then seleect a song from
+      the dropdown so it adds to the setlist. Then use the convex mcp thats
+      running to see if the artist was created in the artists table, along with
+      all of their shows in the shows table, venues all created in the venues
+      table, and their entire spotify song catalog imported to the songs table.
+      and make sure the votes and setlist songs tables had those actions added
+      to their tables. 
+       URL to visit: https://convex-sable.vercel.app/
+    commands:
+      - command: focus-application
+        name: Google Chrome
+      - command: focus-application
+        name: Google Chrome
+      - command: wait
+        timeout: 3000
+      - command: press-keys
+        keys:
+          - ctrl
+          - l
+      - command: type
+        text: https://convex-sable.vercel.app/
+      - command: press-keys
+        keys:
+          - enter
+      - command: focus-application
+        name: Google Chrome
+      - command: wait
+        timeout: 3000
+      - command: press-keys
+        keys:
+          - ctrl
+          - l
+      - command: type
+        text: https://convex-sable.vercel.app/
+      - command: press-keys
+        keys:
+          - enter
+      - command: wait
+        timeout: 2000
