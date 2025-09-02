@@ -285,12 +285,12 @@ export function AppLayout({ children }: AppLayoutProps) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
                       <DropdownMenuItem onClick={() => void navigate('/profile')}>
-                        <User className="h-4 w-4 mr-2" />
-                        Profile
+                        <Settings className="h-4 w-4 mr-2" />
+                        Settings
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => void navigate('/library')}>
+                      <DropdownMenuItem onClick={() => void navigate('/activity')}>
                         <Activity className="h-4 w-4 mr-2" />
-                        My Library
+                        My Activity
                       </DropdownMenuItem>
                       {appUser?.appUser?.role === 'admin' && (
                         <>
@@ -364,7 +364,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       </div>
       
       <Toaster />
-      <MobileBottomNav />
+      <MobileBottomNav onMenuClick={() => setSidebarOpen(true)} />
     </div>
   )
 }

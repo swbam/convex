@@ -60,7 +60,7 @@ export function UserProfilePage() {
           variant="outline" 
           size="sm" 
           className="w-full mt-4"
-          onClick={() => navigate('/library')}
+          onClick={() => navigate('/activity')}
         >
           View All Activity
         </Button>
@@ -92,8 +92,8 @@ export function UserProfilePage() {
               <User className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white">Profile & Settings</h1>
-              <p className="text-gray-300 text-sm sm:text-base">Manage your account and preferences</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">Settings</h1>
+              <p className="text-gray-300 text-sm sm:text-base">Manage your account preferences and view activity</p>
             </div>
           </div>
         </div>
