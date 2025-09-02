@@ -135,13 +135,14 @@ export const getBySpotifyId = query({
 
 export const create = internalMutation({
   args: {
-    name: v.string(),
-    artist: v.string(),
+    title: v.string(),
     album: v.optional(v.string()),
-    duration: v.optional(v.number()),
     spotifyId: v.optional(v.string()),
+    durationMs: v.optional(v.number()),
     popularity: v.optional(v.number()),
-    isStudio: v.boolean(),
+    trackNo: v.optional(v.number()),
+    isLive: v.optional(v.boolean()),
+    isRemix: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     // Check if song already exists by Spotify ID first
@@ -156,16 +157,16 @@ export const create = internalMutation({
       }
     }
 
-    // Create new song - map isStudio to isLive (inverted)
+    // Create new song
     return await ctx.db.insert("songs", {
-      title: args.name,
+      title: args.title,
       album: args.album,
       spotifyId: args.spotifyId,
-      durationMs: args.duration,
+      durationMs: args.durationMs,
       popularity: args.popularity || 0,
-      trackNo: undefined,
-      isLive: !args.isStudio, // Studio songs are NOT live
-      isRemix: false,
+      trackNo: args.trackNo,
+      isLive: args.isLive || false,
+      isRemix: args.isRemix || false,
     });
   },
 });

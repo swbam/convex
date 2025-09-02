@@ -153,13 +153,14 @@ export const syncArtistCatalog = internalAction({
           try {
             // Create song
             const songId = await ctx.runMutation(internal.songs.create, {
-              name: track.name,
-              artist: args.artistName,
+              title: track.name, // Fixed: was 'name', should be 'title'
               album: album.name,
-              duration: track.duration_ms,
               spotifyId: track.id,
+              durationMs: track.duration_ms, // Fixed: was 'duration', should be 'durationMs'
               popularity: track.popularity || 0,
-              isStudio: true,
+              trackNo: track.track_number, // Added track number
+              isLive: false, // Studio tracks are not live
+              isRemix: false, // Filter out remixes in isStudioSong check
             });
 
             // Link artist to song

@@ -152,6 +152,8 @@ export const syncArtistShows = internalAction({
   },
 });
 
+
+
 // Get trending shows from Ticketmaster API
 export const getTrendingShows = action({
   args: { limit: v.optional(v.number()) },
