@@ -1,5 +1,6 @@
 import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 import { getAuthUserId } from "./auth";
 
 export const getById = query({
@@ -32,9 +33,13 @@ export const getBySlugOrId = query({
 
     // Fallback: try by id
     try {
-      // Cast is safe at runtime; Convex ids are strings
-      const possible = await ctx.db.get(args.key as any);
-      if (possible) return possible as any;
+      // Validate that the key is a valid artist ID format
+      const artistId = args.key as Id<"artists">;
+      const artist = await ctx.db.get(artistId);
+      // Verify it's actually an artist by checking for required fields
+      if (artist && 'name' in artist && 'slug' in artist) {
+        return artist;
+      }
     } catch {
       // ignore invalid id format
     }
