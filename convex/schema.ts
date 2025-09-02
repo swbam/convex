@@ -32,10 +32,14 @@ const applicationTables = {
     popularity: v.optional(v.number()),
     followers: v.optional(v.number()),
     trendingScore: v.optional(v.number()),
+    trendingRank: v.optional(v.number()), // 1-20 for top trending
+    upcomingShowsCount: v.optional(v.number()), // Cached count
+    lastTrendingUpdate: v.optional(v.number()), // When trending was calculated
     isActive: v.boolean(),
     lastSynced: v.optional(v.number()),
   })
     .index("by_slug", ["slug"])
+    .index("by_trending_rank", ["trendingRank"]) // Fast top-20 query
     .index("by_trending_score", ["trendingScore"])
     .index("by_spotify_id", ["spotifyId"]) 
     .index("by_ticketmaster_id", ["ticketmasterId"]) 
@@ -64,14 +68,19 @@ const applicationTables = {
     status: v.union(v.literal("upcoming"), v.literal("completed"), v.literal("cancelled")),
     ticketmasterId: v.optional(v.string()),
     ticketUrl: v.optional(v.string()),
+    priceRange: v.optional(v.string()), // Min-max price
     setlistfmId: v.optional(v.string()),
+    trendingScore: v.optional(v.number()),
+    trendingRank: v.optional(v.number()), // 1-20 for top trending
+    lastTrendingUpdate: v.optional(v.number()),
     lastSynced: v.optional(v.number()),
   })
     .index("by_slug", ["slug"])
     .index("by_artist", ["artistId"])
     .index("by_venue", ["venueId"])
     .index("by_status", ["status"])
-    .index("by_date", ["date"]),
+    .index("by_date", ["date"])
+    .index("by_trending_rank", ["trendingRank"]), // Fast trending query
 
   songs: defineTable({
     title: v.string(),
@@ -193,33 +202,7 @@ const applicationTables = {
     .index("by_status", ["status"])
     .index("by_priority", ["priority"]),
 
-  // Cached trending data from Ticketmaster
-  trendingShows: defineTable({
-    ticketmasterId: v.string(),
-    artistTicketmasterId: v.optional(v.string()),
-    artistId: v.optional(v.id("artists")), // Link to artist record
-    artistName: v.string(),
-    venueName: v.string(),
-    venueCity: v.string(),
-    venueCountry: v.string(),
-    date: v.string(),
-    startTime: v.optional(v.string()),
-    artistImage: v.optional(v.string()),
-    ticketUrl: v.optional(v.string()),
-    priceRange: v.optional(v.string()),
-    status: v.string(),
-    lastUpdated: v.number(),
-  }),
 
-  trendingArtists: defineTable({
-    ticketmasterId: v.string(),
-    name: v.string(),
-    genres: v.array(v.string()),
-    images: v.array(v.string()),
-    upcomingEvents: v.number(),
-    url: v.optional(v.string()),
-    lastUpdated: v.number(),
-  }),
 
   // Individual song votes within setlists (ProductHunt style)
   songVotes: defineTable({
