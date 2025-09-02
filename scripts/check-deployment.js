@@ -12,6 +12,9 @@ const REQUIRED_ENV_VARS = [
 
 const OPTIONAL_ENV_VARS = [
   'CLERK_SECRET_KEY',
+  'CLERK_ISSUER_URL',
+  'CLERK_JWKS_URL',
+  'SITE_URL',
   'TICKETMASTER_API_KEY',
   'SPOTIFY_CLIENT_ID',
   'SPOTIFY_CLIENT_SECRET',
@@ -80,8 +83,14 @@ if (!allRequiredPresent) {
   
   // Check Convex URL format
   const convexUrl = process.env.VITE_CONVEX_URL;
-  if (convexUrl && !convexUrl.includes('.convex.cloud')) {
+  if (convexUrl && !/https:\/\/.*\.convex\.cloud/.test(convexUrl)) {
     console.log('\n⚠️  Warning: VITE_CONVEX_URL doesn\'t look like a valid Convex URL');
     console.log('   Expected format: https://your-deployment.convex.cloud');
   }
+
+  // Suggest expected URLs for this repo
+  const expectedDev = 'https://necessary-mosquito-453.convex.cloud';
+  const expectedProd = 'https://exuberant-weasel-22.convex.cloud';
+  console.log(`\nℹ️  Expected dev Convex: ${expectedDev}`);
+  console.log(`ℹ️  Expected prod Convex: ${expectedProd}`);
 }

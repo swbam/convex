@@ -1,4 +1,4 @@
-import { query } from "./_generated/server";
+import { query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
 // Backward-compatibility shim for older clients expecting `trending`.
@@ -12,6 +12,7 @@ export const getTrendingShows = query({
 
     const shows = await ctx.db
       .query("trendingShows")
+      .withIndex("by_last_updated")
       .order("desc")
       .take(limit * 2);
 
@@ -62,6 +63,7 @@ export const getTrendingArtists = query({
 
     const artists = await ctx.db
       .query("trendingArtists")
+      .withIndex("by_last_updated")
       .order("desc")
       .take(limit * 2);
 
@@ -108,4 +110,78 @@ export const getTrendingArtists = query({
   },
 });
 
+// Calculate and cache supporting fields used for trending.
+export const updateArtistShowCounts = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const artists = await ctx.db.query("artists").collect();
+    for (const artist of artists) {
+      const upcomingShows = await ctx.db
+        .query("shows")
+        .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
+        .filter((q) => q.eq(q.field("status"), "upcoming"))
+        .collect();
 
+      await ctx.db.patch(artist._id, {
+        upcomingShowsCount: upcomingShows.length,
+        lastTrendingUpdate: Date.now(),
+      });
+    }
+    return null;
+  },
+});
+
+// Update artist trending scores and ranks based on simple heuristics.
+export const updateArtistTrending = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const artists = await ctx.db.query("artists").collect();
+    const scored = artists.map((a) => ({
+      artist: a,
+      score: (a.upcomingShowsCount || 0) + Math.floor((a.followers || 0) / 1_000_000),
+    }));
+
+    scored.sort((a, b) => b.score - a.score);
+
+    const TOP_N = 100;
+    for (let i = 0; i < scored.length; i += 1) {
+      const { artist, score } = scored[i];
+      await ctx.db.patch(artist._id, {
+        trendingScore: score,
+        trendingRank: i < TOP_N ? i + 1 : undefined,
+        lastTrendingUpdate: Date.now(),
+      });
+    }
+    return null;
+  },
+});
+
+// Update show trending ranks (simple ordering: soonest upcoming first).
+export const updateShowTrending = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const upcoming = await ctx.db
+      .query("shows")
+      .withIndex("by_status", (q) => q.eq("status", "upcoming"))
+      .collect();
+
+    const parsed = upcoming.map((s) => ({
+      show: s,
+      when: new Date(s.date).getTime(),
+    }));
+    parsed.sort((a, b) => a.when - b.when);
+
+    const TOP_N = 200;
+    for (let i = 0; i < parsed.length; i += 1) {
+      const { show } = parsed[i];
+      await ctx.db.patch(show._id, {
+        trendingRank: i < TOP_N ? i + 1 : undefined,
+        lastTrendingUpdate: Date.now(),
+      });
+    }
+    return null;
+  },
+});
