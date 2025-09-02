@@ -294,3 +294,51 @@ export const getTrendingArtists = action({
     }
   },
 });
+
+// Search and sync artist shows (internal action for Spotify import)
+export const searchAndSyncArtistShows = internalAction({
+  args: {
+    artistId: v.id("artists"),
+    artistName: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const apiKey = process.env.TICKETMASTER_API_KEY;
+    if (!apiKey) return null;
+    
+    try {
+      // Search for artist in Ticketmaster
+      const searchUrl = `https://app.ticketmaster.com/discovery/v2/attractions.json?keyword=${encodeURIComponent(args.artistName)}&classificationName=music&apikey=${apiKey}`;
+      const searchResponse = await fetch(searchUrl);
+      
+      if (!searchResponse.ok) return null;
+      
+      const searchData = await searchResponse.json();
+      const attractions = searchData._embedded?.attractions || [];
+      
+      // Find best match
+      const match = attractions.find((a: any) => 
+        a.name.toLowerCase() === args.artistName.toLowerCase()
+      ) || attractions[0];
+      
+      if (!match) return null;
+      
+      // Update artist with Ticketmaster ID
+      await ctx.runMutation(internal.artists.updateArtist, {
+        artistId: args.artistId,
+        updates: { ticketmasterId: match.id },
+      });
+      
+      // Sync shows
+      await ctx.runAction(internal.ticketmaster.syncArtistShows, {
+        artistId: args.artistId,
+        ticketmasterId: match.id,
+      });
+      
+    } catch (error) {
+      console.error(`Failed to search and sync shows for ${args.artistName}:`, error);
+    }
+    
+    return null;
+  },
+});
