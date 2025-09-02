@@ -96,11 +96,15 @@ export const createAppUser = mutation({
     // Check if this user should be an admin
     const isAdmin = identity.email === "seth@bambl.ing";
     
+    // Extract Spotify ID if user logged in with Spotify
+    const spotifyId = (identity as any).spotifyId || undefined;
+    
     // Create app user with Clerk data
-    return await ctx.db.insert("users", {
+    const userId = await ctx.db.insert("users", {
       authId: identity.subject,
       email: identity.email,
       name: identity.name,
+      spotifyId,
       username,
       role: isAdmin ? "admin" : "user",
       preferences: {
@@ -109,5 +113,7 @@ export const createAppUser = mutation({
       },
       createdAt: Date.now(),
     });
+    
+    return userId;
   },
 });

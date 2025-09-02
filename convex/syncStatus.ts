@@ -38,17 +38,4 @@ export const updateStatus = internalMutation({
   },
 });
 
-export const updateTrendingScores = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    // Simple trending score update - in production this would be more sophisticated
-    const artists = await ctx.db.query("artists").take(100);
-    
-    for (const artist of artists) {
-      const newScore = Math.max(0, (artist.trendingScore || 0) + Math.floor(Math.random() * 10) - 5);
-      await ctx.db.patch(artist._id, {
-        trendingScore: newScore,
-      });
-    }
-  },
-});
+// DEPRECATED: Use trending_v2.updateArtistTrending instead

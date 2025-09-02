@@ -55,81 +55,23 @@ export const getTrending = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
     
-    // Get artists with high activity and recent engagement
-    const artists = await ctx.db
+    // Use the optimized trending system - just query by the pre-calculated trending rank
+    const trending = await ctx.db
       .query("artists")
-      .filter((q) => q.eq(q.field("isActive"), true))
-      .collect();
+      .withIndex("by_trending_rank")
+      .filter((q) => q.neq(q.field("trendingRank"), undefined))
+      .take(limit);
     
-    // Calculate trending score based on multiple factors
-    const now = Date.now();
-    const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
+    // If no trending data, fallback to sorting by popularity
+    if (trending.length === 0) {
+      return await ctx.db
+        .query("artists")
+        .filter((q) => q.eq(q.field("isActive"), true))
+        .order("desc")
+        .take(limit);
+    }
     
-    const artistsWithScores = await Promise.all(
-      artists.map(async (artist) => {
-        let score = 0;
-        
-        // Base popularity score (0-100 from Spotify)
-        score += (artist.popularity || 0) * 0.3;
-        
-        // Follower count (normalized, max 50 points)
-        const followerScore = Math.min(50, Math.log10((artist.followers || 1) / 1000) * 10);
-        score += Math.max(0, followerScore);
-        
-        // Recent activity boost - shows in the last week
-        const recentShows = await ctx.db
-          .query("shows")
-          .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
-          .filter((q) => q.gt(q.field("lastSynced"), oneWeekAgo))
-          .collect();
-        score += recentShows.length * 15; // 15 points per recent show
-        
-        // Follower engagement - count follows in the last week
-        const recentFollows = await ctx.db
-          .query("userFollows")
-          .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
-          .filter((q) => q.gt(q.field("createdAt"), oneWeekAgo))
-          .collect();
-        score += recentFollows.length * 10; // 10 points per recent follow
-        
-        // Vote activity - recent votes on their setlists
-        const artistShows = await ctx.db
-          .query("shows")
-          .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
-          .collect();
-          
-        let recentVotes = 0;
-        for (const show of artistShows) {
-          const setlists = await ctx.db
-            .query("setlists")
-            .withIndex("by_show", (q) => q.eq("showId", show._id))
-            .collect();
-          
-          for (const setlist of setlists) {
-            const votes = await ctx.db
-              .query("votes")
-              .withIndex("by_setlist", (q) => q.eq("setlistId", setlist._id))
-              .filter((q) => q.gt(q.field("createdAt"), oneWeekAgo))
-              .collect();
-            recentVotes += votes.length;
-          }
-        }
-        score += recentVotes * 5; // 5 points per recent vote
-        
-        // Time decay - older synced artists get slight penalty
-        const daysSinceSync = artist.lastSynced ? 
-          Math.max(0, (now - artist.lastSynced) / (24 * 60 * 60 * 1000)) : 30;
-        const timePenalty = Math.min(20, daysSinceSync * 0.5);
-        score -= timePenalty;
-        
-        return { ...artist, trendingScore: Math.max(0, score) };
-      })
-    );
-    
-    // Sort by trending score and return top results
-    return artistsWithScores
-      .sort((a, b) => (b.trendingScore || 0) - (a.trendingScore || 0))
-      .slice(0, limit);
+    return trending;
   },
 });
 
@@ -243,9 +185,30 @@ export const createFromTicketmaster = internalMutation({
     }
 
     // Create slug from name
-    const slug = args.name.toLowerCase()
+    let baseSlug = args.name.toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
+    
+    // Check for existing slugs and add a number if needed
+    let slug = baseSlug;
+    let counter = 1;
+    while (true) {
+      const existingWithSlug = await ctx.db
+        .query("artists")
+        .withIndex("by_slug", (q) => q.eq("slug", slug))
+        .first();
+      
+      if (!existingWithSlug) break;
+      
+      // If an artist with this slug exists but it's the same ticketmaster ID, return it
+      if (existingWithSlug.ticketmasterId === args.ticketmasterId) {
+        return existingWithSlug._id;
+      }
+      
+      // Otherwise, try a new slug
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
 
     return await ctx.db.insert("artists", {
       slug,
@@ -396,17 +359,7 @@ export const createInternal = internalMutation({
 
 
 
-export const updateTrendingScore = internalMutation({
-  args: {
-    artistId: v.id("artists"),
-    score: v.number(),
-  },
-  handler: async (ctx, args) => {
-    await ctx.db.patch(args.artistId, {
-      trendingScore: args.score,
-    });
-  },
-});
+// DEPRECATED: Trending scores are now updated by trending_v2.updateArtistTrending
 
 
 

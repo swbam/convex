@@ -64,32 +64,38 @@ export const triggerFullArtistSync = action({
   handler: async (ctx, args): Promise<Id<"artists">> => {
     console.log(`🚀 Starting full sync for artist: ${args.artistName}`);
 
-    // Phase 1: Create basic artist record immediately for instant response
-    const artistId: Id<"artists"> = await ctx.runMutation(internal.artists.createFromTicketmaster, {
-      ticketmasterId: args.ticketmasterId,
-      name: args.artistName,
-      genres: args.genres || [],
-      images: args.images || [],
-    });
+    try {
+      // Phase 1: Create basic artist record immediately for instant response
+      const artistId: Id<"artists"> = await ctx.runMutation(internal.artists.createFromTicketmaster, {
+        ticketmasterId: args.ticketmasterId,
+        name: args.artistName,
+        genres: args.genres || [],
+        images: args.images || [],
+      });
 
-    // Phase 2 & 3: Run shows and catalog sync in parallel background jobs
-    // Don't await - let them run in the background
-    ctx.runAction(internal.ticketmaster.syncArtistShows, {
-      artistId,
-      ticketmasterId: args.ticketmasterId,
-    }).catch(error => {
-      console.error(`Failed to sync shows for ${args.artistName}:`, error);
-    });
+      // Phase 2 & 3: Run shows and catalog sync in parallel background jobs
+      // Don't await - let them run in the background
+      ctx.runAction(internal.ticketmaster.syncArtistShows, {
+        artistId,
+        ticketmasterId: args.ticketmasterId,
+      }).catch(error => {
+        console.error(`Failed to sync shows for ${args.artistName}:`, error);
+      });
 
-    ctx.runAction(internal.spotify.syncArtistCatalog, {
-      artistId,
-      artistName: args.artistName,
-    }).catch(error => {
-      console.error(`Failed to sync catalog for ${args.artistName}:`, error);
-    });
+      ctx.runAction(internal.spotify.syncArtistCatalog, {
+        artistId,
+        artistName: args.artistName,
+      }).catch(error => {
+        console.error(`Failed to sync catalog for ${args.artistName}:`, error);
+      });
 
-    console.log(`✅ Artist ${args.artistName} created with ID: ${artistId}, background sync started`);
-    return artistId;
+      console.log(`✅ Artist ${args.artistName} created with ID: ${artistId}, background sync started`);
+      return artistId;
+    } catch (error) {
+      console.error(`❌ Failed to create artist ${args.artistName}:`, error);
+      // Re-throw with a more user-friendly message
+      throw new Error(`Failed to import artist "${args.artistName}". Please try again.`);
+    }
   },
 });
 
@@ -286,5 +292,53 @@ export const getTrendingArtists = action({
       console.error("Failed to get trending artists:", error);
       return [];
     }
+  },
+});
+
+// Search and sync artist shows (internal action for Spotify import)
+export const searchAndSyncArtistShows = internalAction({
+  args: {
+    artistId: v.id("artists"),
+    artistName: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const apiKey = process.env.TICKETMASTER_API_KEY;
+    if (!apiKey) return null;
+    
+    try {
+      // Search for artist in Ticketmaster
+      const searchUrl = `https://app.ticketmaster.com/discovery/v2/attractions.json?keyword=${encodeURIComponent(args.artistName)}&classificationName=music&apikey=${apiKey}`;
+      const searchResponse = await fetch(searchUrl);
+      
+      if (!searchResponse.ok) return null;
+      
+      const searchData = await searchResponse.json();
+      const attractions = searchData._embedded?.attractions || [];
+      
+      // Find best match
+      const match = attractions.find((a: any) => 
+        a.name.toLowerCase() === args.artistName.toLowerCase()
+      ) || attractions[0];
+      
+      if (!match) return null;
+      
+      // Update artist with Ticketmaster ID
+      await ctx.runMutation(internal.artists.updateArtist, {
+        artistId: args.artistId,
+        updates: { ticketmasterId: match.id },
+      });
+      
+      // Sync shows
+      await ctx.runAction(internal.ticketmaster.syncArtistShows, {
+        artistId: args.artistId,
+        ticketmasterId: match.id,
+      });
+      
+    } catch (error) {
+      console.error(`Failed to search and sync shows for ${args.artistName}:`, error);
+    }
+    
+    return null;
   },
 });
