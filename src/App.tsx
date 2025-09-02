@@ -9,7 +9,7 @@ import { ArtistDetail } from "./components/ArtistDetail";
 import { ShowDetail } from "./components/ShowDetail";
 import { Artists } from "./components/Artists";
 import { Shows } from "./components/Shows";
-import { Library } from "./components/Library";
+
 import { Trending } from "./components/Trending";
 
 import { AppLayout } from "./components/AppLayout";
@@ -23,7 +23,7 @@ import { TestSuite } from "./components/TestSuite";
 
 import { MagicCard } from "./components/ui/magic-card";
 
-type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "library" | "activity" | "signin" | "trending" | "profile" | "following" | "predictions" | "admin" | "test";
+type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "activity" | "signin" | "trending" | "profile" | "following" | "predictions" | "admin" | "test";
 
 function App() {
   const location = useLocation();
@@ -131,9 +131,6 @@ function App() {
     } else if (path === '/trending') {
       setCurrentView('trending');
       document.title = 'Trending – TheSet';
-    } else if (path === '/library') {
-      setCurrentView('library');
-      document.title = 'Library – TheSet';
     } else if (path === '/activity') {
       setCurrentView('activity');
       document.title = 'Activity – TheSet';
@@ -314,16 +311,9 @@ function App() {
             onShowClick={handleShowClick}
           />
         );
-      case "library":
-        return (
-          <Library 
-            onArtistClick={handleArtistClick}
-            onShowClick={handleShowClick}
-          />
-        );
       case "activity":
         return (
-          <Library 
+          <UserDashboard 
             onArtistClick={handleArtistClick}
             onShowClick={handleShowClick}
           />
