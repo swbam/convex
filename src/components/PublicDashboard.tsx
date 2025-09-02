@@ -25,8 +25,8 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
   const triggerFullSync = useAction(api.ticketmaster.triggerFullArtistSync);
 
   // Load trending data directly from the optimized trending system
-  const dbTrendingShows = useQuery(api.trending_v2.getTrendingShows, { limit: 20 });
-  const dbTrendingArtists = useQuery(api.trending_v2.getTrendingArtists, { limit: 20 });
+  const dbTrendingShows = useQuery(api.trending.getTrendingShows, { limit: 20 });
+  const dbTrendingArtists = useQuery(api.trending.getTrendingArtists, { limit: 20 });
   
   // Fallback: Load from main tables if trending data is empty
   const fallbackArtists = useQuery(api.artists.getTrending, { limit: 20 });
@@ -35,7 +35,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
   useEffect(() => {
     // Use trending data if available, otherwise use fallback
     if (dbTrendingShows && dbTrendingShows.length > 0) {
-      // The data from trending_v2 already includes artist and venue data
+      // The data from trending already includes artist and venue data
       const uniqueShows = dbTrendingShows.filter((show, index, self) => 
         index === self.findIndex(s => s.artist?.name === show.artist?.name)
       );
@@ -81,7 +81,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
     }
     
     if (dbTrendingArtists && dbTrendingArtists.length > 0) {
-      // The data from trending_v2 is already in the correct format
+      // The data from trending is already in the correct format
       const formattedArtists = dbTrendingArtists.map(artist => ({
         ticketmasterId: artist.ticketmasterId || artist._id,
         name: artist.name,

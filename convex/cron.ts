@@ -7,7 +7,7 @@ const crons = cronJobs();
 crons.interval(
   "update-trending",
   { hours: 4 }, // Every 4 hours for fresh trending data
-  internal.maintenance_v2.syncTrendingData,
+  internal.maintenance.syncTrendingData,
   {}
 );
 
@@ -15,7 +15,7 @@ crons.interval(
 crons.interval(
   "fix-missing-artist-data",
   { hours: 6 }, // Every 6 hours
-  internal.maintenance_v2.fixMissingArtistData,
+  internal.maintenance.fixMissingArtistData,
   {}
 );
 
@@ -23,7 +23,7 @@ crons.interval(
 crons.interval(
   "data-cleanup",
   { hours: 24 }, // Daily cleanup
-  internal.maintenance_v2.cleanupOrphanedRecords,
+  internal.maintenance.cleanupOrphanedRecords,
   {}
 );
 

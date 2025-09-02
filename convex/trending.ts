@@ -1,7 +1,7 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
 
-// Backward-compatibility shim for older clients expecting `trending_v2`.
+// Backward-compatibility shim for older clients expecting `trending`.
 // Re-implements the current logic from `trending.ts` so queries can run directly.
 
 export const getTrendingShows = query({

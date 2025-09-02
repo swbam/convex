@@ -13,15 +13,15 @@ export const syncTrendingData = internalAction({
     
     try {
       // Step 1: Update artist show counts (cached)
-      await ctx.runMutation(internal.trending_v2.updateArtistShowCounts, {});
+      await ctx.runMutation(internal.trending.updateArtistShowCounts, {});
       console.log("✅ Updated artist show counts");
       
       // Step 2: Update artist trending scores and ranks
-      await ctx.runMutation(internal.trending_v2.updateArtistTrending, {});
+      await ctx.runMutation(internal.trending.updateArtistTrending, {});
       console.log("✅ Updated artist trending ranks");
       
       // Step 3: Update show trending scores and ranks
-      await ctx.runMutation(internal.trending_v2.updateShowTrending, {});
+      await ctx.runMutation(internal.trending.updateShowTrending, {});
       console.log("✅ Updated show trending ranks");
       
       // Optional: Try to enrich with fresh Ticketmaster data
@@ -67,7 +67,7 @@ export const triggerTrendingSync = action({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    await ctx.runAction(internal.maintenance_v2.syncTrendingData, {});
+    await ctx.runAction(internal.maintenance.syncTrendingData, {});
     return null;
   },
 });

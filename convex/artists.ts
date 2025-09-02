@@ -364,7 +364,7 @@ export const createInternal = internalMutation({
 
 
 
-// DEPRECATED: Trending scores are now updated by trending_v2.updateArtistTrending
+// DEPRECATED: Trending scores are now updated by trending.updateArtistTrending
 
 
 

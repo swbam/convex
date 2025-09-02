@@ -5,7 +5,7 @@
 ### 1. **Removed Duplicate Trending Implementations**
 - ❌ Deleted `convex/trending.ts` (adapter file) - no longer needed
 - ❌ Deleted `convex/admin_v2.ts` - duplicate of admin.ts functionality
-- ✅ Consolidated all trending logic into `convex/trending_v2.ts`
+- ✅ Consolidated all trending logic into `convex/trending.ts`
 
 ### 2. **Optimized Database Queries**
 - **Before**: Complex runtime calculations with multiple database queries per artist
@@ -27,7 +27,7 @@
 
 ### Architecture
 ```
-trending_v2.ts (Core Logic)
+trending.ts (Core Logic)
 ├── getTrendingArtists() - Query by index
 ├── getTrendingShows() - Query by index with joins
 ├── updateArtistTrending() - Calculate & store ranks
@@ -37,7 +37,7 @@ trending_v2.ts (Core Logic)
 
 ### Cron Jobs (Every 4 Hours)
 ```
-maintenance_v2.syncTrendingData()
+maintenance.syncTrendingData()
 ├── Update artist show counts (cached)
 ├── Calculate trending scores
 ├── Assign top 20 ranks
@@ -62,10 +62,10 @@ maintenance_v2.syncTrendingData()
 ### Frontend
 ```typescript
 // Get trending artists (super fast!)
-const trending = useQuery(api.trending_v2.getTrendingArtists, { limit: 20 });
+const trending = useQuery(api.trending.getTrendingArtists, { limit: 20 });
 
 // Get trending shows with artist/venue data
-const shows = useQuery(api.trending_v2.getTrendingShows, { limit: 20 });
+const shows = useQuery(api.trending.getTrendingShows, { limit: 20 });
 ```
 
 ### Admin

@@ -14,7 +14,7 @@
     "check:deployment": "node scripts/check-deployment.js",
     "check:env": "node scripts/check-deployment.js",
     "post-deploy": "sh scripts/post-deploy.sh",
-    "sync:trending": "npx convex run maintenance_v2:triggerTrendingSync"
+    "sync:trending": "npx convex run maintenance:triggerTrendingSync"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.45.0",

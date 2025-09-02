@@ -38,4 +38,4 @@ export const updateStatus = internalMutation({
   },
 });
 
-// DEPRECATED: Use trending_v2.updateArtistTrending instead
+// DEPRECATED: Use trending.updateArtistTrending instead

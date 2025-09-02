@@ -161,5 +161,5 @@ export const getArtistLeaderboard = query({
   },
 });
 
-// DEPRECATED: Trending scores are now calculated in trending_v2.ts
+// DEPRECATED: Trending scores are now calculated in trending.ts
 // This function is kept for backward compatibility but should not be used

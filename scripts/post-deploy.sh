@@ -7,6 +7,6 @@ sleep 5
 
 # Trigger trending data sync with new system
 echo "📊 Updating trending rankings..."
-npx convex run maintenance_v2:triggerTrendingSync || true
+npx convex run maintenance:triggerTrendingSync || true
 
 echo "✅ Post-deployment tasks completed!"
