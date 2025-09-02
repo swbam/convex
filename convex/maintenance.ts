@@ -140,17 +140,26 @@ export const syncTrendingData = internalAction({
       const allArtists = await ctx.runQuery(internal.artists.getAllForMaintenance, {});
       const allShows = await ctx.runQuery(internal.shows.getAllInternal, {});
       
-      // Format artists for trending
-      const trendingArtists = allArtists
-        .filter(artist => artist.name && artist.name !== 'Unknown Artist')
-        .map(artist => ({
-          ticketmasterId: artist.ticketmasterId || artist._id,
-          name: artist.name,
-          genres: artist.genres || [],
-          images: artist.images || [],
-          upcomingEvents: artist.upcomingShows || 0,
-          url: artist.url || '',
-        }));
+      // Format artists for trending - need to count their shows
+      const trendingArtists = await Promise.all(
+        allArtists
+          .filter(artist => artist.name && artist.name !== 'Unknown Artist')
+          .map(async artist => {
+            // Count upcoming shows for this artist
+            const upcomingShows = await ctx.runQuery(internal.shows.countUpcomingByArtist, {
+              artistId: artist._id
+            });
+            
+            return {
+              ticketmasterId: artist.ticketmasterId || artist._id,
+              name: artist.name,
+              genres: artist.genres || [],
+              images: artist.images || [],
+              upcomingEvents: upcomingShows,
+              url: artist.url || '',
+            };
+          })
+      );
       
       // Format shows for trending
       const trendingShows = allShows
@@ -177,17 +186,27 @@ export const syncTrendingData = internalAction({
         const apiShows = await ctx.runAction(api.ticketmaster.getTrendingShows, { limit: 20 });
         const apiArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 20 });
         
-        // If API returns data, use it; otherwise use fallback
-        if (apiShows.length > 0) {
+        // If API returns data, use it to supplement our data
+        if (apiShows && apiShows.length > 0) {
           console.log(`✅ Got ${apiShows.length} shows from Ticketmaster API`);
-          trendingShows.unshift(...apiShows);
+          // Add API shows to the beginning, but keep our enriched data too
+          const apiFormattedShows = apiShows.map((show: any) => ({
+            ...show,
+            lastUpdated: Date.now()
+          }));
+          trendingShows.unshift(...apiFormattedShows);
         }
-        if (apiArtists.length > 0) {
+        if (apiArtists && apiArtists.length > 0) {
           console.log(`✅ Got ${apiArtists.length} artists from Ticketmaster API`);
-          trendingArtists.unshift(...apiArtists);
+          // Add API artists to the beginning
+          const apiFormattedArtists = apiArtists.map((artist: any) => ({
+            ...artist,
+            lastUpdated: Date.now()
+          }));
+          trendingArtists.unshift(...apiFormattedArtists);
         }
       } catch (error) {
-        console.log("⚠️ Ticketmaster API failed, using database fallback");
+        console.log("⚠️ Ticketmaster API failed, using database fallback:", error);
       }
       
       // Save to database tables for fast querying

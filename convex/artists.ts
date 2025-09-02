@@ -255,6 +255,8 @@ export const createFromTicketmaster = internalMutation({
       images: args.images,
       isActive: true,
       trendingScore: 0,
+      lastSynced: Date.now(), // Set initial sync timestamp
+      // spotifyId, popularity, followers will be set by Spotify sync
     });
   },
 });
