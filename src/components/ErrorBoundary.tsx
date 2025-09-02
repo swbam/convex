@@ -30,6 +30,15 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
       url: typeof window !== 'undefined' ? window.location.href : 'unknown'
     });
+    
+    // Also log to window for easy access in production
+    if (typeof window !== 'undefined') {
+      (window as any).lastError = {
+        error,
+        errorInfo,
+        timestamp: new Date().toISOString()
+      };
+    }
   }
 
   render() {
@@ -42,16 +51,19 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               <p className="text-muted-foreground">
                 We encountered an unexpected error. Please refresh the page to try again.
               </p>
-              {process.env.NODE_ENV === 'development' && this.state.error && (
+              {this.state.error && (
                 <details className="mt-4 text-left">
                   <summary className="cursor-pointer text-sm text-muted-foreground">
-                    Show error details (dev only)
+                    Show error details
                   </summary>
-                  <pre className="mt-2 text-xs bg-muted p-2 rounded overflow-auto">
+                  <pre className="mt-2 text-xs bg-muted p-2 rounded overflow-auto max-h-64">
                     {this.state.error.message}
-                    {'\n'}
+                    {'\n\n'}
                     {this.state.error.stack}
                   </pre>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Error logged to console. Check window.lastError for full details.
+                  </p>
                 </details>
               )}
             </div>
