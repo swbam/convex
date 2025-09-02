@@ -1,5 +1,6 @@
 import { query, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 
 // Helper function to create SEO-friendly slugs
@@ -34,18 +35,23 @@ export const getRecentlyUpdated = query({
       .order("desc") // Order by creation time descending for most recent
       .take(limit);
     
-    // Populate artist and venue data
-    const enrichedShows = await Promise.all(
-      shows.map(async (show) => {
-        const [artist, venue] = await Promise.all([
-          ctx.db.get(show.artistId),
-          ctx.db.get(show.venueId),
-        ]);
-        return { ...show, artist, venue };
-      })
-    );
-    
-    return enrichedShows;
+      // Populate artist and venue data
+  const enrichedShows = await Promise.all(
+    shows.map(async (show) => {
+      const [artist, venue] = await Promise.all([
+        ctx.db.get(show.artistId),
+        ctx.db.get(show.venueId),
+      ]);
+      // Skip shows with missing artist or venue
+      if (!artist || !venue) {
+        return null;
+      }
+      return { ...show, artist, venue };
+    })
+  );
+  
+  // Filter out null values
+  return enrichedShows.filter(show => show !== null);
   },
 });
 
@@ -59,18 +65,23 @@ export const getUpcoming = query({
       .order("asc")
       .take(limit);
     
-    // Populate artist and venue data
-    const enrichedShows = await Promise.all(
-      shows.map(async (show) => {
-        const [artist, venue] = await Promise.all([
-          ctx.db.get(show.artistId),
-          ctx.db.get(show.venueId),
-        ]);
-        return { ...show, artist, venue };
-      })
-    );
-    
-    return enrichedShows;
+      // Populate artist and venue data
+  const enrichedShows = await Promise.all(
+    shows.map(async (show) => {
+      const [artist, venue] = await Promise.all([
+        ctx.db.get(show.artistId),
+        ctx.db.get(show.venueId),
+      ]);
+      // Skip shows with missing artist or venue
+      if (!artist || !venue) {
+        return null;
+      }
+      return { ...show, artist, venue };
+    })
+  );
+  
+  // Filter out null values
+  return enrichedShows.filter(show => show !== null);
   },
 });
 
@@ -84,18 +95,23 @@ export const getRecent = query({
       .order("desc")
       .take(limit);
     
-    // Populate artist and venue data
-    const enrichedShows = await Promise.all(
-      shows.map(async (show) => {
-        const [artist, venue] = await Promise.all([
-          ctx.db.get(show.artistId),
-          ctx.db.get(show.venueId),
-        ]);
-        return { ...show, artist, venue };
-      })
-    );
-    
-    return enrichedShows;
+      // Populate artist and venue data
+  const enrichedShows = await Promise.all(
+    shows.map(async (show) => {
+      const [artist, venue] = await Promise.all([
+        ctx.db.get(show.artistId),
+        ctx.db.get(show.venueId),
+      ]);
+      // Skip shows with missing artist or venue
+      if (!artist || !venue) {
+        return null;
+      }
+      return { ...show, artist, venue };
+    })
+  );
+  
+  // Filter out null values
+  return enrichedShows.filter(show => show !== null);
   },
 });
 
@@ -109,6 +125,11 @@ export const getById = query({
       ctx.db.get(show.artistId),
       ctx.db.get(show.venueId),
     ]);
+    
+    // Return null if artist or venue is missing
+    if (!artist || !venue) {
+      return null;
+    }
     
     return { ...show, artist, venue };
   },
@@ -147,9 +168,13 @@ export const getBySlugOrId = query({
     if (!showDoc) {
       // Fallback: try by id
       try {
-        // Cast is safe at runtime; Convex ids are strings
-        const possible = await ctx.db.get(args.key as any);
-        if (possible) showDoc = possible as any;
+        // Validate that the key is a valid show ID format
+        const showId = args.key as Id<"shows">;
+        const show = await ctx.db.get(showId);
+        // Verify it's actually a show by checking for required fields
+        if (show && 'artistId' in show && 'venueId' in show && 'date' in show) {
+          showDoc = show;
+        }
       } catch {
         // ignore invalid id format
       }
@@ -161,6 +186,12 @@ export const getBySlugOrId = query({
       ctx.db.get(showDoc.artistId),
       ctx.db.get(showDoc.venueId),
     ]);
+    
+    // Return null if artist or venue is missing
+    if (!artist || !venue) {
+      return null;
+    }
+    
     return { ...showDoc, artist, venue };
   },
 });
@@ -220,11 +251,16 @@ export const getAll = query({
           ctx.db.get(show.artistId),
           ctx.db.get(show.venueId),
         ]);
+        // Skip shows with missing artist or venue
+        if (!artist || !venue) {
+          return null;
+        }
         return { ...show, artist, venue };
       })
     );
     
-    return enrichedShows;
+    // Filter out null values
+    return enrichedShows.filter(show => show !== null);
   },
 });
 

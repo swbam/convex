@@ -32,15 +32,22 @@ export const getTrendingShows = query({
       .take(limit);
     
     // Enrich with artist and venue data
-    return await Promise.all(
+    const enrichedShows = await Promise.all(
       shows.map(async (show) => {
         const [artist, venue] = await Promise.all([
           ctx.db.get(show.artistId),
           ctx.db.get(show.venueId),
         ]);
+        // Skip shows with missing artist or venue
+        if (!artist || !venue) {
+          return null;
+        }
         return { ...show, artist, venue };
       })
     );
+    
+    // Filter out null values
+    return enrichedShows.filter(show => show !== null);
   },
 });
 
