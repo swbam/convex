@@ -16,83 +16,35 @@ export function AdminDashboard() {
   const users = useQuery(api.admin.getAllUsers, { limit: 50 });
   const verifySetlist = useMutation(api.admin.verifySetlist);
   
-  // Trending sync actions
-  const syncTrendingArtists = useAction(api.admin.syncTrendingArtists);
-  const syncTrendingShows = useAction(api.admin.syncTrendingShows);
-  const syncAllTrending = useAction(api.admin.syncAllTrending);
+  // Trending sync action - simplified!
+  const syncTrending = useAction(api.admin_v2.syncTrending);
   
-  // Loading states
-  const [artistsSyncing, setArtistsSyncing] = useState(false);
-  const [showsSyncing, setShowsSyncing] = useState(false);
-  const [allSyncing, setAllSyncing] = useState(false);
+  // Loading state
+  const [trendingSyncing, setTrendingSyncing] = useState(false);
 
   const pendingFlags = useMemo(() => (flagged || []).filter(f => f.status === "pending"), [flagged]);
 
-  const handleSyncArtists = async () => {
-    setArtistsSyncing(true);
+  const handleSyncTrending = async () => {
+    setTrendingSyncing(true);
     try {
-      const result = await syncTrendingArtists();
+      const result = await syncTrending();
       if (result.success) {
-        toast.success(result.message, {
-          description: `${result.artistsProcessed} artists processed`
-        });
+        toast.success(result.message);
       } else {
-        toast.error("Artists sync failed", {
+        toast.error("Trending sync failed", {
           description: result.message
         });
       }
     } catch (error) {
-      toast.error("Artists sync failed", {
+      toast.error("Trending sync failed", {
         description: error instanceof Error ? error.message : "Unknown error"
       });
     } finally {
-      setArtistsSyncing(false);
+      setTrendingSyncing(false);
     }
   };
 
-  const handleSyncShows = async () => {
-    setShowsSyncing(true);
-    try {
-      const result = await syncTrendingShows();
-      if (result.success) {
-        toast.success(result.message, {
-          description: `${result.showsProcessed} shows processed`
-        });
-      } else {
-        toast.error("Shows sync failed", {
-          description: result.message
-        });
-      }
-    } catch (error) {
-      toast.error("Shows sync failed", {
-        description: error instanceof Error ? error.message : "Unknown error"
-      });
-    } finally {
-      setShowsSyncing(false);
-    }
-  };
 
-  const handleSyncAll = async () => {
-    setAllSyncing(true);
-    try {
-      const result = await syncAllTrending();
-      if (result.success) {
-        toast.success(result.message, {
-          description: `${result.artistsProcessed} artists and ${result.showsProcessed} shows processed`
-        });
-      } else {
-        toast.error("Complete sync failed", {
-          description: result.message
-        });
-      }
-    } catch (error) {
-      toast.error("Complete sync failed", {
-        description: error instanceof Error ? error.message : "Unknown error"
-      });
-    } finally {
-      setAllSyncing(false);
-    }
-  };
 
   return (
     <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 sm:space-y-8 relative z-10">
@@ -152,98 +104,43 @@ export function AdminDashboard() {
             <h2 className="text-xl font-semibold text-white">Trending Data Sync</h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Sync Artists */}
+          <div className="space-y-4">
+            {/* Simplified Trending Sync */}
             <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                  <Mic className="h-5 w-5 text-purple-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white">Trending Artists</h3>
-                  <p className="text-xs text-gray-400">Sync from Ticketmaster</p>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-lg flex items-center justify-center">
+                    <TrendingUp className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white">Update Trending Rankings</h3>
+                    <p className="text-xs text-gray-400">Recalculates trending scores and updates top 20 rankings</p>
+                  </div>
                 </div>
               </div>
               <ShimmerButton
-                onClick={handleSyncArtists}
-                disabled={artistsSyncing || allSyncing}
-                className="w-full bg-purple-500/20 hover:bg-purple-500/30 text-white border-purple-500/30"
-                shimmerColor="#a855f7"
+                onClick={handleSyncTrending}
+                disabled={trendingSyncing}
+                className="w-full bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 text-white border-white/20"
+                shimmerColor="#8b5cf6"
               >
-                {artistsSyncing ? (
+                {trendingSyncing ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Syncing...
+                    Updating Rankings...
                   </>
                 ) : (
                   <>
                     <TrendingUp className="h-4 w-4 mr-2" />
-                    Sync Artists
+                    Update Trending Data
                   </>
                 )}
               </ShimmerButton>
             </div>
-
-            {/* Sync Shows */}
-            <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                  <Calendar className="h-5 w-5 text-blue-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white">Trending Shows</h3>
-                  <p className="text-xs text-gray-400">Sync from Ticketmaster</p>
-                </div>
-              </div>
-              <ShimmerButton
-                onClick={handleSyncShows}
-                disabled={showsSyncing || allSyncing}
-                className="w-full bg-blue-500/20 hover:bg-blue-500/30 text-white border-blue-500/30"
-                shimmerColor="#3b82f6"
-              >
-                {showsSyncing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Syncing...
-                  </>
-                ) : (
-                  <>
-                    <TrendingUp className="h-4 w-4 mr-2" />
-                    Sync Shows
-                  </>
-                )}
-              </ShimmerButton>
-            </div>
-
-            {/* Sync All */}
-            <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
-                  <Database className="h-5 w-5 text-green-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white">Complete Sync</h3>
-                  <p className="text-xs text-gray-400">Artists + Shows</p>
-                </div>
-              </div>
-              <ShimmerButton
-                onClick={handleSyncAll}
-                disabled={allSyncing || artistsSyncing || showsSyncing}
-                className="w-full bg-green-500/20 hover:bg-green-500/30 text-white border-green-500/30"
-                shimmerColor="#10b981"
-              >
-                {allSyncing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Syncing All...
-                  </>
-                ) : (
-                  <>
-                    <TrendingUp className="h-4 w-4 mr-2" />
-                    Sync All Data
-                  </>
-                )}
-              </ShimmerButton>
+            
+            <div className="text-sm text-gray-400 px-2">
+              <p className="mb-1">🔄 Trending rankings are automatically updated every 4 hours</p>
+              <p>📊 Rankings are based on: popularity, followers, upcoming shows, and recent activity</p>
             </div>
 
             {/* Status Info */}

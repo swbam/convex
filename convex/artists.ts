@@ -255,6 +255,8 @@ export const createFromTicketmaster = internalMutation({
       images: args.images,
       isActive: true,
       trendingScore: 0,
+      lastSynced: Date.now(), // Set initial sync timestamp
+      // spotifyId, popularity, followers will be set by Spotify sync
     });
   },
 });
@@ -343,6 +345,16 @@ export const getByIdInternal = internalQuery({
   args: { id: v.id("artists") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.id);
+  },
+});
+
+export const getByTicketmasterIdInternal = internalQuery({
+  args: { ticketmasterId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("artists")
+      .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.ticketmasterId))
+      .first();
   },
 });
 

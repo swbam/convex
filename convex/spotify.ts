@@ -153,13 +153,14 @@ export const syncArtistCatalog = internalAction({
           try {
             // Create song
             const songId = await ctx.runMutation(internal.songs.create, {
-              name: track.name,
-              artist: args.artistName,
+              title: track.name, // Fixed: was 'name', should be 'title'
               album: album.name,
-              duration: track.duration_ms,
               spotifyId: track.id,
+              durationMs: track.duration_ms, // Fixed: was 'duration', should be 'durationMs'
               popularity: track.popularity || 0,
-              isStudio: true,
+              trackNo: track.track_number, // Added track number
+              isLive: false, // Studio tracks are not live
+              isRemix: false, // Filter out remixes in isStudioSong check
             });
 
             // Link artist to song
@@ -209,11 +210,21 @@ export const syncArtistCatalog = internalAction({
 // Helper function to determine if an album is likely to contain studio recordings
 function isStudioAlbum(albumName: string): boolean {
   const liveKeywords = [
-    'live at ', 'concert at ', 'bootleg'
+    'live at', 'live from', 'live in', 'concert at', 'bootleg', 
+    'live recording', 'acoustic session', 'unplugged', 'bbc session',
+    'radio session', 'live performance', '(live)', '[live]'
   ];
   
   const albumLower = albumName.toLowerCase();
-  return !liveKeywords.some(keyword => albumLower.includes(keyword));
+  // Check if album name contains any live keywords
+  const isLive = liveKeywords.some(keyword => albumLower.includes(keyword));
+  
+  // Also filter out obvious compilations that might have duplicate tracks
+  const compilationKeywords = ['greatest hits', 'best of', 'collection', 'anthology'];
+  const isCompilation = compilationKeywords.some(keyword => albumLower.includes(keyword));
+  
+  // Return true only if it's not live and not a compilation
+  return !isLive && !isCompilation;
 }
 
 // Helper function to determine if a song is likely a studio recording

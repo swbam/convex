@@ -9,7 +9,7 @@ import { ArtistDetail } from "./components/ArtistDetail";
 import { ShowDetail } from "./components/ShowDetail";
 import { Artists } from "./components/Artists";
 import { Shows } from "./components/Shows";
-import { Library } from "./components/Library";
+
 import { Trending } from "./components/Trending";
 
 import { AppLayout } from "./components/AppLayout";
@@ -20,10 +20,10 @@ import { toast } from "sonner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { TestSuite } from "./components/TestSuite";
-import { Music } from "lucide-react";
+
 import { MagicCard } from "./components/ui/magic-card";
 
-type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "library" | "signin" | "trending" | "profile" | "following" | "predictions" | "admin" | "test";
+type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "activity" | "signin" | "trending" | "profile" | "following" | "predictions" | "admin" | "test";
 
 function App() {
   const location = useLocation();
@@ -131,10 +131,9 @@ function App() {
     } else if (path === '/trending') {
       setCurrentView('trending');
       document.title = 'Trending – TheSet';
-    } else if (path === '/library') {
-      setCurrentView('library');
-      document.title = 'Library – TheSet';
-
+    } else if (path === '/activity') {
+      setCurrentView('activity');
+      document.title = 'Activity – TheSet';
     } else if (path === '/profile') {
       setCurrentView('profile');
       document.title = 'Profile – TheSet';
@@ -225,7 +224,7 @@ function App() {
               <MagicCard className="p-6 rounded-2xl border border-white/10">
                 <div className="text-center space-y-4">
                   <div className="w-20 h-20 mx-auto bg-primary/20 rounded-full flex items-center justify-center animate-pulse">
-                    <Music className="h-10 w-10 text-primary" />
+                    <span className="text-3xl font-bold text-primary">T</span>
                   </div>
                   <h2 className="text-2xl font-bold text-white">Setting up {artistName}</h2>
                   <p className="text-gray-400">Importing shows, venues, and song catalog...</p>
@@ -312,9 +311,9 @@ function App() {
             onShowClick={handleShowClick}
           />
         );
-      case "library":
+      case "activity":
         return (
-          <Library 
+          <UserDashboard 
             onArtistClick={handleArtistClick}
             onShowClick={handleShowClick}
           />
