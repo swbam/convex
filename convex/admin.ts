@@ -31,7 +31,7 @@ export const toggleUserBan = mutation({
 
 export const flagContent = mutation({
   args: {
-    contentType: v.union(v.literal("setlist"), v.literal("comment")),
+    contentType: v.union(v.literal("setlist"), v.literal("vote"), v.literal("comment")),
     contentId: v.string(),
     reason: v.string(),
   },
@@ -46,12 +46,12 @@ export const flagContent = mutation({
     
     if (!user) throw new Error("User not found");
     
-    await ctx.db.insert("flaggedContent", {
+    await ctx.db.insert("contentFlags", {
       contentType: args.contentType,
       contentId: args.contentId,
       reason: args.reason,
-      flaggedBy: user._id,
-      flaggedAt: Date.now(),
+      reporterId: user._id,
+      createdAt: Date.now(),
       status: "pending",
     });
     
@@ -64,7 +64,7 @@ export const getFlaggedContent = query({
     status: v.optional(v.union(v.literal("pending"), v.literal("resolved"), v.literal("dismissed")))
   },
   handler: async (ctx, args) => {
-    const query = ctx.db.query("flaggedContent");
+    const query = ctx.db.query("contentFlags");
     
     if (args.status) {
       return await query.filter((q) => q.eq(q.field("status"), args.status)).collect();
@@ -83,8 +83,7 @@ export const verifySetlist = mutation({
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.setlistId, { 
-      isOfficial: args.isVerified,
-      verifiedAt: args.isVerified ? Date.now() : undefined,
+      verified: args.isVerified,
     });
     
     return { success: true };

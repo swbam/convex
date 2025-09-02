@@ -190,7 +190,7 @@ export const createFromTicketmaster = internalMutation({
     }
 
     // Create slug from name
-    let baseSlug = args.name.toLowerCase()
+    const baseSlug = args.name.toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
     
@@ -316,15 +316,7 @@ export const getByIdInternal = internalQuery({
   },
 });
 
-export const getByTicketmasterIdInternal = internalQuery({
-  args: { ticketmasterId: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("artists")
-      .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.ticketmasterId))
-      .first();
-  },
-});
+// Note: keep a single definition of getByTicketmasterIdInternal to avoid redeclarations.
 
 export const createInternal = internalMutation({
   args: {
@@ -503,6 +495,16 @@ export const create = internalMutation({
       isActive: true,
       trendingScore: 1,
     });
+  },
+});
+
+// Minimal internal helper to set Ticketmaster ID on an existing artist.
+export const setTicketmasterId = internalMutation({
+  args: { artistId: v.id("artists"), ticketmasterId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.artistId, { ticketmasterId: args.ticketmasterId, lastSynced: Date.now() });
+    return null;
   },
 });
 

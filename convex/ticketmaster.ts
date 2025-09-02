@@ -324,9 +324,9 @@ export const searchAndSyncArtistShows = internalAction({
       if (!match) return null;
       
       // Update artist with Ticketmaster ID
-      await ctx.runMutation(internal.artists.updateArtist, {
+      await ctx.runMutation(internal.artists.setTicketmasterId, {
         artistId: args.artistId,
-        updates: { ticketmasterId: match.id },
+        ticketmasterId: match.id,
       });
       
       // Sync shows
