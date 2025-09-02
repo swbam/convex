@@ -1,6 +1,6 @@
 import React from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, Mic, Music, TrendingUp, User } from 'lucide-react'
+import { Home, Mic, Calendar, TrendingUp, User } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
 
 interface TabItem {
@@ -12,7 +12,7 @@ interface TabItem {
 const items: TabItem[] = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/artists', label: 'Artists', icon: Mic },
-  { to: '/shows', label: 'Shows', icon: Music },
+  { to: '/shows', label: 'Shows', icon: Calendar },
   { to: '/trending', label: 'Trending', icon: TrendingUp },
   { to: '/profile', label: 'Profile', icon: User },
 ]
