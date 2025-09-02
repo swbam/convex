@@ -152,24 +152,27 @@ export function SearchBar({
     if (result.type === 'artist' && !result.slug) {
       const slug = result.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       
-      // Navigate immediately with the ticketmaster ID as a temporary ID
-      onResultClick(result.type, result.id as any, slug);
-      setIsOpen(false);
-      setQuery('');
-      
-      // Then trigger sync in the background
-      triggerFullArtistSync({
-        ticketmasterId: result.id,
-        artistName: result.title,
-        genres: result.subtitle ? result.subtitle.split(', ').filter(Boolean) : undefined,
-        images: result.image ? [result.image] : undefined,
-      }).then(artistId => {
+      try {
+        // First trigger the sync to create the artist and get the real ID
+        const artistId = await triggerFullArtistSync({
+          ticketmasterId: result.id,
+          artistName: result.title,
+          genres: result.subtitle ? result.subtitle.split(', ').filter(Boolean) : undefined,
+          images: result.image ? [result.image] : undefined,
+        });
+        
         console.log(`✅ Artist ${result.title} created with ID: ${artistId}`);
-        // The artist page will handle loading the new data
-      }).catch(error => {
+        
+        // Navigate with the real artist ID
+        onResultClick(result.type, artistId, slug);
+        setIsOpen(false);
+        setQuery('');
+        
+        toast.success(`Importing ${result.title} data...`);
+      } catch (error) {
         console.error('Failed to trigger artist sync:', error);
-        toast.error('Failed to import artist data, but you can still browse');
-      });
+        toast.error('Failed to import artist data');
+      }
       
       return;
     } else {
