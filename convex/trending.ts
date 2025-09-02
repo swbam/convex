@@ -13,8 +13,31 @@ export const getTrendingArtists = query({
       .order("desc")
       .take(limit * 2); // Get more to filter and sort
     
+    // Enrich with actual artist records
+    const enrichedArtists = await Promise.all(
+      artists.map(async (trendingArtist) => {
+        // Try to find the actual artist record by ticketmasterId
+        const artist = await ctx.db
+          .query("artists")
+          .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", trendingArtist.ticketmasterId))
+          .first();
+        
+        if (artist) {
+          // Return the actual artist record with trending data
+          return {
+            ...artist,
+            upcomingEvents: trendingArtist.upcomingEvents,
+            lastUpdated: trendingArtist.lastUpdated,
+          };
+        } else {
+          // Return trending data as-is if artist not found
+          return trendingArtist;
+        }
+      })
+    );
+    
     // Sort by popularity and upcoming events (stadium artists first)
-    const sortedArtists = artists
+    const sortedArtists = enrichedArtists
       .sort((a, b) => {
         // Prioritize artists with more upcoming events
         const aEvents = a.upcomingEvents || 0;
