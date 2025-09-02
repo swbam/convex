@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useQuery, useAction } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { Id } from '../../convex/_generated/dataModel'
+import { toast } from 'sonner'
 
 type SortBy = 'relevance' | 'popularity' | 'recent' | 'alphabetical'
 
