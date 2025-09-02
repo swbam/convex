@@ -23,12 +23,11 @@ export const getBySlug = query({
 export const getBySlugOrId = query({
   args: { key: v.string() },
   handler: async (ctx, args) => {
-    // Try by slug first
+    // Try by slug first (gracefully handle duplicates)
     const bySlug = await ctx.db
       .query("artists")
       .withIndex("by_slug", (q) => q.eq("slug", args.key))
-      .unique();
-
+      .first();
     if (bySlug) return bySlug;
 
     // Fallback: try by id
@@ -39,6 +38,13 @@ export const getBySlugOrId = query({
     } catch {
       // ignore invalid id format
     }
+
+    // Finally: support navigation via Ticketmaster ID slugs
+    const byTicketmaster = await ctx.db
+      .query("artists")
+      .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.key))
+      .first();
+    if (byTicketmaster) return byTicketmaster;
 
     return null;
   },
