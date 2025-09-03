@@ -208,9 +208,12 @@ export const importTrendingFromTicketmaster = action({
       const trendingArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 50 });
       
       if (!trendingArtists || trendingArtists.length === 0) {
+        console.log("⚠️ No Ticketmaster data available, updating rankings from existing artists");
+        // Just update the trending rankings from existing data
+        await ctx.runAction(internal.maintenance.syncTrendingData, {});
         return {
-          success: false,
-          message: "No trending artists data retrieved from Ticketmaster API",
+          success: true,
+          message: "Updated trending rankings from existing artist data (Ticketmaster API unavailable)",
           artistsImported: 0,
         };
       }

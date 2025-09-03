@@ -24,6 +24,10 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   const songs = useQuery(api.songs.getByArtist, { artistId, limit: 20 });
   const isFollowing = useQuery(api.artists.isFollowing, { artistId });
   const user = useQuery(api.auth.loggedInUser);
+  
+  // If no shows found and artist has ticketmaster ID, they might be syncing
+  const showsLoading = shows === undefined;
+  const noShowsFound = shows !== undefined && shows.length === 0;
 
   const [anonymousActions, setAnonymousActions] = useState(0);
   const [addToSetlistModal, setAddToSetlistModal] = useState<{ isOpen: boolean; songTitle: string }>({ isOpen: false, songTitle: "" });
@@ -149,8 +153,17 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
             ) : upcomingShows.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No upcoming shows scheduled</p>
-                <p className="text-sm mt-1">Check back later for tour announcements</p>
+                <p>No upcoming shows found</p>
+                <p className="text-sm mt-1">
+                  {artist?.ticketmasterId 
+                    ? "Shows data may still be syncing. Check back in a moment." 
+                    : "Check back later for tour announcements"}
+                </p>
+                {artist?.ticketmasterId && (
+                  <p className="text-xs mt-4 text-gray-500">
+                    Artist data is being imported from Ticketmaster
+                  </p>
+                )}
               </div>
             ) : (
               <div className="space-y-3">
