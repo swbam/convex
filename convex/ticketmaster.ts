@@ -73,26 +73,19 @@ export const triggerFullArtistSync = action({
         images: args.images || [],
       });
 
-      // Phase 2 & 3: Run shows and catalog sync in parallel background jobs
-      // Don't await - let them run in the background
-      ctx.runAction(internal.ticketmaster.syncArtistShows, {
+      // Phase 2 & 3: Schedule background jobs using scheduler to avoid dangling promises
+      ctx.scheduler.runAfter(0, internal.ticketmaster.syncArtistShows, {
         artistId,
         ticketmasterId: args.ticketmasterId,
-      }).catch(error => {
-        console.error(`Failed to sync shows for ${args.artistName}:`, error);
       });
 
-      ctx.runAction(internal.spotify.syncArtistCatalog, {
+      ctx.scheduler.runAfter(0, internal.spotify.syncArtistCatalog, {
         artistId,
         artistName: args.artistName,
-      }).catch(error => {
-        console.error(`Failed to sync catalog for ${args.artistName}:`, error);
       });
 
-      // Kick trending updates for shows so homepage shows appear quickly
-      ctx.runMutation(internal.trending.updateShowTrending, {}).catch((e) => {
-        console.warn("updateShowTrending failed after syncArtistShows", e);
-      });
+      // Schedule trending update
+      ctx.scheduler.runAfter(5000, internal.trending.updateShowTrending, {});
 
       console.log(`✅ Artist ${args.artistName} created with ID: ${artistId}, background sync started`);
       return artistId;
