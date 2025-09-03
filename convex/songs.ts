@@ -6,6 +6,7 @@ export const getByArtist = query({
     artistId: v.id("artists"),
     limit: v.optional(v.number())
   },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
     
@@ -103,6 +104,7 @@ export const createInternal = internalMutation({
 
 export const cleanupOrphanedSongs = internalMutation({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     // Get all songs
     const songs = await ctx.db.query("songs").collect();
@@ -119,12 +121,63 @@ export const cleanupOrphanedSongs = internalMutation({
         await ctx.db.delete(song._id);
       }
     }
+    return null;
+  },
+});
+
+// Functions for cleanup operations
+export const getAllForCleanup = internalQuery({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => {
+    return await ctx.db.query("songs").take(500); // Limit for performance
+  },
+});
+
+export const deleteSong = internalMutation({
+  args: { songId: v.id("songs") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Remove artist-song relationships first
+    const artistSongs = await ctx.db
+      .query("artistSongs")
+      .withIndex("by_song", (q) => q.eq("songId", args.songId))
+      .collect();
+    
+    for (const artistSong of artistSongs) {
+      await ctx.db.delete(artistSong._id);
+    }
+    
+    // Remove the song
+    await ctx.db.delete(args.songId);
+    return null;
+  },
+});
+
+export const deleteByArtist = internalMutation({
+  args: { artistId: v.id("artists") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Get all artist-song relationships
+    const artistSongs = await ctx.db
+      .query("artistSongs")
+      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
+      .collect();
+    
+    // Delete songs and relationships
+    for (const artistSong of artistSongs) {
+      await ctx.db.delete(artistSong._id);
+      await ctx.db.delete(artistSong.songId);
+    }
+    
+    return null;
   },
 });
 
 // Required functions for sync operations
 export const getBySpotifyId = query({
   args: { spotifyId: v.string() },
+  returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("songs")

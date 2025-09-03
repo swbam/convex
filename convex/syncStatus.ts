@@ -3,6 +3,7 @@ import { v } from "convex/values";
 
 export const getStatus = query({
   args: {},
+  returns: v.any(),
   handler: async (ctx) => {
     const status = await ctx.db.query("syncStatus").first();
     return status || {
@@ -19,6 +20,7 @@ export const updateStatus = internalMutation({
     currentPhase: v.string(),
     lastSync: v.optional(v.number()),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const existing = await ctx.db.query("syncStatus").first();
     
@@ -35,6 +37,7 @@ export const updateStatus = internalMutation({
         lastSync: args.lastSync || Date.now(),
       });
     }
+    return null;
   },
 });
 

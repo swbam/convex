@@ -124,7 +124,18 @@ export const cleanupOrphanedRecords = internalAction({
     console.log("🧹 Starting database cleanup...");
     
     try {
-      await ctx.runMutation(internal.songs.cleanupOrphanedSongs, {});
+      // Clean up shows with invalid artist references
+      await ctx.runMutation(internal.shows.cleanupOrphanedShows, {});
+      console.log("✅ Shows cleanup completed");
+      
+      // Clean up orphaned songs (skip if it fails)
+      try {
+        await ctx.runMutation(internal.songs.cleanupOrphanedSongs, {});
+        console.log("✅ Songs cleanup completed");
+      } catch (songError) {
+        console.log("⚠️ Songs cleanup skipped:", songError);
+      }
+      
       console.log("✅ Database cleanup completed");
     } catch (error) {
       console.error("❌ Database cleanup failed:", error);

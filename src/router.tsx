@@ -46,7 +46,7 @@ export const router = createBrowserRouter([
 
   {
     path: '/profile',
-    element: <UserProfilePage />,
+    element: <App />,
   },
   {
     path: '/activity',

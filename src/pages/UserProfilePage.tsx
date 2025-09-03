@@ -14,12 +14,22 @@ import { ArtistCard } from '../components/ArtistCard';
 
 export function UserProfilePage() {
   const navigate = useNavigate();
-  const { user } = useUser();
+  const { user, isSignedIn } = useUser();
   const appUser = useQuery(api.auth.loggedInUser);
-  const userVotes = useQuery(api.songVotes.getUserVotes, { limit: 10 });
-  const spotifyArtists = useQuery(api.spotifyAuth.getUserSpotifyArtists, { limit: 50, onlyWithShows: true });
+  const userVotes = useQuery(api.songVotes.getUserVotes, 
+    appUser?.appUser ? { limit: 10 } : 'skip'
+  );
+  const spotifyArtists = useQuery(api.spotifyAuth.getUserSpotifyArtists, 
+    appUser?.appUser ? { limit: 50, onlyWithShows: true } : 'skip'
+  );
   const { hasSpotify, isImporting, refreshSpotifyArtists } = useSpotifyAuth();
   const [activeTab, setActiveTab] = useState('general');
+  
+  // Redirect if not signed in
+  if (!isSignedIn) {
+    navigate('/signin');
+    return null;
+  }
   
   const handleArtistClick = (artistId: Id<'artists'>, slug?: string) => {
     navigate(`/artists/${slug || artistId}`);

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 
 export function AdminDashboard() {
   const stats = useQuery(api.admin.getAdminStats);
+  const health = useQuery(api.admin.getSystemHealth);
   const flagged = useQuery(api.admin.getFlaggedContent, {});
   const users = useQuery(api.admin.getAllUsers, { limit: 50 });
   const verifySetlist = useMutation(api.admin.verifySetlist);
@@ -21,10 +22,16 @@ export function AdminDashboard() {
   const syncTrendingArtists = useAction(api.admin.syncTrendingArtists);
   const syncTrendingShows = useAction(api.admin.syncTrendingShows);
   
+  // Setlist sync actions
+  const triggerSetlistSync = useAction(api.admin.testTriggerSetlistSync);
+  const cleanupSongs = useAction(api.admin.testCleanupNonStudioSongs);
+  
   // Loading state
   const [trendingSyncing, setTrendingSyncing] = useState(false);
   const [artistSyncing, setArtistSyncing] = useState(false);
   const [showSyncing, setShowSyncing] = useState(false);
+  const [setlistSyncing, setSetlistSyncing] = useState(false);
+  const [cleanupSyncing, setCleanupSyncing] = useState(false);
 
   const pendingFlags = useMemo(() => (flagged || []).filter(f => f.status === "pending"), [flagged]);
 
@@ -65,6 +72,30 @@ export function AdminDashboard() {
       res.success ? toast.success(res.message) : toast.error(res.message);
     } finally {
       setShowSyncing(false);
+    }
+  };
+
+  const handleSyncSetlists = async () => {
+    setSetlistSyncing(true);
+    try {
+      const res = await triggerSetlistSync();
+      res.success ? toast.success(res.message) : toast.error(res.message);
+    } finally {
+      setSetlistSyncing(false);
+    }
+  };
+
+  const handleCleanupSongs = async () => {
+    setCleanupSyncing(true);
+    try {
+      const res = await cleanupSongs();
+      if (res.success) {
+        toast.success(`${res.message} (${res.cleanedCount} songs removed)`);
+      } else {
+        toast.error(res.message);
+      }
+    } finally {
+      setCleanupSyncing(false);
     }
   };
 
@@ -162,8 +193,8 @@ export function AdminDashboard() {
               </ShimmerButton>
             </div>
 
-            {/* Separate buttons for artist/show trending */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Separate buttons for artist/show/setlist trending */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <ShimmerButton
                 onClick={handleSyncArtists}
                 disabled={artistSyncing}
@@ -192,6 +223,36 @@ export function AdminDashboard() {
                   </>
                 ) : (
                   <>Sync Trending Shows</>
+                )}
+              </ShimmerButton>
+              <ShimmerButton
+                onClick={handleSyncSetlists}
+                disabled={setlistSyncing}
+                className="w-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-white border-white/20"
+                shimmerColor="#a855f7"
+              >
+                {setlistSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sync Setlists
+                  </>
+                ) : (
+                  <>Sync Setlists</>
+                )}
+              </ShimmerButton>
+              <ShimmerButton
+                onClick={handleCleanupSongs}
+                disabled={cleanupSyncing}
+                className="w-full bg-gradient-to-r from-red-500/20 to-orange-500/20 hover:from-red-500/30 hover:to-orange-500/30 text-white border-white/20"
+                shimmerColor="#ef4444"
+              >
+                {cleanupSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Cleaning Songs
+                  </>
+                ) : (
+                  <>Clean Non-Studio</>
                 )}
               </ShimmerButton>
             </div>
@@ -223,6 +284,56 @@ export function AdminDashboard() {
           </div>
         </div>
         <BorderBeam size={120} duration={8} className="opacity-20" />
+      </MagicCard>
+
+      {/* System Health Overview */}
+      <MagicCard className="p-0 rounded-2xl border-0 bg-black">
+        <div className="p-4 sm:p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 bg-green-500/20 rounded-xl flex items-center justify-center">
+              <CheckCircle className="h-4 w-4 text-green-400" />
+            </div>
+            <h2 className="text-xl font-semibold text-white">System Health</h2>
+          </div>
+
+          {!health ? (
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="animate-pulse bg-white/5 rounded-lg p-3 h-16" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+                  <div className="text-sm text-gray-400">Database</div>
+                  <div className="text-lg font-semibold text-white">{health.database.totalRecords.toLocaleString()}</div>
+                  <div className="text-xs text-gray-500">{health.database.orphanedRecords} orphaned</div>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+                  <div className="text-sm text-gray-400">Sync Status</div>
+                  <div className="text-lg font-semibold text-white">{health.sync.artistsNeedingSync}</div>
+                  <div className="text-xs text-gray-500">artists need sync</div>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+                  <div className="text-sm text-gray-400">API Status</div>
+                  <div className="flex gap-2 mt-1">
+                    <span className={`text-xs px-2 py-1 rounded ${health.api.spotifyConfigured ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                      Spotify
+                    </span>
+                    <span className={`text-xs px-2 py-1 rounded ${health.api.ticketmasterConfigured ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                      TM
+                    </span>
+                    <span className={`text-xs px-2 py-1 rounded ${health.api.setlistfmConfigured ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                      Setlist.fm
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        <BorderBeam size={80} duration={8} className="opacity-20" />
       </MagicCard>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
