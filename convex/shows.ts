@@ -481,6 +481,7 @@ export const createFromTicketmaster = internalMutation({
     startTime: v.optional(v.string()),
     status: v.union(v.literal("upcoming"), v.literal("completed"), v.literal("cancelled")),
     ticketUrl: v.optional(v.string()),
+    priceRange: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Check for existing show by multiple criteria to avoid duplicates
@@ -493,12 +494,20 @@ export const createFromTicketmaster = internalMutation({
 
     if (existing) {
       // Update existing show with new data if needed
+      const updates: any = { lastSynced: Date.now() };
+      
       if (args.ticketmasterId && !existing.ticketmasterId) {
-        await ctx.db.patch(existing._id, {
-          ticketmasterId: args.ticketmasterId,
-          ticketUrl: args.ticketUrl,
-          lastSynced: Date.now(),
-        });
+        updates.ticketmasterId = args.ticketmasterId;
+      }
+      if (args.ticketUrl && !existing.ticketUrl) {
+        updates.ticketUrl = args.ticketUrl;
+      }
+      if (args.priceRange && !existing.priceRange) {
+        updates.priceRange = args.priceRange;
+      }
+      
+      if (Object.keys(updates).length > 1) { // more than just lastSynced
+        await ctx.db.patch(existing._id, updates);
       }
       return existing._id;
     }
@@ -524,6 +533,7 @@ export const createFromTicketmaster = internalMutation({
       status: args.status,
       ticketmasterId: args.ticketmasterId,
       ticketUrl: args.ticketUrl,
+      priceRange: args.priceRange,
       slug,
       lastSynced: Date.now(), // Set sync timestamp
     });
