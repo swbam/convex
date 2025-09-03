@@ -150,6 +150,7 @@ export const createOfficial = internalMutation({
 
 export const getByShow = query({
   args: { showId: v.id("shows") },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const setlists = await ctx.db
       .query("setlists")
