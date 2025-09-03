@@ -175,7 +175,7 @@ export const syncArtistCatalog = internalAction({
           
           return typeScore(b) - typeScore(a) || dateScore;
         })
-        .slice(0, 15); // Limit to top 15 studio albums for performance
+; // Import ALL studio albums - no artificial limits!
       
       console.log(`🎯 Filtered to ${studioAlbums.length} pure studio albums from ${albums.length} total`);
 
@@ -286,7 +286,9 @@ function isStudioAlbum(albumName: string): boolean {
     'collector edition', 'anniversary edition', 'remaster', 'remastered', 'redux',
     'revisited', 'extended', 'super deluxe', 'platinum edition', 'limited edition',
     'bonus tracks', 'expanded', 'reissue', 'anniversary', 'collector\'s edition',
-    'tour edition', 'tour version', 'concert edition', 'live edition'
+    'tour edition', 'tour version', 'concert edition', 'live edition',
+    '[deluxe]', '(deluxe)', '3am edition', 'til dawn edition', 'vault edition',
+    'complete edition', 'enhanced edition', 'director\'s cut', 'extended play'
   ];
   
   // SOUNDTRACK/MISC KEYWORDS
@@ -478,11 +480,15 @@ function selectBestTrackVersion(tracks: any[]): any {
       return 1;
     };
     
-    // Prefer non-deluxe versions
+    // Prefer non-deluxe versions (aggressive detection)
     const isDeluxe = (track: any) => {
       const albumName = track.album_info.name.toLowerCase();
       return albumName.includes('deluxe') || albumName.includes('expanded') || 
-             albumName.includes('special') || albumName.includes('remaster');
+             albumName.includes('special') || albumName.includes('remaster') ||
+             albumName.includes('edition') || albumName.includes('3am') ||
+             albumName.includes('til dawn') || albumName.includes('vault') ||
+             albumName.includes('complete') || albumName.includes('enhanced') ||
+             albumName.includes('[') || albumName.includes('(from the vault)');
     };
     
     // Prefer higher popularity
