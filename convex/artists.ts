@@ -23,6 +23,7 @@ export const getBySlug = query({
 // Accepts either a SEO slug or a document id string and returns artist
 export const getBySlugOrId = query({
   args: { key: v.string() },
+  returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
     // Try by slug first (gracefully handle duplicates)
     const bySlug = await ctx.db

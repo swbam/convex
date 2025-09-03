@@ -103,6 +103,7 @@ export const createInternal = internalMutation({
 
 export const cleanupOrphanedSongs = internalMutation({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     // Get all songs
     const songs = await ctx.db.query("songs").collect();
@@ -119,6 +120,7 @@ export const cleanupOrphanedSongs = internalMutation({
         await ctx.db.delete(song._id);
       }
     }
+    return null;
   },
 });
 

@@ -28,7 +28,7 @@ export function SignInPage() {
 
       if (result.status === "complete") {
         toast.success("Welcome back!");
-        navigate('/profile');
+        navigate('/');
       } else {
         toast.error("Sign in incomplete. Please check your email.");
       }

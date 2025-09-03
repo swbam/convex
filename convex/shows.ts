@@ -157,6 +157,7 @@ export const getBySlug = query({
 // Accepts either a SEO slug or a document id string and returns enriched show
 export const getBySlugOrId = query({
   args: { key: v.string() },
+  returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
     // Try by slug first
     const bySlug = await ctx.db
@@ -201,6 +202,7 @@ export const getByArtist = query({
     artistId: v.id("artists"),
     limit: v.optional(v.number())
   },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const limit = args.limit || 10;
     const shows = await ctx.db
@@ -535,6 +537,38 @@ export const createFromTicketmaster = internalMutation({
     });
 
     return showId;
+  },
+});
+
+// Cleanup function to remove shows with invalid artist/venue references
+export const cleanupOrphanedShows = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const shows = await ctx.db.query("shows").take(100); // Limit to avoid timeout
+    let deletedCount = 0;
+    
+    for (const show of shows) {
+      try {
+        // Check if artist and venue still exist
+        const [artist, venue] = await Promise.all([
+          ctx.db.get(show.artistId),
+          ctx.db.get(show.venueId),
+        ]);
+        
+        // Delete show if artist or venue doesn't exist
+        if (!artist || !venue) {
+          await ctx.db.delete(show._id);
+          deletedCount++;
+          console.log(`🗑️ Deleted orphaned show: ${show.slug || show._id}`);
+        }
+      } catch (error) {
+        console.log(`⚠️ Error checking show ${show._id}:`, error);
+      }
+    }
+    
+    console.log(`🧹 Cleaned up ${deletedCount} orphaned shows`);
+    return null;
   },
 });
 
