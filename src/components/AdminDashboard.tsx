@@ -18,9 +18,11 @@ export function AdminDashboard() {
   
   // Trending sync action - simplified!
   const syncTrending = useAction(api.admin.syncTrending);
+  const syncTrendingData = useAction(api.maintenance.triggerTrendingSync);
   
-  // Loading state
+  // Loading states
   const [trendingSyncing, setTrendingSyncing] = useState(false);
+  const [trendingDataSyncing, setTrendingDataSyncing] = useState(false);
 
   const pendingFlags = useMemo(() => (flagged || []).filter(f => f.status === "pending"), [flagged]);
 
@@ -41,6 +43,20 @@ export function AdminDashboard() {
       });
     } finally {
       setTrendingSyncing(false);
+    }
+  };
+
+  const handleSyncTrendingData = async () => {
+    setTrendingDataSyncing(true);
+    try {
+      await syncTrendingData();
+      toast.success("Trending data updated successfully");
+    } catch (error) {
+      toast.error("Failed to update trending data", {
+        description: error instanceof Error ? error.message : "Unknown error"
+      });
+    } finally {
+      setTrendingDataSyncing(false);
     }
   };
 
@@ -105,7 +121,40 @@ export function AdminDashboard() {
           </div>
 
           <div className="space-y-4">
-            {/* Simplified Trending Sync */}
+            {/* Import Trending Artists from Ticketmaster */}
+            <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-green-500/20 to-teal-500/20 rounded-lg flex items-center justify-center">
+                    <Mic className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white">Import Trending Artists</h3>
+                    <p className="text-xs text-gray-400">Fetch and import new trending artists from Ticketmaster</p>
+                  </div>
+                </div>
+              </div>
+              <ShimmerButton
+                onClick={handleSyncTrending}
+                disabled={trendingSyncing}
+                className="w-full bg-gradient-to-r from-green-500/20 to-teal-500/20 hover:from-green-500/30 hover:to-teal-500/30 text-white border-white/20"
+                shimmerColor="#10b981"
+              >
+                {trendingSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Importing Artists...
+                  </>
+                ) : (
+                  <>
+                    <Mic className="h-4 w-4 mr-2" />
+                    Import Trending Artists
+                  </>
+                )}
+              </ShimmerButton>
+            </div>
+
+            {/* Update Trending Rankings */}
             <div className="bg-white/5 rounded-xl p-4 border border-white/10">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -119,12 +168,12 @@ export function AdminDashboard() {
                 </div>
               </div>
               <ShimmerButton
-                onClick={handleSyncTrending}
-                disabled={trendingSyncing}
+                onClick={handleSyncTrendingData}
+                disabled={trendingDataSyncing}
                 className="w-full bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 text-white border-white/20"
                 shimmerColor="#8b5cf6"
               >
-                {trendingSyncing ? (
+                {trendingDataSyncing ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Updating Rankings...
@@ -132,7 +181,7 @@ export function AdminDashboard() {
                 ) : (
                   <>
                     <TrendingUp className="h-4 w-4 mr-2" />
-                    Update Trending Data
+                    Update Trending Rankings
                   </>
                 )}
               </ShimmerButton>

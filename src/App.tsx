@@ -17,6 +17,7 @@ import { ScrollToTop } from "./components/ScrollToTop";
 import { UserDashboard } from "./components/UserDashboard";
 import { ActivityPage } from "./components/ActivityPage";
 import { toast } from "sonner";
+import { Mic } from "lucide-react";
 
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AdminDashboard } from "./components/AdminDashboard";
@@ -40,12 +41,23 @@ function App() {
   const createAppUser = useMutation(api.auth.createAppUser);
   const user = useQuery(api.auth.loggedInUser);
 
-  // Auto-create app user when authenticated
+  // Auto-create app user when authenticated and redirect to dashboard
   useEffect(() => {
     if (user && !user.appUser) {
-      createAppUser().catch(console.error);
+      createAppUser()
+        .then(() => {
+          // Redirect to dashboard after user creation
+          if (location.pathname === '/signin' || location.pathname === '/signup') {
+            navigate('/profile');
+            toast.success('Welcome! Your account has been created.');
+          }
+        })
+        .catch(console.error);
+    } else if (user?.appUser && (location.pathname === '/signin' || location.pathname === '/signup')) {
+      // If already has app user and on sign-in page, redirect to profile
+      navigate('/profile');
     }
-  }, [user, createAppUser]);
+  }, [user, createAppUser, location.pathname, navigate]);
 
   // Extract slug from URL safely
   const getSlugFromPath = (path: string, prefix: string) => {
@@ -74,19 +86,34 @@ function App() {
     showSlug ? { key: showSlug } : 'skip'
   );
 
+  // Show loading state for artist that is being imported
+  const [isArtistImporting, setIsArtistImporting] = useState(false);
+  
   // Poll for artist creation when on artist page with no artist found
   useEffect(() => {
-    if (location.pathname.startsWith('/artists/') && artistBySlug === null) {
+    if (location.pathname.startsWith('/artists/') && artistSlug && artistBySlug === null) {
+      // First query returned null, might be importing
+      setIsArtistImporting(true);
+      
+      const checkCount = { value: 0 };
       const interval = setInterval(() => {
-        // Force a re-render which will re-query
-        if (typeof window !== 'undefined') {
-          window.location.reload();
+        checkCount.value++;
+        
+        // After 10 checks (30 seconds), stop polling
+        if (checkCount.value > 10) {
+          clearInterval(interval);
+          setIsArtistImporting(false);
         }
       }, 3000); // Check every 3 seconds
       
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        setIsArtistImporting(false);
+      };
+    } else if (artistBySlug) {
+      setIsArtistImporting(false);
     }
-  }, [location.pathname, artistBySlug]);
+  }, [location.pathname, artistSlug, artistBySlug]);
 
   // Update view based on current route
   useEffect(() => {
@@ -220,24 +247,50 @@ function App() {
             word.charAt(0).toUpperCase() + word.slice(1)
           ).join(' ') : 'Artist';
           
-          return (
-            <div className="container mx-auto px-4 sm:px-6 py-8">
-              <MagicCard className="p-6 rounded-2xl border border-white/10">
-                <div className="text-center space-y-4">
-                  <div className="w-20 h-20 mx-auto bg-primary/20 rounded-full flex items-center justify-center animate-pulse">
-                    <span className="text-3xl font-bold text-primary">T</span>
+          if (isArtistImporting) {
+            return (
+              <div className="container mx-auto px-4 sm:px-6 py-8">
+                <MagicCard className="p-6 rounded-2xl border border-white/10">
+                  <div className="text-center space-y-4">
+                    <div className="w-20 h-20 mx-auto bg-primary/20 rounded-full flex items-center justify-center animate-pulse">
+                      <Mic className="h-10 w-10 text-primary" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white">Importing {artistName}</h2>
+                    <p className="text-gray-400">Fetching artist data, shows, and song catalog...</p>
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-4">This usually takes 10-30 seconds</p>
                   </div>
-                  <h2 className="text-2xl font-bold text-white">Setting up {artistName}</h2>
-                  <p className="text-gray-400">Importing shows, venues, and song catalog...</p>
-                  <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                    <span>This may take a few moments</span>
+                </MagicCard>
+              </div>
+            );
+          } else {
+            // Actually not found
+            return (
+              <div className="container mx-auto px-4 sm:px-6 py-8">
+                <MagicCard className="p-6 rounded-2xl border border-white/10">
+                  <div className="text-center py-12">
+                    <div className="inline-flex items-center justify-center w-20 h-20 bg-red-500/20 rounded-full mb-4">
+                      <Mic className="h-10 w-10 text-red-400" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Artist Not Found</h2>
+                    <p className="text-gray-400 mb-6">
+                      We couldn't find this artist in our database.
+                    </p>
+                    <button
+                      onClick={() => navigate('/')}
+                      className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors"
+                    >
+                      Back to Home
+                    </button>
                   </div>
-                  <p className="text-xs text-gray-600 mt-4">The page will refresh automatically when ready</p>
-                </div>
-              </MagicCard>
-            </div>
-          );
+                </MagicCard>
+              </div>
+            );
+          }
         }
         return selectedArtistId ? (
           <ArtistDetail
