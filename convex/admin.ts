@@ -1,4 +1,4 @@
-import { action, mutation, query } from "./_generated/server";
+import { action, mutation, query, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
@@ -402,6 +402,73 @@ export const testTriggerSetlistSync = action({
   },
 });
 
+// ===== SONG DATABASE CLEANUP =====
+
+export const cleanupNonStudioSongs = action({
+  args: {},
+  returns: v.object({ success: v.boolean(), message: v.string(), cleanedCount: v.number() }),
+  handler: async (ctx): Promise<{ success: boolean; message: string; cleanedCount: number }> => {
+    const user = await ctx.runQuery(api.auth.loggedInUser);
+    if (!user?.appUser || user.appUser.role !== "admin") {
+      throw new Error("Admin access required");
+    }
+    
+    try {
+      const result: { success: boolean; message: string; cleanedCount: number } = await ctx.runAction(internal.admin.cleanupNonStudioSongsInternal, {});
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error",
+        cleanedCount: 0
+      };
+    }
+  },
+});
+
+export const resyncArtistCatalogs = action({
+  args: { limit: v.optional(v.number()) },
+  returns: v.object({ success: v.boolean(), message: v.string() }),
+  handler: async (ctx, args): Promise<{ success: boolean; message: string }> => {
+    const user = await ctx.runQuery(api.auth.loggedInUser);
+    if (!user?.appUser || user.appUser.role !== "admin") {
+      throw new Error("Admin access required");
+    }
+    
+    try {
+      // Trigger maintenance to fix missing artist data with improved filtering
+      await ctx.runAction(internal.maintenance.fixMissingArtistData, {});
+      return {
+        success: true,
+        message: `Triggered catalog re-sync for artists with improved filtering`
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
+  },
+});
+
+// Test versions
+export const testCleanupNonStudioSongs = action({
+  args: {},
+  returns: v.object({ success: v.boolean(), message: v.string(), cleanedCount: v.number() }),
+  handler: async (ctx): Promise<{ success: boolean; message: string; cleanedCount: number }> => {
+    try {
+      const result: { success: boolean; message: string; cleanedCount: number } = await ctx.runAction(internal.admin.cleanupNonStudioSongsInternal, {});
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error",
+        cleanedCount: 0
+      };
+    }
+  },
+});
+
 // ===== DATA IMPORT FROM TICKETMASTER =====
 
 export const importTrendingFromTicketmaster = action({
@@ -476,3 +543,74 @@ export const importTrendingFromTicketmaster = action({
     }
   },
 });
+
+// Internal cleanup functions
+export const cleanupNonStudioSongsInternal = internalAction({
+  args: {},
+  returns: v.object({ success: v.boolean(), message: v.string(), cleanedCount: v.number() }),
+  handler: async (ctx: any) => {
+    console.log("🧹 Starting cleanup of non-studio songs...");
+    
+    let cleanedCount = 0;
+    
+    try {
+      // Get songs in batches to avoid timeout
+      const songs = await ctx.runQuery(internal.songs.getAllForCleanup, {});
+      console.log(`📊 Checking ${songs.length} songs for cleanup...`);
+      
+      for (const song of songs.slice(0, 100)) { // Limit for performance
+        const shouldRemove = isNonStudioSong(song.title, song.album || '');
+        
+        if (shouldRemove) {
+          try {
+            // Remove song
+            await ctx.runMutation(internal.songs.deleteSong, { songId: song._id });
+            cleanedCount++;
+            console.log(`🗑️ Removed: "${song.title}" from "${song.album}"`);
+          } catch (error) {
+            console.log(`⚠️ Failed to remove ${song.title}:`, error);
+          }
+        }
+      }
+      
+      return {
+        success: true,
+        message: `Cleaned up ${cleanedCount} non-studio songs`,
+        cleanedCount
+      };
+    } catch (error) {
+      console.error("❌ Cleanup failed:", error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error",
+        cleanedCount
+      };
+    }
+  },
+});
+
+// Helper function to detect non-studio songs for cleanup
+function isNonStudioSong(songTitle: string, albumName: string): boolean {
+  const songLower = songTitle.toLowerCase().trim();
+  const albumLower = albumName.toLowerCase().trim();
+  
+  const nonStudioIndicators = [
+    // Live indicators
+    'live', '- live', '(live)', '[live]', 'concert', 'acoustic version',
+    'unplugged', 'session', 'bootleg', 'performance',
+    
+    // Remix/alternate indicators  
+    'remix', 'rmx', 'mix)', 'edit', 'version)', 'radio edit', 'extended',
+    
+    // Feature indicators
+    'feat.', 'featuring', 'ft.', '(with ', 'duet',
+    
+    // Deluxe/reissue indicators in album
+    'deluxe', 'remaster', 'anniversary', 'tour edition', 'expanded',
+    'special edition', 'collector', 'édition de luxe'
+  ];
+  
+  return nonStudioIndicators.some(indicator => 
+    songLower.includes(indicator) || albumLower.includes(indicator)
+  );
+}

@@ -243,7 +243,8 @@ function isStudioAlbum(albumName: string): boolean {
     'bbc session', 'radio session', 'live performance', 'in concert',
     '(live)', '[live]', 'mtv unplugged', 'tiny desk', 'live lounge',
     'live acoustic', 'live version', 'concert recording', 'live album',
-    'live ep', 'live tracks', 'performance', 'sessions', 'live studio'
+    'live ep', 'live tracks', 'performance', 'sessions', 'live studio',
+    '- live', ' - live'
   ];
   
   // COMPILATION/REISSUE KEYWORDS
@@ -259,7 +260,8 @@ function isStudioAlbum(albumName: string): boolean {
     'deluxe', 'deluxe edition', 'édition de luxe', 'expanded edition', 'special edition',
     'collector edition', 'anniversary edition', 'remaster', 'remastered', 'redux',
     'revisited', 'extended', 'super deluxe', 'platinum edition', 'limited edition',
-    'bonus tracks', 'expanded', 'reissue', 'anniversary', 'collector\'s edition'
+    'bonus tracks', 'expanded', 'reissue', 'anniversary', 'collector\'s edition',
+    'tour edition', 'tour version', 'concert edition', 'live edition'
   ];
   
   // SOUNDTRACK/MISC KEYWORDS
@@ -290,7 +292,7 @@ function isStudioSong(songName: string, albumName: string): boolean {
     'acoustic live', 'acoustic version', 'acoustic session', 'unplugged version',
     'radio session', 'bbc session', 'live session', 'live acoustic', 'live performance',
     'live studio', 'live rehearsal', 'soundcheck', 'rehearsal', 'demo version',
-    'live demo', 'live take', 'live cut', 'concert recording'
+    'live demo', 'live take', 'live cut', 'concert recording', '- live', ' - live'
   ];
   
   // REMIX/ALTERNATE VERSION KEYWORDS
