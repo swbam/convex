@@ -469,6 +469,134 @@ export const testCleanupNonStudioSongs = action({
   },
 });
 
+// ===== ARTIST CATALOG MANAGEMENT =====
+
+export const resyncArtistCatalog = action({
+  args: { artistId: v.id("artists") },
+  returns: v.object({ success: v.boolean(), message: v.string() }),
+  handler: async (ctx, args): Promise<{ success: boolean; message: string }> => {
+    const user = await ctx.runQuery(api.auth.loggedInUser);
+    if (!user?.appUser || user.appUser.role !== "admin") {
+      throw new Error("Admin access required");
+    }
+    
+    try {
+      const artist: any = await ctx.runQuery(api.artists.getById, { id: args.artistId });
+      if (!artist) {
+        throw new Error("Artist not found");
+      }
+      
+      // Re-sync with improved filtering
+      await ctx.runAction(internal.spotify.syncArtistCatalog, {
+        artistId: args.artistId,
+        artistName: artist.name,
+      });
+      
+      return {
+        success: true,
+        message: `Re-synced catalog for ${artist.name} with improved filtering`
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
+  },
+});
+
+export const testResyncArtistCatalog = action({
+  args: { artistId: v.id("artists") },
+  returns: v.object({ success: v.boolean(), message: v.string() }),
+  handler: async (ctx, args): Promise<{ success: boolean; message: string }> => {
+    try {
+      const artist: any = await ctx.runQuery(api.artists.getById, { id: args.artistId });
+      if (!artist) {
+        throw new Error("Artist not found");
+      }
+      
+      // Re-sync with improved filtering
+      await ctx.runAction(internal.spotify.syncArtistCatalog, {
+        artistId: args.artistId,
+        artistName: artist.name,
+      });
+      
+      return {
+        success: true,
+        message: `Re-synced catalog for ${artist.name} with improved filtering`
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
+  },
+});
+
+// ===== SYSTEM HEALTH MONITORING =====
+
+export const getSystemHealth = query({
+  args: {},
+  returns: v.object({
+    database: v.object({
+      totalRecords: v.number(),
+      orphanedRecords: v.number(),
+      lastCleanup: v.optional(v.number()),
+    }),
+    sync: v.object({
+      activeJobs: v.number(),
+      lastTrendingSync: v.optional(v.number()),
+      artistsNeedingSync: v.number(),
+    }),
+    api: v.object({
+      spotifyConfigured: v.boolean(),
+      ticketmasterConfigured: v.boolean(),
+      setlistfmConfigured: v.boolean(),
+    }),
+  }),
+  handler: async (ctx) => {
+    const [artists, shows, songs, votes] = await Promise.all([
+      ctx.db.query("artists").collect(),
+      ctx.db.query("shows").collect(),
+      ctx.db.query("songs").collect(),
+      ctx.db.query("votes").collect(),
+    ]);
+    
+    // Check for orphaned records
+    let orphanedCount = 0;
+    for (const show of shows.slice(0, 50)) {
+      const artist = await ctx.db.get(show.artistId);
+      const venue = await ctx.db.get(show.venueId);
+      if (!artist || !venue) orphanedCount++;
+    }
+    
+    // Check artists needing sync
+    const staleThreshold = Date.now() - (7 * 24 * 60 * 60 * 1000); // 7 days
+    const artistsNeedingSync = artists.filter(a => 
+      !a.lastSynced || a.lastSynced < staleThreshold
+    ).length;
+    
+    return {
+      database: {
+        totalRecords: artists.length + shows.length + songs.length + votes.length,
+        orphanedRecords: orphanedCount,
+        lastCleanup: undefined,
+      },
+      sync: {
+        activeJobs: 0,
+        lastTrendingSync: artists[0]?.lastTrendingUpdate,
+        artistsNeedingSync,
+      },
+      api: {
+        spotifyConfigured: !!process.env.SPOTIFY_CLIENT_ID,
+        ticketmasterConfigured: !!process.env.TICKETMASTER_API_KEY,
+        setlistfmConfigured: !!process.env.SETLISTFM_API_KEY,
+      },
+    };
+  },
+});
+
 // ===== DATA IMPORT FROM TICKETMASTER =====
 
 export const importTrendingFromTicketmaster = action({
