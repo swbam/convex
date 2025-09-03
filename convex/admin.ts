@@ -7,6 +7,7 @@ import { Id } from "./_generated/dataModel";
 
 export const getAllUsers = query({
   args: { limit: v.optional(v.number()) },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const limit = args.limit || 50;
     const users = await ctx.db.query("users").take(limit);
@@ -16,6 +17,7 @@ export const getAllUsers = query({
 
 export const toggleUserBan = mutation({
   args: { userId: v.id("users") },
+  returns: v.object({ success: v.boolean(), newRole: v.string() }),
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.userId);
     if (!user) throw new Error("User not found");
@@ -35,6 +37,7 @@ export const flagContent = mutation({
     contentId: v.string(),
     reason: v.string(),
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const authId = await ctx.auth.getUserIdentity();
     if (!authId) throw new Error("Must be logged in to flag content");
@@ -63,6 +66,7 @@ export const getFlaggedContent = query({
   args: { 
     status: v.optional(v.union(v.literal("pending"), v.literal("resolved"), v.literal("dismissed")))
   },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const query = ctx.db.query("contentFlags");
     
@@ -81,6 +85,7 @@ export const verifySetlist = mutation({
     setlistId: v.id("setlists"),
     isVerified: v.boolean(),
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     await ctx.db.patch(args.setlistId, { 
       verified: args.isVerified,
@@ -94,6 +99,7 @@ export const verifySetlist = mutation({
 
 export const getAdminStats = query({
   args: {},
+  returns: v.any(),
   handler: async (ctx) => {
     const [users, artists, shows, setlists, votes] = await Promise.all([
       ctx.db.query("users").collect(),

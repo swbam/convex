@@ -28,6 +28,7 @@ function createShowSlug(artistName: string, venueName: string, venueCity: string
 
 export const getRecentlyUpdated = query({
   args: { limit: v.optional(v.number()) },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const limit = args.limit || 10;
     const shows = await ctx.db
@@ -57,6 +58,7 @@ export const getRecentlyUpdated = query({
 
 export const getUpcoming = query({
   args: { limit: v.optional(v.number()) },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const limit = args.limit || 15;
     const shows = await ctx.db
@@ -87,6 +89,7 @@ export const getUpcoming = query({
 
 export const getRecent = query({
   args: { limit: v.optional(v.number()) },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const limit = args.limit || 10;
     const shows = await ctx.db
@@ -117,6 +120,7 @@ export const getRecent = query({
 
 export const getById = query({
   args: { id: v.id("shows") },
+  returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
     const show = await ctx.db.get(args.id);
     if (!show) return null;
@@ -137,6 +141,7 @@ export const getById = query({
 
 export const getBySlug = query({
   args: { slug: v.string() },
+  returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
     const show = await ctx.db
       .query("shows")

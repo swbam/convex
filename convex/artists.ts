@@ -5,6 +5,7 @@ import { getAuthUserId } from "./auth";
 
 export const getById = query({
   args: { id: v.id("artists") },
+  returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
     return await ctx.db.get(args.id);
   },
@@ -12,6 +13,7 @@ export const getById = query({
 
 export const getBySlug = query({
   args: { slug: v.string() },
+  returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("artists")
@@ -58,6 +60,7 @@ export const getBySlugOrId = query({
 
 export const getTrending = query({
   args: { limit: v.optional(v.number()) },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
     
@@ -86,6 +89,7 @@ export const search = query({
     query: v.string(),
     limit: v.optional(v.number())
   },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
     
@@ -106,6 +110,7 @@ export const search = query({
 // Get all artists with basic sorting and optional limit
 export const getAll = query({
   args: { limit: v.optional(v.number()) },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const limit = args.limit || 50;
     // Return active artists ordered by trendingScore then followers/popularity
@@ -128,6 +133,7 @@ export const getAll = query({
 
 export const isFollowing = query({
   args: { artistId: v.id("artists") },
+  returns: v.boolean(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return false;
@@ -145,6 +151,7 @@ export const isFollowing = query({
 
 export const followArtist = mutation({
   args: { artistId: v.id("artists") },
+  returns: v.boolean(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -387,6 +394,7 @@ export const resetInactiveTrendingScores = internalMutation({
 // Required functions from CONVEX.md specification
 export const getStaleArtists = query({
   args: { olderThan: v.number() },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("artists")
@@ -423,6 +431,7 @@ export const updateArtist = mutation({
 // Additional required queries referenced in sync.ts
 export const getBySpotifyId = query({
   args: { spotifyId: v.string() },
+  returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("artists")
@@ -433,6 +442,7 @@ export const getBySpotifyId = query({
 
 export const getByName = query({
   args: { name: v.string() },
+  returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("artists")
@@ -443,6 +453,7 @@ export const getByName = query({
 
 export const getByTicketmasterId = query({
   args: { ticketmasterId: v.string() },
+  returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("artists")

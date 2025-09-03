@@ -6,6 +6,7 @@ export const getByArtist = query({
     artistId: v.id("artists"),
     limit: v.optional(v.number())
   },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
     
@@ -127,6 +128,7 @@ export const cleanupOrphanedSongs = internalMutation({
 // Required functions for sync operations
 export const getBySpotifyId = query({
   args: { spotifyId: v.string() },
+  returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("songs")
