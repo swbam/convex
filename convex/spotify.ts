@@ -63,7 +63,15 @@ export const syncArtistCatalog = internalAction({
         }
       );
 
-      if (!searchResponse.ok) return null;
+      if (searchResponse.status === 429) {
+        console.warn("⚠️ Spotify rate limit hit, will retry later");
+        return null;
+      }
+
+      if (!searchResponse.ok) {
+        console.error(`❌ Spotify search failed: ${searchResponse.status} ${searchResponse.statusText}`);
+        return null;
+      }
 
       const searchData = await searchResponse.json();
       const artists = searchData.artists?.items || [];
@@ -201,7 +209,15 @@ export const syncArtistCatalog = internalAction({
       }
 
     } catch (error) {
-      console.error("Failed to sync Spotify catalog:", error);
+      console.error(`❌ Failed to sync Spotify catalog for ${args.artistName}:`, error);
+      // Still update the artist as synced to avoid infinite retries
+      try {
+        await ctx.runMutation(internal.artists.updateSyncTimestamp, {
+          artistId: args.artistId,
+        });
+      } catch (e) {
+        console.error("Failed to update sync timestamp:", e);
+      }
     }
     return null;
   },

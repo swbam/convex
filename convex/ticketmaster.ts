@@ -107,52 +107,92 @@ export const syncArtistShows = internalAction({
   returns: v.null(),
   handler: async (ctx, args) => {
     const apiKey = process.env.TICKETMASTER_API_KEY;
-    if (!apiKey) return null;
+    if (!apiKey) {
+      console.error("❌ Ticketmaster API key not configured");
+      return null;
+    }
 
     const url = `https://app.ticketmaster.com/discovery/v2/events.json?attractionId=${args.ticketmasterId}&size=200&apikey=${apiKey}`;
 
     try {
       const response = await fetch(url);
-      if (!response.ok) return null;
+      
+      if (response.status === 429) {
+        console.warn("⚠️ Ticketmaster rate limit hit, will retry later");
+        return null;
+      }
+      
+      if (!response.ok) {
+        console.error(`❌ Ticketmaster API error: ${response.status} ${response.statusText}`);
+        return null;
+      }
 
       const data = await response.json();
       const events = data._embedded?.events || [];
 
       console.log(`📅 Found ${events.length} shows for artist`);
 
-      for (const event of events) {
-        // Create or get venue
-        const venue = event._embedded?.venues?.[0];
-        const venueId = await ctx.runMutation(internal.venues.createFromTicketmaster, {
-          ticketmasterId: venue?.id || undefined,
-          name: venue?.name || "Unknown Venue",
-          city: venue?.city?.name || "Unknown City",
-          state: venue?.state?.stateCode || venue?.state?.name || undefined,
-          country: venue?.country?.name || venue?.country?.countryCode || "Unknown Country",
-          address: venue?.address?.line1 || undefined,
-          capacity: venue?.generalInfo?.generalRule ? parseInt(venue.generalInfo.generalRule) : undefined,
-          lat: venue?.location?.latitude ? parseFloat(venue.location.latitude) : undefined,
-          lng: venue?.location?.longitude ? parseFloat(venue.location.longitude) : undefined,
-        });
+      let successCount = 0;
+      let errorCount = 0;
 
-        // Create show
-        await ctx.runMutation(internal.shows.createFromTicketmaster, {
-          artistId: args.artistId,
-          venueId,
-          ticketmasterId: event.id,
-          date: event.dates?.start?.localDate || new Date().toISOString().split('T')[0],
-          startTime: event.dates?.start?.localTime,
-          status: event.dates?.status?.code === "onsale" ? "upcoming" : "upcoming",
-          ticketUrl: event.url,
-        });
-        
-        // gentle backoff to respect API
-        await new Promise(r => setTimeout(r, 75));
+      for (const event of events) {
+        try {
+          // Create or get venue
+          const venue = event._embedded?.venues?.[0];
+          if (!venue) {
+            console.warn(`⚠️ No venue found for event ${event.id}`);
+            continue;
+          }
+
+          const venueId = await ctx.runMutation(internal.venues.createFromTicketmaster, {
+            ticketmasterId: venue.id || undefined,
+            name: venue.name || "Unknown Venue",
+            city: venue.city?.name || "Unknown City",
+            state: venue.state?.stateCode || venue.state?.name || undefined,
+            country: venue.country?.name || venue.country?.countryCode || "Unknown Country",
+            address: venue.address?.line1 || undefined,
+            capacity: venue.generalInfo?.generalRule ? parseInt(venue.generalInfo.generalRule) : undefined,
+            lat: venue.location?.latitude ? parseFloat(venue.location.latitude) : undefined,
+            lng: venue.location?.longitude ? parseFloat(venue.location.longitude) : undefined,
+          });
+
+          // Extract price range if available
+          let priceRange: string | undefined;
+          if (event.priceRanges?.[0]) {
+            const minPrice = event.priceRanges[0].min;
+            const maxPrice = event.priceRanges[0].max;
+            const currency = event.priceRanges[0].currency || 'USD';
+            if (minPrice && maxPrice) {
+              priceRange = `${currency} ${minPrice}-${maxPrice}`;
+            }
+          }
+
+          // Create show
+          await ctx.runMutation(internal.shows.createFromTicketmaster, {
+            artistId: args.artistId,
+            venueId,
+            ticketmasterId: event.id,
+            date: event.dates?.start?.localDate || new Date().toISOString().split('T')[0],
+            startTime: event.dates?.start?.localTime,
+            status: event.dates?.status?.code === "onsale" ? "upcoming" : "upcoming",
+            ticketUrl: event.url,
+            priceRange,
+          });
+          
+          successCount++;
+          
+          // gentle backoff to respect API
+          await new Promise(r => setTimeout(r, 75));
+        } catch (error) {
+          errorCount++;
+          console.error(`❌ Failed to create show for event ${event.id}:`, error);
+        }
       }
 
-      console.log(`✅ Synced ${events.length} shows for artist`);
+      console.log(`✅ Successfully synced ${successCount}/${events.length} shows (${errorCount} errors)`);
     } catch (error) {
-      console.error("Failed to sync artist shows:", error);
+      console.error("❌ Failed to sync artist shows:", error);
+      // Don't throw - let the artist creation succeed even if shows fail
     }
     return null;
   },

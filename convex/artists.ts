@@ -508,4 +508,14 @@ export const setTicketmasterId = internalMutation({
   },
 });
 
+// Update sync timestamp to avoid infinite retries on errors
+export const updateSyncTimestamp = internalMutation({
+  args: { artistId: v.id("artists") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.artistId, { lastSynced: Date.now() });
+    return null;
+  },
+});
+
 

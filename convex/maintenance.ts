@@ -24,6 +24,11 @@ export const syncTrendingData = internalAction({
       await ctx.runMutation(internal.trending.updateShowTrending, {});
       console.log("✅ Updated show trending ranks");
       
+      // Step 4: Populate cache tables for faster queries
+      await ctx.runMutation(internal.trending.populateTrendingArtistsCache, {});
+      await ctx.runMutation(internal.trending.populateTrendingShowsCache, {});
+      console.log("✅ Updated trending cache tables");
+      
       // Optional: Try to enrich with fresh Ticketmaster data
       try {
         const trendingArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 10 });
