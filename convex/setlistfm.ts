@@ -15,37 +15,37 @@ export const syncActualSetlist = internalAction({
   handler: async (ctx, args): Promise<string | null> => {
     const apiKey = process.env.SETLISTFM_API_KEY;
     if (!apiKey) {
-      console.log("Setlist.fm API key not configured, using mock data for testing");
-      // Create mock setlist data for testing
-      const mockSetlist = [
-        { title: "Opening Song", setNumber: 1, encore: false },
-        { title: "Popular Hit", setNumber: 1, encore: false },
-        { title: "Fan Favorite", setNumber: 1, encore: false },
-        { title: "Encore Song", setNumber: 2, encore: true },
-      ];
-      
-      await ctx.runMutation(internal.setlists.updateWithActualSetlist, {
-        showId: args.showId,
-        actualSetlist: mockSetlist,
-        setlistfmId: `mock-${Date.now()}`,
-        setlistfmData: { mock: true, artist: args.artistName },
-      });
-      
-      console.log(`Created mock setlist for ${args.artistName}`);
-      return `mock-${Date.now()}`;
+      console.log("Setlist.fm API key not configured");
+      return null;
     }
 
     try {
-      // Search for setlists by artist and date
-      const searchUrl = `https://api.setlist.fm/rest/1.0/search/setlists?artistName=${encodeURIComponent(args.artistName)}&cityName=${encodeURIComponent(args.venueCity)}&date=${args.showDate}`;
+      // Try multiple search strategies to find setlists
+      let searchUrl = `https://api.setlist.fm/rest/1.0/search/setlists?artistName=${encodeURIComponent(args.artistName)}&cityName=${encodeURIComponent(args.venueCity)}&date=${args.showDate}`;
       
-      const response = await fetch(searchUrl, {
+      console.log(`Searching setlist.fm: ${searchUrl}`);
+      
+      let response = await fetch(searchUrl, {
         headers: {
           'x-api-key': apiKey,
           'Accept': 'application/json',
           'User-Agent': 'TheSet/1.0'
         }
       });
+
+      // If no results, try without city (broader search)
+      if (!response.ok || (await response.clone().json()).setlist?.length === 0) {
+        searchUrl = `https://api.setlist.fm/rest/1.0/search/setlists?artistName=${encodeURIComponent(args.artistName)}&date=${args.showDate}`;
+        console.log(`Retrying broader search: ${searchUrl}`);
+        
+        response = await fetch(searchUrl, {
+          headers: {
+            'x-api-key': apiKey,
+            'Accept': 'application/json',
+            'User-Agent': 'TheSet/1.0'
+          }
+        });
+      }
 
       if (!response.ok) {
         console.log(`Setlist.fm API error: ${response.status}`);
