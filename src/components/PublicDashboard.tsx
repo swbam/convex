@@ -44,6 +44,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
       const formattedShows = uniqueShows.map(show => ({
         ticketmasterId: show.ticketmasterId || show._id,
         artistTicketmasterId: show.artist?.ticketmasterId,
+        artistId: show.artist?._id, // pass local ID to avoid re-imports
         artistName: show.artist?.name || 'Unknown Artist',
         artist: show.artist,
         venueName: show.venue?.name || 'Unknown Venue',
@@ -423,7 +424,7 @@ function HorizontalScrollingSection({
 // Redesigned Show Card to Match Artist Page Style
 function PremiumShowCard({ show, onArtistClick }: {
   show: any;
-  onArtistClick: (artistTicketmasterId: string, artistName: string, genres?: string[], images?: string[]) => void;
+  onArtistClick: (artistTicketmasterId: string, artistName: string, genres?: string[], images?: string[], artistId?: string) => void;
 }) {
   const showDate = new Date(show.date);
   const isToday = showDate.toDateString() === new Date().toDateString();
@@ -474,7 +475,13 @@ function PremiumShowCard({ show, onArtistClick }: {
         )}
       </div>
       
-      <div className="relative z-10 p-5" onClick={() => onArtistClick(show.artistTicketmasterId || show.ticketmasterId, show.artist?.name || show.artistName, show.artist?.genres || [], show.artist?.images || (show.artistImage ? [show.artistImage] : []))}>
+      <div className="relative z-10 p-5" onClick={() => onArtistClick(
+        show.artistTicketmasterId || show.ticketmasterId,
+        show.artist?.name || show.artistName,
+        show.artist?.genres || [],
+        show.artist?.images || (show.artistImage ? [show.artistImage] : []),
+        show.artist?._id
+      )}>
         {/* Artist Info - Enhanced */}
         <div className="mb-4">
           <h3 className="font-bold text-foreground text-lg mb-2 transition-colors truncate">
@@ -613,7 +620,7 @@ function EmptyState({ icon, title, subtitle }: {
 // Mobile-optimized Show Card
 function MobileShowCard({ show, onArtistClick }: {
   show: any;
-  onArtistClick: (artistTicketmasterId: string, artistName: string, genres?: string[], images?: string[]) => void;
+  onArtistClick: (artistTicketmasterId: string, artistName: string, genres?: string[], images?: string[], artistId?: string) => void;
 }) {
   const showDate = new Date(show.date);
   const isToday = showDate.toDateString() === new Date().toDateString();
@@ -629,7 +636,13 @@ function MobileShowCard({ show, onArtistClick }: {
   };
   
   return (
-    <div className="mobile-card cursor-pointer" onClick={() => onArtistClick(show.artistTicketmasterId, show.artistName, [], show.artistImage ? [show.artistImage] : [])}>
+    <div className="mobile-card cursor-pointer" onClick={() => onArtistClick(
+      show.artistTicketmasterId || show.ticketmasterId,
+      show.artist?.name || show.artistName,
+      show.artist?.genres || [],
+      show.artist?.images || (show.artistImage ? [show.artistImage] : []),
+      show.artist?._id
+    )}>
       <div className="flex items-center gap-4">
         {/* Artist Image */}
         {show.artistImage && (
