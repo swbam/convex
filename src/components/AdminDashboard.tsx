@@ -16,11 +16,15 @@ export function AdminDashboard() {
   const users = useQuery(api.admin.getAllUsers, { limit: 50 });
   const verifySetlist = useMutation(api.admin.verifySetlist);
   
-  // Trending sync action - simplified!
+  // Trending sync actions
   const syncTrending = useAction(api.admin.syncTrending);
+  const syncTrendingArtists = useAction(api.admin.syncTrendingArtists);
+  const syncTrendingShows = useAction(api.admin.syncTrendingShows);
   
   // Loading state
   const [trendingSyncing, setTrendingSyncing] = useState(false);
+  const [artistSyncing, setArtistSyncing] = useState(false);
+  const [showSyncing, setShowSyncing] = useState(false);
 
   const pendingFlags = useMemo(() => (flagged || []).filter(f => f.status === "pending"), [flagged]);
 
@@ -41,6 +45,26 @@ export function AdminDashboard() {
       });
     } finally {
       setTrendingSyncing(false);
+    }
+  };
+
+  const handleSyncArtists = async () => {
+    setArtistSyncing(true);
+    try {
+      const res = await syncTrendingArtists();
+      res.success ? toast.success(res.message) : toast.error(res.message);
+    } finally {
+      setArtistSyncing(false);
+    }
+  };
+
+  const handleSyncShows = async () => {
+    setShowSyncing(true);
+    try {
+      const res = await syncTrendingShows();
+      res.success ? toast.success(res.message) : toast.error(res.message);
+    } finally {
+      setShowSyncing(false);
     }
   };
 
@@ -134,6 +158,40 @@ export function AdminDashboard() {
                     <TrendingUp className="h-4 w-4 mr-2" />
                     Update Trending Data
                   </>
+                )}
+              </ShimmerButton>
+            </div>
+
+            {/* Separate buttons for artist/show trending */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ShimmerButton
+                onClick={handleSyncArtists}
+                disabled={artistSyncing}
+                className="w-full bg-gradient-to-r from-emerald-500/20 to-green-500/20 hover:from-emerald-500/30 hover:to-green-500/30 text-white border-white/20"
+                shimmerColor="#10b981"
+              >
+                {artistSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sync Artists
+                  </>
+                ) : (
+                  <>Sync Trending Artists</>
+                )}
+              </ShimmerButton>
+              <ShimmerButton
+                onClick={handleSyncShows}
+                disabled={showSyncing}
+                className="w-full bg-gradient-to-r from-sky-500/20 to-blue-500/20 hover:from-sky-500/30 hover:to-blue-500/30 text-white border-white/20"
+                shimmerColor="#0ea5e9"
+              >
+                {showSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sync Shows
+                  </>
+                ) : (
+                  <>Sync Trending Shows</>
                 )}
               </ShimmerButton>
             </div>
