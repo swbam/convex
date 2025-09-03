@@ -10,48 +10,41 @@ export const getTrendingShows = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
 
-    const shows = await ctx.db
-      .query("trendingShows")
-      .withIndex("by_last_updated")
-      .order("desc")
-      .take(limit * 2);
+    // Pull from canonical shows table using precomputed trendingRank
+    const candidates = await ctx.db
+      .query("shows")
+      .withIndex("by_trending_rank")
+      .filter((q) => q.neq(q.field("trendingRank"), undefined))
+      .take(limit * 5);
 
-    const enrichedShows = await Promise.all(
-      shows.map(async (show) => {
-        if (show.artistId) {
-          const artist = await ctx.db.get(show.artistId);
-          if (artist) {
-            return {
-              ...show,
-              artist: {
-                _id: artist._id,
-                name: artist.name,
-                slug: artist.slug,
-                images: artist.images,
-                genres: artist.genres,
-              },
-            };
-          }
-        }
-        return show;
+    // Enrich with artist and venue documents
+    const enriched = await Promise.all(
+      candidates.map(async (show) => {
+        const [artist, venue] = await Promise.all([
+          ctx.db.get(show.artistId),
+          ctx.db.get(show.venueId),
+        ]);
+        return {
+          ...show,
+          artist: artist || null,
+          venue: venue || null,
+        };
       })
     );
 
-    const sortedShows = enrichedShows
-      .sort((a, b) => {
-        const aHasPrice = a.priceRange ? 1 : 0;
-        const bHasPrice = b.priceRange ? 1 : 0;
-        if (aHasPrice !== bHasPrice) return bHasPrice - aHasPrice;
-
-        const aIsStadium = /stadium|arena|center|amphitheatre|pavilion/i.test(a.venueName) ? 1 : 0;
-        const bIsStadium = /stadium|arena|center|amphitheatre|pavilion/i.test(b.venueName) ? 1 : 0;
-        if (aIsStadium !== bIsStadium) return bIsStadium - aIsStadium;
-
-        return b.lastUpdated - a.lastUpdated;
+    // Sort by trendingRank ascending (1 is top), then by soonest date
+    const sorted = enriched
+      .sort((a: any, b: any) => {
+        const ar = a.trendingRank ?? Number.MAX_SAFE_INTEGER;
+        const br = b.trendingRank ?? Number.MAX_SAFE_INTEGER;
+        if (ar !== br) return ar - br;
+        const at = new Date(a.date).getTime();
+        const bt = new Date(b.date).getTime();
+        return at - bt;
       })
       .slice(0, limit);
 
-    return sortedShows;
+    return sorted;
   },
 });
 
@@ -61,52 +54,22 @@ export const getTrendingArtists = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
 
-    const artists = await ctx.db
-      .query("trendingArtists")
-      .withIndex("by_last_updated")
-      .order("desc")
-      .take(limit * 2);
+    // Query canonical artists using precomputed trendingRank
+    const candidates = await ctx.db
+      .query("artists")
+      .withIndex("by_trending_rank")
+      .filter((q) => q.neq(q.field("trendingRank"), undefined))
+      .take(limit * 5);
 
-    const majorArtists = [
-      "taylor swift",
-      "beyonce",
-      "drake",
-      "ed sheeran",
-      "coldplay",
-      "imagine dragons",
-      "billie eilish",
-      "the weeknd",
-      "bruno mars",
-      "ariana grande",
-      "post malone",
-      "dua lipa",
-      "bad bunny",
-      "harry styles",
-      "olivia rodrigo",
-      "travis scott",
-      "kanye west",
-      "eminem",
-      "rihanna",
-      "justin bieber",
-      "lady gaga",
-      "adele",
-    ];
-
-    const sortedArtists = artists
-      .sort((a, b) => {
-        const aEvents = a.upcomingEvents || 0;
-        const bEvents = b.upcomingEvents || 0;
-        if (aEvents !== bEvents) return bEvents - aEvents;
-
-        const aIsMajor = majorArtists.some((major) => a.name.toLowerCase().includes(major)) ? 1 : 0;
-        const bIsMajor = majorArtists.some((major) => b.name.toLowerCase().includes(major)) ? 1 : 0;
-        if (aIsMajor !== bIsMajor) return bIsMajor - aIsMajor;
-
-        return b.lastUpdated - a.lastUpdated;
+    const sorted = candidates
+      .sort((a: any, b: any) => {
+        const ar = a.trendingRank ?? Number.MAX_SAFE_INTEGER;
+        const br = b.trendingRank ?? Number.MAX_SAFE_INTEGER;
+        return ar - br;
       })
       .slice(0, limit);
 
-    return sortedArtists;
+    return sorted;
   },
 });
 

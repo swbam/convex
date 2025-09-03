@@ -197,10 +197,10 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                           {index + 1}
                         </div>
                         
-                        {show.artistImage ? (
+                        {(show.artist?.images?.[0] || show.artistImage) ? (
                           <img
-                            src={show.artistImage}
-                            alt={show.artistName}
+                            src={show.artist?.images?.[0] || show.artistImage}
+                            alt={show.artist?.name || show.artistName}
                             className="w-12 h-12 rounded object-cover"
                           />
                         ) : (
@@ -210,11 +210,11 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                         )}
                         
                         <div className="flex-1">
-                          <h3 className="font-semibold text-white">{show.artistName}</h3>
+                          <h3 className="font-semibold text-white">{show.artist?.name || show.artistName}</h3>
                           <div className="flex items-center gap-3 text-sm text-gray-400">
                             <span className="flex items-center gap-1">
                               <MapPin className="h-3.5 w-3.5" />
-                              {show.venueName}
+                              {show.venue?.name || show.venueName}
                             </span>
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3.5 w-3.5" />
@@ -225,7 +225,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                             </span>
                           </div>
                           <div className="text-xs text-gray-500 mt-1">
-                            {show.venueCity}, {show.venueCountry}
+                            {(show.venue?.city || show.venueCity) || ''}{(show.venue?.country || show.venueCountry) ? `, ${show.venue?.country || show.venueCountry}` : ''}
                           </div>
                         </div>
                         
