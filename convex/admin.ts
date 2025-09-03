@@ -360,6 +360,29 @@ export const testSyncSetlistForShow = action({
   },
 });
 
+// Test with specific setlist ID from the URL you provided
+export const testSyncSpecificSetlist = action({
+  args: {
+    showId: v.id("shows"),
+    setlistfmId: v.string(),
+  },
+  returns: v.object({ success: v.boolean(), message: v.string() }),
+  handler: async (ctx, args): Promise<{ success: boolean; message: string }> => {
+    try {
+      const result: string | null = await ctx.runAction(internal.setlistfm.syncSpecificSetlist, args);
+      return {
+        success: !!result,
+        message: result ? `Setlist synced with ID: ${result}` : "Failed to sync specific setlist"
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
+  },
+});
+
 export const testTriggerSetlistSync = action({
   args: {},
   returns: v.object({ success: v.boolean(), message: v.string() }),
