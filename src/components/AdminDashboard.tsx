@@ -23,12 +23,14 @@ export function AdminDashboard() {
   
   // Setlist sync actions
   const triggerSetlistSync = useAction(api.admin.testTriggerSetlistSync);
+  const cleanupSongs = useAction(api.admin.testCleanupNonStudioSongs);
   
   // Loading state
   const [trendingSyncing, setTrendingSyncing] = useState(false);
   const [artistSyncing, setArtistSyncing] = useState(false);
   const [showSyncing, setShowSyncing] = useState(false);
   const [setlistSyncing, setSetlistSyncing] = useState(false);
+  const [cleanupSyncing, setCleanupSyncing] = useState(false);
 
   const pendingFlags = useMemo(() => (flagged || []).filter(f => f.status === "pending"), [flagged]);
 
@@ -79,6 +81,20 @@ export function AdminDashboard() {
       res.success ? toast.success(res.message) : toast.error(res.message);
     } finally {
       setSetlistSyncing(false);
+    }
+  };
+
+  const handleCleanupSongs = async () => {
+    setCleanupSyncing(true);
+    try {
+      const res = await cleanupSongs();
+      if (res.success) {
+        toast.success(`${res.message} (${res.cleanedCount} songs removed)`);
+      } else {
+        toast.error(res.message);
+      }
+    } finally {
+      setCleanupSyncing(false);
     }
   };
 
@@ -176,8 +192,8 @@ export function AdminDashboard() {
               </ShimmerButton>
             </div>
 
-            {/* Separate buttons for artist/show trending */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Separate buttons for artist/show/setlist trending */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <ShimmerButton
                 onClick={handleSyncArtists}
                 disabled={artistSyncing}
@@ -221,6 +237,21 @@ export function AdminDashboard() {
                   </>
                 ) : (
                   <>Sync Setlists</>
+                )}
+              </ShimmerButton>
+              <ShimmerButton
+                onClick={handleCleanupSongs}
+                disabled={cleanupSyncing}
+                className="w-full bg-gradient-to-r from-red-500/20 to-orange-500/20 hover:from-red-500/30 hover:to-orange-500/30 text-white border-white/20"
+                shimmerColor="#ef4444"
+              >
+                {cleanupSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Cleaning Songs
+                  </>
+                ) : (
+                  <>Clean Non-Studio</>
                 )}
               </ShimmerButton>
             </div>
