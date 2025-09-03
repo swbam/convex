@@ -221,6 +221,59 @@ export const syncTrendingShows = action({
   },
 });
 
+// ===== TEST FUNCTIONS (for development) =====
+
+export const testSyncTrending = action({
+  args: {},
+  returns: v.object({
+    success: v.boolean(),
+    message: v.string(),
+  }),
+  handler: async (ctx) => {
+    try {
+      console.log("📊 Test triggered trending sync...");
+      await ctx.runAction(internal.maintenance.syncTrendingData, {});
+      return {
+        success: true,
+        message: "Successfully updated trending rankings for artists and shows",
+      };
+    } catch (error) {
+      console.error("❌ Failed to sync trending data:", error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error occurred",
+      };
+    }
+  },
+});
+
+export const testSyncTrendingArtists = action({
+  args: {},
+  returns: v.object({ success: v.boolean(), message: v.string() }),
+  handler: async (ctx) => {
+    try {
+      await ctx.runMutation(internal.trending.updateArtistShowCounts, {});
+      await ctx.runMutation(internal.trending.updateArtistTrending, {});
+      return { success: true, message: "Artists trending updated" };
+    } catch (e) {
+      return { success: false, message: e instanceof Error ? e.message : "Unknown error" };
+    }
+  },
+});
+
+export const testSyncTrendingShows = action({
+  args: {},
+  returns: v.object({ success: v.boolean(), message: v.string() }),
+  handler: async (ctx) => {
+    try {
+      await ctx.runMutation(internal.trending.updateShowTrending, {});
+      return { success: true, message: "Shows trending updated" };
+    } catch (e) {
+      return { success: false, message: e instanceof Error ? e.message : "Unknown error" };
+    }
+  },
+});
+
 // ===== DATA IMPORT FROM TICKETMASTER =====
 
 export const importTrendingFromTicketmaster = action({
