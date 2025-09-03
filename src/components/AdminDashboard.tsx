@@ -21,10 +21,14 @@ export function AdminDashboard() {
   const syncTrendingArtists = useAction(api.admin.syncTrendingArtists);
   const syncTrendingShows = useAction(api.admin.syncTrendingShows);
   
+  // Setlist sync actions
+  const triggerSetlistSync = useAction(api.admin.testTriggerSetlistSync);
+  
   // Loading state
   const [trendingSyncing, setTrendingSyncing] = useState(false);
   const [artistSyncing, setArtistSyncing] = useState(false);
   const [showSyncing, setShowSyncing] = useState(false);
+  const [setlistSyncing, setSetlistSyncing] = useState(false);
 
   const pendingFlags = useMemo(() => (flagged || []).filter(f => f.status === "pending"), [flagged]);
 
@@ -65,6 +69,16 @@ export function AdminDashboard() {
       res.success ? toast.success(res.message) : toast.error(res.message);
     } finally {
       setShowSyncing(false);
+    }
+  };
+
+  const handleSyncSetlists = async () => {
+    setSetlistSyncing(true);
+    try {
+      const res = await triggerSetlistSync();
+      res.success ? toast.success(res.message) : toast.error(res.message);
+    } finally {
+      setSetlistSyncing(false);
     }
   };
 
@@ -163,7 +177,7 @@ export function AdminDashboard() {
             </div>
 
             {/* Separate buttons for artist/show trending */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <ShimmerButton
                 onClick={handleSyncArtists}
                 disabled={artistSyncing}
@@ -192,6 +206,21 @@ export function AdminDashboard() {
                   </>
                 ) : (
                   <>Sync Trending Shows</>
+                )}
+              </ShimmerButton>
+              <ShimmerButton
+                onClick={handleSyncSetlists}
+                disabled={setlistSyncing}
+                className="w-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-white border-white/20"
+                shimmerColor="#a855f7"
+              >
+                {setlistSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sync Setlists
+                  </>
+                ) : (
+                  <>Sync Setlists</>
                 )}
               </ShimmerButton>
             </div>

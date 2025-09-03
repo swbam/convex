@@ -280,6 +280,105 @@ export const testSyncTrendingShows = action({
   },
 });
 
+// ===== SETLIST.FM INTEGRATION =====
+
+export const syncSetlistForShow = action({
+  args: {
+    showId: v.id("shows"),
+    artistName: v.string(),
+    venueCity: v.string(),
+    showDate: v.string(),
+  },
+  returns: v.object({ success: v.boolean(), message: v.string() }),
+  handler: async (ctx, args): Promise<{ success: boolean; message: string }> => {
+    const user = await ctx.runQuery(api.auth.loggedInUser);
+    if (!user?.appUser || user.appUser.role !== "admin") {
+      throw new Error("Admin access required");
+    }
+    
+    try {
+      const result: string | null = await ctx.runAction(internal.setlistfm.syncActualSetlist, args);
+      return {
+        success: !!result,
+        message: result ? `Setlist synced with ID: ${result}` : "No setlist found for this show"
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
+  },
+});
+
+export const triggerSetlistSync = action({
+  args: {},
+  returns: v.object({ success: v.boolean(), message: v.string() }),
+  handler: async (ctx) => {
+    const user = await ctx.runQuery(api.auth.loggedInUser);
+    if (!user?.appUser || user.appUser.role !== "admin") {
+      throw new Error("Admin access required");
+    }
+    
+    try {
+      await ctx.runAction(internal.setlistfm.checkCompletedShows, {});
+      return {
+        success: true,
+        message: "Setlist sync for completed shows triggered successfully"
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
+  },
+});
+
+// Test versions for development
+export const testSyncSetlistForShow = action({
+  args: {
+    showId: v.id("shows"),
+    artistName: v.string(),
+    venueCity: v.string(),
+    showDate: v.string(),
+  },
+  returns: v.object({ success: v.boolean(), message: v.string() }),
+  handler: async (ctx, args): Promise<{ success: boolean; message: string }> => {
+    try {
+      const result: string | null = await ctx.runAction(internal.setlistfm.syncActualSetlist, args);
+      return {
+        success: !!result,
+        message: result ? `Setlist synced with ID: ${result}` : "No setlist found for this show"
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
+  },
+});
+
+export const testTriggerSetlistSync = action({
+  args: {},
+  returns: v.object({ success: v.boolean(), message: v.string() }),
+  handler: async (ctx) => {
+    try {
+      await ctx.runAction(internal.setlistfm.checkCompletedShows, {});
+      return {
+        success: true,
+        message: "Setlist sync for completed shows triggered successfully"
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
+  },
+});
+
 // ===== DATA IMPORT FROM TICKETMASTER =====
 
 export const importTrendingFromTicketmaster = action({
