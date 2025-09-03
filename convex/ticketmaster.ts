@@ -89,6 +89,11 @@ export const triggerFullArtistSync = action({
         console.error(`Failed to sync catalog for ${args.artistName}:`, error);
       });
 
+      // Kick trending updates for shows so homepage shows appear quickly
+      ctx.runMutation(internal.trending.updateShowTrending, {}).catch((e) => {
+        console.warn("updateShowTrending failed after syncArtistShows", e);
+      });
+
       console.log(`✅ Artist ${args.artistName} created with ID: ${artistId}, background sync started`);
       return artistId;
     } catch (error) {
