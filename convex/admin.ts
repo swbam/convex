@@ -185,6 +185,42 @@ export const syncTrending = action({
   },
 });
 
+// Separate actions to sync artists vs shows trending (for admin buttons)
+export const syncTrendingArtists = action({
+  args: {},
+  returns: v.object({ success: v.boolean(), message: v.string() }),
+  handler: async (ctx) => {
+    const user = await ctx.runQuery(api.auth.loggedInUser);
+    if (!user?.appUser || user.appUser.role !== "admin") {
+      throw new Error("Admin access required");
+    }
+    try {
+      await ctx.runMutation(internal.trending.updateArtistShowCounts, {});
+      await ctx.runMutation(internal.trending.updateArtistTrending, {});
+      return { success: true, message: "Artists trending updated" };
+    } catch (e) {
+      return { success: false, message: e instanceof Error ? e.message : "Unknown error" };
+    }
+  },
+});
+
+export const syncTrendingShows = action({
+  args: {},
+  returns: v.object({ success: v.boolean(), message: v.string() }),
+  handler: async (ctx) => {
+    const user = await ctx.runQuery(api.auth.loggedInUser);
+    if (!user?.appUser || user.appUser.role !== "admin") {
+      throw new Error("Admin access required");
+    }
+    try {
+      await ctx.runMutation(internal.trending.updateShowTrending, {});
+      return { success: true, message: "Shows trending updated" };
+    } catch (e) {
+      return { success: false, message: e instanceof Error ? e.message : "Unknown error" };
+    }
+  },
+});
+
 // ===== DATA IMPORT FROM TICKETMASTER =====
 
 export const importTrendingFromTicketmaster = action({

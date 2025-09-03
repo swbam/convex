@@ -1,7 +1,6 @@
 import { cronJobs } from "convex/server";
 import { internal } from "./_generated/api";
 
-// IMPORTANT: This file must be named crons.ts for Convex to register schedules.
 const crons = cronJobs();
 
 // Update trending scores and rankings
@@ -37,3 +36,4 @@ crons.interval(
 );
 
 export default crons;
+

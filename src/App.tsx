@@ -74,19 +74,7 @@ function App() {
     showSlug ? { key: showSlug } : 'skip'
   );
 
-  // Poll for artist creation when on artist page with no artist found
-  useEffect(() => {
-    if (location.pathname.startsWith('/artists/') && artistBySlug === null) {
-      const interval = setInterval(() => {
-        // Force a re-render which will re-query
-        if (typeof window !== 'undefined') {
-          window.location.reload();
-        }
-      }, 3000); // Check every 3 seconds
-      
-      return () => clearInterval(interval);
-    }
-  }, [location.pathname, artistBySlug]);
+  // When artist not yet found after import, show loading state and rely on Convex reactivity, no forced reloads
 
   // Update view based on current route
   useEffect(() => {
