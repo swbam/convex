@@ -18,6 +18,7 @@ import type * as artistSongs from "../artistSongs.js";
 import type * as artists from "../artists.js";
 import type * as auth from "../auth.js";
 import type * as cron from "../cron.js";
+import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
 import type * as deployment from "../deployment.js";
 import type * as health from "../health.js";
@@ -53,6 +54,7 @@ declare const fullApi: ApiFromModules<{
   artists: typeof artists;
   auth: typeof auth;
   cron: typeof cron;
+  crons: typeof crons;
   dashboard: typeof dashboard;
   deployment: typeof deployment;
   health: typeof health;

@@ -41,9 +41,9 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
               </div>
             </div>
             
-            <Button variant="outline" onClick={() => navigate('/profile')}>
+            <Button variant="outline" onClick={() => navigate('/activity')}>
               <Settings className="h-4 w-4 mr-2" />
-              Account Settings
+              View Activity
             </Button>
           </div>
         </div>

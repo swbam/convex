@@ -14,7 +14,6 @@ const items: TabItem[] = [
   { to: '/artists', label: 'Artists', icon: Mic },
   { to: '/shows', label: 'Shows', icon: Calendar },
   { to: '/trending', label: 'Trending', icon: TrendingUp },
-  { to: '/profile', label: 'Profile', icon: User },
 ]
 
 interface MobileBottomNavProps {

@@ -150,6 +150,7 @@ export const createOfficial = internalMutation({
 
 export const getByShow = query({
   args: { showId: v.id("shows") },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const setlists = await ctx.db
       .query("setlists")
@@ -514,6 +515,8 @@ export const updateWithActualSetlist = internalMutation({
       title: v.string(),
       setNumber: v.number(),
       encore: v.boolean(),
+      album: v.optional(v.any()),
+      duration: v.optional(v.number()),
     })),
     setlistfmId: v.string(),
     setlistfmData: v.any(),
@@ -555,5 +558,103 @@ export const updateWithActualSetlist = internalMutation({
     }
     
     return null;
+  },
+});
+
+// Get setlist with vote integration for show pages
+export const getSetlistWithVotes = query({
+  args: { showId: v.id("shows") },
+  returns: v.union(v.object({
+    actualSetlist: v.array(v.object({
+      title: v.string(),
+      setNumber: v.number(),
+      encore: v.boolean(),
+      album: v.optional(v.any()),
+      duration: v.optional(v.number()),
+      voteCount: v.optional(v.number()),
+      wasPredicted: v.boolean(),
+    })),
+    unpredictedSongs: v.array(v.object({
+      title: v.string(),
+      album: v.optional(v.string()),
+      duration: v.optional(v.number()),
+      songId: v.optional(v.id("songs")),
+      voteCount: v.number(),
+    })),
+    setlistfmData: v.optional(v.any()),
+    hasActualSetlist: v.boolean(),
+  }), v.null()),
+  handler: async (ctx, args) => {
+    // Get all setlists for this show
+    const setlists = await ctx.db
+      .query("setlists")
+      .withIndex("by_show", (q) => q.eq("showId", args.showId))
+      .collect();
+
+    if (setlists.length === 0) {
+      return null;
+    }
+
+    // Find the setlist with actual setlist data (from setlist.fm)
+    const officialSetlist = setlists.find(s => s.actualSetlist && s.actualSetlist.length > 0);
+    
+    if (!officialSetlist || !officialSetlist.actualSetlist) {
+      return null;
+    }
+
+    // Get all song votes for this show
+    const allVotes = await ctx.db
+      .query("songVotes")
+      .withIndex("by_setlist", (q) => q.eq("setlistId", officialSetlist._id))
+      .collect();
+
+    // Count votes by song title
+    const votesByTitle = new Map<string, number>();
+    for (const vote of allVotes) {
+      const current = votesByTitle.get(vote.songTitle) || 0;
+      votesByTitle.set(vote.songTitle, current + 1);
+    }
+
+    // Get all predicted songs from user setlists
+    const predictedSongs = new Set<string>();
+    const unpredictedSongsMap = new Map<string, any>();
+    
+    for (const setlist of setlists) {
+      for (const song of setlist.songs || []) {
+        predictedSongs.add(song.title.toLowerCase().trim());
+        unpredictedSongsMap.set(song.title, {
+          title: song.title,
+          album: song.album,
+          duration: song.duration,
+          songId: song.songId,
+          voteCount: votesByTitle.get(song.title) || 0,
+        });
+      }
+    }
+
+    // Process actual setlist with vote counts
+    const actualSetlistWithVotes = officialSetlist.actualSetlist.map(song => ({
+      title: song.title,
+      setNumber: song.setNumber || 1,
+      encore: song.encore || false,
+      album: song.album,
+      duration: song.duration,
+      voteCount: votesByTitle.get(song.title) || 0,
+      wasPredicted: predictedSongs.has(song.title.toLowerCase().trim()),
+    }));
+
+    // Find songs that were predicted but not played
+    const unpredictedSongs = Array.from(unpredictedSongsMap.values()).filter(song => 
+      !officialSetlist.actualSetlist!.some(actualSong => 
+        actualSong.title.toLowerCase().trim() === song.title.toLowerCase().trim()
+      )
+    );
+
+    return {
+      actualSetlist: actualSetlistWithVotes,
+      unpredictedSongs,
+      setlistfmData: officialSetlist.setlistfmData,
+      hasActualSetlist: true,
+    };
   },
 });

@@ -26,8 +26,8 @@ export const getTrendingShows = query({
         ]);
         return {
           ...show,
-          artist: artist || null,
-          venue: venue || null,
+          artist,
+          venue,
         };
       })
     );
