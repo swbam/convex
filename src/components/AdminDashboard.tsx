@@ -17,7 +17,7 @@ export function AdminDashboard() {
   const verifySetlist = useMutation(api.admin.verifySetlist);
   
   // Trending sync action - simplified!
-  const syncTrending = useAction(api.admin_v2.syncTrending);
+  const syncTrending = useAction(api.admin.syncTrending);
   
   // Loading state
   const [trendingSyncing, setTrendingSyncing] = useState(false);
@@ -87,7 +87,7 @@ export function AdminDashboard() {
               <StatCard icon={<Calendar className="h-5 w-5" />} label="Shows" value={stats.totalShows} />
               <StatCard icon={<Music className="h-5 w-5" />} label="Setlists" value={stats.totalSetlists} />
               <StatCard icon={<TrendingUp className="h-5 w-5" />} label="Votes" value={stats.totalVotes} />
-              <StatCard icon={<Flag className="h-5 w-5" />} label="Pending Flags" value={stats.pendingFlags} />
+              <StatCard icon={<Flag className="h-5 w-5" />} label="Pending Flags" value={pendingFlags.length} />
             </div>
           )}
         </div>

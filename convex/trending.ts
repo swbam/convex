@@ -89,6 +89,7 @@ export const getTrendingShows = query({
     );
 
     return enrichedShows;
+
   },
 });
 
@@ -156,10 +157,12 @@ export const getTrendingArtists = query({
           }
         }
         return cached;
+
       })
     );
 
     return enrichedArtists;
+
   },
 });
 
