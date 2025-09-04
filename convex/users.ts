@@ -86,11 +86,7 @@ export const getUserStats = query({
       .withIndex("by_user", (q) => q.eq("userId", user._id))
       .collect();
 
-    // Count user's follows
-    const follows = await ctx.db
-      .query("userFollows")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .collect();
+    // Note: Following removed as per user request
 
     // Count user's setlists
     const setlists = await ctx.db
@@ -100,43 +96,13 @@ export const getUserStats = query({
 
     return {
       totalVotes: votes.length,
-      totalFollows: follows.length,
       totalSetlists: setlists.length,
       joinedAt: user._creationTime,
     };
   },
 });
 
-// Get user's followed artists
-export const getUserFollows = query({
-  args: {},
-  handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      return [];
-    }
-
-    const user = await ctx.db.get(userId);
-    if (!user) {
-      return [];
-    }
-
-    const follows = await ctx.db
-      .query("userFollows")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .collect();
-
-    // Populate artist data
-    const followsWithArtists = await Promise.all(
-      follows.map(async (follow) => {
-        const artist = await ctx.db.get(follow.artistId);
-        return { ...follow, artist };
-      })
-    );
-
-    return followsWithArtists.filter(f => f.artist);
-  },
-});
+// Note: getUserFollows removed as per user request
 
 // Get user's setlists
 export const getUserSetlists = query({
