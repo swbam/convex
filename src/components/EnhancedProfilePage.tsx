@@ -10,7 +10,7 @@ import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { 
   User, Activity, Star, Music, Calendar, TrendingUp, Trophy, 
-  Heart, Users, Clock, ArrowLeft, Settings, BarChart3, Target,
+  Users, Clock, ArrowLeft, Settings, BarChart3, Target,
   Flame, Award, Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -29,10 +29,8 @@ export function EnhancedProfilePage({ onArtistClick, onShowClick }: EnhancedProf
   const activityFeed = useQuery(api.activity.getUserActivityFeed, { limit: 20 });
   const activityStats = useQuery(api.activity.getUserActivityStats);
   const votingStats = useQuery(api.social.getUserVotingStats, { timeframe: 'month' });
-  const followedArtists = useQuery(api.social.getFollowedArtists, { limit: 20 });
   
-  // Mutations
-  const toggleFollow = useMutation(api.social.toggleArtistFollow);
+  // Note: Following functionality removed
   
   if (!user) {
     return (
@@ -45,14 +43,7 @@ export function EnhancedProfilePage({ onArtistClick, onShowClick }: EnhancedProf
     );
   }
 
-  const handleUnfollowArtist = async (artistId: Id<"artists">) => {
-    try {
-      const result = await toggleFollow({ artistId });
-      toast.success(result.message);
-    } catch (error) {
-      toast.error("Failed to unfollow artist");
-    }
-  };
+  // Note: Follow functionality removed
 
   const renderOverview = () => (
     <div className="space-y-6">
@@ -184,13 +175,11 @@ export function EnhancedProfilePage({ onArtistClick, onShowClick }: EnhancedProf
                   <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     {activity.type === 'song_vote' && <Star className="h-4 w-4 text-primary" />}
                     {activity.type === 'setlist_created' && <Music className="h-4 w-4 text-primary" />}
-                    {activity.type === 'artist_followed' && <Heart className="h-4 w-4 text-primary" />}
                   </div>
                   <div className="flex-1">
                     <p className="text-sm text-white">
                       {activity.type === 'song_vote' && `Voted for "${activity.data.songTitle}"`}
                       {activity.type === 'setlist_created' && `Created setlist for ${activity.data.artistName}`}
-                      {activity.type === 'artist_followed' && `Started following ${activity.data.artistName}`}
                     </p>
                     <div className="text-xs text-gray-400">
                       {new Date(activity.timestamp).toLocaleDateString()}
@@ -293,7 +282,7 @@ export function EnhancedProfilePage({ onArtistClick, onShowClick }: EnhancedProf
                   <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
                     {activity.type === 'song_vote' && <Star className="h-5 w-5 text-primary" />}
                     {activity.type === 'setlist_created' && <Music className="h-5 w-5 text-primary" />}
-                    {activity.type === 'artist_followed' && <Heart className="h-5 w-5 text-primary" />}
+                    {activity.type === '' && <Heart className="h-5 w-5 text-primary" />}
                     {activity.type === 'show_attended' && <Calendar className="h-5 w-5 text-primary" />}
                   </div>
                   <div className="flex-1">
@@ -302,13 +291,11 @@ export function EnhancedProfilePage({ onArtistClick, onShowClick }: EnhancedProf
                         <p className="font-medium text-white mb-1">
                           {activity.type === 'song_vote' && `Voted for "${activity.data.songTitle}"`}
                           {activity.type === 'setlist_created' && `Created setlist for ${activity.data.artistName}`}
-                          {activity.type === 'artist_followed' && `Started following ${activity.data.artistName}`}
                           {activity.type === 'show_attended' && `Attended ${activity.data.artistName} show`}
                         </p>
                         <p className="text-sm text-gray-400">
                           {activity.type === 'song_vote' && `${activity.data.artistName} at ${activity.data.venueName}`}
                           {activity.type === 'setlist_created' && `${activity.data.songsCount} songs • ${activity.data.venueName}`}
-                          {activity.type === 'artist_followed' && activity.data.genres?.slice(0, 2).join(', ')}
                           {activity.type === 'show_attended' && `${activity.data.venueName} • ${activity.data.showDate}`}
                         </p>
                       </div>
@@ -327,91 +314,7 @@ export function EnhancedProfilePage({ onArtistClick, onShowClick }: EnhancedProf
     </div>
   );
 
-  const renderFollowing = () => (
-    <div className="space-y-6">
-      <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-white">Followed Artists</h3>
-            <Badge variant="outline">
-              {followedArtists?.length || 0} following
-            </Badge>
-          </div>
-          
-          {!followedArtists ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="h-20 bg-white/5 rounded-lg" />
-                </div>
-              ))}
-            </div>
-          ) : followedArtists.length === 0 ? (
-            <div className="text-center py-12">
-              <Users className="h-12 w-12 mx-auto mb-4 text-gray-500" />
-              <p className="text-gray-400 mb-4">You're not following any artists yet</p>
-              <Button onClick={() => navigate('/artists')}>
-                Discover Artists
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {followedArtists.map((follow) => (
-                <div key={follow._id} className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-200">
-                  <div 
-                    className="cursor-pointer flex-shrink-0"
-                    onClick={() => onArtistClick(follow.artist._id, follow.artist.slug)}
-                  >
-                    {follow.artist.images?.[0] ? (
-                      <img
-                        src={follow.artist.images[0]}
-                        alt={follow.artist.name}
-                        className="w-12 h-12 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center">
-                        <Music className="h-6 w-6 text-white/50" />
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <h4 
-                      className="font-medium text-white truncate cursor-pointer hover:text-primary"
-                      onClick={() => onArtistClick(follow.artist._id, follow.artist.slug)}
-                    >
-                      {follow.artist.name}
-                    </h4>
-                    <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {follow.upcomingShowsCount} upcoming
-                      </span>
-                      {follow.hasNewShows && (
-                        <Badge variant="default" className="text-xs">
-                          New shows!
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleUnfollowArtist(follow.artist._id)}
-                    className="text-gray-400 hover:text-red-400"
-                  >
-                    Unfollow
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <BorderBeam size={120} duration={10} className="opacity-20" />
-      </MagicCard>
-    </div>
-  );
+  // Note: renderFollowing removed as per user request
 
   return (
     <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 relative z-10">
@@ -458,7 +361,7 @@ export function EnhancedProfilePage({ onArtistClick, onShowClick }: EnhancedProf
 
       {/* Navigation Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-white/5 rounded-lg p-1">
+        <TabsList className="grid w-full grid-cols-2 bg-white/5 rounded-lg p-1">
           <TabsTrigger value="overview" className="data-[state=active]:bg-white/10">
             <TrendingUp className="h-4 w-4 mr-2" />
             Overview
@@ -466,10 +369,6 @@ export function EnhancedProfilePage({ onArtistClick, onShowClick }: EnhancedProf
           <TabsTrigger value="activity" className="data-[state=active]:bg-white/10">
             <Activity className="h-4 w-4 mr-2" />
             Activity
-          </TabsTrigger>
-          <TabsTrigger value="following" className="data-[state=active]:bg-white/10">
-            <Heart className="h-4 w-4 mr-2" />
-            Following
           </TabsTrigger>
         </TabsList>
         
@@ -481,9 +380,6 @@ export function EnhancedProfilePage({ onArtistClick, onShowClick }: EnhancedProf
           {renderActivity()}
         </TabsContent>
         
-        <TabsContent value="following" className="mt-6">
-          {renderFollowing()}
-        </TabsContent>
       </Tabs>
     </div>
   );

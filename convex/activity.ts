@@ -14,7 +14,6 @@ export const getUserActivityFeed = query({
     type: v.union(
       v.literal("song_vote"),
       v.literal("setlist_created"),
-      v.literal("artist_followed"),
       v.literal("show_attended")
     ),
     timestamp: v.number(),
@@ -101,29 +100,7 @@ export const getUserActivityFeed = query({
       }
     }
     
-    // Get user follows
-    const follows = await ctx.db
-      .query("userFollows")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .order("desc")
-      .take(10);
-    
-    for (const follow of follows) {
-      const artist = await ctx.db.get(follow.artistId);
-      if (artist) {
-        activities.push({
-          _id: `follow_${follow._id}`,
-          type: "artist_followed",
-          timestamp: follow.createdAt,
-          data: {
-            artistName: artist.name,
-            artistImage: artist.images?.[0],
-            genres: artist.genres,
-          },
-          artistId: follow.artistId,
-        });
-      }
-    }
+    // Note: Artist following removed as per user request
     
     // Sort by timestamp and apply pagination
     return activities
@@ -138,7 +115,6 @@ export const getUserActivityStats = query({
   returns: v.object({
     totalVotes: v.number(),
     totalSetlists: v.number(),
-    totalFollows: v.number(),
     recentVotes: v.number(),
     accuracy: v.number(),
     streak: v.number(),
@@ -151,7 +127,6 @@ export const getUserActivityStats = query({
       return {
         totalVotes: 0,
         totalSetlists: 0,
-        totalFollows: 0,
         recentVotes: 0,
         accuracy: 0,
         streak: 0,
@@ -165,7 +140,6 @@ export const getUserActivityStats = query({
       return {
         totalVotes: 0,
         totalSetlists: 0,
-        totalFollows: 0,
         recentVotes: 0,
         accuracy: 0,
         streak: 0,
@@ -185,10 +159,7 @@ export const getUserActivityStats = query({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     
-    const follows = await ctx.db
-      .query("userFollows")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
+    // Note: Following removed as per user request
     
     // Calculate recent activity (last 7 days)
     const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
@@ -221,7 +192,6 @@ export const getUserActivityStats = query({
     return {
       totalVotes: votes.length,
       totalSetlists: setlists.length,
-      totalFollows: follows.length,
       recentVotes,
       accuracy,
       streak,
