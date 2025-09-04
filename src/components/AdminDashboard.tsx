@@ -7,15 +7,49 @@ import { BorderBeam } from "./ui/border-beam";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { ShimmerButton } from "./ui/shimmer-button";
-import { TrendingUp, Users, Music, Calendar, Flag, Database, Mic, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { TrendingUp, Users, Music, Calendar, Flag, Database, Mic, CheckCircle, AlertCircle, Loader2, Shield, Lock } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 export function AdminDashboard() {
+  const navigate = useNavigate();
+  const isAdmin = useQuery(api.admin.isCurrentUserAdmin);
   const stats = useQuery(api.admin.getAdminStats);
   const health = useQuery(api.admin.getSystemHealth);
   const flagged = useQuery(api.admin.getFlaggedContent, {});
   const users = useQuery(api.admin.getAllUsers, { limit: 50 });
   const verifySetlist = useMutation(api.admin.verifySetlist);
+  
+  // Show loading while checking admin status
+  if (isAdmin === undefined) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+        <p className="text-gray-400">Checking access...</p>
+      </div>
+    );
+  }
+  
+  // Show access denied if not admin
+  if (!isAdmin) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-red-500/20 bg-black">
+          <div className="relative z-10 p-8 text-center">
+            <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Lock className="h-8 w-8 text-red-400" />
+            </div>
+            <h1 className="text-2xl font-bold text-white mb-2">Access Denied</h1>
+            <p className="text-gray-400 mb-6">You don't have permission to access the admin dashboard.</p>
+            <Button onClick={() => navigate('/')} variant="outline">
+              Return to Home
+            </Button>
+          </div>
+          <BorderBeam size={150} duration={12} className="opacity-30" />
+        </MagicCard>
+      </div>
+    );
+  }
   
   // Trending sync actions
   const syncTrending = useAction(api.admin.syncTrending);

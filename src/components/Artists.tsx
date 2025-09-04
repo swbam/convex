@@ -33,8 +33,10 @@ export function Artists({ onArtistClick }: ArtistsProps) {
     
     // Sort by trending score, then name
     return Array.from(artistsMap.values()).sort((a, b) => {
-      if ((b.trendingScore || 0) !== (a.trendingScore || 0)) {
-        return (b.trendingScore || 0) - (a.trendingScore || 0);
+      const aScore = typeof a.trendingScore === 'number' && Number.isFinite(a.trendingScore) ? a.trendingScore : 0;
+      const bScore = typeof b.trendingScore === 'number' && Number.isFinite(b.trendingScore) ? b.trendingScore : 0;
+      if (bScore !== aScore) {
+        return bScore - aScore;
       }
       return a.name.localeCompare(b.name);
     });

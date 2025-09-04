@@ -230,9 +230,14 @@ export const createFromTicketmaster = internalMutation({
       genres: args.genres,
       images: args.images,
       isActive: true,
-      trendingScore: 0,
+      trendingScore: 0, // Initialize with 0 instead of undefined
+      trendingRank: undefined,
+      upcomingShowsCount: 0, // Initialize with 0
+      popularity: undefined, // Will be set by Spotify sync
+      followers: undefined, // Will be set by Spotify sync
+      spotifyId: undefined, // Will be set by Spotify sync
       lastSynced: Date.now(), // Set initial sync timestamp
-      // spotifyId, popularity, followers will be set by Spotify sync
+      lastTrendingUpdate: undefined,
     });
   },
 });

@@ -43,7 +43,10 @@ export const searchArtists = action({
         genres: attraction.classifications?.[0]?.genre?.name ? [String(attraction.classifications[0].genre.name)] : [],
         images: (attraction.images?.map((img: any) => String(img.url)) || []),
         url: attraction.url ? String(attraction.url) : undefined,
-        upcomingEvents: Number(attraction.upcomingEvents?._total || 0)
+        upcomingEvents: (() => {
+          const events = Number(attraction.upcomingEvents?._total || 0);
+          return Number.isFinite(events) ? events : 0;
+        })()
       }));
     } catch (error) {
       console.error("Ticketmaster search failed:", error);
@@ -128,9 +131,18 @@ export const syncArtistShows = internalAction({
           state: venue?.state?.stateCode || venue?.state?.name || undefined,
           country: venue?.country?.name || venue?.country?.countryCode || "Unknown Country",
           address: venue?.address?.line1 || undefined,
-          capacity: venue?.generalInfo?.generalRule ? parseInt(venue.generalInfo.generalRule) : undefined,
-          lat: venue?.location?.latitude ? parseFloat(venue.location.latitude) : undefined,
-          lng: venue?.location?.longitude ? parseFloat(venue.location.longitude) : undefined,
+          capacity: venue?.generalInfo?.generalRule ? (() => {
+            const parsed = parseInt(venue.generalInfo.generalRule, 10);
+            return Number.isFinite(parsed) ? parsed : undefined;
+          })() : undefined,
+          lat: venue?.location?.latitude ? (() => {
+            const parsed = parseFloat(venue.location.latitude);
+            return Number.isFinite(parsed) ? parsed : undefined;
+          })() : undefined,
+          lng: venue?.location?.longitude ? (() => {
+            const parsed = parseFloat(venue.location.longitude);
+            return Number.isFinite(parsed) ? parsed : undefined;
+          })() : undefined,
         });
 
         // Create show
@@ -283,7 +295,10 @@ export const getTrendingArtists = action({
             .slice(0, 3)
             .map((img: any) => String(img.url));
         })(),
-        upcomingEvents: Number(attraction.upcomingEvents?._total || 0),
+        upcomingEvents: (() => {
+          const events = Number(attraction.upcomingEvents?._total || 0);
+          return Number.isFinite(events) ? events : 0;
+        })(),
         url: attraction.url ? String(attraction.url) : undefined,
       }));
     } catch (error) {
