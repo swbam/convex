@@ -17,6 +17,8 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
   const navigate = useNavigate();
   const userVotes = useQuery(api.songVotes.getUserVotes, { limit: 100 });
   const user = useQuery(api.auth.loggedInUser);
+  const activityFeed = useQuery(api.activity.getUserActivityFeed, { limit: 50 });
+  const activityStats = useQuery(api.activity.getUserActivityStats);
   const [filter, setFilter] = useState<'all' | 'recent'>('all');
 
   // Group votes by date
@@ -95,13 +97,13 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
       </MagicCard>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <MagicCard className="p-0 rounded-xl border border-white/10 bg-black">
           <div className="p-4 sm:p-6 text-center">
             <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
               <Vote className="h-5 w-5 text-green-400" />
             </div>
-            <div className="text-3xl font-bold text-white mb-1">{totalVotes}</div>
+            <div className="text-3xl font-bold text-white mb-1">{activityStats?.totalVotes || 0}</div>
             <div className="text-sm text-gray-400">Total Votes</div>
           </div>
           <BorderBeam size={80} duration={8} className="opacity-20" />
@@ -112,8 +114,8 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
             <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
               <Music className="h-5 w-5 text-blue-400" />
             </div>
-            <div className="text-3xl font-bold text-white mb-1">{uniqueSetlists}</div>
-            <div className="text-sm text-gray-400">Shows Voted On</div>
+            <div className="text-3xl font-bold text-white mb-1">{activityStats?.totalSetlists || 0}</div>
+            <div className="text-sm text-gray-400">Setlists Created</div>
           </div>
           <BorderBeam size={80} duration={8} className="opacity-20" />
         </MagicCard>
@@ -123,8 +125,19 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
             <div className="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
               <TrendingUp className="h-5 w-5 text-purple-400" />
             </div>
-            <div className="text-3xl font-bold text-white mb-1">{recentVotes}</div>
-            <div className="text-sm text-gray-400">This Week</div>
+            <div className="text-3xl font-bold text-white mb-1">{activityStats?.accuracy || 0}%</div>
+            <div className="text-sm text-gray-400">Accuracy</div>
+          </div>
+          <BorderBeam size={80} duration={8} className="opacity-20" />
+        </MagicCard>
+
+        <MagicCard className="p-0 rounded-xl border border-white/10 bg-black">
+          <div className="p-4 sm:p-6 text-center">
+            <div className="w-10 h-10 bg-orange-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <Star className="h-5 w-5 text-orange-400" />
+            </div>
+            <div className="text-3xl font-bold text-white mb-1">{activityStats?.streak || 0}</div>
+            <div className="text-sm text-gray-400">Day Streak</div>
           </div>
           <BorderBeam size={80} duration={8} className="opacity-20" />
         </MagicCard>
@@ -162,73 +175,55 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
             Voting History
           </h2>
 
-          {!userVotes ? (
+          {!activityFeed ? (
             // Loading state
             <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
+              {[...Array(10)].map((_, i) => (
                 <div key={i} className="animate-pulse">
-                  <div className="h-4 bg-white/10 rounded w-32 mb-3" />
-                  <div className="space-y-2">
-                    <div className="h-16 bg-white/5 rounded-xl" />
-                  </div>
+                  <div className="h-16 bg-white/5 rounded-lg" />
                 </div>
               ))}
             </div>
-          ) : Object.keys(groupedVotes).length === 0 ? (
+          ) : activityFeed.length === 0 ? (
             // Empty state
             <div className="text-center py-12">
-              <Vote className="h-12 w-12 mx-auto mb-4 text-gray-500" />
-              <p className="text-gray-400 mb-4">
-                {filter === 'recent' ? 'No recent activity' : 'No voting activity yet'}
-              </p>
+              <Activity className="h-12 w-12 mx-auto mb-4 text-gray-500" />
+              <p className="text-gray-400 mb-4">No activity yet</p>
               <Button onClick={() => navigate('/shows')}>
-                Browse Shows
+                Start Voting on Shows
               </Button>
             </div>
           ) : (
             // Activity list
-            <div className="space-y-6">
-              {Object.entries(groupedVotes)
-                .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
-                .map(([date, votes]) => (
-                  <div key={date}>
-                    <h3 className="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      {date}
-                    </h3>
-                    <div className="space-y-2">
-                      {votes.map((vote) => (
-                        <div
-                          key={vote._id}
-                          className="p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-200"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-3">
-                              <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                                <Star className="h-4 w-4 text-primary" />
-                              </div>
-                              <div>
-                                <p className="font-medium text-white mb-1">
-                                  {vote.songTitle}
-                                </p>
-                                <p className="text-sm text-gray-400">
-                                  Voted for this song
-                                </p>
-                              </div>
-                            </div>
-                            <span className="text-xs text-gray-500">
-                              {new Date(vote.createdAt).toLocaleTimeString('en-US', {
-                                hour: 'numeric',
-                                minute: '2-digit',
-                                hour12: true
-                              })}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+            <div className="space-y-4">
+              {activityFeed.map((activity) => (
+                <div key={activity._id} className="flex items-start gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-200">
+                  <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+                    {activity.type === 'song_vote' && <Star className="h-5 w-5 text-primary" />}
+                    {activity.type === 'setlist_created' && <Music className="h-5 w-5 text-primary" />}
+                    {activity.type === 'show_attended' && <Calendar className="h-5 w-5 text-primary" />}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-medium text-white mb-1">
+                          {activity.type === 'song_vote' && `Voted for "${activity.data.songTitle}"`}
+                          {activity.type === 'setlist_created' && `Created setlist for ${activity.data.artistName}`}
+                          {activity.type === 'show_attended' && `Attended ${activity.data.artistName} show`}
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          {activity.type === 'song_vote' && `${activity.data.artistName} at ${activity.data.venueName}`}
+                          {activity.type === 'setlist_created' && `${activity.data.songsCount} songs • ${activity.data.venueName}`}
+                          {activity.type === 'show_attended' && `${activity.data.venueName} • ${activity.data.showDate}`}
+                        </p>
+                      </div>
+                      <span className="text-xs text-gray-500 whitespace-nowrap ml-4">
+                        {new Date(activity.timestamp).toLocaleString()}
+                      </span>
                     </div>
                   </div>
-                ))}
+                </div>
+              ))}
             </div>
           )}
         </div>
