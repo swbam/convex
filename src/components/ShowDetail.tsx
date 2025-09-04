@@ -24,6 +24,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
     limit: 100
   } : "skip");
   const setlists = useQuery(api.setlists.getByShow, show ? { showId } : "skip");
+  const setlistWithVotes = useQuery(api.setlists.getSetlistWithVotes, show ? { showId } : "skip");
   const user = useQuery(api.auth.loggedInUser);
 
   const addSongToSetlist = useMutation(api.setlists.addSongToSetlist);
@@ -33,8 +34,8 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
   // Get the shared community setlist (there should only be one per show)
   const communitySetlist = setlists?.find(s => !s.isOfficial) || null;
   
-  // Check if community setlist has actual setlist data from setlist.fm
-  const hasActualSetlist = communitySetlist?.actualSetlist && communitySetlist.actualSetlist.length > 0;
+  // Check if we have actual setlist data from setlist.fm using the proper query
+  const hasActualSetlist = setlistWithVotes?.hasActualSetlist || false;
 
   const handleAnonymousAction = () => {
     if (anonymousActions >= 4) { // Allow 2 song additions + 2 votes = 4 total actions
@@ -169,16 +170,16 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                     <Music className="h-5 w-5 text-white" />
                   </div>
                   <h2 className="text-2xl sm:text-3xl font-bold text-white">
-                    {officialSetlist ? "Official Setlist" : "Vote on the Setlist"}
+                    {hasActualSetlist ? "Official Setlist" : "Vote on the Setlist"}
                   </h2>
                 </div>
                 <div className="flex items-center gap-4">
-                  {(communitySetlist || officialSetlist) && (
+                  {(setlistWithVotes || communitySetlist || officialSetlist) && (
                     <div className="text-lg font-medium text-gray-300">
-                      {(officialSetlist?.songs?.length || communitySetlist?.songs?.length || 0)} songs
+                      {hasActualSetlist ? (setlistWithVotes?.actualSetlist?.length || 0) : (communitySetlist?.songs?.length || 0)} songs
               </div>
             )}
-                  {communitySetlist && !officialSetlist && (
+                  {communitySetlist && !hasActualSetlist && (
                     <div className="text-sm text-gray-400 bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm">
                       Community Predictions
             </div>
@@ -263,19 +264,19 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                     </div>
                     
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-white">{communitySetlist.actualSetlist?.length || 0}</div>
+                      <div className="text-2xl font-bold text-white">{setlistWithVotes?.actualSetlist?.length || 0}</div>
                       <div className="text-xs text-gray-400">songs played</div>
                     </div>
                   </div>
                   
                   <div className="space-y-3">
-                    {(communitySetlist.actualSetlist || []).map((song: any, index: number) => (
+                    {(setlistWithVotes?.actualSetlist || []).map((song: any, index: number) => (
                       <ActualSetlistSongRow
                         key={`actual-${index}`}
                         song={song}
                         index={index}
                         communitySetlist={communitySetlist}
-                        setlistId={communitySetlist._id}
+                        setlistId={communitySetlist?._id}
                       />
                     ))}
                   </div>
@@ -314,6 +315,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                             index={index}
                             communitySetlist={communitySetlist}
                             setlistId={communitySetlist._id}
+                            setlistWithVotes={setlistWithVotes}
                           />
                         ))}
                     </div>
@@ -341,7 +343,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                           <div className="text-3xl font-bold text-purple-400">
                             {Math.round(((communitySetlist.songs || []).filter((s: any) => {
                               const songTitle = typeof s === 'string' ? s : s?.title;
-                              return (communitySetlist.actualSetlist || []).some(actualSong => actualSong.title === songTitle);
+                              return (setlistWithVotes?.actualSetlist || []).some(actualSong => actualSong.title === songTitle);
                             }).length / (communitySetlist.songs || []).length) * 100)}%
                           </div>
                           <div className="text-xs text-gray-400">accuracy rate</div>
@@ -351,7 +353,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                   </div>
                 )}
               </div>
-            ) : !communitySetlist || (communitySetlist.songs?.length || 0) === 0 ? (
+            ) : !hasActualSetlist && (!communitySetlist || (communitySetlist.songs?.length || 0) === 0) ? (
               // No songs in shared setlist yet
               <div className="text-center py-12 text-muted-foreground">
                 <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -427,7 +429,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-400">Songs {hasActualSetlist ? 'played' : 'in setlist'}</span>
                   <span className="font-medium text-white">
-                    {hasActualSetlist ? communitySetlist.actualSetlist?.length || 0 : communitySetlist?.songs?.length || 0}
+                    {hasActualSetlist ? setlistWithVotes?.actualSetlist?.length || 0 : communitySetlist?.songs?.length || 0}
                   </span>
                 </div>
                 
@@ -508,14 +510,16 @@ function FanRequestSongRow({
   songTitle,
   index,
   communitySetlist,
-  setlistId
+  setlistId,
+  setlistWithVotes
 }: {
   songTitle: string;
   index: number;
   communitySetlist: any;
   setlistId: Id<"setlists">;
+  setlistWithVotes?: any;
 }) {
-  const wasPlayed = (communitySetlist.actualSetlist || []).some(
+  const wasPlayed = (setlistWithVotes?.actualSetlist || []).some(
     (actualSong: any) => actualSong.title === songTitle
   );
   

@@ -109,9 +109,20 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                       <p>No trending artists data available</p>
                     </div>
                   ) : (
-                    trendingArtists.map((artist, index) => (
+                    // Frontend deduplication as final safeguard
+                    trendingArtists
+                      .filter((artist, index, arr) => {
+                        // Remove duplicates by Spotify ID
+                        if (artist.spotifyId) {
+                          return arr.findIndex(a => a.spotifyId === artist.spotifyId) === index;
+                        }
+                        // Remove duplicates by name (normalized)
+                        const normalizedName = artist.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        return arr.findIndex(a => a.name.toLowerCase().replace(/[^a-z0-9]/g, '') === normalizedName) === index;
+                      })
+                      .map((artist, index) => (
                       <div
-                        key={`${artist.ticketmasterId}-${index}`}
+                        key={`${artist._id}-${index}`}
                         className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer transition-all duration-200"
                         onClick={() => handleArtistClick(artist)}
                       >
@@ -187,9 +198,16 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                       <p>No trending shows data available</p>
                     </div>
                   ) : (
-                    trendingShows.map((show, index) => (
+                    // Frontend deduplication for shows as final safeguard
+                    trendingShows
+                      .filter((show, index, arr) => {
+                        // Remove duplicates by artist ID
+                        const artistId = show.artistId || show.artist?._id;
+                        return arr.findIndex(s => (s.artistId || s.artist?._id) === artistId) === index;
+                      })
+                      .map((show, index) => (
                       <div
-                        key={`${show.ticketmasterId}-${index}`}
+                        key={`${show._id}-${index}`}
                         className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer transition-all duration-200"
                         onClick={() => handleShowClick(show)}
                       >

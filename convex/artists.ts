@@ -65,24 +65,95 @@ export const getTrending = query({
     const limit = args.limit || 20;
     
     // Use the optimized trending system - just query by the pre-calculated trending rank
-    const trending = await ctx.db
+    const candidates = await ctx.db
       .query("artists")
       .withIndex("by_trending_rank")
       .filter((q) => q.neq(q.field("trendingRank"), undefined))
-      .take(limit);
+      .take(limit * 10); // Get way more candidates for thorough deduplication
     
-    // If no trending data, fallback to sorting by popularity
-    if (trending.length === 0) {
-      return await ctx.db
+    // Use Map for bulletproof deduplication
+    const seenSpotifyIds = new Map<string, any>();
+    const seenNormalizedNames = new Map<string, any>();
+    const uniqueArtists: any[] = [];
+
+    for (const artist of candidates) {
+      let isDuplicate = false;
+      
+      // Check Spotify ID duplicates
+      if (artist.spotifyId) {
+        if (seenSpotifyIds.has(artist.spotifyId)) {
+          isDuplicate = true;
+        } else {
+          seenSpotifyIds.set(artist.spotifyId, artist);
+        }
+      }
+      
+      // Check name duplicates (handles tribute bands)
+      if (!isDuplicate) {
+        const normalizedName = artist.name.toLowerCase()
+          .replace(/\\b(tribute|band|the)\\b/g, '')
+          .replace(/[^a-z0-9]/g, '')
+          .trim();
+        
+        if (seenNormalizedNames.has(normalizedName)) {
+          isDuplicate = true;
+        } else {\n          seenNormalizedNames.set(normalizedName, artist);
+        }
+      }
+      
+      if (!isDuplicate) {
+        uniqueArtists.push(artist);
+      }
+    }
+    
+    // If no trending data after dedup, fallback to sorting by popularity
+    if (uniqueArtists.length === 0) {
+      const fallback = await ctx.db
         .query("artists")
         .filter((q) => q.eq(q.field("isActive"), true))
         .order("desc")
-        .take(limit);
+        .take(limit * 5);
+      
+      // Apply same deduplication to fallback
+      const fallbackUnique: any[] = [];
+      const seenSpotifyIdsFallback = new Map<string, any>();
+      const seenNamesFallback = new Map<string, any>();
+      
+      for (const artist of fallback) {
+        let isDuplicate = false;
+        
+        if (artist.spotifyId) {
+          if (seenSpotifyIdsFallback.has(artist.spotifyId)) {
+            isDuplicate = true;
+          } else {
+            seenSpotifyIdsFallback.set(artist.spotifyId, artist);
+          }
+        }
+        
+        if (!isDuplicate) {
+          const normalizedName = artist.name.toLowerCase()
+            .replace(/\\b(tribute|band|the)\\b/g, '')
+            .replace(/[^a-z0-9]/g, '')
+            .trim();
+          
+          if (seenNamesFallback.has(normalizedName)) {
+            isDuplicate = true;
+          } else {
+            seenNamesFallback.set(normalizedName, artist);
+          }
+        }
+        
+        if (!isDuplicate) {
+          fallbackUnique.push(artist);
+        }
+      }
+      
+      return fallbackUnique.slice(0, limit);
     }
     
-    return trending;
-  },
-});
+    // Sort by trending rank
+    const sorted = uniqueArtists
+      .sort((a: any, b: any) => {\n        const ar = a.trendingRank ?? Number.MAX_SAFE_INTEGER;\n        const br = b.trendingRank ?? Number.MAX_SAFE_INTEGER;\n        return ar - br;\n      });\n    \n    return sorted.slice(0, limit);\n  },\n});"}
 
 export const search = query({
   args: { 
