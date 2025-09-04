@@ -32,19 +32,37 @@ export const getTrendingShows = query({
       })
     );
 
-    // Sort by trendingRank ascending (1 is top), then by soonest date
+    // Sort by ARTIST trending rank first, then by show trending rank, then by soonest date
     const sorted = enriched
       .sort((a: any, b: any) => {
-        const ar = a.trendingRank ?? Number.MAX_SAFE_INTEGER;
-        const br = b.trendingRank ?? Number.MAX_SAFE_INTEGER;
-        if (ar !== br) return ar - br;
+        // Primary: Artist trending rank (lower is better)
+        const aArtistRank = a.artist?.trendingRank ?? Number.MAX_SAFE_INTEGER;
+        const bArtistRank = b.artist?.trendingRank ?? Number.MAX_SAFE_INTEGER;
+        if (aArtistRank !== bArtistRank) return aArtistRank - bArtistRank;
+        
+        // Secondary: Show trending rank (lower is better)
+        const aShowRank = a.trendingRank ?? Number.MAX_SAFE_INTEGER;
+        const bShowRank = b.trendingRank ?? Number.MAX_SAFE_INTEGER;
+        if (aShowRank !== bShowRank) return aShowRank - bShowRank;
+        
+        // Tertiary: Soonest date first
         const at = new Date(a.date).getTime();
         const bt = new Date(b.date).getTime();
         return at - bt;
-      })
-      .slice(0, limit);
+      });
 
-    return sorted;
+    // THEN deduplicate by artist, keeping the first (best) show per artist
+    const seenArtistIds = new Set<string>();
+    const deduped = sorted.filter(show => {
+      const artistIdStr = String(show.artistId);
+      if (seenArtistIds.has(artistIdStr)) {
+        return false;
+      }
+      seenArtistIds.add(artistIdStr);
+      return true;
+    });
+
+    return deduped.slice(0, limit);
   },
 });
 
@@ -61,7 +79,33 @@ export const getTrendingArtists = query({
       .filter((q) => q.neq(q.field("trendingRank"), undefined))
       .take(limit * 5);
 
-    const sorted = candidates
+    // Deduplicate by Spotify ID and name to avoid duplicate artists
+    const seenSpotifyIds = new Set<string>();
+    const seenNames = new Set<string>();
+    const deduped = candidates.filter(artist => {
+      // Skip if we've seen this Spotify ID before
+      if (artist.spotifyId && seenSpotifyIds.has(artist.spotifyId)) {
+        return false;
+      }
+      
+      // Skip if we've seen a very similar name before (handles tribute bands)
+      const normalizedName = artist.name.toLowerCase()
+        .replace(/tribute|band|the /g, '')
+        .trim();
+      if (seenNames.has(normalizedName)) {
+        return false;
+      }
+      
+      // Add to seen sets
+      if (artist.spotifyId) {
+        seenSpotifyIds.add(artist.spotifyId);
+      }
+      seenNames.add(normalizedName);
+      
+      return true;
+    });
+
+    const sorted = deduped
       .sort((a: any, b: any) => {
         const ar = a.trendingRank ?? Number.MAX_SAFE_INTEGER;
         const br = b.trendingRank ?? Number.MAX_SAFE_INTEGER;

@@ -65,22 +65,73 @@ export const getTrending = query({
     const limit = args.limit || 20;
     
     // Use the optimized trending system - just query by the pre-calculated trending rank
-    const trending = await ctx.db
+    const candidates = await ctx.db
       .query("artists")
       .withIndex("by_trending_rank")
       .filter((q) => q.neq(q.field("trendingRank"), undefined))
-      .take(limit);
+      .take(limit * 3); // Get more candidates for deduplication
     
-    // If no trending data, fallback to sorting by popularity
-    if (trending.length === 0) {
-      return await ctx.db
+    // Deduplicate by Spotify ID and name to avoid duplicate artists
+    const seenSpotifyIds = new Set<string>();
+    const seenNames = new Set<string>();
+    const deduped = candidates.filter(artist => {
+      // Skip if we've seen this Spotify ID before
+      if (artist.spotifyId && seenSpotifyIds.has(artist.spotifyId)) {
+        return false;
+      }
+      
+      // Skip if we've seen a very similar name before (handles tribute bands)
+      const normalizedName = artist.name.toLowerCase()
+        .replace(/tribute|band|the /g, '')
+        .trim();
+      if (seenNames.has(normalizedName)) {
+        return false;
+      }
+      
+      // Add to seen sets
+      if (artist.spotifyId) {
+        seenSpotifyIds.add(artist.spotifyId);
+      }
+      seenNames.add(normalizedName);
+      
+      return true;
+    });
+    
+    // If no trending data after dedup, fallback to sorting by popularity
+    if (deduped.length === 0) {
+      const fallback = await ctx.db
         .query("artists")
         .filter((q) => q.eq(q.field("isActive"), true))
         .order("desc")
-        .take(limit);
+        .take(limit * 2);
+      
+      // Apply same deduplication to fallback
+      const seenSpotifyIdsFallback = new Set<string>();
+      const seenNamesFallback = new Set<string>();
+      const dedupedFallback = fallback.filter(artist => {
+        if (artist.spotifyId && seenSpotifyIdsFallback.has(artist.spotifyId)) {
+          return false;
+        }
+        
+        const normalizedName = artist.name.toLowerCase()
+          .replace(/tribute|band|the /g, '')
+          .trim();
+        if (seenNamesFallback.has(normalizedName)) {
+          return false;
+        }
+        
+        if (artist.spotifyId) {
+          seenSpotifyIdsFallback.add(artist.spotifyId);
+        }
+        seenNamesFallback.add(normalizedName);
+        
+        return true;
+      });
+      
+      return dedupedFallback.slice(0, limit);
     }
     
-    return trending;
+    return deduped.slice(0, limit);
   },
 });
 

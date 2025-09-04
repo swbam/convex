@@ -65,25 +65,38 @@ export const getUpcoming = query({
       .query("shows")
       .withIndex("by_status", (q) => q.eq("status", "upcoming"))
       .order("asc")
-      .take(limit);
+      .take(limit * 3); // Get more candidates for deduplication
     
-      // Populate artist and venue data
-  const enrichedShows = await Promise.all(
-    shows.map(async (show) => {
-      const [artist, venue] = await Promise.all([
-        ctx.db.get(show.artistId),
-        ctx.db.get(show.venueId),
-      ]);
-      // Skip shows with missing artist or venue
-      if (!artist || !venue) {
-        return null;
+    // Populate artist and venue data
+    const enrichedShows = await Promise.all(
+      shows.map(async (show) => {
+        const [artist, venue] = await Promise.all([
+          ctx.db.get(show.artistId),
+          ctx.db.get(show.venueId),
+        ]);
+        // Skip shows with missing artist or venue
+        if (!artist || !venue) {
+          return null;
+        }
+        return { ...show, artist, venue };
+      })
+    );
+    
+    // Filter out null values
+    const validShows = enrichedShows.filter(show => show !== null);
+    
+    // Deduplicate by artist to show only one show per artist on homepage
+    const seenArtistIds = new Set<string>();
+    const deduped = validShows.filter(show => {
+      const artistIdStr = String(show.artistId);
+      if (seenArtistIds.has(artistIdStr)) {
+        return false;
       }
-      return { ...show, artist, venue };
-    })
-  );
-  
-  // Filter out null values
-  return enrichedShows.filter(show => show !== null);
+      seenArtistIds.add(artistIdStr);
+      return true;
+    });
+    
+    return deduped.slice(0, limit);
   },
 });
 
