@@ -2,6 +2,7 @@ import React from 'react'
 import { Id } from '../../convex/_generated/dataModel'
 import { MagicCard } from './ui/magic-card'
 import { BorderBeam } from './ui/border-beam'
+import { FollowButton } from './FollowButton'
 import { Users } from 'lucide-react'
 
 interface Artist {
@@ -95,20 +96,14 @@ export function ArtistCard({
             View Profile
           </button>
           
-          {showFollowButton && onFollow && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                void onFollow(artist._id)
-              }}
-              className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-responsive-xs sm:text-responsive-sm font-semibold transition-all duration-200 touch-target ${
-                isFollowing 
-                  ? 'bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30' 
-                  : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
-              }`}
-            >
-              {isFollowing ? 'Following' : 'Follow'}
-            </button>
+          {showFollowButton && (
+            <FollowButton
+              artistId={artist._id}
+              artistName={artist.name}
+              variant="outline"
+              size="sm"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 text-responsive-xs sm:text-responsive-sm touch-target"
+            />
           )}
         </div>
       </div>

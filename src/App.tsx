@@ -11,6 +11,8 @@ import { Artists } from "./components/Artists";
 import { Shows } from "./components/Shows";
 
 import { Trending } from "./components/Trending";
+import { EnhancedTrending } from "./components/EnhancedTrending";
+import { EnhancedProfilePage } from "./components/EnhancedProfilePage";
 
 import { AppLayout } from "./components/AppLayout";
 import { ScrollToTop } from "./components/ScrollToTop";
@@ -295,7 +297,7 @@ function App() {
         );
       case "trending":
         return (
-          <Trending 
+          <EnhancedTrending 
             onArtistClick={handleArtistClick}
             onShowClick={handleShowClick}
           />
@@ -325,7 +327,7 @@ function App() {
           );
         }
         return (
-          <UserDashboard 
+          <EnhancedProfilePage 
             onArtistClick={handleArtistClick}
             onShowClick={handleShowClick}
           />
