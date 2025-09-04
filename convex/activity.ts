@@ -14,7 +14,7 @@ export const getUserActivityFeed = query({
     type: v.union(
       v.literal("song_vote"),
       v.literal("setlist_created"),
-      v.literal("artist_followed"),
+      v.literal(""),
       v.literal("show_attended")
     ),
     timestamp: v.number(),
@@ -115,7 +115,7 @@ export const getUserActivityFeed = query({
         if (artist) {
           activities.push({
             _id: `follow_${follow._id}`,
-            type: "artist_followed",
+            type: "",
             timestamp: follow.createdAt,
             data: {
               artistName: artist.name,
@@ -142,7 +142,6 @@ export const getUserActivityStats = query({
   returns: v.object({
     totalVotes: v.number(),
     totalSetlists: v.number(),
-    totalFollows: v.number(),
     recentVotes: v.number(),
     accuracy: v.number(),
     streak: v.number(),
@@ -156,7 +155,6 @@ export const getUserActivityStats = query({
       return {
         totalVotes: 0,
         totalSetlists: 0,
-        totalFollows: 0,
         recentVotes: 0,
         accuracy: 0,
         streak: 0,
@@ -171,7 +169,6 @@ export const getUserActivityStats = query({
       return {
         totalVotes: 0,
         totalSetlists: 0,
-        totalFollows: 0,
         recentVotes: 0,
         accuracy: 0,
         streak: 0,
@@ -233,13 +230,11 @@ export const getUserActivityStats = query({
     return {
       totalVotes: votes.length,
       totalSetlists: setlists.length,
-      totalFollows,
       recentVotes,
       accuracy,
       streak,
       rank: userRank,
       joinedAt: user._creationTime,
-      isSpotifyUser: !!(user.spotifyId),
     };
   },
 });

@@ -2,9 +2,6 @@ import React from 'react'
 import { Id } from '../../convex/_generated/dataModel'
 import { MagicCard } from './ui/magic-card'
 import { BorderBeam } from './ui/border-beam'
-import { SpotifyFollowButton, SpotifyRequiredButton } from './SpotifyFollowButton'
-import { useQuery } from 'convex/react'
-import { api } from '../../convex/_generated/api'
 import { Users } from 'lucide-react'
 
 interface Artist {
@@ -21,15 +18,12 @@ interface Artist {
 interface ArtistCardProps {
   artist: Artist
   onClick: (artistId: Id<'artists'>, slug?: string) => void
-  showFollowButton?: boolean
 }
 
 export function ArtistCard({ 
   artist, 
-  onClick,
-  showFollowButton = false
+  onClick
 }: ArtistCardProps) {
-  const isSpotifyUser = useQuery(api.spotifyFollowing.isSpotifyUser);
   const handleClick = () => {
     onClick(artist._id, artist.slug)
   }
@@ -83,36 +77,17 @@ export function ArtistCard({
           </div>
         </div>
         
-        {/* Action Buttons */}
-        <div className="mt-auto flex gap-1.5 sm:gap-2">
+        {/* Single Action Button */}
+        <div className="mt-auto">
           <button
             onClick={(e) => {
               e.stopPropagation()
               onClick(artist._id, artist.slug)
             }}
-            className={`${showFollowButton ? 'flex-1' : 'w-full'} bg-white/10 hover:bg-primary hover:text-primary-foreground text-white rounded-lg sm:rounded-xl py-2 sm:py-2.5 px-3 sm:px-4 text-responsive-xs sm:text-responsive-sm font-semibold transition-all duration-200 border border-white/20 hover:border-primary/30 touch-target`}
+            className="w-full bg-white/10 hover:bg-primary hover:text-primary-foreground text-white rounded-lg sm:rounded-xl py-2 sm:py-2.5 px-3 sm:px-4 text-responsive-xs sm:text-responsive-sm font-semibold transition-all duration-200 border border-white/20 hover:border-primary/30 touch-target"
           >
             View Profile
           </button>
-          
-          {showFollowButton && (
-            <div onClick={(e) => e.stopPropagation()}>
-              {isSpotifyUser ? (
-                <SpotifyFollowButton
-                  artistId={artist._id}
-                  artistName={artist.name}
-                  variant="outline"
-                  size="sm"
-                  className="px-3 sm:px-4 py-2 sm:py-2.5 text-responsive-xs sm:text-responsive-sm touch-target"
-                />
-              ) : (
-                <SpotifyRequiredButton
-                  size="sm"
-                  className="px-3 sm:px-4 py-2 sm:py-2.5 text-responsive-xs sm:text-responsive-sm touch-target"
-                />
-              )}
-            </div>
-          )}
         </div>
       </div>
       
