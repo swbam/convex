@@ -144,3 +144,81 @@ export const cleanupOrphanedRecords = internalAction({
     return null;
   },
 });
+
+// Fix existing NaN values in the database
+export const fixNaNValues = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    console.log("🔧 Fixing NaN values in database...");
+    
+    try {
+      // Fix artists with NaN trending scores
+      const artists = await ctx.runQuery(internal.artists.getAllForMaintenance, {});
+      let fixedArtists = 0;
+      
+      for (const artist of artists) {
+        let needsUpdate = false;
+        
+        // Fix NaN trendingScore by recalculating
+        if (typeof artist.trendingScore === 'number' && !Number.isFinite(artist.trendingScore)) {
+          needsUpdate = true;
+        }
+        
+        // Fix NaN popularity
+        if (typeof artist.popularity === 'number' && !Number.isFinite(artist.popularity)) {
+          await ctx.runMutation(internal.artists.updateSpotifyData, {
+            artistId: artist._id,
+            spotifyId: artist.spotifyId || "",
+            followers: artist.followers,
+            popularity: undefined, // Reset NaN popularity
+            genres: artist.genres || [],
+            images: artist.images || [],
+          });
+          needsUpdate = true;
+        }
+        
+        // Fix NaN followers
+        if (typeof artist.followers === 'number' && !Number.isFinite(artist.followers)) {
+          await ctx.runMutation(internal.artists.updateSpotifyData, {
+            artistId: artist._id,
+            spotifyId: artist.spotifyId || "",
+            followers: undefined, // Reset NaN followers
+            popularity: artist.popularity,
+            genres: artist.genres || [],
+            images: artist.images || [],
+          });
+          needsUpdate = true;
+        }
+        
+        if (needsUpdate) {
+          fixedArtists++;
+        }
+      }
+      
+      console.log(`✅ Fixed ${fixedArtists} artists with NaN values`);
+      
+      // Recalculate trending scores with proper NaN handling
+      await ctx.runMutation(internal.trending.updateArtistShowCounts, {});
+      await ctx.runMutation(internal.trending.updateArtistTrending, {});
+      await ctx.runMutation(internal.trending.updateShowTrending, {});
+      
+      console.log("✅ Recalculated trending scores");
+      
+    } catch (error) {
+      console.error("❌ Failed to fix NaN values:", error);
+    }
+    
+    return null;
+  },
+});
+
+// Public action to trigger NaN fix
+export const triggerNaNFix = action({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    await ctx.runAction(internal.maintenance.fixNaNValues, {});
+    return null;
+  },
+});
