@@ -94,11 +94,11 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                   <TrendingUp className="h-5 w-5 text-white" />
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold text-white">
-                  Top Trending {activeTab === 'artists' ? 'Artists' : 'Shows'}
+                  Top Trending {activeTab === 'artists' ? 'Artists' : activeTab === 'shows' ? 'Shows' : 'Setlists'}
                 </h2>
               </div>
 
-              {activeTab === 'artists' ? (
+              {activeTab === 'artists' && (
                 // Artists Tab
                 <div className="space-y-3">
                   {!trendingArtists ? (
@@ -176,7 +176,9 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                     ))
                   )}
                 </div>
-              ) : (
+              )}
+              
+              {activeTab === 'shows' && (
                 // Shows Tab
                 <div className="space-y-3">
                   {!trendingShows ? (
@@ -251,7 +253,9 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                     ))
                   )}
                 </div>
-              ) : (
+              )}
+              
+              {activeTab === 'setlists' && (
                 // Setlists Tab
                 <div className="space-y-3">
                   {!trendingSetlists ? (
