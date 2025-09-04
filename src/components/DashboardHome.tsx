@@ -220,7 +220,7 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
                       </div>
                     )}
                   </div>
-                  {artist.trendingScore && (
+                  {(typeof artist.trendingScore === 'number' && Number.isFinite(artist.trendingScore) && artist.trendingScore > 0) && (
                     <div className="text-sm font-medium text-primary">
                       {artist.trendingScore}
                     </div>

@@ -18,17 +18,11 @@ interface Artist {
 interface ArtistCardProps {
   artist: Artist
   onClick: (artistId: Id<'artists'>, slug?: string) => void
-  onFollow?: (artistId: Id<'artists'>) => void
-  isFollowing?: boolean
-  showFollowButton?: boolean
 }
 
 export function ArtistCard({ 
   artist, 
-  onClick, 
-  onFollow, 
-  isFollowing = false, 
-  showFollowButton = false 
+  onClick
 }: ArtistCardProps) {
   const handleClick = () => {
     onClick(artist._id, artist.slug)
@@ -83,33 +77,17 @@ export function ArtistCard({
           </div>
         </div>
         
-        {/* Single Action Button - Clean */}
-        <div className="mt-auto flex gap-1.5 sm:gap-2">
+        {/* Single Action Button */}
+        <div className="mt-auto">
           <button
             onClick={(e) => {
               e.stopPropagation()
               onClick(artist._id, artist.slug)
             }}
-            className="flex-1 bg-white/10 hover:bg-primary hover:text-primary-foreground text-white rounded-lg sm:rounded-xl py-2 sm:py-2.5 px-3 sm:px-4 text-responsive-xs sm:text-responsive-sm font-semibold transition-all duration-200 border border-white/20 hover:border-primary/30 touch-target"
+            className="w-full bg-white/10 hover:bg-primary hover:text-primary-foreground text-white rounded-lg sm:rounded-xl py-2 sm:py-2.5 px-3 sm:px-4 text-responsive-xs sm:text-responsive-sm font-semibold transition-all duration-200 border border-white/20 hover:border-primary/30 touch-target"
           >
             View Profile
           </button>
-          
-          {showFollowButton && onFollow && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                void onFollow(artist._id)
-              }}
-              className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-responsive-xs sm:text-responsive-sm font-semibold transition-all duration-200 touch-target ${
-                isFollowing 
-                  ? 'bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30' 
-                  : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
-              }`}
-            >
-              {isFollowing ? 'Following' : 'Follow'}
-            </button>
-          )}
         </div>
       </div>
       

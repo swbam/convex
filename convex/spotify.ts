@@ -141,8 +141,14 @@ export const syncArtistCatalog = internalAction({
       await ctx.runMutation(internal.artists.updateSpotifyData, {
         artistId: args.artistId,
         spotifyId: spotifyArtist.id,
-        followers: spotifyArtist.followers?.total,
-        popularity: spotifyArtist.popularity,
+        followers: (() => {
+          const followers = spotifyArtist.followers?.total;
+          return typeof followers === 'number' && Number.isFinite(followers) ? followers : undefined;
+        })(),
+        popularity: (() => {
+          const popularity = spotifyArtist.popularity;
+          return typeof popularity === 'number' && Number.isFinite(popularity) ? popularity : undefined;
+        })(),
         genres: spotifyArtist.genres || [],
         images: spotifyArtist.images?.map((img: any) => img.url) || [],
       });

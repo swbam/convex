@@ -63,7 +63,11 @@ export function TrendingArtists({ onArtistClick }: TrendingArtistsProps) {
             )}
           </div>
           <div className="text-right">
-            <div className="text-sm font-medium">{artist.trendingScore || 0}</div>
+            <div className="text-sm font-medium">
+              {typeof artist.trendingScore === 'number' && Number.isFinite(artist.trendingScore) 
+                ? artist.trendingScore 
+                : 0}
+            </div>
             <div className="text-xs text-muted-foreground">trending</div>
           </div>
         </div>

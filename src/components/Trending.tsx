@@ -12,11 +12,12 @@ interface TrendingProps {
 }
 
 export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
-  const [activeTab, setActiveTab] = useState<'artists' | 'shows'>('artists');
+  const [activeTab, setActiveTab] = useState<'artists' | 'shows' | 'setlists'>('artists');
   
   // Get trending data directly from main tables with trending ranks!
   const trendingArtists = useQuery(api.trending.getTrendingArtists, { limit: 20 });
   const trendingShows = useQuery(api.trending.getTrendingShows, { limit: 20 });
+  const trendingSetlists = useQuery(api.activity.getTrendingSetlists, { limit: 20 });
   
   // Get recent activity/updates
   const recentActivity = useQuery(api.shows.getRecentlyUpdated, { limit: 10 });
@@ -50,10 +51,10 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
       </MagicCard>
 
       {/* Tab Navigation */}
-      <div className="flex gap-2 p-1 bg-white/5 rounded-xl backdrop-blur-sm border border-white/10">
+      <div className="grid grid-cols-3 gap-2 p-1 bg-white/5 rounded-xl backdrop-blur-sm border border-white/10">
         <button
           onClick={() => setActiveTab('artists')}
-          className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
+          className={`py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
             activeTab === 'artists'
               ? 'bg-white/10 text-white border border-white/20'
               : 'text-gray-400 hover:text-white hover:bg-white/5'
@@ -63,13 +64,23 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
         </button>
         <button
           onClick={() => setActiveTab('shows')}
-          className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
+          className={`py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
             activeTab === 'shows'
               ? 'bg-white/10 text-white border border-white/20'
               : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
           Shows
+        </button>
+        <button
+          onClick={() => setActiveTab('setlists')}
+          className={`py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
+            activeTab === 'setlists'
+              ? 'bg-white/10 text-white border border-white/20'
+              : 'text-gray-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          Setlists
         </button>
       </div>
 
@@ -83,11 +94,11 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                   <TrendingUp className="h-5 w-5 text-white" />
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold text-white">
-                  Top Trending {activeTab === 'artists' ? 'Artists' : 'Shows'}
+                  Top Trending {activeTab === 'artists' ? 'Artists' : activeTab === 'shows' ? 'Shows' : 'Setlists'}
                 </h2>
               </div>
 
-              {activeTab === 'artists' ? (
+              {activeTab === 'artists' && (
                 // Artists Tab
                 <div className="space-y-3">
                   {!trendingArtists ? (
@@ -165,7 +176,9 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                     ))
                   )}
                 </div>
-              ) : (
+              )}
+              
+              {activeTab === 'shows' && (
                 // Shows Tab
                 <div className="space-y-3">
                   {!trendingShows ? (
@@ -235,6 +248,77 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                             <span className="text-sm font-medium">0.0%</span>
                           </div>
                           <div className="text-xs text-gray-500">Score: {95 - index}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+              
+              {activeTab === 'setlists' && (
+                // Setlists Tab
+                <div className="space-y-3">
+                  {!trendingSetlists ? (
+                    [...Array(10)].map((_, i) => (
+                      <div key={i} className="animate-pulse">
+                        <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5">
+                          <div className="w-12 h-12 bg-white/10 rounded" />
+                          <div className="flex-1 space-y-2">
+                            <div className="h-5 bg-white/10 rounded w-2/3" />
+                            <div className="h-4 bg-white/10 rounded w-1/2" />
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : trendingSetlists.length === 0 ? (
+                    <div className="text-center py-12 text-gray-400">
+                      <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No trending setlists available</p>
+                    </div>
+                  ) : (
+                    trendingSetlists.map((setlist, index) => (
+                      <div
+                        key={setlist._id}
+                        className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer transition-all duration-200"
+                      >
+                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 text-white font-bold">
+                          {index + 1}
+                        </div>
+                        
+                        {setlist.artist?.images?.[0] ? (
+                          <img
+                            src={setlist.artist.images[0]}
+                            alt={setlist.artist.name}
+                            className="w-12 h-12 rounded object-cover"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded bg-white/10 flex items-center justify-center">
+                            <Music className="h-6 w-6 text-white/50" />
+                          </div>
+                        )}
+                        
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-white">{setlist.artist?.name}</h3>
+                          <div className="flex items-center gap-3 text-sm text-gray-400">
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3.5 w-3.5" />
+                              {setlist.venue?.name}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Music className="h-3.5 w-3.5" />
+                              {setlist.songs.length} songs
+                            </span>
+                          </div>
+                          {setlist.verified && (
+                            <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full mt-1 inline-block">
+                              ✓ Verified
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="text-right">
+                          <div className="text-sm font-medium text-white">{setlist.voteCount}</div>
+                          <div className="text-xs text-gray-500">votes</div>
                         </div>
                       </div>
                     ))

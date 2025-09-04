@@ -1,7 +1,47 @@
-import { action, mutation, query, internalAction } from "./_generated/server";
+import { action, mutation, query, internalAction, QueryCtx, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
+
+// Helper function to check if user is admin
+export const requireAdmin = async (ctx: QueryCtx | MutationCtx): Promise<Id<"users">> => {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new Error("Must be logged in");
+  }
+  
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
+    .first();
+  
+  if (!user) {
+    throw new Error("User not found");
+  }
+  
+  if (user.role !== "admin") {
+    throw new Error("Admin access required");
+  }
+  
+  return user._id;
+};
+
+// Check if current user is admin (for frontend)
+export const isCurrentUserAdmin = query({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return false;
+    
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
+      .first();
+    
+    return user?.role === "admin" || false;
+  },
+});
 
 // ===== USER MANAGEMENT =====
 
@@ -9,8 +49,9 @@ export const getAllUsers = query({
   args: { limit: v.optional(v.number()) },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
+    await requireAdmin(ctx); // Admin access required
     const limit = args.limit || 50;
-    const users = await ctx.db.query("users").take(limit);
+    const users = await ctx.db.query("users").order("desc").take(limit);
     return users;
   },
 });
@@ -68,6 +109,7 @@ export const getFlaggedContent = query({
   },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
+    await requireAdmin(ctx); // Admin access required
     const query = ctx.db.query("contentFlags");
     
     if (args.status) {
@@ -101,6 +143,7 @@ export const getAdminStats = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
+    await requireAdmin(ctx); // Admin access required
     const [users, artists, shows, setlists, votes] = await Promise.all([
       ctx.db.query("users").collect(),
       ctx.db.query("artists").collect(),
@@ -556,6 +599,7 @@ export const getSystemHealth = query({
     }),
   }),
   handler: async (ctx) => {
+    await requireAdmin(ctx); // Admin access required
     const [artists, shows, songs, votes] = await Promise.all([
       ctx.db.query("artists").collect(),
       ctx.db.query("shows").collect(),

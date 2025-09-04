@@ -101,10 +101,20 @@ export const updateArtistTrending = internalMutation({
   returns: v.null(),
   handler: async (ctx) => {
     const artists = await ctx.db.query("artists").collect();
-    const scored = artists.map((a) => ({
-      artist: a,
-      score: (a.upcomingShowsCount || 0) + Math.floor((a.followers || 0) / 1_000_000),
-    }));
+    const scored = artists.map((a) => {
+      // Ensure all numeric values are properly handled to prevent NaN
+      const upcomingShows = typeof a.upcomingShowsCount === 'number' ? a.upcomingShowsCount : 0;
+      const followers = typeof a.followers === 'number' ? a.followers : 0;
+      const popularity = typeof a.popularity === 'number' ? a.popularity : 0;
+      
+      // Calculate score with multiple factors
+      const baseScore = upcomingShows + Math.floor(followers / 1_000_000) + Math.floor(popularity / 10);
+      
+      return {
+        artist: a,
+        score: Math.max(0, baseScore), // Ensure score is never negative
+      };
+    });
 
     scored.sort((a, b) => b.score - a.score);
 
@@ -112,7 +122,7 @@ export const updateArtistTrending = internalMutation({
     for (let i = 0; i < scored.length; i += 1) {
       const { artist, score } = scored[i];
       await ctx.db.patch(artist._id, {
-        trendingScore: score,
+        trendingScore: Number.isFinite(score) ? score : 0, // Ensure no NaN values
         trendingRank: i < TOP_N ? i + 1 : undefined,
         lastTrendingUpdate: Date.now(),
       });
