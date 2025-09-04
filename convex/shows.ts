@@ -85,16 +85,30 @@ export const getUpcoming = query({
     // Filter out null values
     const validShows = enrichedShows.filter(show => show !== null);
     
-    // Deduplicate by artist to show only one show per artist on homepage
-    const seenArtistIds = new Set<string>();
-    const deduped = validShows.filter(show => {
+    // MANUAL deduplication - same bulletproof approach as trending
+    const result = [];
+    const seenArtistIds = [];
+    
+    for (let i = 0; i < validShows.length && result.length < limit; i++) {
+      const show = validShows[i];
       const artistIdStr = String(show.artistId);
-      if (seenArtistIds.has(artistIdStr)) {
-        return false;
+      
+      // Check if we've seen this artist before using manual loop
+      let alreadySeen = false;
+      for (let j = 0; j < seenArtistIds.length; j++) {
+        if (seenArtistIds[j] === artistIdStr) {
+          alreadySeen = true;
+          break;
+        }
       }
-      seenArtistIds.add(artistIdStr);
-      return true;
-    });
+      
+      if (!alreadySeen) {
+        seenArtistIds.push(artistIdStr);
+        result.push(show);
+      }
+    }
+    
+    const deduped = result;
     
     return deduped.slice(0, limit);
   },

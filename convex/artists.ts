@@ -69,71 +69,91 @@ export const getTrending = query({
       .query("artists")
       .withIndex("by_trending_rank")
       .filter((q) => q.neq(q.field("trendingRank"), undefined))
-      .take(limit * 3); // Get more candidates for deduplication
+      .take(limit * 10); // Get way more candidates for thorough deduplication
     
-    // Deduplicate by Spotify ID and name to avoid duplicate artists
-    const seenSpotifyIds = new Set<string>();
-    const seenNames = new Set<string>();
-    const deduped = candidates.filter(artist => {
-      // Skip if we've seen this Spotify ID before
-      if (artist.spotifyId && seenSpotifyIds.has(artist.spotifyId)) {
-        return false;
-      }
+    // Use Map for bulletproof deduplication
+    const seenSpotifyIds = new Map<string, any>();
+    const seenNormalizedNames = new Map<string, any>();
+    const uniqueArtists: any[] = [];
+
+    for (const artist of candidates) {
+      let isDuplicate = false;
       
-      // Skip if we've seen a very similar name before (handles tribute bands)
-      const normalizedName = artist.name.toLowerCase()
-        .replace(/tribute|band|the /g, '')
-        .trim();
-      if (seenNames.has(normalizedName)) {
-        return false;
-      }
-      
-      // Add to seen sets
+      // Check Spotify ID duplicates
       if (artist.spotifyId) {
-        seenSpotifyIds.add(artist.spotifyId);
+        if (seenSpotifyIds.has(artist.spotifyId)) {
+          isDuplicate = true;
+        } else {
+          seenSpotifyIds.set(artist.spotifyId, artist);
+        }
       }
-      seenNames.add(normalizedName);
       
-      return true;
-    });
+      // Check name duplicates (handles tribute bands)
+      if (!isDuplicate) {
+        const normalizedName = artist.name.toLowerCase()
+          .replace(/\\b(tribute|band|the)\\b/g, '')
+          .replace(/[^a-z0-9]/g, '')
+          .trim();
+        
+        if (seenNormalizedNames.has(normalizedName)) {
+          isDuplicate = true;
+        } else {\n          seenNormalizedNames.set(normalizedName, artist);
+        }
+      }
+      
+      if (!isDuplicate) {
+        uniqueArtists.push(artist);
+      }
+    }
     
     // If no trending data after dedup, fallback to sorting by popularity
-    if (deduped.length === 0) {
+    if (uniqueArtists.length === 0) {
       const fallback = await ctx.db
         .query("artists")
         .filter((q) => q.eq(q.field("isActive"), true))
         .order("desc")
-        .take(limit * 2);
+        .take(limit * 5);
       
       // Apply same deduplication to fallback
-      const seenSpotifyIdsFallback = new Set<string>();
-      const seenNamesFallback = new Set<string>();
-      const dedupedFallback = fallback.filter(artist => {
-        if (artist.spotifyId && seenSpotifyIdsFallback.has(artist.spotifyId)) {
-          return false;
-        }
-        
-        const normalizedName = artist.name.toLowerCase()
-          .replace(/tribute|band|the /g, '')
-          .trim();
-        if (seenNamesFallback.has(normalizedName)) {
-          return false;
-        }
+      const fallbackUnique: any[] = [];
+      const seenSpotifyIdsFallback = new Map<string, any>();
+      const seenNamesFallback = new Map<string, any>();
+      
+      for (const artist of fallback) {
+        let isDuplicate = false;
         
         if (artist.spotifyId) {
-          seenSpotifyIdsFallback.add(artist.spotifyId);
+          if (seenSpotifyIdsFallback.has(artist.spotifyId)) {
+            isDuplicate = true;
+          } else {
+            seenSpotifyIdsFallback.set(artist.spotifyId, artist);
+          }
         }
-        seenNamesFallback.add(normalizedName);
         
-        return true;
-      });
+        if (!isDuplicate) {
+          const normalizedName = artist.name.toLowerCase()
+            .replace(/\\b(tribute|band|the)\\b/g, '')
+            .replace(/[^a-z0-9]/g, '')
+            .trim();
+          
+          if (seenNamesFallback.has(normalizedName)) {
+            isDuplicate = true;
+          } else {
+            seenNamesFallback.set(normalizedName, artist);
+          }
+        }
+        
+        if (!isDuplicate) {
+          fallbackUnique.push(artist);
+        }
+      }
       
-      return dedupedFallback.slice(0, limit);
+      return fallbackUnique.slice(0, limit);
     }
     
-    return deduped.slice(0, limit);
-  },
-});
+    // Sort by trending rank
+    const sorted = uniqueArtists
+      .sort((a: any, b: any) => {\n        const ar = a.trendingRank ?? Number.MAX_SAFE_INTEGER;\n        const br = b.trendingRank ?? Number.MAX_SAFE_INTEGER;\n        return ar - br;\n      });\n    \n    return sorted.slice(0, limit);\n  },\n});"}
 
 export const search = query({
   args: { 
