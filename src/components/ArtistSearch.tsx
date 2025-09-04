@@ -121,7 +121,7 @@ function ArtistCard({ artist, onClick }: { artist: any; onClick: () => void }) {
               <span>{artist.followers.toLocaleString()}</span>
             </div>
           )}
-          {artist.trendingScore && (
+          {(typeof artist.trendingScore === 'number' && Number.isFinite(artist.trendingScore) && artist.trendingScore > 0) && (
             <div className="flex items-center gap-1">
               <TrendingUp className="h-3 w-3" />
               <span>{artist.trendingScore}</span>
