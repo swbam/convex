@@ -199,7 +199,16 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
             </div>
           ) : (
             <div className="space-y-3">
-              {trendingArtists.map((artist) => (
+              {trendingArtists
+                .filter((artist, index, arr) => {
+                  // Frontend deduplication for homepage
+                  if (artist.spotifyId) {
+                    return arr.findIndex(a => a.spotifyId === artist.spotifyId) === index;
+                  }
+                  const normalizedName = artist.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                  return arr.findIndex(a => a.name.toLowerCase().replace(/[^a-z0-9]/g, '') === normalizedName) === index;
+                })
+                .map((artist) => (
                 <div
                   key={artist._id}
                   className="trending-item"
@@ -256,7 +265,13 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
             </div>
           ) : (
             <div className="space-y-3">
-              {upcomingShows.map((show) => (
+              {upcomingShows
+                .filter((show, index, arr) => {
+                  // Frontend deduplication for homepage shows
+                  const artistId = show.artistId;
+                  return arr.findIndex(s => s.artistId === artistId) === index;
+                })
+                .map((show) => (
                 <div
                   key={show._id}
                   className="p-4 rounded-lg border bg-card hover:bg-accent cursor-pointer transition-colors"

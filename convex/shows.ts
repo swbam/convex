@@ -65,25 +65,52 @@ export const getUpcoming = query({
       .query("shows")
       .withIndex("by_status", (q) => q.eq("status", "upcoming"))
       .order("asc")
-      .take(limit);
+      .take(limit * 3); // Get more candidates for deduplication
     
-      // Populate artist and venue data
-  const enrichedShows = await Promise.all(
-    shows.map(async (show) => {
-      const [artist, venue] = await Promise.all([
-        ctx.db.get(show.artistId),
-        ctx.db.get(show.venueId),
-      ]);
-      // Skip shows with missing artist or venue
-      if (!artist || !venue) {
-        return null;
+    // Populate artist and venue data
+    const enrichedShows = await Promise.all(
+      shows.map(async (show) => {
+        const [artist, venue] = await Promise.all([
+          ctx.db.get(show.artistId),
+          ctx.db.get(show.venueId),
+        ]);
+        // Skip shows with missing artist or venue
+        if (!artist || !venue) {
+          return null;
+        }
+        return { ...show, artist, venue };
+      })
+    );
+    
+    // Filter out null values
+    const validShows = enrichedShows.filter(show => show !== null);
+    
+    // MANUAL deduplication - same bulletproof approach as trending
+    const result = [];
+    const seenArtistIds = [];
+    
+    for (let i = 0; i < validShows.length && result.length < limit; i++) {
+      const show = validShows[i];
+      const artistIdStr = String(show.artistId);
+      
+      // Check if we've seen this artist before using manual loop
+      let alreadySeen = false;
+      for (let j = 0; j < seenArtistIds.length; j++) {
+        if (seenArtistIds[j] === artistIdStr) {
+          alreadySeen = true;
+          break;
+        }
       }
-      return { ...show, artist, venue };
-    })
-  );
-  
-  // Filter out null values
-  return enrichedShows.filter(show => show !== null);
+      
+      if (!alreadySeen) {
+        seenArtistIds.push(artistIdStr);
+        result.push(show);
+      }
+    }
+    
+    const deduped = result;
+    
+    return deduped.slice(0, limit);
   },
 });
 

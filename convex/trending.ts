@@ -15,7 +15,7 @@ export const getTrendingShows = query({
       .query("shows")
       .withIndex("by_trending_rank")
       .filter((q) => q.neq(q.field("trendingRank"), undefined))
-      .take(limit * 5);
+      .take(limit * 10); // Get way more candidates for proper deduplication
 
     // Enrich with artist and venue documents
     const enriched = await Promise.all(
@@ -32,19 +32,51 @@ export const getTrendingShows = query({
       })
     );
 
-    // Sort by trendingRank ascending (1 is top), then by soonest date
-    const sorted = enriched
-      .sort((a: any, b: any) => {
-        const ar = a.trendingRank ?? Number.MAX_SAFE_INTEGER;
-        const br = b.trendingRank ?? Number.MAX_SAFE_INTEGER;
-        if (ar !== br) return ar - br;
-        const at = new Date(a.date).getTime();
-        const bt = new Date(b.date).getTime();
-        return at - bt;
-      })
-      .slice(0, limit);
+    // Filter out shows with missing data
+    const valid = enriched.filter(show => show.artist && show.venue);
 
-    return sorted;
+    // Sort all shows first by artist trending rank
+    const sortedShows = valid.sort((a, b) => {
+      // Primary: Artist trending rank (lower is better)
+      const aArtistRank = a.artist?.trendingRank ?? Number.MAX_SAFE_INTEGER;
+      const bArtistRank = b.artist?.trendingRank ?? Number.MAX_SAFE_INTEGER;
+      if (aArtistRank !== bArtistRank) return aArtistRank - bArtistRank;
+      
+      // Secondary: Show trending rank (lower is better)
+      const aShowRank = a.trendingRank ?? Number.MAX_SAFE_INTEGER;
+      const bShowRank = b.trendingRank ?? Number.MAX_SAFE_INTEGER;
+      if (aShowRank !== bShowRank) return aShowRank - bShowRank;
+      
+      // Tertiary: Soonest date first
+      const at = new Date(a.date).getTime();
+      const bt = new Date(b.date).getTime();
+      return at - bt;
+    });
+    
+    // MANUAL deduplication with explicit string conversion
+    const result = [];
+    const seenArtistIds = [];
+    
+    for (let i = 0; i < sortedShows.length && result.length < limit; i++) {
+      const show = sortedShows[i];
+      const artistIdStr = String(show.artistId); // Convert to string explicitly
+      
+      // Check if we've seen this artist before using manual loop
+      let alreadySeen = false;
+      for (let j = 0; j < seenArtistIds.length; j++) {
+        if (seenArtistIds[j] === artistIdStr) {
+          alreadySeen = true;
+          break;
+        }
+      }
+      
+      if (!alreadySeen) {
+        seenArtistIds.push(artistIdStr);
+        result.push(show);
+      }
+    }
+
+    return result;
   },
 });
 
@@ -59,17 +91,62 @@ export const getTrendingArtists = query({
       .query("artists")
       .withIndex("by_trending_rank")
       .filter((q) => q.neq(q.field("trendingRank"), undefined))
-      .take(limit * 5);
+      .take(limit * 10); // Get more candidates for thorough deduplication
 
-    const sorted = candidates
-      .sort((a: any, b: any) => {
-        const ar = a.trendingRank ?? Number.MAX_SAFE_INTEGER;
-        const br = b.trendingRank ?? Number.MAX_SAFE_INTEGER;
-        return ar - br;
-      })
-      .slice(0, limit);
-
-    return sorted;
+    // Sort candidates by trending rank first
+    const sortedCandidates = candidates.sort((a, b) => {
+      const ar = a.trendingRank ?? 999999;
+      const br = b.trendingRank ?? 999999;
+      return ar - br;
+    });
+    
+    // MANUAL deduplication for artists
+    const result = [];
+    const seenSpotifyIds = [];
+    const seenNames = [];
+    
+    for (let i = 0; i < sortedCandidates.length && result.length < limit; i++) {
+      const artist = sortedCandidates[i];
+      let isDuplicate = false;
+      
+      // Check Spotify ID duplicates
+      if (artist.spotifyId) {
+        for (let j = 0; j < seenSpotifyIds.length; j++) {
+          if (seenSpotifyIds[j] === artist.spotifyId) {
+            isDuplicate = true;
+            break;
+          }
+        }
+        if (!isDuplicate) {
+          seenSpotifyIds.push(artist.spotifyId);
+        }
+      }
+      
+      // Check name duplicates
+      if (!isDuplicate) {
+        const normalizedName = artist.name.toLowerCase()
+          .replace(/tribute/g, '')
+          .replace(/band/g, '')
+          .replace(/the /g, '')
+          .replace(/[^a-z0-9]/g, '');
+        
+        for (let j = 0; j < seenNames.length; j++) {
+          if (seenNames[j] === normalizedName) {
+            isDuplicate = true;
+            break;
+          }
+        }
+        if (!isDuplicate) {
+          seenNames.push(normalizedName);
+        }
+      }
+      
+      if (!isDuplicate) {
+        result.push(artist);
+      }
+    }
+    
+    return result;
   },
 });
 
