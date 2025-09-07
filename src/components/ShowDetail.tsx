@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import React, { useState } from "react";
-import { ArrowLeft, MapPin, Calendar, Clock, Users, Music, ChevronUp, Heart, Star, Vote } from "lucide-react";
+import { ArrowLeft, MapPin, Users, Music, ChevronUp, Heart, Vote } from "lucide-react";
 import { toast } from "sonner";
 import { SEOHead } from "./SEOHead";
 import { AnimatedSubscribeButton } from "./ui/animated-subscribe-button";
@@ -339,10 +339,16 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
             
                         <div className="text-right">
                           <div className="text-3xl font-bold text-purple-400">
-                            {Math.round(((communitySetlist.songs || []).filter((s: any) => {
-                              const songTitle = typeof s === 'string' ? s : s?.title;
-                              return (communitySetlist.actualSetlist || []).some(actualSong => actualSong.title === songTitle);
-                            }).length / (communitySetlist.songs || []).length) * 100)}%
+                            {(() => {
+                              const total = (communitySetlist.songs || []).length || 0;
+                              if (total === 0) return '—';
+                              const correct = (communitySetlist.songs || []).filter((s: any) => {
+                                const songTitle = typeof s === 'string' ? s : s?.title;
+                                return (communitySetlist.actualSetlist || []).some((actualSong: any) => actualSong.title === songTitle);
+                              }).length;
+                              const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+                              return `${pct}%`;
+                            })()}
                           </div>
                           <div className="text-xs text-gray-400">accuracy rate</div>
                   </div>
