@@ -101,7 +101,9 @@ function App() {
       setCurrentView('show');
       if (showBySlugOrId) {
         setSelectedShowId(showBySlugOrId._id);
-        const titleBits = [showBySlugOrId.artist?.name, showBySlugOrId.venue?.name, new Date(showBySlugOrId.date).toLocaleDateString('en-US')].filter(Boolean).join(' @ ');
+        const dateObj = new Date(showBySlugOrId.date);
+        const dateStr = isNaN(dateObj.getTime()) ? 'Date TBA' : dateObj.toLocaleDateString('en-US');
+        const titleBits = [showBySlugOrId.artist?.name, showBySlugOrId.venue?.name, dateStr].filter(Boolean).join(' @ ');
         document.title = `${titleBits} – Show | TheSet`;
       } else if (showBySlugOrId === null) {
         // Show not found, reset to avoid showing "No show selected"

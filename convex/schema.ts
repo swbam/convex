@@ -76,6 +76,7 @@ const applicationTables = {
     lastSynced: v.optional(v.number()),
   })
     .index("by_slug", ["slug"])
+    .index("by_ticketmaster_id", ["ticketmasterId"])
     .index("by_artist", ["artistId"])
     .index("by_venue", ["venueId"])
     .index("by_status", ["status"])

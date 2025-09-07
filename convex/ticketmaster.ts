@@ -77,18 +77,18 @@ export const triggerFullArtistSync = action({
       });
 
       // Phase 2 & 3: Schedule background jobs using scheduler to avoid dangling promises
-      ctx.scheduler.runAfter(0, internal.ticketmaster.syncArtistShows, {
+      void ctx.scheduler.runAfter(0, internal.ticketmaster.syncArtistShows, {
         artistId,
         ticketmasterId: args.ticketmasterId,
       });
 
-      ctx.scheduler.runAfter(0, internal.spotify.syncArtistCatalog, {
+      void ctx.scheduler.runAfter(0, internal.spotify.syncArtistCatalog, {
         artistId,
         artistName: args.artistName,
       });
 
       // Schedule trending update
-      ctx.scheduler.runAfter(5000, internal.trending.updateShowTrending, {});
+      void ctx.scheduler.runAfter(5000, internal.trending.updateShowTrending, {});
 
       console.log(`✅ Artist ${args.artistName} created with ID: ${artistId}, background sync started`);
       return artistId;
@@ -150,8 +150,17 @@ export const syncArtistShows = internalAction({
           artistId: args.artistId,
           venueId,
           ticketmasterId: event.id,
-          date: event.dates?.start?.localDate || new Date().toISOString().split('T')[0],
-          startTime: event.dates?.start?.localTime,
+          date: (() => {
+            const d = String(event.dates?.start?.localDate || '').trim();
+            return d && /\d{4}-\d{2}-\d{2}/.test(d) ? d : new Date().toISOString().split('T')[0];
+          })(),
+          startTime: (() => {
+            const t = String(event.dates?.start?.localTime || '').trim();
+            if (!t) return undefined;
+            // Normalize to HH:mm
+            const m = t.match(/^(\d{2}):(\d{2})/);
+            return m ? `${m[1]}:${m[2]}` : undefined;
+          })(),
           status: event.dates?.status?.code === "onsale" ? "upcoming" : "upcoming",
           ticketUrl: event.url,
         });
@@ -161,6 +170,12 @@ export const syncArtistShows = internalAction({
       }
 
       console.log(`✅ Synced ${events.length} shows for artist`);
+      // Kick a trending refresh after syncing shows
+      try {
+        void ctx.scheduler.runAfter(0, internal.trending.updateShowTrending, {});
+      } catch (e) {
+        console.log('⚠️ Failed to schedule trending refresh after sync', e);
+      }
     } catch (error) {
       console.error("Failed to sync artist shows:", error);
     }
