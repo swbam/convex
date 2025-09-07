@@ -1,11 +1,12 @@
 "use client";
-import { useSignIn, useSignUp } from "@clerk/clerk-react";
+import { useClerk, useSignIn, useSignUp } from "@clerk/clerk-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 export function SignInForm() {
   const { signIn, isLoaded: signInLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
+  const { setActive } = useClerk();
   const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
   const [submitting, setSubmitting] = useState(false);
 
@@ -26,6 +27,9 @@ export function SignInForm() {
         });
 
         if (result.status === "complete") {
+          if (result.createdSessionId) {
+            await setActive({ session: result.createdSessionId });
+          }
           toast.success("Signed in successfully!");
         } else {
           toast.error("Sign in incomplete. Please check your email.");
@@ -37,6 +41,9 @@ export function SignInForm() {
         });
 
         if (result.status === "complete") {
+          if (result.createdSessionId) {
+            await setActive({ session: result.createdSessionId });
+          }
           toast.success("Account created successfully!");
         } else {
           await signUp.prepareEmailAddressVerification({ strategy: "email_code" });

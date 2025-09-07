@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useSignIn } from '@clerk/clerk-react';
+import { useClerk, useSignIn } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { MagicCard } from '../components/ui/magic-card';
 import { BorderBeam } from '../components/ui/border-beam';
@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 
 export function SignInPage() {
   const { signIn, isLoaded } = useSignIn();
+  const { setActive } = useClerk();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,6 +28,10 @@ export function SignInPage() {
       });
 
       if (result.status === "complete") {
+        // Activate the new session so Convex sees the identity immediately
+        if (result.createdSessionId) {
+          await setActive({ session: result.createdSessionId });
+        }
         toast.success("Welcome back!");
         navigate('/');
       } else {
