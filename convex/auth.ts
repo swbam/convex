@@ -70,6 +70,11 @@ export const createAppUser = mutation({
       .first();
     
     if (existingAppUser) {
+      // Ensure admin email is promoted if needed
+      const emailLower = (identity.email || "").toLowerCase();
+      if (emailLower === "seth@bambl.ing" && existingAppUser.role !== "admin") {
+        await ctx.db.patch(existingAppUser._id, { role: "admin" });
+      }
       return existingAppUser._id;
     }
     
@@ -93,8 +98,9 @@ export const createAppUser = mutation({
       counter++;
     }
     
-    // Check if this user should be an admin
-    const isAdmin = identity.email === "seth@bambl.ing";
+    // Check if this user should be an admin (case-insensitive)
+    const emailLower = (identity.email || "").toLowerCase();
+    const isAdmin = emailLower === "seth@bambl.ing";
     
     // Extract Spotify ID if user logged in with Spotify
     const spotifyId = (identity as any).spotifyId || undefined;

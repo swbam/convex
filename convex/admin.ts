@@ -1,4 +1,4 @@
-import { action, mutation, query, internalAction, QueryCtx, MutationCtx } from "./_generated/server";
+import { action, mutation, query, internalAction, internalMutation, QueryCtx, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
@@ -67,6 +67,48 @@ export const toggleUserBan = mutation({
     await ctx.db.patch(args.userId, { role: newRole });
     
     return { success: true, newRole };
+  },
+});
+
+// Promote a user to admin by email (case-insensitive)
+export const promoteUserByEmail = mutation({
+  args: { email: v.string() },
+  returns: v.object({ success: v.boolean(), promoted: v.boolean() }),
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const targetEmail = args.email.toLowerCase();
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .first();
+    if (!user) {
+      // Try case-insensitive scan if exact not found
+      const users = await ctx.db.query("users").collect();
+      const match = users.find(u => (u.email || "").toLowerCase() === targetEmail);
+      if (!match) return { success: true, promoted: false };
+      await ctx.db.patch(match._id, { role: "admin" });
+      return { success: true, promoted: true };
+    }
+    if (user.role !== "admin") {
+      await ctx.db.patch(user._id, { role: "admin" });
+      return { success: true, promoted: true };
+    }
+    return { success: true, promoted: false };
+  },
+});
+
+// Internal: Ensure a user is admin by email (no auth required, for deploy scripts)
+export const ensureAdminByEmailInternal = internalMutation({
+  args: { email: v.string() },
+  returns: v.object({ success: v.boolean(), updated: v.boolean() }),
+  handler: async (ctx, args) => {
+    const existing = await ctx.runQuery(internal.users.getByEmailCaseInsensitive, { email: args.email });
+    if (!existing) return { success: true, updated: false };
+    if (existing.role !== "admin") {
+      await ctx.runMutation(internal.users.setUserRoleById, { userId: existing._id, role: "admin" });
+      return { success: true, updated: true };
+    }
+    return { success: true, updated: false };
   },
 });
 
