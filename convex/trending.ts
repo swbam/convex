@@ -141,10 +141,9 @@ export const updateShowTrending = internalMutation({
       .withIndex("by_status", (q) => q.eq("status", "upcoming"))
       .collect();
 
-    const parsed = upcoming.map((s) => ({
-      show: s,
-      when: new Date(s.date).getTime(),
-    }));
+    const parsed = upcoming
+      .map((s) => ({ show: s, when: new Date(s.date).getTime() }))
+      .filter((p) => Number.isFinite(p.when));
     parsed.sort((a, b) => a.when - b.when);
 
     const TOP_N = 200;
