@@ -147,7 +147,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
   return (
     <div className="w-full space-y-6 sm:space-y-8 lg:space-y-10 relative z-10">
       {/* Apple-Level Hero Section with Dynamic Marquee */}
-      <div className="relative overflow-hidden">
+      <div className="relative overflow-visible">
         {/* Clean Hero Section */}
         <div className="relative min-h-[280px] sm:min-h-[320px] lg:min-h-[400px] flex flex-col justify-center space-y-3 sm:space-y-4 py-4 sm:py-6">
           {/* Center Content */}
@@ -160,7 +160,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
             </p>
             
             {/* Search Input - Homepage Only */}
-            <div className="max-w-md mx-auto">
+            <div className="relative z-[50] max-w-md mx-auto">
               <SearchBar 
                 onResultClick={(type: string, id: string, slug?: string) => {
                   if (type === 'artist') {
@@ -179,7 +179,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
         </div>
 
         {/* Subtle background pattern */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-950/5 to-transparent pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-950/5 to-transparent pointer-events-none z-[0]"></div>
       </div>
 
       {/* Main Content Sections */}

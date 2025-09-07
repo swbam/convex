@@ -223,9 +223,9 @@ export function SearchBar({
 
       {/* Search Results Dropdown */}
       {isOpen && debouncedQuery.length >= 2 && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 sm:mt-2 z-[9999] bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-lg sm:rounded-xl max-h-[60vh] sm:max-h-[70vh] lg:max-h-96">
+        <div className="absolute top-full left-0 right-0 mt-1.5 sm:mt-2 z-[60] bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-lg sm:rounded-xl max-h-[60vh] sm:max-h-[70vh] lg:max-h-[32rem] overflow-hidden">
           <div className="p-0">
-            <div className="max-h-96 overflow-y-auto">
+            <div className="max-h-[60vh] sm:max-h-[70vh] lg:max-h-[30rem] overflow-y-auto">
               {sortedResults.length > 0 ? (
                 <div className="p-1.5 sm:p-2">
                   {/* Active Filters */}

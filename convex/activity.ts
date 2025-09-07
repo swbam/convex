@@ -235,6 +235,7 @@ export const getUserActivityStats = query({
       streak,
       rank: userRank,
       joinedAt: user._creationTime,
+      isSpotifyUser: !!user.spotifyId,
     };
   },
 });

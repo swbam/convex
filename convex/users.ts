@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { getAuthUserId } from "./auth";
 
 // Get current user profile
@@ -139,5 +139,33 @@ export const getUserSetlists = query({
     );
 
     return setlistsWithDetails.filter(Boolean);
+  },
+});
+
+// Internal: get user by email, case-insensitive
+export const getByEmailCaseInsensitive = internalQuery({
+  args: { email: v.string() },
+  returns: v.union(v.any(), v.null()),
+  handler: async (ctx, args) => {
+    const exact = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .first();
+    if (exact) return exact;
+    const target = args.email.toLowerCase();
+    for await (const u of ctx.db.query("users")) {
+      if ((u.email || "").toLowerCase() === target) return u;
+    }
+    return null;
+  },
+});
+
+// Internal: set user role by id
+export const setUserRoleById = internalMutation({
+  args: { userId: v.id("users"), role: v.union(v.literal("user"), v.literal("admin"), v.literal("banned")) },
+  returns: v.object({ success: v.boolean() }),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.userId, { role: args.role });
+    return { success: true };
   },
 });
