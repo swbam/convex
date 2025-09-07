@@ -1,0 +1,24 @@
+## Domain ideas for TheSet (concert setlist voting app)
+
+- setvox.com
+- setcoda.com
+- setrally.com
+- setshout.com
+- setround.com
+- votelineup.com
+- votegig.com
+- encorevote.com
+- setencore.com
+- setgroove.com
+- setranker.com
+- setpredict.com
+- setoracle.com
+- crowdencore.com
+- votemyset.com
+- setchooser.com
+- setdecide.com
+- mysetvote.com
+- setlistvote.com
+- votetheset.com
+- setriff.com
+- setbop.com
