@@ -537,6 +537,17 @@ export const updateWithActualSetlist = internalMutation({
         setlistfmId: args.setlistfmId,
         setlistfmData: args.setlistfmData,
         lastUpdated: Date.now(),
+        // Cache accuracy and comparedAt when actual arrives
+        accuracy: (() => {
+          const predicted = (existingSetlist.songs || []).map((s: any) => s.title);
+          const actual = args.actualSetlist.map((s) => s.title);
+          const total = predicted.length;
+          if (total === 0) return 0;
+          const correct = predicted.filter((title: string) => actual.includes(title)).length;
+          const pct = Math.round((correct / total) * 100);
+          return Number.isFinite(pct) ? pct : 0;
+        })(),
+        comparedAt: Date.now(),
       });
     } else {
       // Create new setlist with actual data only
@@ -554,6 +565,8 @@ export const updateWithActualSetlist = internalMutation({
         downvotes: 0,
         setlistfmId: args.setlistfmId,
         setlistfmData: args.setlistfmData,
+        accuracy: 0,
+        comparedAt: Date.now(),
       });
     }
     

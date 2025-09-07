@@ -8,7 +8,7 @@ interface Show {
   artistId: Id<'artists'>
   venueId: Id<'venues'>
   date: string
-  time?: string
+  startTime?: string
   status: 'upcoming' | 'completed' | 'cancelled'
   ticketmasterUrl?: string
   artist?: {
@@ -45,6 +45,7 @@ export function ShowCard({
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
+    if (isNaN(date.getTime())) return 'Date TBA'
     return date.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
@@ -54,16 +55,14 @@ export function ShowCard({
 
   const formatTime = (timeString?: string) => {
     if (!timeString) return null
-    try {
-      const time = new Date(`2000-01-01T${timeString}`)
-      return time.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      })
-    } catch {
-      return timeString
-    }
+    const base = timeString.length >= 5 ? timeString.slice(0, 5) : timeString
+    const time = new Date(`2000-01-01T${base}`)
+    if (isNaN(time.getTime())) return base
+    return time.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    })
   }
 
   const isToday = new Date(show.date).toDateString() === new Date().toDateString()
@@ -180,10 +179,10 @@ export function ShowCard({
             <span className="font-medium">{formatDate(show.date)}</span>
           </div>
           
-          {show.time && (
+          {show.startTime && (
             <div className="flex items-center gap-1.5">
               <Clock className="h-3 w-3 flex-shrink-0" />
-              <span className="font-medium">{formatTime(show.time)}</span>
+              <span className="font-medium">{formatTime(show.startTime)}</span>
             </div>
           )}
         </div>

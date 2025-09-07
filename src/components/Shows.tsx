@@ -3,7 +3,7 @@ import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { ShowCard } from './ShowCard';
-import { Search, Calendar, MapPin, Filter, TrendingUp, Music } from 'lucide-react';
+import { Calendar, MapPin, Music } from 'lucide-react';
 import { MagicCard } from './ui/magic-card';
 import { BorderBeam } from './ui/border-beam';
 // import { ShimmerButton } from './ui/shimmer-button';
@@ -27,7 +27,7 @@ export function Shows({ onShowClick }: ShowsProps) {
     (allShowsRaw || []).forEach(show => {
       // Only include shows with proper artist names
       if (show.artist?.name && show.artist.name.trim() !== '' && show.artist.name !== 'Unknown Artist') {
-        const key = `${show.artist.name}-${show.venue?.name}-${show.date}`;
+        const key = `${show.artist.name}-${show.venue?.name}-${show.date}-${show.startTime || ''}`;
         if (!showsMap.has(key)) {
           showsMap.set(key, show);
         }
@@ -157,7 +157,7 @@ export function Shows({ onShowClick }: ShowsProps) {
               {paginatedShows.map((show) => (
                 <ShowCard
                   key={show._id}
-                  show={show as any}
+                  show={show}
                   onClick={handleShowClick}
                   compact={false}
                 />

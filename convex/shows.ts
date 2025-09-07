@@ -20,10 +20,11 @@ function createSEOSlug(name: string): string {
 }
 
 // Helper function to create descriptive show slugs
-function createShowSlug(artistName: string, venueName: string, venueCity: string, date: string): string {
-  // Format: artist-name-venue-name-city-yyyy-mm-dd
+function createShowSlug(artistName: string, venueName: string, venueCity: string, date: string, startTime?: string): string {
+  // Format: artist-name-venue-name-city-yyyy-mm-dd[-hh-mm]
   const datePart = date; // Already in YYYY-MM-DD format
-  return `${createSEOSlug(artistName)}-${createSEOSlug(venueName)}-${createSEOSlug(venueCity)}-${datePart}`;
+  const timePart = startTime ? `-${startTime.replace(':', '-')}` : '';
+  return `${createSEOSlug(artistName)}-${createSEOSlug(venueName)}-${createSEOSlug(venueCity)}-${datePart}${timePart}`;
 }
 
 export const getRecentlyUpdated = query({
@@ -470,7 +471,7 @@ export const createInternal = internalMutation({
     }
     
     // Generate SEO-friendly slug: artist-name-venue-name-city-date
-    const slug = createShowSlug(artist.name, venue.name, venue.city, args.date);
+    const slug = createShowSlug(artist.name, venue.name, venue.city, args.date, args.startTime);
     
     return await ctx.db.insert("shows", {
       ...args,
@@ -491,12 +492,19 @@ export const createFromTicketmaster = internalMutation({
   },
   handler: async (ctx, args) => {
     // Check for existing show by multiple criteria to avoid duplicates
-    const existing = await ctx.db
+    let existing = await ctx.db
       .query("shows")
-      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
-      .filter((q) => q.eq(q.field("date"), args.date))
-      .filter((q) => q.eq(q.field("venueId"), args.venueId))
+      .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.ticketmasterId))
       .first();
+
+    if (!existing) {
+      existing = await ctx.db
+        .query("shows")
+        .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
+        .filter((q) => q.eq(q.field("date"), args.date))
+        .filter((q) => q.eq(q.field("venueId"), args.venueId))
+        .first();
+    }
 
     if (existing) {
       // Update existing show with new data if needed
@@ -521,7 +529,7 @@ export const createFromTicketmaster = internalMutation({
     }
     
     // Generate SEO-friendly slug: artist-name-venue-name-city-date
-    const slug = createShowSlug(artist.name, venue.name, venue.city, args.date);
+    const slug = createShowSlug(artist.name, venue.name, venue.city, args.date, args.startTime);
     
     const showId = await ctx.db.insert("shows", {
       artistId: args.artistId,
