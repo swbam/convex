@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useSignUp } from '@clerk/clerk-react';
+import { useClerk, useSignUp } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { MagicCard } from '../components/ui/magic-card';
 import { BorderBeam } from '../components/ui/border-beam';
@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 
 export function SignUpPage() {
   const { signUp, isLoaded } = useSignUp();
+  const { setActive } = useClerk();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,6 +30,9 @@ export function SignUpPage() {
       });
 
       if (result.status === "complete") {
+        if (result.createdSessionId) {
+          await setActive({ session: result.createdSessionId });
+        }
         toast.success("Account created successfully!");
         navigate('/');
       } else {
@@ -59,6 +63,9 @@ export function SignUpPage() {
       });
 
       if (result.status === "complete") {
+        if (result.createdSessionId) {
+          await setActive({ session: result.createdSessionId });
+        }
         toast.success("Email verified! Welcome to TheSet!");
         navigate('/');
       } else {
