@@ -292,10 +292,10 @@ export function SearchBar({
         </div>
       )}
       
-      {/* Backdrop to close search */}
+      {/* Backdrop to close search - keep below dropdown so results remain clickable */}
       {isOpen && (
         <div 
-          className="fixed inset-0 z-[9998]" 
+          className="fixed inset-0 z-[59]" 
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -303,7 +303,7 @@ export function SearchBar({
       {/* Backdrop to close filters */}
       {showFilters && (
         <div 
-          className="fixed inset-0 z-[9998]" 
+          className="fixed inset-0 z-[59]" 
           onClick={() => setShowFilters(false)}
         />
       )}

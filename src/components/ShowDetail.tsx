@@ -91,7 +91,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
   return (
     <div className="px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10">
       <SEOHead
-        title={`${show.artist?.name || 'Artist'} @ ${show.venue?.name || 'Venue'} – ${showDate.toLocaleDateString('en-US')} | TheSet`}
+        title={`${show.artist?.name || 'Artist'} @ ${show.venue?.name || 'Venue'} – ${showDate.toLocaleDateString('en-US')} | setlists.live`}
         description={`Details for ${show.artist?.name} at ${show.venue?.name} on ${showDate.toLocaleDateString('en-US')}. View setlists and vote.`}
         image={show.artist?.images?.[0]}
         url={typeof window !== 'undefined' ? window.location.href : undefined}

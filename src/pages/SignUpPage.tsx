@@ -66,7 +66,7 @@ export function SignUpPage() {
         if (result.createdSessionId) {
           await setActive({ session: result.createdSessionId });
         }
-        toast.success("Email verified! Welcome to TheSet!");
+        toast.success("Email verified! Welcome to setlists.live!");
         navigate('/');
       } else {
         toast.error("Invalid verification code. Please try again.");
@@ -107,7 +107,7 @@ export function SignUpPage() {
                     <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
                       <Music className="h-6 w-6 text-white" />
                     </div>
-                    <h1 className="text-3xl font-bold text-white">Join TheSet</h1>
+                    <h1 className="text-3xl font-bold text-white">Join setlists.live</h1>
                   </div>
                   <p className="text-gray-300 text-lg">
                     Create your account to start voting

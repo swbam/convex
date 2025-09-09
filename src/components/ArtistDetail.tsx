@@ -75,7 +75,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   return (
     <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10">
       <SEOHead
-        title={`${artist.name} – Artist | TheSet`}
+        title={`${artist.name} – Artist | setlists.live`}
         description={`Explore ${artist.name}'s upcoming shows, catalog and top songs. Vote on setlist predictions.`}
         image={artist.images?.[0]}
         url={typeof window !== 'undefined' ? window.location.href : undefined}
