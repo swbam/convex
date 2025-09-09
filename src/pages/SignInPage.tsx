@@ -78,7 +78,7 @@ export function SignInPage() {
                 <h1 className="text-responsive-2xl sm:text-responsive-3xl font-bold text-white">Welcome Back</h1>
               </div>
               <p className="text-gray-300 text-responsive-base sm:text-responsive-lg">
-                Sign in to your TheSet account
+                Sign in to your setlists.live account
               </p>
               <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2">
                 <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />

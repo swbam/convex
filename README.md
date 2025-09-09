@@ -1,4 +1,4 @@
-# 🎵 TheSet - Concert Setlist Voting App
+# 🎵 setlists.live - Concert Setlist Voting App
 
 A modern, real-time web application for predicting and voting on concert setlists. Built with **Apple-level design** and **Magic UI components**.
 

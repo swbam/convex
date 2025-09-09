@@ -160,7 +160,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
             </p>
             
             {/* Search Input - Homepage Only */}
-            <div className="relative z-[50] max-w-md mx-auto">
+            <div className="relative z-[60] max-w-md mx-auto">
               <SearchBar 
                 onResultClick={(type: string, id: string, slug?: string) => {
                   if (type === 'artist') {

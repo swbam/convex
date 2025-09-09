@@ -35,7 +35,7 @@ export const syncActualSetlist = internalAction({
         headers: {
           'x-api-key': apiKey,
           'Accept': 'application/json',
-          'User-Agent': 'TheSet/1.0'
+          'User-Agent': 'setlists.live/1.0'
         }
       });
 
@@ -48,7 +48,7 @@ export const syncActualSetlist = internalAction({
           headers: {
             'x-api-key': apiKey,
             'Accept': 'application/json',
-            'User-Agent': 'TheSet/1.0'
+            'User-Agent': 'setlists.live/1.0'
           }
         });
       }
@@ -62,7 +62,7 @@ export const syncActualSetlist = internalAction({
           headers: {
             'x-api-key': apiKey,
             'Accept': 'application/json',
-            'User-Agent': 'TheSet/1.0'
+            'User-Agent': 'setlists.live/1.0'
           }
         });
       }
@@ -232,7 +232,7 @@ export const syncSpecificSetlist = internalAction({
         headers: {
           'x-api-key': apiKey,
           'Accept': 'application/json',
-          'User-Agent': 'TheSet/1.0'
+          'User-Agent': 'setlists.live/1.0'
         }
       });
 

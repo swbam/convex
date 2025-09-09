@@ -56,7 +56,7 @@ export function DashboardGrid({ onViewChange }: DashboardGridProps) {
       <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-zinc-800/50 via-zinc-700/30 to-transparent border border-zinc-700 p-8">
         <div className="relative z-10">
           <h1 className="text-4xl font-bold text-white mb-2">
-            Welcome to TheSet
+            Welcome to setlists.live
           </h1>
           <p className="text-xl text-zinc-300 mb-6">
             Discover, predict, and vote on concert setlists from your favorite artists

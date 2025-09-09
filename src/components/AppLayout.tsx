@@ -65,7 +65,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 onClick={(e) => { e.preventDefault(); void navigate('/'); setSidebarOpen(false); }}
                 className="flex items-center group touch-target"
               >
-                <span className="text-2xl font-bold text-foreground group-hover:text-primary transition-colors" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>TheSet</span>
+                <span className="text-2xl font-bold text-foreground group-hover:text-primary transition-colors" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>setlists.live</span>
               </button>
               <button 
                 className="touch-target flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all active:scale-95"
@@ -241,7 +241,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           <header className="px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 h-14 md:h-16 flex items-center relative z-40">
             <div className="mx-auto w-full max-w-page-full flex items-center gap-2 sm:gap-3 md:gap-4">
               <button onClick={(e)=>{e.preventDefault(); void navigate('/')}} className="flex items-center touch-target flex-shrink-0">
-                <span className="text-2xl md:text-3xl font-bold" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>TheSet</span>
+                <span className="text-2xl md:text-3xl font-bold" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>setlists.live</span>
               </button>
 
               <nav className="hidden md:flex items-center gap-1 lg:gap-2">
@@ -258,7 +258,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               <div className="flex-1" />
 
               {/* Global search */}
-              <div className="hidden lg:block w-full max-w-md xl:max-w-lg relative z-50">
+              <div className="hidden lg:block w-full max-w-md xl:max-w-lg relative z-[60]">
                 <SearchBar onResultClick={(type: string, id: string, slug?: string) => {
                   if (type === 'artist') {
                     // Prefer Convex IDs if present; fall back to slug
