@@ -116,6 +116,25 @@ npm run preview      # Preview production build
 npm run lint         # Type checking and linting
 ```
 
+## 🔒 Search Engine Indexing
+
+This repository is configured to prevent indexing by search engines in all environments:
+
+- `public/robots.txt` disallows all crawlers.
+- Global HTTP header `X-Robots-Tag: noindex, nofollow` is set via `vercel.json`.
+- `index.html` includes `<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">`.
+
+### Re-enable Indexing (if desired)
+
+1. Edit `vercel.json` and remove the `X-Robots-Tag` header.
+2. Update `public/robots.txt` to allow crawling, for example:
+   ```
+   User-agent: *
+   Allow: /
+   ```
+3. Remove the `<meta name="robots" ...>` tag from `index.html`.
+4. If you add a sitemap, reference it in `robots.txt` with `Sitemap: https://your-domain/sitemap.xml`.
+
 ## 📚 Documentation
 
 - **[CONVEX.md](./CONVEX.md)**: Convex implementation details
