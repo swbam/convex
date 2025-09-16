@@ -1,65 +1,31 @@
 # Understanding Vite Environment Variables
 
-## The Key Concept
+Vite replaces environment variables **at build time**. During `npm run build` or any Vercel
+build, every `import.meta.env.VITE_*` reference is swapped with the value that exists in the
+process environment. Missing values become `undefined` in the generated JavaScript bundle.
 
-**Vite environment variables are replaced at BUILD TIME, not RUNTIME.**
+## Example
 
-## What This Means
+```ts
+// Source code
+const convexUrl = import.meta.env.VITE_CONVEX_URL;
 
-When you run `npm run build`:
-- Vite scans your code for `import.meta.env.VITE_*` references
-- It replaces them with the actual values from environment variables
-- The final JavaScript bundle contains the hardcoded values
+// Build output when the variable is present
+const convexUrl = "https://example.convex.cloud";
 
-Example:
-```javascript
-// Your source code:
-const url = import.meta.env.VITE_CONVEX_URL;
-
-// After build (if env var is set):
-const url = "https://necessary-mosquito-453.convex.cloud";
-
-// After build (if env var is NOT set):
-const url = undefined;
+// Build output when the variable is missing
+const convexUrl = undefined;
 ```
 
-## Why Your Deployment Failed
+Because the substitution happens once during the build, you must configure environment
+variables **before** triggering a deployment.
 
-1. Vercel runs `npm run build` on their servers
-2. During that build, if environment variables aren't available, Vite replaces them with `undefined`
-3. Your built app tries to use `undefined` as the Convex URL
-4. The app shows an error
+## Fixing "undefined" Values
 
-## The Fix
+1. Set the variables locally (`.env.local`) and in Vercel (**Project → Settings → Environment Variables**).
+2. Redeploy so Vite can embed the correct values.
+3. For server-side secrets that should not reach the client, keep them in the Convex dashboard;
+   only expose `VITE_*` variables to the frontend.
 
-Environment variables MUST be set in Vercel BEFORE the build happens:
-1. Set them in Vercel Dashboard
-2. Trigger a new build
-3. Vite will now have access to the values during build
-4. Your app will work correctly
-
-## Common Mistakes
-
-❌ **Wrong**: Thinking environment variables are read at runtime
-✅ **Right**: Understanding they're embedded during build
-
-❌ **Wrong**: Setting variables after deployment
-✅ **Right**: Setting variables before triggering a build
-
-❌ **Wrong**: Using cached builds after adding variables
-✅ **Right**: Forcing a fresh build without cache
-
-## Testing Locally
-
-To simulate what happens on Vercel:
-```bash
-# Build without env vars (simulates your current problem)
-npm run build
-# Result: undefined values in built files
-
-# Build with env vars (simulates the fix)
-export VITE_CONVEX_URL=https://necessary-mosquito-453.convex.cloud
-export VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
-npm run build
-# Result: actual values in built files
-```
+Remember that the production build is immutable. If the variables were wrong during the
+build step, redeploying with the corrected values is the only way to fix the deployed bundle.
