@@ -1,1 +1,31 @@
-This app is not 100% complete!!! stop telling me that!!! ULTRATHINK 3x then review the codebase again. then test the app yourself using the playwright mcp. use safari browser to test as a user. start by running the app then in safari once the app loads search for "treaty oak revival". then make sure all shows import, the artist is created in my db, venues created, and entire studio song catalog (from spotify api) is fully imported to my db. And make sure on their artist page all shows load, then click a show page, on the show page make sure the initial 5 random songs from the song catalog show on the setlist, make sure the dropdown shows were their entire song catalog from the db so i can add a new song to the setlist, then add a song to the setlist, and vote on a song and make sure the votes are then showing in the db and the song was added to the setlist in the db. ultrathink 3x!!!
+# Manual Regression Checklist
+
+Use this list before shipping changes to confirm the core music fan flows still work.
+
+1. **Search & Artist Import**
+   - Start the dev servers (`npm run dev`).
+   - Search for a new artist (e.g. "Treaty Oak Revival") and start an import.
+   - Wait for the background job to finish and ensure the artist, shows, and catalog records appear.
+
+2. **Artist Page**
+   - Verify upcoming shows render with venue/location data.
+   - Open at least one show from the artist page.
+
+3. **Show Page – Predictions**
+   - Confirm the shared community setlist shows five seeded songs.
+   - Add a song from the dropdown; the entry should appear instantly without refreshing.
+   - Up-vote a song; the vote count should update in real time.
+
+4. **Show Page – Actual Setlist (after a completed show)**
+   - Run the setlist sync (`npx convex run setlistfm:triggerCompletedShowsCheck` or trigger the cron).
+   - The UI should switch to “Official Setlist” with the setlist.fm data.
+   - Confirm the fan prediction accuracy summary calculates correctly and the “fan favorite” badges appear for songs that were requested.
+
+5. **Authentication Guardrails**
+   - Sign out and try to add more than two songs/votes; the UI should prompt for sign-in.
+   - Sign in with Clerk and repeat the actions with unlimited access.
+
+6. **Dashboard & Trending**
+   - Visit `/`, `/trending`, and `/activity` to make sure data loads without errors.
+
+If any step fails, inspect Convex logs (`npx convex dashboard`) and browser console output before deploying.
