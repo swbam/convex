@@ -523,38 +523,61 @@ export const updateWithActualSetlist = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // Find existing community setlist for this show
-    const existingSetlist = await ctx.db
+    const setlistsForShow = await ctx.db
       .query("setlists")
       .withIndex("by_show", (q) => q.eq("showId", args.showId))
-      .filter((q) => q.eq(q.field("isOfficial"), false))
-      .first();
+      .collect();
 
-    if (existingSetlist) {
-      // Update existing setlist with actual data
-      await ctx.db.patch(existingSetlist._id, {
+    const predictionSetlist = setlistsForShow.find((setlist: any) => !setlist.isOfficial && !setlist.userId)
+      ?? setlistsForShow.find((setlist: any) => !setlist.isOfficial)
+      ?? null;
+
+    const officialSetlist = setlistsForShow.find((setlist: any) => setlist.isOfficial) ?? null;
+
+    const calculateAccuracy = (predictedSongs: any[]) => {
+      if (!predictedSongs || predictedSongs.length === 0) {
+        return 0;
+      }
+      const predictedTitles = predictedSongs
+        .map((song: any) => (typeof song === "string" ? song : song?.title))
+        .filter((title: string | undefined) => Boolean(title))
+        .map((title: string) => title.toLowerCase().trim());
+
+      const actualTitles = args.actualSetlist
+        .map((song) => song.title.toLowerCase().trim());
+
+      if (predictedTitles.length === 0 || actualTitles.length === 0) {
+        return 0;
+      }
+
+      const correctPredictions = predictedTitles.filter((title) => actualTitles.includes(title)).length;
+      const pct = Math.round((correctPredictions / predictedTitles.length) * 100);
+      return Number.isFinite(pct) ? pct : 0;
+    };
+
+    if (predictionSetlist) {
+      await ctx.db.patch(predictionSetlist._id, {
         actualSetlist: args.actualSetlist,
         setlistfmId: args.setlistfmId,
         setlistfmData: args.setlistfmData,
         lastUpdated: Date.now(),
-        // Cache accuracy and comparedAt when actual arrives
-        accuracy: (() => {
-          const predicted = (existingSetlist.songs || []).map((s: any) => s.title);
-          const actual = args.actualSetlist.map((s) => s.title);
-          const total = predicted.length;
-          if (total === 0) return 0;
-          const correct = predicted.filter((title: string) => actual.includes(title)).length;
-          const pct = Math.round((correct / total) * 100);
-          return Number.isFinite(pct) ? pct : 0;
-        })(),
+        accuracy: calculateAccuracy(predictionSetlist.songs || []),
         comparedAt: Date.now(),
       });
+    }
+
+    if (officialSetlist) {
+      await ctx.db.patch(officialSetlist._id, {
+        actualSetlist: args.actualSetlist,
+        setlistfmId: args.setlistfmId,
+        setlistfmData: args.setlistfmData,
+        lastUpdated: Date.now(),
+      });
     } else {
-      // Create new setlist with actual data only
       await ctx.db.insert("setlists", {
         showId: args.showId,
         userId: undefined,
-        songs: [], // Empty user predictions
+        songs: [],
         actualSetlist: args.actualSetlist,
         verified: true,
         source: "setlistfm",
@@ -569,7 +592,13 @@ export const updateWithActualSetlist = internalMutation({
         comparedAt: Date.now(),
       });
     }
-    
+
+    await ctx.db.patch(args.showId, {
+      status: "completed",
+      setlistfmId: args.setlistfmId,
+      lastSynced: Date.now(),
+    });
+
     return null;
   },
 });

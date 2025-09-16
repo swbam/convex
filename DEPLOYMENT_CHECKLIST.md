@@ -1,78 +1,30 @@
 # Deployment Checklist for Vercel
 
-## ✅ Fixed Issues
+Use this checklist when pushing a new production build.
 
-1. **Vercel Configuration** - Updated `vercel.json` to use `rewrites` instead of deprecated `routes`
-2. **Build Scripts** - Simplified build process to avoid Convex deployment during Vercel builds
-3. **Environment Variables** - Set up proper `.env.local` file for local development
-4. **Clerk Authentication** - Configured with correct keys and auth setup
-5. **TypeScript** - No compilation errors
+## Environment Variables
+- **Vercel (frontend):**
+  - `VITE_CONVEX_URL` – points to the production Convex deployment.
+  - `VITE_CLERK_PUBLISHABLE_KEY` – Clerk publishable key for the production instance.
+- **Convex (server-side):**
+  - `CLERK_ISSUER_URL`, `CLERK_JWKS_URL`, `SITE_URL`.
+  - API keys for Ticketmaster, Spotify, and Setlist.fm.
 
-## 📋 Vercel Deployment Steps
+Set the values *before* triggering a build so Vite can inline them correctly.
 
-### 1. Environment Variables to Set in Vercel Dashboard
+## Build Commands
+- Convex deploy (if backend changed): `npx convex deploy`
+- Frontend build: `npm run build`
 
-Go to your project settings in Vercel and add these environment variables:
+Vercel automatically runs `npm run build` using the settings from `vercel.json` (output folder `dist`).
 
-```
-# Convex Configuration
-VITE_CONVEX_URL=https://exuberant-weasel-22.convex.cloud
+## Post-Deployment Verification
+1. Open the deployed URL and confirm there are no console errors.
+2. Sign in and sign out via Clerk.
+3. Navigate to an artist and a show page to ensure Convex queries resolve correctly.
+4. Trigger a manual setlist sync from the admin tools if needed and watch Convex logs.
 
-# Clerk Authentication
-VITE_CLERK_PUBLISHABLE_KEY=pk_test_cXVpZXQtcG9zc3VtLTcxLmNsZXJrLmFjY291bnRzLmRldiQ
-CLERK_SECRET_KEY=sk_test_Lpv2rBqUhSOlGs6unmAIgFq4sO2ZzwzzjLduPpRbrv
-
-# External APIs (if you have them)
-TICKETMASTER_API_KEY=your-ticketmaster-api-key
-SPOTIFY_CLIENT_ID=your-spotify-client-id
-SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
-SETLISTFM_API_KEY=your-setlistfm-api-key
-```
-
-### 2. Deployment Command
-
-The deployment will use these settings from `vercel.json`:
-- Build Command: `npm run build`
-- Output Directory: `dist`
-- Framework: `vite`
-
-### 3. Post-Deployment Verification
-
-After deployment, verify:
-1. ✅ The app loads without errors
-2. ✅ Clerk authentication works (sign up/sign in)
-3. ✅ Convex backend connection is established
-4. ✅ All routes work correctly (SPA routing)
-
-## 🚨 Important Notes
-
-1. **Convex Deployment**: Convex backend is already deployed separately. The frontend just connects to it.
-2. **API Keys**: External API keys are optional for basic functionality but required for:
-   - Ticketmaster: Show discovery
-   - Spotify: Artist catalog sync
-   - Setlist.fm: Historical setlist data
-3. **Production Keys**: For production deployment, replace test Clerk keys with production keys
-
-## 🔧 Troubleshooting
-
-If build fails on Vercel:
-1. Check Vercel build logs for specific errors
-2. Ensure all environment variables are set
-3. Verify Node.js version compatibility (should work with Node 18+)
-4. Check if `pnpm-lock.yaml` is committed (it should be)
-
-## 📦 Local Testing
-
-Before deploying:
-```bash
-# Install dependencies
-npm install
-
-# Test build
-npm run build
-
-# Preview production build
-npm run preview
-```
-
-Visit http://localhost:4173 to test the production build locally.
+## Troubleshooting
+- Double-check environment variables if you see `undefined` URLs in the network tab.
+- Use `npx convex dashboard` to inspect backend logs and confirm cron jobs are running.
+- Run `npm run build` locally to reproduce build-time errors before pushing.
