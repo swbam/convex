@@ -7,7 +7,11 @@ has completed.
 - Fetch the confirmed setlist from setlist.fm.
 - Mark the show as completed and store the `setlistfmId` on the show document.
 - Merge the confirmed songs into the community prediction so accuracy can be calculated.
+- Create (or update) an official setlist record for archival purposes. The mutation stores the
+  confirmed tracks both as rich `actualSetlist` entries (with set/encore metadata) and as a
+  normalized `songs` array for components that still expect the legacy shape.
 - Create (or update) an official setlist record for archival purposes.
+
 
 ## API Functions
 
@@ -54,6 +58,11 @@ setlists: {
   comparedAt?: number,
 }
 ```
+
+The `songs` property is always present for backwards compatibility. Community predictions store
+the fan-requested queue, while official documents receive a normalized copy of the confirmed
+setlist alongside the richer `actualSetlist` data.
+
 
 The frontend reads `setlists.getByShow`, which returns both the community prediction and any
 official setlist. Once `actualSetlist` exists, the show page automatically switches to the

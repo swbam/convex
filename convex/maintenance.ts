@@ -24,18 +24,48 @@ export const syncTrendingData = internalAction({
       await ctx.runMutation(internal.trending.updateShowTrending, {});
       console.log("✅ Updated show trending ranks");
       
-      // Optional: Try to enrich with fresh Ticketmaster data
+      const fetchedAt = Date.now();
+      let ticketmasterArtists: Array<any> = [];
+      let ticketmasterShows: Array<any> = [];
+
       try {
-        const trendingArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 10 });
-        
-        // Import any new trending artists from Ticketmaster
-        for (const tmArtist of trendingArtists) {
+        ticketmasterArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 50 });
+      } catch (error) {
+        console.log("⚠️ Could not fetch Ticketmaster trending artists:", error);
+      }
+
+      try {
+        ticketmasterShows = await ctx.runAction(api.ticketmaster.getTrendingShows, { limit: 50 });
+      } catch (error) {
+        console.log("⚠️ Could not fetch Ticketmaster trending shows:", error);
+      }
+
+      if (ticketmasterShows.length > 0) {
+        await ctx.runMutation(internal.trending.replaceTrendingShowsCache, {
+          fetchedAt,
+          shows: ticketmasterShows.map((show, index) => ({
+            ...show,
+            rank: index + 1,
+          })),
+        });
+      }
+
+      if (ticketmasterArtists.length > 0) {
+        await ctx.runMutation(internal.trending.replaceTrendingArtistsCache, {
+          fetchedAt,
+          artists: ticketmasterArtists.map((artist, index) => ({
+            ...artist,
+            rank: index + 1,
+          })),
+        });
+
+        for (const tmArtist of ticketmasterArtists) {
           try {
-            // Check if artist exists
+            if (!tmArtist.ticketmasterId) continue;
             const existing = await ctx.runQuery(internal.artists.getByTicketmasterIdInternal, {
-              ticketmasterId: tmArtist.ticketmasterId
+              ticketmasterId: tmArtist.ticketmasterId,
             });
-            
+
             if (!existing) {
               console.log(`🆕 Importing trending artist: ${tmArtist.name}`);
               await ctx.runAction(api.ticketmaster.triggerFullArtistSync, {
@@ -49,10 +79,8 @@ export const syncTrendingData = internalAction({
             console.error(`Failed to import ${tmArtist.name}:`, error);
           }
         }
-      } catch (error) {
-        console.log("⚠️ Could not fetch Ticketmaster trending data:", error);
       }
-      
+
       console.log("✅ Trending data sync completed");
     } catch (error) {
       console.error("❌ Trending sync failed:", error);

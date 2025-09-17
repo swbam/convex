@@ -12,6 +12,7 @@ Use this list before shipping changes to confirm the core music fan flows still 
    - Open at least one show from the artist page.
 
 3. **Show Page – Predictions**
+   - Confirm the shared Setlist Votes list shows five seeded songs.
    - Confirm the shared community setlist shows five seeded songs.
    - Add a song from the dropdown; the entry should appear instantly without refreshing.
    - Up-vote a song; the vote count should update in real time.

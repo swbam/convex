@@ -206,9 +206,12 @@ const applicationTables = {
 // Add cached trending tables back for compatibility
   trendingShows: defineTable({
     ticketmasterId: v.string(),
+    showId: v.optional(v.id("shows")),
+    showSlug: v.optional(v.string()),
     artistTicketmasterId: v.optional(v.string()),
-    artistName: v.string(),
     artistId: v.optional(v.id("artists")),
+    artistSlug: v.optional(v.string()),
+    artistName: v.string(),
     venueName: v.string(),
     venueCity: v.string(),
     venueCountry: v.string(),
@@ -218,19 +221,31 @@ const applicationTables = {
     ticketUrl: v.optional(v.string()),
     priceRange: v.optional(v.string()),
     status: v.string(),
+    rank: v.number(),
     lastUpdated: v.number(),
-  }).index("by_last_updated", ["lastUpdated"]),
+  })
+    .index("by_rank", ["rank"])
+    .index("by_last_updated", ["lastUpdated"])
+    .index("by_ticketmaster_id", ["ticketmasterId"])
+    .index("by_show", ["showId"])
+    .index("by_artist", ["artistId"]),
 
   trendingArtists: defineTable({
     ticketmasterId: v.string(),
-    name: v.string(),
     artistId: v.optional(v.id("artists")),
+    slug: v.optional(v.string()),
+    name: v.string(),
     genres: v.array(v.string()),
     images: v.array(v.string()),
     upcomingEvents: v.number(),
     url: v.optional(v.string()),
+    rank: v.number(),
     lastUpdated: v.number(),
-  }).index("by_last_updated", ["lastUpdated"]),
+  })
+    .index("by_rank", ["rank"])
+    .index("by_last_updated", ["lastUpdated"])
+    .index("by_ticketmaster_id", ["ticketmasterId"])
+    .index("by_artist", ["artistId"]),
 
 
   // Individual song votes within setlists (ProductHunt style)

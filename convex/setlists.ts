@@ -62,29 +62,29 @@ export const addSongToSetlist = mutation({
     }),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    
-    // For anonymous users, we'll use a session-based approach
-    // The frontend should handle the 2-action limit before requiring signup
-    const effectiveUserId = userId || "anonymous";
-    
-    // Find the shared community setlist for this show (not user-specific)
-    const existingSetlist = await ctx.db
+    // Find the shared Setlist Votes record for this show (explicitly not user-specific)
+    const communitySetlist = await ctx.db
       .query("setlists")
       .withIndex("by_show", (q) => q.eq("showId", args.showId))
       .filter((q) => q.eq(q.field("isOfficial"), false))
+      .filter((q) => q.eq(q.field("userId"), undefined))
       .first();
-    
-    if (existingSetlist) {
-      // Add song if not already present
-      const songExists = existingSetlist.songs.some(s => s.title === args.song.title);
+
+    if (communitySetlist) {
+      // Add song if not already present (case insensitive to avoid duplicates)
+      const normalizedTitle = args.song.title.toLowerCase().trim();
+      const songExists = (communitySetlist.songs || []).some((existing) => {
+        const title = typeof existing === "string" ? existing : existing?.title;
+        return title ? title.toLowerCase().trim() === normalizedTitle : false;
+      });
+
       if (!songExists) {
-        await ctx.db.patch(existingSetlist._id, {
-          songs: [...existingSetlist.songs, args.song],
+        await ctx.db.patch(communitySetlist._id, {
+          songs: [...(communitySetlist.songs || []), args.song],
           lastUpdated: Date.now(),
         });
       }
-      return existingSetlist._id;
+      return communitySetlist._id;
     } else {
       // Create new shared setlist for this show
       return await ctx.db.insert("setlists", {
@@ -534,6 +534,41 @@ export const updateWithActualSetlist = internalMutation({
 
     const officialSetlist = setlistsForShow.find((setlist: any) => setlist.isOfficial) ?? null;
 
+    const predictedSongLookup = new Map<string, any>();
+    if (predictionSetlist?.songs) {
+      for (const song of predictionSetlist.songs as any[]) {
+        const title = typeof song === "string" ? song : song?.title;
+        if (!title) continue;
+        predictedSongLookup.set(title.toLowerCase().trim(), song);
+      }
+    }
+
+    const canonicalActualSongs = args.actualSetlist.map((song) => {
+      const normalizedTitle = song.title.toLowerCase().trim();
+      const predictedMatch = predictedSongLookup.get(normalizedTitle);
+      const predictedAlbum = typeof predictedMatch === "string" ? undefined : predictedMatch?.album;
+      const predictedDuration = typeof predictedMatch === "string" ? undefined : predictedMatch?.duration;
+      const predictedSongId = typeof predictedMatch === "string" ? undefined : predictedMatch?.songId;
+
+      return {
+        title: song.title,
+        album:
+          typeof song.album === "string"
+            ? song.album
+            : typeof predictedAlbum === "string"
+            ? predictedAlbum
+            : undefined,
+        duration:
+          typeof song.duration === "number"
+            ? song.duration
+            : typeof predictedDuration === "number"
+            ? predictedDuration
+            : undefined,
+        songId: predictedSongId,
+      };
+    });
+
+
     const calculateAccuracy = (predictedSongs: any[]) => {
       if (!predictedSongs || predictedSongs.length === 0) {
         return 0;
@@ -572,12 +607,15 @@ export const updateWithActualSetlist = internalMutation({
         setlistfmId: args.setlistfmId,
         setlistfmData: args.setlistfmData,
         lastUpdated: Date.now(),
+
       });
     } else {
       await ctx.db.insert("setlists", {
         showId: args.showId,
         userId: undefined,
+        songs: canonicalActualSongs,
         songs: [],
+
         actualSetlist: args.actualSetlist,
         verified: true,
         source: "setlistfm",
@@ -588,8 +626,6 @@ export const updateWithActualSetlist = internalMutation({
         downvotes: 0,
         setlistfmId: args.setlistfmId,
         setlistfmData: args.setlistfmData,
-        accuracy: 0,
-        comparedAt: Date.now(),
       });
     }
 
