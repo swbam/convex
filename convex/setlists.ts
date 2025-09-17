@@ -568,6 +568,7 @@ export const updateWithActualSetlist = internalMutation({
       };
     });
 
+
     const calculateAccuracy = (predictedSongs: any[]) => {
       if (!predictedSongs || predictedSongs.length === 0) {
         return 0;
@@ -606,13 +607,15 @@ export const updateWithActualSetlist = internalMutation({
         setlistfmId: args.setlistfmId,
         setlistfmData: args.setlistfmData,
         lastUpdated: Date.now(),
-        songs: canonicalActualSongs,
+
       });
     } else {
       await ctx.db.insert("setlists", {
         showId: args.showId,
         userId: undefined,
         songs: canonicalActualSongs,
+        songs: [],
+
         actualSetlist: args.actualSetlist,
         verified: true,
         source: "setlistfm",
