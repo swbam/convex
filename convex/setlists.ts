@@ -62,29 +62,29 @@ export const addSongToSetlist = mutation({
     }),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    
-    // For anonymous users, we'll use a session-based approach
-    // The frontend should handle the 2-action limit before requiring signup
-    const effectiveUserId = userId || "anonymous";
-    
-    // Find the shared community setlist for this show (not user-specific)
-    const existingSetlist = await ctx.db
+    // Find the shared Setlist Votes record for this show (explicitly not user-specific)
+    const communitySetlist = await ctx.db
       .query("setlists")
       .withIndex("by_show", (q) => q.eq("showId", args.showId))
       .filter((q) => q.eq(q.field("isOfficial"), false))
+      .filter((q) => q.eq(q.field("userId"), undefined))
       .first();
-    
-    if (existingSetlist) {
-      // Add song if not already present
-      const songExists = existingSetlist.songs.some(s => s.title === args.song.title);
+
+    if (communitySetlist) {
+      // Add song if not already present (case insensitive to avoid duplicates)
+      const normalizedTitle = args.song.title.toLowerCase().trim();
+      const songExists = (communitySetlist.songs || []).some((existing) => {
+        const title = typeof existing === "string" ? existing : existing?.title;
+        return title ? title.toLowerCase().trim() === normalizedTitle : false;
+      });
+
       if (!songExists) {
-        await ctx.db.patch(existingSetlist._id, {
-          songs: [...existingSetlist.songs, args.song],
+        await ctx.db.patch(communitySetlist._id, {
+          songs: [...(communitySetlist.songs || []), args.song],
           lastUpdated: Date.now(),
         });
       }
-      return existingSetlist._id;
+      return communitySetlist._id;
     } else {
       // Create new shared setlist for this show
       return await ctx.db.insert("setlists", {
@@ -523,38 +523,96 @@ export const updateWithActualSetlist = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // Find existing community setlist for this show
-    const existingSetlist = await ctx.db
+    const setlistsForShow = await ctx.db
       .query("setlists")
       .withIndex("by_show", (q) => q.eq("showId", args.showId))
-      .filter((q) => q.eq(q.field("isOfficial"), false))
-      .first();
+      .collect();
 
-    if (existingSetlist) {
-      // Update existing setlist with actual data
-      await ctx.db.patch(existingSetlist._id, {
+    const predictionSetlist = setlistsForShow.find((setlist: any) => !setlist.isOfficial && !setlist.userId)
+      ?? setlistsForShow.find((setlist: any) => !setlist.isOfficial)
+      ?? null;
+
+    const officialSetlist = setlistsForShow.find((setlist: any) => setlist.isOfficial) ?? null;
+
+    const predictedSongLookup = new Map<string, any>();
+    if (predictionSetlist?.songs) {
+      for (const song of predictionSetlist.songs as any[]) {
+        const title = typeof song === "string" ? song : song?.title;
+        if (!title) continue;
+        predictedSongLookup.set(title.toLowerCase().trim(), song);
+      }
+    }
+
+    const canonicalActualSongs = args.actualSetlist.map((song) => {
+      const normalizedTitle = song.title.toLowerCase().trim();
+      const predictedMatch = predictedSongLookup.get(normalizedTitle);
+      const predictedAlbum = typeof predictedMatch === "string" ? undefined : predictedMatch?.album;
+      const predictedDuration = typeof predictedMatch === "string" ? undefined : predictedMatch?.duration;
+      const predictedSongId = typeof predictedMatch === "string" ? undefined : predictedMatch?.songId;
+
+      return {
+        title: song.title,
+        album:
+          typeof song.album === "string"
+            ? song.album
+            : typeof predictedAlbum === "string"
+            ? predictedAlbum
+            : undefined,
+        duration:
+          typeof song.duration === "number"
+            ? song.duration
+            : typeof predictedDuration === "number"
+            ? predictedDuration
+            : undefined,
+        songId: predictedSongId,
+      };
+    });
+
+    const calculateAccuracy = (predictedSongs: any[]) => {
+      if (!predictedSongs || predictedSongs.length === 0) {
+        return 0;
+      }
+      const predictedTitles = predictedSongs
+        .map((song: any) => (typeof song === "string" ? song : song?.title))
+        .filter((title: string | undefined) => Boolean(title))
+        .map((title: string) => title.toLowerCase().trim());
+
+      const actualTitles = args.actualSetlist
+        .map((song) => song.title.toLowerCase().trim());
+
+      if (predictedTitles.length === 0 || actualTitles.length === 0) {
+        return 0;
+      }
+
+      const correctPredictions = predictedTitles.filter((title) => actualTitles.includes(title)).length;
+      const pct = Math.round((correctPredictions / predictedTitles.length) * 100);
+      return Number.isFinite(pct) ? pct : 0;
+    };
+
+    if (predictionSetlist) {
+      await ctx.db.patch(predictionSetlist._id, {
         actualSetlist: args.actualSetlist,
         setlistfmId: args.setlistfmId,
         setlistfmData: args.setlistfmData,
         lastUpdated: Date.now(),
-        // Cache accuracy and comparedAt when actual arrives
-        accuracy: (() => {
-          const predicted = (existingSetlist.songs || []).map((s: any) => s.title);
-          const actual = args.actualSetlist.map((s) => s.title);
-          const total = predicted.length;
-          if (total === 0) return 0;
-          const correct = predicted.filter((title: string) => actual.includes(title)).length;
-          const pct = Math.round((correct / total) * 100);
-          return Number.isFinite(pct) ? pct : 0;
-        })(),
+        accuracy: calculateAccuracy(predictionSetlist.songs || []),
         comparedAt: Date.now(),
       });
+    }
+
+    if (officialSetlist) {
+      await ctx.db.patch(officialSetlist._id, {
+        actualSetlist: args.actualSetlist,
+        setlistfmId: args.setlistfmId,
+        setlistfmData: args.setlistfmData,
+        lastUpdated: Date.now(),
+        songs: canonicalActualSongs,
+      });
     } else {
-      // Create new setlist with actual data only
       await ctx.db.insert("setlists", {
         showId: args.showId,
         userId: undefined,
-        songs: [], // Empty user predictions
+        songs: canonicalActualSongs,
         actualSetlist: args.actualSetlist,
         verified: true,
         source: "setlistfm",
@@ -565,11 +623,15 @@ export const updateWithActualSetlist = internalMutation({
         downvotes: 0,
         setlistfmId: args.setlistfmId,
         setlistfmData: args.setlistfmData,
-        accuracy: 0,
-        comparedAt: Date.now(),
       });
     }
-    
+
+    await ctx.db.patch(args.showId, {
+      status: "completed",
+      setlistfmId: args.setlistfmId,
+      lastSynced: Date.now(),
+    });
+
     return null;
   },
 });

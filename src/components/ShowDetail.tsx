@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ArrowLeft, MapPin, Users, Music, ChevronUp, Heart, Vote } from "lucide-react";
 import { toast } from "sonner";
 import { SEOHead } from "./SEOHead";
@@ -30,11 +30,46 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
 
   const [anonymousActions, setAnonymousActions] = useState(0);
 
-  // Get the shared community setlist (there should only be one per show)
-  const communitySetlist = setlists?.find(s => !s.isOfficial) || null;
-  
-  // Check if community setlist has actual setlist data from setlist.fm
-  const hasActualSetlist = communitySetlist?.actualSetlist && communitySetlist.actualSetlist.length > 0;
+  const predictionSetlist = useMemo(() => {
+    if (!setlists) return null;
+    const shared = setlists.find((s: any) => !s.isOfficial && !s.userId);
+    if (shared) return shared;
+    return setlists.find((s: any) => !s.isOfficial) ?? null;
+  }, [setlists]);
+
+  const actualSetlistRecord = useMemo(() => {
+    if (!setlists) return null;
+    const officialWithActual = setlists.find((s: any) => s.isOfficial && s.actualSetlist && s.actualSetlist.length > 0);
+    if (officialWithActual) return officialWithActual;
+    return setlists.find((s: any) => s.actualSetlist && s.actualSetlist.length > 0) ?? null;
+  }, [setlists]);
+
+  const actualSetlistSongs = actualSetlistRecord?.actualSetlist ?? [];
+  const hasActualSetlist = actualSetlistSongs.length > 0;
+
+  const predictedSongTitleSet = useMemo(() => {
+    if (!predictionSetlist?.songs) {
+      return new Set<string>();
+    }
+    const titles = (predictionSetlist.songs as any[])
+      .map((song) => (typeof song === "string" ? song : song?.title))
+      .filter((title: string | undefined): title is string => Boolean(title))
+      .map((title) => title.toLowerCase().trim());
+    return new Set<string>(titles);
+  }, [predictionSetlist]);
+
+  const actualSongTitleSet = useMemo(() => {
+    if (!actualSetlistSongs.length) {
+      return new Set<string>();
+    }
+    const titles = actualSetlistSongs
+      .map((song: any) => song?.title)
+      .filter((title: string | undefined): title is string => Boolean(title))
+      .map((title) => title.toLowerCase().trim());
+    return new Set<string>(titles);
+  }, [actualSetlistSongs]);
+
+  const predictionSetlistId = predictionSetlist?._id as Id<"setlists"> | undefined;
 
   const handleAnonymousAction = () => {
     if (anonymousActions >= 4) { // Allow 2 song additions + 2 votes = 4 total actions
@@ -84,9 +119,6 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
   const showDate = new Date(show.date);
   const isUpcoming = show.status === "upcoming";
   const isToday = showDate.toDateString() === new Date().toDateString();
-
-  // Get official setlist if available
-  const officialSetlist = setlists?.find(s => s.isOfficial);
 
   return (
     <div className="px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10">
@@ -169,20 +201,22 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                     <Music className="h-5 w-5 text-white" />
                   </div>
                   <h2 className="text-2xl sm:text-3xl font-bold text-white">
-                    {officialSetlist ? "Official Setlist" : "Vote on the Setlist"}
+                    {hasActualSetlist ? "Official Setlist" : "Vote on the Setlist"}
                   </h2>
                 </div>
                 <div className="flex items-center gap-4">
-                  {(communitySetlist || officialSetlist) && (
+                  {(predictionSetlist || hasActualSetlist) && (
                     <div className="text-lg font-medium text-gray-300">
-                      {(officialSetlist?.songs?.length || communitySetlist?.songs?.length || 0)} songs
-              </div>
-            )}
-                  {communitySetlist && !officialSetlist && (
+                      {hasActualSetlist
+                        ? actualSetlistSongs.length
+                        : predictionSetlist?.songs?.length || 0} songs
+                    </div>
+                  )}
+                  {predictionSetlist && !hasActualSetlist && (
                     <div className="text-sm text-gray-400 bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm">
                       Community Predictions
-            </div>
-          )}
+                    </div>
+                  )}
         </div>
       </div>
 
@@ -193,7 +227,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                     <h3 className="text-lg font-semibold text-white">Add Songs to Setlist</h3>
                     <div className="text-sm text-gray-300">
                       {(songs || []).filter(Boolean).filter(s => s && !s.isLive && !s.isRemix).filter((s) => {
-                        const songTitles = communitySetlist?.songs?.map((song: any) => 
+                        const songTitles = predictionSetlist?.songs?.map((song: any) =>
                           typeof song === 'string' ? song : song?.title
                         ) || [];
                         return !songTitles.includes(s!.title);
@@ -219,7 +253,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                       .filter((s) => s && !s.isLive && !s.isRemix)
                       .filter((s) => {
                         // Don't show songs already in the setlist
-                        const songTitles = communitySetlist?.songs?.map((song: any) => 
+                        const songTitles = predictionSetlist?.songs?.map((song: any) =>
                           typeof song === 'string' ? song : song?.title
                         ) || [];
                         return !songTitles.includes(s!.title);
@@ -263,26 +297,26 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                     </div>
                     
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-white">{communitySetlist.actualSetlist?.length || 0}</div>
+                      <div className="text-2xl font-bold text-white">{actualSetlistSongs.length}</div>
                       <div className="text-xs text-gray-400">songs played</div>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-3">
-                    {(communitySetlist.actualSetlist || []).map((song: any, index: number) => (
+                    {actualSetlistSongs.map((song: any, index: number) => (
                       <ActualSetlistSongRow
                         key={`actual-${index}`}
                         song={song}
                         index={index}
-                        communitySetlist={communitySetlist}
-                        setlistId={communitySetlist._id}
+                        predictionSetlistId={predictionSetlistId}
+                        predictedSongTitleSet={predictedSongTitleSet}
                       />
                     ))}
                   </div>
                 </div>
 
                 {/* SECONDARY: Complete Fan Requests with Vote Counts */}
-                {communitySetlist && communitySetlist.songs && communitySetlist.songs.length > 0 && (
+                {predictionSetlist && predictionSetlist.songs && predictionSetlist.songs.length > 0 && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -298,13 +332,13 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                       </div>
                       
                       <div className="text-right">
-                        <div className="text-lg font-bold text-white">{communitySetlist.songs.length}</div>
+                        <div className="text-lg font-bold text-white">{predictionSetlist.songs.length}</div>
                         <div className="text-xs text-gray-400">songs requested</div>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2">
-                      {(communitySetlist.songs || [])
+                      {(predictionSetlist.songs || [])
                         .map((s: any) => (typeof s === 'string' ? s : s?.title))
                         .filter(Boolean)
                         .map((songTitle: string, index: number) => (
@@ -312,8 +346,8 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                             key={`request-${songTitle}-${index}`}
                             songTitle={songTitle}
                             index={index}
-                            communitySetlist={communitySetlist}
-                            setlistId={communitySetlist._id}
+                            predictionSetlistId={predictionSetlistId}
+                            actualSongTitleSet={actualSongTitleSet}
                           />
                         ))}
                     </div>
@@ -321,7 +355,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                 )}
                 
                 {/* Accuracy Summary */}
-                {communitySetlist && communitySetlist.songs && communitySetlist.songs.length > 0 && (
+                {predictionSetlist && predictionSetlist.songs && predictionSetlist.songs.length > 0 && (
                   <div className="mt-6">
                     <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
                       <div className="flex items-center justify-between">
@@ -340,11 +374,12 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                         <div className="text-right">
                           <div className="text-3xl font-bold text-purple-400">
                             {(() => {
-                              const total = (communitySetlist.songs || []).length || 0;
+                              const total = (predictionSetlist.songs || []).length || 0;
                               if (total === 0) return '—';
-                              const correct = (communitySetlist.songs || []).filter((s: any) => {
+                              const correct = (predictionSetlist.songs || []).filter((s: any) => {
                                 const songTitle = typeof s === 'string' ? s : s?.title;
-                                return (communitySetlist.actualSetlist || []).some((actualSong: any) => actualSong.title === songTitle);
+                                if (!songTitle) return false;
+                                return actualSongTitleSet.has(songTitle.toLowerCase().trim());
                               }).length;
                               const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
                               return `${pct}%`;
@@ -357,7 +392,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                   </div>
                 )}
               </div>
-            ) : !communitySetlist || (communitySetlist.songs?.length || 0) === 0 ? (
+            ) : !predictionSetlist || (predictionSetlist.songs?.length || 0) === 0 ? (
               // No songs in shared setlist yet
               <div className="text-center py-12 text-muted-foreground">
                 <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -370,17 +405,17 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                 <div className="mb-4 p-4 bg-white/5 border border-white/10 rounded-xl backdrop-blur-sm">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-300 font-medium">Click ↑ to vote for songs you want to hear</span>
-                    <span className="text-gray-400">{communitySetlist.songs?.length || 0} songs • {((communitySetlist.upvotes || 0) + (communitySetlist.downvotes || 0))} total votes</span>
+                    <span className="text-gray-400">{predictionSetlist.songs?.length || 0} songs • {((predictionSetlist.upvotes || 0) + (predictionSetlist.downvotes || 0))} total votes</span>
                   </div>
                 </div>
-                
-                {(communitySetlist.songs || [])
+
+                {(predictionSetlist.songs || [])
                   .map((s: any) => (typeof s === 'string' ? s : s?.title))
                   .filter(Boolean)
                   .map((songTitle: string, index: number) => (
                     <SongVoteRow
-                      key={`${communitySetlist._id}-${songTitle}-${index}`}
-                      setlistId={communitySetlist._id}
+                      key={`${predictionSetlist._id}-${songTitle}-${index}`}
+                      setlistId={predictionSetlist._id}
                       songTitle={songTitle}
                       position={index + 1}
                       user={user}
@@ -433,7 +468,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-400">Songs {hasActualSetlist ? 'played' : 'in setlist'}</span>
                   <span className="font-medium text-white">
-                    {hasActualSetlist ? communitySetlist.actualSetlist?.length || 0 : communitySetlist?.songs?.length || 0}
+                    {hasActualSetlist ? actualSetlistSongs.length : predictionSetlist?.songs?.length || 0}
                   </span>
                 </div>
                 
@@ -442,18 +477,18 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                   <span className="font-medium text-white">{songs?.filter(Boolean).filter(s => s && !s.isLive && !s.isRemix).length || 0}</span>
                 </div>
                 
-                {communitySetlist && (
+                {predictionSetlist && (
                   <>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-400">Total votes</span>
                       <span className="font-medium text-white">
-                        {((communitySetlist.upvotes || 0) + (communitySetlist.downvotes || 0))}
+                        {((predictionSetlist.upvotes || 0) + (predictionSetlist.downvotes || 0))}
                       </span>
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-400">Setlist upvotes</span>
-                      <span className="font-medium text-white">{communitySetlist.upvotes || 0}</span>
+                      <span className="font-medium text-white">{predictionSetlist.upvotes || 0}</span>
                     </div>
                   </>
                 )}
@@ -513,23 +548,27 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
 function FanRequestSongRow({
   songTitle,
   index,
-  communitySetlist,
-  setlistId
+  predictionSetlistId,
+  actualSongTitleSet,
 }: {
   songTitle: string;
   index: number;
-  communitySetlist: any;
-  setlistId: Id<"setlists">;
+  predictionSetlistId?: Id<"setlists">;
+  actualSongTitleSet: Set<string>;
 }) {
-  const wasPlayed = (communitySetlist.actualSetlist || []).some(
-    (actualSong: any) => actualSong.title === songTitle
-  );
-  
+  const normalizedTitle = songTitle.toLowerCase().trim();
+  const wasPlayed = actualSongTitleSet.has(normalizedTitle);
+
   // Get real vote count
-  const songVotes = useQuery(api.songVotes.getSongVotes, { 
-    setlistId, 
-    songTitle 
-  });
+  const songVotes = useQuery(
+    api.songVotes.getSongVotes,
+    predictionSetlistId
+      ? {
+          setlistId: predictionSetlistId,
+          songTitle,
+        }
+      : "skip"
+  );
   
   const voteCount = songVotes?.upvotes || 0;
   
@@ -606,22 +645,23 @@ function FanRequestSongRow({
 function ActualSetlistSongRow({
   song,
   index,
-  communitySetlist,
-  setlistId
+  predictionSetlistId,
+  predictedSongTitleSet,
 }: {
   song: any;
   index: number;
-  communitySetlist: any;
-  setlistId: Id<"setlists">;
+  predictionSetlistId?: Id<"setlists">;
+  predictedSongTitleSet: Set<string>;
 }) {
-  // Check if this song was requested by fans
-  const wasRequested = (communitySetlist.songs || []).some(
-    (requestedSong: any) => (typeof requestedSong === 'string' ? requestedSong : requestedSong?.title) === song.title
-  );
-  
+  const normalizedTitle = (song?.title ?? "").toLowerCase().trim();
+  const wasRequested = normalizedTitle.length > 0 && predictedSongTitleSet.has(normalizedTitle);
+
   // Get real vote count if the song was requested
-  const songVotes = useQuery(api.songVotes.getSongVotes, 
-    wasRequested ? { setlistId, songTitle: song.title } : 'skip'
+  const songVotes = useQuery(
+    api.songVotes.getSongVotes,
+    wasRequested && predictionSetlistId
+      ? { setlistId: predictionSetlistId, songTitle: song.title }
+      : "skip"
   );
   
   const voteCount = songVotes?.upvotes || 0;

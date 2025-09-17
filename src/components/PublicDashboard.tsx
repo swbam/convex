@@ -9,13 +9,19 @@ import { BorderBeam } from "./ui/border-beam";
 import { SearchBar } from "./SearchBar";
 
 interface PublicDashboardProps {
-  onArtistClick: (artistSlug: string) => void;
-  onShowClick: (showId: Id<"shows">) => void;
+  onArtistClick: (artistKey: Id<"artists"> | string) => void;
+  onShowClick: (showKey: Id<"shows"> | string) => void;
   onSignInRequired: () => void;
   navigate: (path: string) => void;
 }
 
-export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: PublicDashboardProps) {
+const toSlug = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, navigate }: PublicDashboardProps) {
   // State for Ticketmaster trending data
   const [trendingShows, setTrendingShows] = useState<any[]>([]);
   const [trendingArtists, setTrendingArtists] = useState<any[]>([]);
@@ -43,18 +49,21 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
       // Transform to expected format
       const formattedShows = uniqueShows.map(show => ({
         ticketmasterId: show.ticketmasterId || show._id,
+        showId: show._id,
+        slug: show.slug || show.showSlug,
         artistTicketmasterId: show.artist?.ticketmasterId,
-        artistId: show.artist?._id, // pass local ID to avoid re-imports
-        artistName: show.artist?.name || 'Unknown Artist',
+        artistId: show.artist?._id,
+        artistSlug: show.artist?.slug || show.artistSlug,
+        artistName: show.artist?.name || show.artistName || 'Unknown Artist',
         artist: show.artist,
-        venueName: show.venue?.name || 'Unknown Venue',
-        venueCity: show.venue?.city || '',
-        venueCountry: show.venue?.country || '',
+        venueName: show.venue?.name || show.venueName || 'Unknown Venue',
+        venueCity: show.venue?.city || show.venueCity || '',
+        venueCountry: show.venue?.country || show.venueCountry || '',
         date: show.date,
         startTime: show.startTime,
-        artistImage: show.artist?.images?.[0],
+        artistImage: show.artist?.images?.[0] || show.artistImage,
         ticketUrl: show.ticketUrl,
-        status: show.status,
+        status: show.status || 'upcoming',
       }));
       
       setTrendingShows(formattedShows);
@@ -65,7 +74,11 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
         .filter(show => show.artist?.name && show.artist.name.trim() !== '' && show.artist.name !== 'Unknown Artist')
         .map(show => ({
           ticketmasterId: show.ticketmasterId || show._id,
+          showId: show._id,
+          slug: show.slug,
           artistTicketmasterId: show.artist?.ticketmasterId,
+          artistId: show.artist?._id,
+          artistSlug: show.artist?.slug,
           artistName: show.artist.name,
           artist: show.artist, // Include full artist data
           venueName: show.venue?.name || 'Unknown Venue',
@@ -86,6 +99,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
       const formattedArtists = dbTrendingArtists.map(artist => ({
         ticketmasterId: artist.ticketmasterId || artist._id,
         name: artist.name,
+        slug: artist.slug,
         genres: artist.genres || [],
         images: artist.images || [],
         upcomingEvents: artist.upcomingShowsCount || 0,
@@ -101,6 +115,7 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
         .map(artist => ({
           ticketmasterId: artist.ticketmasterId || artist._id,
           name: artist.name,
+          slug: artist.slug,
           genres: artist.genres || [],
           images: artist.images || [],
           upcomingEvents: artist.upcomingShowsCount || 0,
@@ -112,24 +127,31 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
     }
   }, [dbTrendingShows, dbTrendingArtists, fallbackShows, fallbackArtists]);
 
-  const handleArtistClick = async (artistOrTicketmasterId: string, artistName: string, genres?: string[], images?: string[], artistId?: string) => {
+  const handleArtistClick = async (
+    artistOrTicketmasterId: string,
+    artistName: string,
+    genres?: string[],
+    images?: string[],
+    artistId?: string,
+    artistSlug?: string,
+  ) => {
     // Generate SEO-friendly slug for navigation
-    const slug = artistName.toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
-    
+    const slug = artistSlug && artistSlug.trim().length > 0
+      ? artistSlug
+      : toSlug(artistName);
+
     // If we have the actual artist ID, use the slug but don't trigger sync
     if (artistId && artistId.startsWith('k')) {
       onArtistClick(slug);
       return;
     }
-    
+
     // Navigate immediately using the slug
     onArtistClick(slug);
-    
+
     // Trigger sync in the background to ensure artist data is available
     toast.info(`Loading ${artistName} data...`);
-    
+
     try {
       await triggerFullSync({
         ticketmasterId: artistOrTicketmasterId,
@@ -141,6 +163,54 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
     } catch (error) {
       console.error("Failed to sync artist:", error);
       toast.error("Failed to import complete artist data");
+    }
+  };
+
+  const handleShowClick = (show: any) => {
+    const localId: string | undefined =
+      typeof show.showId === 'string' ? show.showId
+      : typeof show._id === 'string' ? show._id
+      : typeof show.id === 'string' ? show.id
+      : undefined;
+
+    const slug: string | undefined =
+      typeof show.slug === 'string' && show.slug.trim().length > 0 ? show.slug
+      : typeof show.showSlug === 'string' && show.showSlug.trim().length > 0 ? show.showSlug
+      : undefined;
+
+    if (localId && localId.startsWith('k')) {
+      onShowClick(localId as Id<'shows'>);
+      return;
+    }
+
+    if (slug) {
+      onShowClick(slug);
+      return;
+    }
+
+    if (localId) {
+      onShowClick(localId);
+      return;
+    }
+
+    const fallbackSource = [
+      show.artist?.name || show.artistName,
+      show.venueName,
+      show.venueCity,
+      show.date,
+    ]
+      .filter((part: string | undefined) => Boolean(part))
+      .join(' ');
+
+    const fallbackSlug = fallbackSource ? toSlug(fallbackSource) : undefined;
+
+    if (fallbackSlug) {
+      onShowClick(fallbackSlug);
+      return;
+    }
+
+    if (show.ticketmasterId) {
+      onShowClick(show.ticketmasterId);
     }
   };
 
@@ -207,10 +277,18 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
             >
               {trendingShows.map((show, index) => (
                 <PremiumShowCard
-                  key={`${show.ticketmasterId}-${index}`}
+                  key={`${show.showId ?? show.ticketmasterId}-${index}`}
                   show={show}
-                  onArtistClick={(artistTicketmasterId: string, artistName: string, genres?: string[], images?: string[]) => {
-                    void handleArtistClick(artistTicketmasterId, artistName, genres, images);
+                  onShowClick={() => handleShowClick(show)}
+                  onArtistClick={() => {
+                    void handleArtistClick(
+                      show.artistTicketmasterId || show.ticketmasterId,
+                      show.artist?.name || show.artistName,
+                      show.artist?.genres || [],
+                      show.artist?.images || (show.artistImage ? [show.artistImage] : []),
+                      show.artist?._id,
+                      show.artist?.slug,
+                    );
                   }}
                 />
               ))}
@@ -237,7 +315,17 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
                 <MobileShowCard
                   key={show.ticketmasterId}
                   show={show}
-                  onArtistClick={handleArtistClick}
+                  onShowClick={() => handleShowClick(show)}
+                  onArtistClick={() => {
+                    void handleArtistClick(
+                      show.artistTicketmasterId || show.ticketmasterId,
+                      show.artist?.name || show.artistName,
+                      show.artist?.genres || [],
+                      show.artist?.images || (show.artistImage ? [show.artistImage] : []),
+                      show.artist?._id,
+                      show.artist?.slug,
+                    );
+                  }}
                 />
               ))
             )}
@@ -270,7 +358,14 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
                   key={`${artist.ticketmasterId}-${index}`}
                   artist={artist}
                   onClick={() => {
-                    handleArtistClick(artist.ticketmasterId, artist.name, artist.genres, artist.images, artist._id).catch(console.error);
+                    handleArtistClick(
+                      artist.ticketmasterId,
+                      artist.name,
+                      artist.genres,
+                      artist.images,
+                      artist._id,
+                      artist.slug,
+                    ).catch(console.error);
                   }}
                 />
               ))}
@@ -297,7 +392,14 @@ export function PublicDashboard({ onArtistClick, onSignInRequired, navigate }: P
                 <MobileArtistCard
                   key={artist.ticketmasterId}
                   artist={artist}
-                  onClick={() => void handleArtistClick(artist.ticketmasterId, artist.name, artist.genres, artist.images, artist._id)}
+                  onClick={() => void handleArtistClick(
+                    artist.ticketmasterId,
+                    artist.name,
+                    artist.genres,
+                    artist.images,
+                    artist._id,
+                    artist.slug,
+                  )}
                 />
               ))
             )}
@@ -420,17 +522,22 @@ function HorizontalScrollingSection({
 }
 
 // Redesigned Show Card to Match Artist Page Style
-function PremiumShowCard({ show, onArtistClick }: {
+function PremiumShowCard({
+  show,
+  onShowClick,
+  onArtistClick,
+}: {
   show: any;
-  onArtistClick: (artistTicketmasterId: string, artistName: string, genres?: string[], images?: string[], artistId?: string) => void;
+  onShowClick: () => void;
+  onArtistClick: () => void;
 }) {
   const showDate = new Date(show.date);
   const isToday = showDate.toDateString() === new Date().toDateString();
   const isTomorrow = showDate.toDateString() === new Date(Date.now() + 86400000).toDateString();
-  
-  let dateText = showDate.toLocaleDateString('en-US', { 
+
+  let dateText = showDate.toLocaleDateString('en-US', {
     weekday: 'short',
-    month: 'short', 
+    month: 'short',
     day: 'numeric'
   });
   if (isToday) dateText = "Tonight";
@@ -453,79 +560,101 @@ function PremiumShowCard({ show, onArtistClick }: {
       gradientOpacity={0}
       gradientSize={0}
     >
-      {/* Large Artist Image at Top - Matching Artist Card Style */}
-      <div className="relative w-full h-40 overflow-hidden">
-        {(show.artist?.images?.[0] || show.artistImage) ? (
-          <>
-            <img 
-              src={show.artist?.images?.[0] || show.artistImage} 
-              alt={show.artist?.name || show.artistName}
-              className="w-full h-full object-cover opacity-85"
-            />
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onShowClick}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onShowClick();
+          }
+        }}
+        className="flex flex-col h-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-[inherit]"
+      >
+        {/* Large Artist Image at Top - Matching Artist Page Style */}
+        <div className="relative w-full h-40 overflow-hidden">
+          {(show.artist?.images?.[0] || show.artistImage) ? (
+            <>
+              <img
+                src={show.artist?.images?.[0] || show.artistImage}
+                alt={show.artist?.name || show.artistName}
+                className="w-full h-full object-cover opacity-85"
+              />
 
-          </>
-        ) : (
-          <div className="w-full h-full bg-accent/20 flex items-center justify-center">
-            <span className="text-foreground font-bold text-2xl">
-              {(show.artist?.name || show.artistName).slice(0, 2).toUpperCase()}
-            </span>
-          </div>
-        )}
-      </div>
-      
-      <div className="relative z-10 p-5" onClick={() => onArtistClick(
-        show.artistTicketmasterId || show.ticketmasterId,
-        show.artist?.name || show.artistName,
-        show.artist?.genres || [],
-        show.artist?.images || (show.artistImage ? [show.artistImage] : []),
-        show.artist?._id
-      )}>
-        {/* Artist Info - Enhanced */}
-        <div className="mb-4">
-          <h3 className="font-bold text-foreground text-lg mb-2 transition-colors truncate">
-            {show.artist?.name || show.artistName}
-          </h3>
-          
-          {/* Show Details Below Artist Name */}
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="text-sm font-medium truncate">{show.venueName}</span>
+            </>
+          ) : (
+            <div className="w-full h-full bg-accent/20 flex items-center justify-center">
+              <span className="text-foreground font-bold text-2xl">
+                {(show.artist?.name || show.artistName).slice(0, 2).toUpperCase()}
+              </span>
             </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Calendar className="h-3.5 w-3.5" />
-                <span className="text-sm font-medium">{dateText}</span>
-              </div>
-              
-              {show.startTime && (
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  <span className="text-xs font-semibold">{formatTime(show.startTime)}</span>
-                </div>
-              )}
-            </div>
-            
-            <div className="text-xs text-muted-foreground">
-              {show.venueCity}
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Status Badge */}
-        {isToday && (
-          <div className="inline-flex items-center px-2 py-1 bg-primary/20 text-primary text-xs font-semibold rounded-full">
-            Tonight
+        <div className="relative z-10 p-5 flex-1 flex flex-col gap-4">
+          {/* Artist Info - Enhanced */}
+          <div>
+            <h3 className="font-bold text-foreground text-lg mb-2 transition-colors truncate">
+              {show.artist?.name || show.artistName}
+            </h3>
+
+            {/* Show Details Below Artist Name */}
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                <span className="text-sm font-medium truncate">{show.venueName}</span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span className="text-sm font-medium">{dateText}</span>
+                </div>
+
+                {show.startTime && (
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    <span className="text-xs font-semibold">{formatTime(show.startTime)}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                {show.venueCity}
+              </div>
+            </div>
           </div>
-        )}
+
+          <div className="flex items-center justify-between pt-2">
+            {/* Status Badge */}
+            {isToday ? (
+              <div className="inline-flex items-center px-2 py-1 bg-primary/20 text-primary text-xs font-semibold rounded-full">
+                Tonight
+              </div>
+            ) : (
+              <span className="text-xs text-muted-foreground">Tap to view show</span>
+            )}
+
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onArtistClick();
+              }}
+              className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+            >
+              View Artist
+            </button>
+          </div>
+        </div>
       </div>
-      
-      <BorderBeam 
-        size={100} 
-        duration={12} 
-        className="opacity-20" 
-        colorFrom="#ffffff" 
+
+      <BorderBeam
+        size={100}
+        duration={12}
+        className="opacity-20"
+        colorFrom="#ffffff"
         colorTo="#888888"
       />
     </MagicCard>
@@ -616,13 +745,18 @@ function EmptyState({ icon, title, subtitle }: {
 }
 
 // Mobile-optimized Show Card
-function MobileShowCard({ show, onArtistClick }: {
+function MobileShowCard({
+  show,
+  onShowClick,
+  onArtistClick,
+}: {
   show: any;
-  onArtistClick: (artistTicketmasterId: string, artistName: string, genres?: string[], images?: string[], artistId?: string) => void;
+  onShowClick: () => void;
+  onArtistClick: () => void;
 }) {
   const showDate = new Date(show.date);
   const isToday = showDate.toDateString() === new Date().toDateString();
-  
+
   // Format time to normal format like "8pm EST"
   const formatTime = (time: string) => {
     if (!time) return '';
@@ -632,31 +766,41 @@ function MobileShowCard({ show, onArtistClick }: {
     const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
     return `${displayHour}${minutes !== '00' ? `:${minutes}` : ''}${ampm} EST`;
   };
-  
+
   return (
-    <div className="mobile-card cursor-pointer" onClick={() => onArtistClick(
-      show.artistTicketmasterId || show.ticketmasterId,
-      show.artist?.name || show.artistName,
-      show.artist?.genres || [],
-      show.artist?.images || (show.artistImage ? [show.artistImage] : []),
-      show.artist?._id
-    )}>
+    <div
+      className="mobile-card cursor-pointer"
+      role="button"
+      tabIndex={0}
+      onClick={onShowClick}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onShowClick();
+        }
+      }}
+    >
       <div className="flex items-center gap-4">
-        {/* Artist Image */}
-        {show.artistImage && (
-          <div className="w-16 h-16 rounded-xl overflow-hidden bg-accent/20 flex-shrink-0">
-            <img 
-              src={show.artistImage} 
-              alt={show.artistName}
+        <div className="w-16 h-16 rounded-xl overflow-hidden bg-accent/20 flex-shrink-0">
+          {(show.artist?.images?.[0] || show.artistImage) ? (
+            <img
+              src={show.artist?.images?.[0] || show.artistImage}
+              alt={show.artist?.name || show.artistName}
               className="w-full h-full object-cover opacity-85"
             />
-          </div>
-        )}
-        
+          ) : (
+            <div className="w-full h-full bg-accent/10 flex items-center justify-center">
+              <span className="text-sm font-semibold text-muted-foreground">
+                {(show.artist?.name || show.artistName)?.slice(0, 2)?.toUpperCase()}
+              </span>
+            </div>
+          )}
+        </div>
+
         {/* Content */}
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-foreground transition-colors truncate text-base">
-            {show.artistName}
+            {show.artist?.name || show.artistName}
           </h3>
           <p className="text-sm text-muted-foreground truncate">{show.venueName}</p>
           <p className="text-xs text-muted-foreground">{show.venueCity}</p>
@@ -673,13 +817,25 @@ function MobileShowCard({ show, onArtistClick }: {
             )}
           </div>
         </div>
-        
-        {/* Arrow indicator */}
+
         <div className="text-muted-foreground">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </div>
+      </div>
+      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+        {isToday ? <span className="font-semibold text-primary">Tonight</span> : <span>Tap to view show</span>}
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onArtistClick();
+          }}
+          className="font-semibold text-primary hover:text-primary/80 transition-colors"
+        >
+          View Artist
+        </button>
       </div>
     </div>
   );
