@@ -17,6 +17,9 @@ The schema is defined in [`convex/schema.ts`](convex/schema.ts). Key tables incl
   - `songs`: for predictions this is the community queue; for official entries it's a normalized
     copy of the confirmed tracks so legacy UIs keep working (array of `{ title, album, duration,
     songId }`).
+
+  - `songs`: the community prediction (array of `{ title, album, duration, songId }`).
+
   - `actualSetlist`: the confirmed setlist from setlist.fm (`{ title, setNumber, encore, ... }`).
   - `isOfficial`: `true` for canonical setlist.fm entries, `false` for community predictions.
   - `accuracy`/`comparedAt`: cached prediction accuracy once an official setlist is known.
