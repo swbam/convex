@@ -66,3 +66,9 @@
 - ✅ Song addition works instantly
 - ✅ Voting works with real-time updates
 - ✅ All data persists in Convex database
+
+### **11. Verify Official Setlist Import**
+- Run the completed shows check from the admin tools or `npx convex run setlistfm:triggerCompletedShowsCheck`.
+- Refresh the show page once the job finishes.
+- Confirm the header changes to “Official Setlist” and the songs match the setlist.fm entry.
+- Ensure the accuracy summary is populated and the fan-request table highlights which predicted songs were actually played.

@@ -6,9 +6,15 @@ import { TrendingUp, Music, MapPin, Calendar, Clock, Users, Star } from 'lucide-
 import { MagicCard } from './ui/magic-card';
 import { BorderBeam } from './ui/border-beam';
 
+const toSlug = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
 interface TrendingProps {
-  onArtistClick: (artistId: Id<'artists'>, slug?: string) => void;
-  onShowClick: (showId: Id<'shows'>, slug?: string) => void;
+  onArtistClick: (artistKey: Id<'artists'> | string, slug?: string) => void;
+  onShowClick: (showKey: Id<'shows'> | string, slug?: string) => void;
 }
 
 export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
@@ -23,13 +29,60 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
   const recentActivity = useQuery(api.shows.getRecentlyUpdated, { limit: 10 });
 
   const handleArtistClick = (artist: any) => {
-    // Now we always have the real artist ID since it's from the artists table
-    onArtistClick(artist._id as Id<'artists'>, artist.slug);
+    const fallbackSlug = typeof artist.slug === 'string' && artist.slug.trim().length > 0
+      ? artist.slug
+      : typeof artist.name === 'string'
+        ? toSlug(artist.name)
+        : undefined;
+
+    if (typeof artist._id === 'string' && artist._id.startsWith('k')) {
+      onArtistClick(artist._id as Id<'artists'>, fallbackSlug);
+      return;
+    }
+
+    if (typeof artist.ticketmasterId === 'string' && artist.ticketmasterId.length > 0) {
+      onArtistClick(artist.ticketmasterId, fallbackSlug);
+      return;
+    }
+
+    if (fallbackSlug) {
+      onArtistClick(fallbackSlug, fallbackSlug);
+    }
   };
 
   const handleShowClick = (show: any) => {
-    // Now we always have the real show ID since it's from the shows table
-    onShowClick(show._id as Id<'shows'>, show.slug);
+    const localId = typeof show._id === 'string'
+      ? show._id
+      : typeof show.showId === 'string'
+        ? show.showId
+        : undefined;
+
+    const inferredSlug = typeof show.slug === 'string' && show.slug.trim().length > 0
+      ? show.slug
+      : typeof show.showSlug === 'string' && show.showSlug.trim().length > 0
+        ? show.showSlug
+        : toSlug([
+            show.artist?.name || show.artistName,
+            show.venue?.name || show.venueName,
+            show.venue?.city || show.venueCity,
+            show.date,
+          ]
+            .filter((part) => typeof part === 'string' && part.length > 0)
+            .join(' '));
+
+    if (localId && localId.startsWith('k')) {
+      onShowClick(localId as Id<'shows'>, inferredSlug);
+      return;
+    }
+
+    if (inferredSlug) {
+      onShowClick(inferredSlug, inferredSlug);
+      return;
+    }
+
+    if (typeof show.ticketmasterId === 'string' && show.ticketmasterId.length > 0) {
+      onShowClick(show.ticketmasterId, inferredSlug);
+    }
   };
 
   return (
@@ -120,19 +173,29 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                       <p>No trending artists data available</p>
                     </div>
                   ) : (
-                    trendingArtists.map((artist, index) => (
-                      <div
-                        key={`${artist.ticketmasterId}-${index}`}
-                        className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer transition-all duration-200"
-                        onClick={() => handleArtistClick(artist)}
-                      >
+                    trendingArtists.map((artist, index) => {
+                      const artistKey = artist.ticketmasterId || artist._id || index;
+                      const image = Array.isArray(artist.images) && artist.images.length > 0 ? artist.images[0] : undefined;
+                      const genres = Array.isArray(artist.genres) ? artist.genres : [];
+                      const upcomingCount = typeof artist.upcomingShowsCount === 'number'
+                        ? artist.upcomingShowsCount
+                        : typeof artist.upcomingEvents === 'number'
+                          ? artist.upcomingEvents
+                          : 0;
+
+                      return (
+                        <div
+                          key={`${artistKey}`}
+                          className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer transition-all duration-200"
+                          onClick={() => handleArtistClick(artist)}
+                        >
                         <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 text-white font-bold">
                           {index + 1}
                         </div>
-                        
-                        {artist.images?.[0] ? (
+
+                        {image ? (
                           <img
-                            src={artist.images[0]}
+                            src={image}
                             alt={artist.name}
                             className="w-12 h-12 rounded-full object-cover"
                           />
@@ -151,12 +214,12 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                             </span>
                             <span className="flex items-center gap-1">
                               <Music className="h-3.5 w-3.5" />
-                              {artist.upcomingShowsCount || 0} upcoming shows
+                              {upcomingCount} upcoming shows
                             </span>
                           </div>
-                          {artist.genres?.length > 0 && (
+                          {genres.length > 0 && (
                             <div className="flex gap-2 mt-1">
-                              {artist.genres.slice(0, 2).map((genre: string, idx: number) => (
+                              {genres.slice(0, 2).map((genre: string, idx: number) => (
                                 <span key={idx} className="text-xs px-2 py-0.5 bg-white/10 rounded-full">
                                   {genre}
                                 </span>
@@ -164,7 +227,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                             </div>
                           )}
                         </div>
-                        
+
                         <div className="text-right">
                           <div className="flex items-center gap-1 text-green-400">
                             <TrendingUp className="h-4 w-4" />
@@ -173,11 +236,12 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                           <div className="text-xs text-gray-500">Score: {95 - index}</div>
                         </div>
                       </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               )}
-              
+
               {activeTab === 'shows' && (
                 // Shows Tab
                 <div className="space-y-3">
@@ -200,20 +264,36 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                       <p>No trending shows data available</p>
                     </div>
                   ) : (
-                    trendingShows.map((show, index) => (
-                      <div
-                        key={`${show.ticketmasterId}-${index}`}
-                        className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer transition-all duration-200"
-                        onClick={() => handleShowClick(show)}
-                      >
+                    trendingShows.map((show, index) => {
+                      const showKey = show.ticketmasterId || show._id || index;
+                      const artistName = show.artist?.name || show.artistName || 'Unknown Artist';
+                      const artistImage = show.artist?.images?.[0] || show.artistImage;
+                      const venueName = show.venue?.name || show.venueName || 'Unknown Venue';
+                      const venueCity = show.venue?.city || show.venueCity || '';
+                      const venueCountry = show.venue?.country || show.venueCountry || '';
+                      const eventDate = new Date(show.date);
+                      const dateLabel = Number.isNaN(eventDate.getTime())
+                        ? show.date
+                        : eventDate.toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          });
+                      const locationLabel = [venueCity, venueCountry].filter(Boolean).join(', ');
+
+                      return (
+                        <div
+                          key={`${showKey}`}
+                          className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer transition-all duration-200"
+                          onClick={() => handleShowClick(show)}
+                        >
                         <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 text-white font-bold">
                           {index + 1}
                         </div>
-                        
-                        {(show.artist?.images?.[0] || show.artistImage) ? (
+
+                        {artistImage ? (
                           <img
-                            src={show.artist?.images?.[0] || show.artistImage}
-                            alt={show.artist?.name || show.artistName}
+                            src={artistImage}
+                            alt={artistName}
                             className="w-12 h-12 rounded object-cover"
                           />
                         ) : (
@@ -221,27 +301,24 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                             <Music className="h-6 w-6 text-white/50" />
                           </div>
                         )}
-                        
+
                         <div className="flex-1">
-                          <h3 className="font-semibold text-white">{show.artist?.name || show.artistName}</h3>
+                          <h3 className="font-semibold text-white">{artistName}</h3>
                           <div className="flex items-center gap-3 text-sm text-gray-400">
                             <span className="flex items-center gap-1">
                               <MapPin className="h-3.5 w-3.5" />
-                              {show.venue?.name || show.venueName}
+                              {venueName}
                             </span>
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3.5 w-3.5" />
-                              {new Date(show.date).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric'
-                              })}
+                              {dateLabel}
                             </span>
                           </div>
                           <div className="text-xs text-gray-500 mt-1">
-                            {(show.venue?.city || show.venueCity) || ''}{(show.venue?.country || show.venueCountry) ? `, ${show.venue?.country || show.venueCountry}` : ''}
+                            {locationLabel}
                           </div>
                         </div>
-                        
+
                         <div className="text-right">
                           <div className="flex items-center gap-1 text-green-400">
                             <TrendingUp className="h-4 w-4" />
@@ -250,7 +327,8 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                           <div className="text-xs text-gray-500">Score: {95 - index}</div>
                         </div>
                       </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               )}
