@@ -16,15 +16,34 @@ interface Show {
   status: string;
 }
 
+interface SetlistSong {
+  title: string;
+  album?: string;
+  duration?: number;
+  songId?: Id<"songs">;
+}
+
+interface ActualSetlistSong {
+  title: string;
+  setNumber: number;
+  encore: boolean;
+  album?: string;
+  duration?: number;
+}
+
 interface Setlist {
   _id: Id<"setlists">;
-  songs: string[];
+  songs: Array<SetlistSong | string>;
+  actualSetlist?: ActualSetlistSong[];
   isOfficial: boolean;
   username: string;
   score: number;
   upvotes: number;
   downvotes: number;
   confidence: number;
+  accuracy?: number;
+  comparedAt?: number;
+  setlistfmId?: string;
 }
 
 export default function SetlistTest() {
@@ -195,13 +214,74 @@ export default function SetlistTest() {
                     )}
                   </div>
                   
-                  <div className="space-y-1">
-                    <h4 className="font-medium text-gray-700">Songs ({setlist.songs.length}):</h4>
-                    <ol className="list-decimal list-inside text-sm text-gray-600 space-y-1">
-                      {setlist.songs.map((song, index) => (
-                        <li key={index}>{song}</li>
-                      ))}
-                    </ol>
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-gray-600">
+                      <span>
+                        {typeof setlist.accuracy === 'number'
+                          ? `Accuracy vs actual: ${setlist.accuracy}%`
+                          : setlist.isOfficial
+                            ? 'Official data from setlist.fm'
+                            : 'Awaiting official comparison'}
+                        {setlist.comparedAt && typeof setlist.accuracy === 'number' && (
+                          <span className="ml-2 text-xs text-gray-500">
+                            Compared {new Date(setlist.comparedAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </span>
+                      {setlist.setlistfmId && (
+                        <span className="text-xs text-gray-500">
+                          setlist.fm ID: {setlist.setlistfmId}
+                        </span>
+                      )}
+                    </div>
+
+                    {setlist.actualSetlist && setlist.actualSetlist.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-gray-700">
+                          Official Setlist ({setlist.actualSetlist.length} songs)
+                        </h4>
+                        <ol className="list-decimal list-inside text-sm text-gray-600 space-y-1">
+                          {setlist.actualSetlist.map((song, index) => (
+                            <li key={`actual-${index}`}>
+                              <span className="font-semibold text-gray-800">{song.title}</span>
+                              {song.encore && (
+                                <span className="ml-2 text-xs uppercase tracking-wide text-purple-600">Encore</span>
+                              )}
+                              {song.setNumber > 1 && !song.encore && (
+                                <span className="ml-2 text-xs text-gray-500">Set {song.setNumber}</span>
+                              )}
+                              {song.album && (
+                                <span className="ml-2 text-xs text-gray-500">{song.album}</span>
+                              )}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+
+                    {setlist.songs.length > 0 && (!setlist.isOfficial || !(setlist.actualSetlist?.length)) && (
+                      <div>
+                        <h4 className="font-medium text-gray-700">
+                          {setlist.isOfficial ? 'Stored Songs' : 'Predicted Songs'} ({setlist.songs.length})
+                        </h4>
+                        <ol className="list-decimal list-inside text-sm text-gray-600 space-y-1">
+                          {setlist.songs.map((song, index) => {
+                            const title = typeof song === 'string' ? song : song?.title;
+                            const album = typeof song === 'string' ? undefined : song?.album;
+                            return (
+                              <li key={`predicted-${index}`}>
+                                <span className="font-semibold text-gray-800">{title || 'Untitled Song'}</span>
+                                {album && <span className="ml-2 text-xs text-gray-500">{album}</span>}
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      </div>
+                    )}
+
+                    {setlist.songs.length === 0 && !(setlist.actualSetlist?.length) && (
+                      <p className="text-sm text-gray-500">No songs have been recorded for this setlist yet.</p>
+                    )}
                   </div>
                 </div>
               ))}
