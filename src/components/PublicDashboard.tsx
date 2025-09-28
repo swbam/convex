@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
@@ -27,8 +27,10 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
   const [trendingArtists, setTrendingArtists] = useState<any[]>([]);
   const [isLoadingShows, setIsLoadingShows] = useState(false);
   const [isLoadingArtists, setIsLoadingArtists] = useState(false);
+  const trendingInitTriggered = useRef(false);
 
   const triggerFullSync = useAction(api.ticketmaster.triggerFullArtistSync);
+  const triggerTrendingSync = useAction(api.maintenance.triggerTrendingSync);
 
   // Load trending data directly from the optimized trending system
   const dbTrendingShows = useQuery(api.trending.getTrendingShows, { limit: 20 });
@@ -39,6 +41,19 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
   const fallbackShows = useQuery(api.shows.getUpcoming, { limit: 20 });
 
   useEffect(() => {
+    // Opportunistically trigger a trending sync if caches are empty
+    // to ensure Ticketmaster-powered trending data populates the homepage.
+    if (!trendingInitTriggered.current) {
+      const showsEmpty = Array.isArray(dbTrendingShows) && dbTrendingShows.length === 0;
+      const artistsEmpty = Array.isArray(dbTrendingArtists) && dbTrendingArtists.length === 0;
+      if (showsEmpty || artistsEmpty) {
+        trendingInitTriggered.current = true;
+        void triggerTrendingSync({}).catch(() => {
+          // ignore errors; UX falls back to DB data
+        });
+      }
+    }
+
     // Use trending data if available, otherwise use fallback
     if (dbTrendingShows && dbTrendingShows.length > 0) {
       // The data from trending already includes artist and venue data
