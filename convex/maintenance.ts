@@ -48,6 +48,12 @@ export const syncTrendingData = internalAction({
             rank: index + 1,
           })),
         });
+      } else {
+        // Clear cache via replacement to avoid using DB in actions
+        await ctx.runMutation(internal.trending.replaceTrendingShowsCache, {
+          fetchedAt,
+          shows: [],
+        });
       }
 
       if (ticketmasterArtists.length > 0) {
@@ -58,7 +64,14 @@ export const syncTrendingData = internalAction({
             rank: index + 1,
           })),
         });
+      } else {
+        await ctx.runMutation(internal.trending.replaceTrendingArtistsCache, {
+          fetchedAt,
+          artists: [],
+        });
+      }
 
+      if (ticketmasterArtists.length > 0) {
         for (const tmArtist of ticketmasterArtists) {
           try {
             if (!tmArtist.ticketmasterId) continue;

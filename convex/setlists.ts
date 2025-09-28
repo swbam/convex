@@ -613,8 +613,8 @@ export const updateWithActualSetlist = internalMutation({
       await ctx.db.insert("setlists", {
         showId: args.showId,
         userId: undefined,
+        // Preserve a normalized copy of the performed songs for back-compat displays
         songs: canonicalActualSongs,
-        songs: [],
 
         actualSetlist: args.actualSetlist,
         verified: true,
