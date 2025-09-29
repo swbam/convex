@@ -1,2 +1,5 @@
-# Netlify/Cloudflare Pages SPA fallback
+# SPA fallback for all routes
 /*    /index.html   200
+
+# WWW redirect (handled at DNS/Vercel domain level)
+# Configure in Vercel dashboard: www.setlists.live → setlists.live
