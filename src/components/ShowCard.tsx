@@ -1,4 +1,5 @@
 import React from 'react'
+import { motion } from 'framer-motion'
 import { Id } from '../../convex/_generated/dataModel'
 import { MagicCard } from './ui/magic-card'
 import { MapPin, Calendar, Clock } from 'lucide-react'
@@ -69,8 +70,13 @@ export function ShowCard({
 
   if (compact) {
     return (
-      <div
-        className="group cursor-pointer transition-all duration-200 ease-out active:scale-[0.98] relative overflow-hidden touch-manipulation bg-black py-3"
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+        whileHover={{ x: 4, transition: { duration: 0.2 } }}
+        whileTap={{ scale: 0.98 }}
+        className="group cursor-pointer relative overflow-hidden touch-manipulation bg-black py-3"
         onClick={handleClick}
         style={{
           borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
@@ -123,13 +129,18 @@ export function ShowCard({
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
     )
   }
 
   return (
-    <div
-      className="group cursor-pointer transition-all duration-300 ease-out hover:scale-[1.005] active:scale-[0.99] relative overflow-hidden touch-manipulation h-full bg-black"
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+      whileHover={{ scale: 1.02, y: -4, transition: { duration: 0.2 } }}
+      whileTap={{ scale: 0.98 }}
+      className="group cursor-pointer relative overflow-hidden touch-manipulation h-full bg-black"
       onClick={handleClick}
       style={{
         borderTop: '1px solid rgba(255, 255, 255, 0.1)',
@@ -200,6 +211,6 @@ export function ShowCard({
           <div className="text-xs text-gray-500">›</div>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }

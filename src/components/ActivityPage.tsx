@@ -7,6 +7,7 @@ import { MagicCard } from './ui/magic-card';
 import { BorderBeam } from './ui/border-beam';
 import { Button } from './ui/button';
 import { Activity, Calendar, Clock, Music, Star, TrendingUp, Vote, ArrowLeft } from 'lucide-react';
+import { FadeIn, StaggerChildren, StaggerItem } from './animations/FadeIn';
 
 interface ActivityPageProps {
   onArtistClick: (artistId: Id<"artists">, slug?: string) => void;
@@ -81,7 +82,8 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
   return (
     <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 relative z-10">
       {/* Header */}
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-white/10 bg-black">
+      <FadeIn delay={0} duration={0.5}>
+        <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-white/10 bg-black">
         <div className="relative z-10 p-4 sm:p-6 lg:p-8">
           <div className="flex items-center justify-between mb-4">
             <Button 
@@ -107,9 +109,11 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
         </div>
         <BorderBeam size={150} duration={12} className="opacity-30" />
       </MagicCard>
+      </FadeIn>
 
       {/* Stats Cards - Consistent with Admin Page */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <FadeIn delay={0.2} duration={0.5}>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <MagicCard className="p-0 rounded-xl border border-white/10 bg-black">
           <div className="p-4 sm:p-6 text-center">
             <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
@@ -153,9 +157,11 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
           </div>
           <BorderBeam size={80} duration={8} className="opacity-20" />
         </MagicCard>
-      </div>
+        </div>
+      </FadeIn>
 
       {/* Filter Tabs */}
+      <FadeIn delay={0.4} duration={0.5}>
       <div className="flex gap-2 p-1 bg-white/5 rounded-xl backdrop-blur-sm border border-white/10">
         <button
           onClick={() => setFilter('all')}
@@ -178,8 +184,10 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
           Past Week
         </button>
       </div>
+      </FadeIn>
 
       {/* Activity List - Apple Music Style */}
+      <FadeIn delay={0.6} duration={0.5}>
       <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
         <div className="p-4 sm:p-6">
           <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
@@ -241,6 +249,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
         </div>
         <BorderBeam size={120} duration={10} className="opacity-20" />
       </MagicCard>
+      </FadeIn>
     </div>
   );
 }

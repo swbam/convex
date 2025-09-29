@@ -1,16 +1,15 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { ArrowLeft, Heart, Calendar, MapPin, Users, Music, Plus, Star, Play } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Users, Music, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AddToSetlistModal } from "./AddToSetlistModal";
 import { SEOHead } from "./SEOHead";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
-import { ShimmerButton } from "./ui/shimmer-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { buildTicketmasterAffiliateUrl } from "../utils/ticketmaster";
+import { FadeIn } from "./animations/FadeIn";
 
 interface ArtistDetailProps {
   artistId: Id<"artists">;
@@ -154,8 +153,9 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
       </div>
 
       {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
-        {/* Upcoming Shows - Main Content */}
+      <FadeIn delay={0.3} duration={0.6}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
+          {/* Upcoming Shows - Main Content */}
         <div className="lg:col-span-2">
           <MagicCard className="p-0 rounded-2xl border border-white/10">
             <div className="p-4 sm:p-6">
@@ -413,7 +413,8 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
             <BorderBeam size={100} duration={8} className="opacity-20" />
           </MagicCard>
         </div>
-      </div>
+        </div>
+      </FadeIn>
 
       {/* Add to Setlist Modal */}
       <AddToSetlistModal

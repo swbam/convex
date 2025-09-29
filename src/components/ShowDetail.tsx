@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import React, { useMemo, useState } from "react";
-import { ArrowLeft, MapPin, Users, Music, ChevronUp, Heart, Vote, Calendar, ExternalLink, Ticket } from "lucide-react";
+import { ArrowLeft, MapPin, Users, Music, ChevronUp, Heart, Calendar, ExternalLink, Ticket } from "lucide-react";
 import { toast } from "sonner";
 import { SEOHead } from "./SEOHead";
 import { AnimatedSubscribeButton } from "./ui/animated-subscribe-button";
@@ -10,6 +10,7 @@ import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { ShimmerButton } from "./ui/shimmer-button";
 import { buildTicketmasterAffiliateUrl } from "../utils/ticketmaster";
+import { FadeIn } from "./animations/FadeIn";
 
 interface ShowDetailProps {
   showId: Id<"shows">;
@@ -563,7 +564,8 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
             </MagicCard>
           )}
         </div>
-      </div>
+        </div>
+      </FadeIn>
 
       {/* Sticky mobile CTA for primary action */}
       {isUpcoming && (
