@@ -55,7 +55,19 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
     v.createdAt > Date.now() - (7 * 24 * 60 * 60 * 1000)
   ).length || 0;
 
-  if (!user) {
+  // CRITICAL FIX: Check if user is loading vs actually not signed in
+  if (user === undefined) {
+    // Still loading user data from Convex
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+        <p className="text-gray-400">Loading your activity...</p>
+      </div>
+    );
+  }
+
+  if (user === null || !user.identity) {
+    // User is definitely not signed in
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <p className="text-gray-400">Please sign in to view your activity</p>

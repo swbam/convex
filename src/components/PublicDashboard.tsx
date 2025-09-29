@@ -50,8 +50,9 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
   useEffect(() => {
     setIsLoadingShows(true);
     
-    if (dbTrendingShows && dbTrendingShows.length > 0 && isDbFresh(dbTrendingShows)) {
-      // Use DB (existing logic)
+    // CRITICAL FIX: Always show data if available, don't require "fresh" data
+    if (dbTrendingShows && dbTrendingShows.length > 0) {
+      // Use DB trending data (prioritize this)
       const uniqueShows = dbTrendingShows.filter((show, index, self) => 
         index === self.findIndex(s => s.artist?.name === show.artist?.name)
       );
@@ -79,10 +80,36 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
       
       setTrendingShows(formattedShows);
       setIsLoadingShows(false);
+    } else if (fallbackShows && fallbackShows.length > 0) {
+      // FALLBACK: Use upcoming shows if no trending data
+      console.log('📊 Using fallback shows (no trending data available)');
+      const formattedShows = fallbackShows.map(show => ({
+        ticketmasterId: show.ticketmasterId || show._id,
+        showId: show._id,
+        slug: show.slug,
+        artistId: show.artist?._id,
+        artistSlug: show.artist?.slug,
+        artistName: show.artist?.name || 'Unknown Artist',
+        artist: show.artist,
+        venueName: show.venue?.name || 'Unknown Venue',
+        venueCity: show.venue?.city || '',
+        venueCountry: show.venue?.country || '',
+        date: show.date,
+        startTime: show.startTime,
+        artistImage: show.artist?.images?.[0],
+        ticketUrl: show.ticketUrl,
+        status: show.status,
+      }));
+      setTrendingShows(formattedShows);
+      setIsLoadingShows(false);
+    } else {
+      // No data available at all
+      setIsLoadingShows(false);
     }
     
+    // CRITICAL FIX: Always show artists if available
     if (dbTrendingArtists && dbTrendingArtists.length > 0) {
-      // The data from trending is already in the correct format
+      // Use DB trending data
       const formattedArtists = dbTrendingArtists.map(artist => ({
         ticketmasterId: artist.ticketmasterId || artist._id,
         name: artist.name,
@@ -91,14 +118,15 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
         images: artist.images || [],
         upcomingEvents: artist.upcomingShowsCount || 0,
         url: artist.url,
-        _id: artist._id, // Include the real ID
+        _id: artist._id,
       }));
       setTrendingArtists(formattedArtists);
       setIsLoadingArtists(false);
-    } else if (fallbackArtists) {
-      // Convert fallback artists to trending format - filter out artists without proper names
+    } else if (fallbackArtists && fallbackArtists.length > 0) {
+      // FALLBACK: Use general trending artists
+      console.log('📊 Using fallback artists (no trending cache)');
       const convertedArtists = fallbackArtists
-        .filter(artist => artist.name && artist.name.trim() !== '' && artist.name !== 'Unknown Artist')
+        .filter(artist => artist.name && artist.name.trim() !== '')
         .map(artist => ({
           ticketmasterId: artist.ticketmasterId || artist._id,
           name: artist.name,
@@ -111,8 +139,11 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
         }));
       setTrendingArtists(convertedArtists);
       setIsLoadingArtists(false);
+    } else {
+      // No data available
+      setIsLoadingArtists(false);
     }
-  }, [dbTrendingShows, dbTrendingArtists, fallbackShows, fallbackArtists, getLiveShows]);
+  }, [dbTrendingShows, dbTrendingArtists, fallbackShows, fallbackArtists]);
 
   const handleArtistClick = async (
     artistOrTicketmasterId: string,

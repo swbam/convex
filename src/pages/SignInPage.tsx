@@ -6,6 +6,7 @@ import { BorderBeam } from '../components/ui/border-beam';
 import { ShimmerButton } from '../components/ui/shimmer-button';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, Music, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { FaSpotify } from 'react-icons/fa';
 
 export function SignInPage() {
   const { signIn, isLoaded } = useSignIn();
@@ -15,6 +16,24 @@ export function SignInPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOAuthLoading, setIsOAuthLoading] = useState(false);
+
+  const handleSpotifySignIn = async () => {
+    if (!isLoaded) return;
+    setIsOAuthLoading(true);
+    
+    try {
+      await signIn.authenticateWithRedirect({
+        strategy: 'oauth_spotify',
+        redirectUrl: '/sso-callback',
+        redirectUrlComplete: '/profile',
+      });
+    } catch (error: any) {
+      console.error('Spotify sign in error:', error);
+      toast.error('Failed to sign in with Spotify');
+      setIsOAuthLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +52,9 @@ export function SignInPage() {
           await setActive({ session: result.createdSessionId });
         }
         toast.success("Welcome back!");
-        navigate('/');
+        
+        // CRITICAL FIX: Redirect to profile for better UX
+        setTimeout(() => navigate('/profile'), 500);
       } else {
         toast.error("Sign in incomplete. Please check your email.");
       }
@@ -129,17 +150,38 @@ export function SignInPage() {
                 </div>
               </div>
 
-              {/* Submit Button */}
-              <ShimmerButton
-                type="submit"
-                disabled={isSubmitting || !email || !password}
-                className="w-full bg-primary/20 hover:bg-primary/30 text-white border-primary/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                shimmerColor="#ffffff"
-                shimmerDuration="2s"
-              >
-                {isSubmitting ? "Signing in..." : "Sign In"}
-              </ShimmerButton>
-            </form>
+            {/* Submit Button */}
+            <ShimmerButton
+              type="submit"
+              disabled={isSubmitting || !email || !password}
+              className="w-full bg-primary/20 hover:bg-primary/30 text-white border-primary/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              shimmerColor="#ffffff"
+              shimmerDuration="2s"
+            >
+              {isSubmitting ? "Signing in..." : "Sign In"}
+            </ShimmerButton>
+          </form>
+
+          {/* Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-white/10"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-black text-gray-400">Or continue with</span>
+            </div>
+          </div>
+
+          {/* Spotify OAuth Button */}
+          <button
+            type="button"
+            onClick={handleSpotifySignIn}
+            disabled={isOAuthLoading || isSubmitting}
+            className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-[#1DB954] hover:bg-[#1ed760] text-white rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <FaSpotify className="h-5 w-5" />
+            <span>{isOAuthLoading ? 'Connecting to Spotify...' : 'Sign in with Spotify'}</span>
+          </button>
 
             {/* Sign Up Link */}
             <div className="mt-6 text-center">

@@ -4,6 +4,7 @@ import { App } from './App';
 import { SignInPage } from './pages/SignInPage';
 import { SignUpPage } from './pages/SignUpPage';
 import { UserProfilePage } from './pages/UserProfilePage';
+import { SSOCallback } from './pages/SSOCallback';
 import { AdminTest } from './components/AdminTest';
 
 export const router = createBrowserRouter([
@@ -18,6 +19,10 @@ export const router = createBrowserRouter([
   {
     path: '/signup',
     element: <SignUpPage />,
+  },
+  {
+    path: '/sso-callback',
+    element: <SSOCallback />,
   },
   {
     path: '/artists/:artistSlug',

@@ -102,8 +102,17 @@ export const createAppUser = mutation({
     const emailLower = (identity.email || "").toLowerCase();
     const isAdmin = emailLower === "seth@bambl.ing";
     
-    // Extract Spotify ID if user logged in with Spotify
-    const spotifyId = (identity as any).spotifyId || undefined;
+    // CRITICAL: Extract Spotify ID from Clerk OAuth connection
+    // Clerk stores OAuth IDs in a specific format
+    const externalAccounts = (identity as any).externalAccounts || [];
+    const spotifyAccount = externalAccounts.find((acc: any) => acc.provider === 'oauth_spotify');
+    const spotifyId = spotifyAccount?.externalAccountId || spotifyAccount?.providerUserId || undefined;
+    
+    console.log('🔵 Creating user:', {
+      email: identity.email,
+      hasSpotify: !!spotifyId,
+      spotifyId: spotifyId || 'none'
+    });
     
     // Create app user with Clerk data
     const userId = await ctx.db.insert("users", {
@@ -120,6 +129,7 @@ export const createAppUser = mutation({
       createdAt: Date.now(),
     });
     
+    console.log('✅ Created app user:', userId, 'with Spotify ID:', spotifyId || 'none');
     return userId;
   },
 });
