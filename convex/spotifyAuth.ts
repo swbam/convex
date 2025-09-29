@@ -1,7 +1,6 @@
-import { mutation } from "./_generated/server";
+import { mutation, action, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-// internal API references imported in other parts of this module when re-enabled
-// import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 
 // Store Spotify access token for a user (called after Spotify OAuth)
 export const storeSpotifyTokens = mutation({
@@ -35,8 +34,7 @@ export const storeSpotifyTokens = mutation({
 });
 
 // Import user's Spotify artists with data from frontend
-// TODO: Fix type issues and re-enable
-/*export const importUserSpotifyArtistsWithToken = action({
+export const importUserSpotifyArtistsWithToken = action({
   args: {
     followedArtists: v.array(v.object({
       id: v.string(),
@@ -133,11 +131,13 @@ export const storeSpotifyTokens = mutation({
       for (const spotifyArtist of sortedArtists) {
         try {
           // Check if artist exists in our DB by Spotify ID
-          let artistId = await ctx.runQuery(api.artists.getBySpotifyId, {
+          const existingArtist = await ctx.runQuery(api.artists.getBySpotifyId, {
             spotifyId: spotifyArtist.spotifyId,
           });
           
-          if (!artistId) {
+          let artistId = existingArtist?._id;
+          
+          if (!existingArtist) {
             // Search by name as fallback
             const byName = await ctx.runQuery(api.artists.getByName, {
               name: spotifyArtist.name,
@@ -160,7 +160,7 @@ export const storeSpotifyTokens = mutation({
               artistId = await ctx.runMutation(internal.artists.create, {
                 name: spotifyArtist.name,
                 spotifyId: spotifyArtist.spotifyId,
-                image: spotifyArtist.images[0],
+                image: spotifyArtist.images[0] || undefined,
                 genres: spotifyArtist.genres,
                 popularity: spotifyArtist.popularity,
                 followers: spotifyArtist.followers,
@@ -168,20 +168,16 @@ export const storeSpotifyTokens = mutation({
               });
               imported++;
               
-              // Trigger background sync for shows and full catalog
-              ctx.runAction(internal.spotify.syncArtistCatalog, {
+              // Schedule background sync for shows and full catalog (don't await)
+              void ctx.scheduler.runAfter(0, internal.spotify.syncArtistCatalog, {
                 artistId,
                 artistName: spotifyArtist.name,
-              }).catch(error => {
-                console.error(`Failed to sync catalog for ${spotifyArtist.name}:`, error);
               });
               
-              // Try to find and sync shows from Ticketmaster
-              ctx.runAction(internal.ticketmaster.searchAndSyncArtistShows, {
+              // Try to find and sync shows from Ticketmaster (don't await)
+              void ctx.scheduler.runAfter(1000, internal.ticketmaster.searchAndSyncArtistShows, {
                 artistId,
                 artistName: spotifyArtist.name,
-              }).catch(error => {
-                console.error(`Failed to sync shows for ${spotifyArtist.name}:`, error);
               });
             }
           } else {
@@ -189,13 +185,15 @@ export const storeSpotifyTokens = mutation({
           }
           
           // Track this artist for the user
-          await ctx.runMutation(internal.spotifyAuth.trackUserArtist, {
-            userId: user.appUser._id,
-            artistId,
-            isFollowed: spotifyArtist.isFollowed,
-            isTopArtist: spotifyArtist.isTopArtist,
-            topArtistRank: spotifyArtist.topArtistRank,
-          });
+          if (artistId) {
+            await ctx.runMutation(internal.spotifyAuth.trackUserArtist, {
+              userId: user.appUser._id,
+              artistId,
+              isFollowed: spotifyArtist.isFollowed,
+              isTopArtist: spotifyArtist.isTopArtist,
+              topArtistRank: spotifyArtist.topArtistRank,
+            });
+          }
           
         } catch (error) {
           console.error(`Failed to process artist ${spotifyArtist.name}:`, error);
@@ -226,6 +224,7 @@ export const trackUserArtist = internalMutation({
     isTopArtist: v.boolean(),
     topArtistRank: v.optional(v.number()),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     // Check if relationship already exists
     const existing = await ctx.db
@@ -255,6 +254,9 @@ export const trackUserArtist = internalMutation({
         lastUpdated: Date.now(),
       });
     }
+    
+    console.log(`✅ Tracked artist ${args.artistId} for user ${args.userId}`);
+    return null;
   },
 });
 
@@ -331,5 +333,5 @@ export const getUserSpotifyArtists = query({
     
     return results;
   },
-});*/
+});
 

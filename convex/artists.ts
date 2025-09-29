@@ -239,12 +239,13 @@ export const createFromTicketmaster = internalMutation({
       counter++;
     }
 
-    return await ctx.db.insert("artists", {
+    // Critical: Always set lastSynced on creation
+    const artistId = await ctx.db.insert("artists", {
       slug,
       name: args.name,
       ticketmasterId: args.ticketmasterId,
-      genres: args.genres,
-      images: args.images,
+      genres: args.genres || [],
+      images: args.images || [],
       isActive: true,
       trendingScore: 0, // Initialize with 0 instead of undefined
       trendingRank: undefined,
@@ -252,10 +253,13 @@ export const createFromTicketmaster = internalMutation({
       popularity: undefined, // Will be set by Spotify sync
       followers: undefined, // Will be set by Spotify sync
       spotifyId: undefined, // Will be set by Spotify sync
-      lastSynced: Date.now(), // Set initial sync timestamp
+      lastSynced: Date.now(), // CRITICAL: Set initial sync timestamp
       lastTrendingUpdate: undefined,
       lowerName,
     });
+    
+    console.log(`✅ Created artist ${args.name} with ID ${artistId}, slug: ${slug}`);
+    return artistId;
   },
 });
 
@@ -387,7 +391,7 @@ export const createInternal = internalMutation({
       .replace(/^-|-$/g, '')    // Remove leading/trailing hyphens
       .substring(0, 100);       // Limit length for SEO
 
-    return await ctx.db.insert("artists", {
+    const artistId = await ctx.db.insert("artists", {
       slug,
       name: args.name,
       spotifyId: args.spotifyId,
@@ -399,7 +403,11 @@ export const createInternal = internalMutation({
       isActive: true,
       trendingScore: 1,
       lowerName,
+      lastSynced: Date.now(), // CRITICAL: Always set sync timestamp
     });
+    
+    console.log(`✅ Created artist ${args.name} with ID ${artistId}, slug: ${slug}`);
+    return artistId;
   },
 });
 
@@ -552,7 +560,7 @@ export const create = internalMutation({
       .substring(0, 100);       // Limit length for SEO
 
     const images = args.image ? [args.image] : [];
-    return await ctx.db.insert("artists", {
+    const artistId = await ctx.db.insert("artists", {
       slug,
       name: args.name,
       spotifyId: args.spotifyId,
@@ -560,11 +568,14 @@ export const create = internalMutation({
       genres: args.genres,
       popularity: args.popularity,
       followers: args.followers,
-      lastSynced: args.lastSynced,
+      lastSynced: args.lastSynced || Date.now(), // CRITICAL: Ensure timestamp
       isActive: true,
       trendingScore: 1,
       lowerName,
     });
+    
+    console.log(`✅ Created artist ${args.name} with ID ${artistId}, slug: ${slug}`);
+    return artistId;
   },
 });
 

@@ -208,23 +208,59 @@ export const checkCompletedShows = internalAction({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    // Get shows that are past their date but still marked as upcoming
-    const today = new Date().toISOString().split('T')[0];
+    console.log("🔍 Checking for completed shows needing setlist import...");
+    
+    // Get shows that are past their date
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
     
     const upcomingShows = await ctx.runQuery(internal.shows.getUpcomingShows, {});
+    const allShows = await ctx.runQuery(internal.shows.getAllInternal, {});
     
     let completedCount = 0;
     let setlistsSynced = 0;
+    let queuedForImport = 0;
     
+    // Process upcoming shows that have passed
     for (const show of upcomingShows) {
-      if (show.date < today) {
+      if (show.date < todayStr) {
         // Mark show as completed
         await ctx.runMutation(internal.shows.markCompleted, {
           showId: show._id,
         });
+        
+        // Set import status to pending
+        await ctx.runMutation(internal.shows.updateImportStatus, {
+          showId: show._id,
+          status: "pending",
+        });
+        
         completedCount++;
-
-        // Try to sync actual setlist with retry logic
+        queuedForImport++;
+      }
+    }
+    
+    // Also check for completed shows that don't have setlists yet
+    const completedShows = allShows.filter(show => 
+      show.status === "completed" && 
+      (!show.importStatus || show.importStatus === "pending" || show.importStatus === "failed")
+    );
+    
+    console.log(`Found ${completedShows.length} completed shows needing setlist import`);
+    
+    // Process up to 10 completed shows per run (to avoid timeout)
+    for (const show of completedShows.slice(0, 10)) {
+      try {
+        // Ensure import status is set
+        if (!show.importStatus) {
+          await ctx.runMutation(internal.shows.updateImportStatus, {
+            showId: show._id,
+            status: "importing",
+          });
+        }
+        
+        // Try to sync actual setlist
         if (show.artist && show.venue) {
           try {
             const setlistId = await ctx.runAction(internal.setlistfm.syncActualSetlist, {
@@ -236,19 +272,35 @@ export const checkCompletedShows = internalAction({
             
             if (setlistId) {
               setlistsSynced++;
+              await ctx.runMutation(internal.shows.updateImportStatus, {
+                showId: show._id,
+                status: "completed",
+              });
               console.log(`✅ Synced setlist for ${show.artist.name} at ${show.venue.name}`);
+            } else {
+              // No setlist found - mark as failed
+              await ctx.runMutation(internal.shows.updateImportStatus, {
+                showId: show._id,
+                status: "failed",
+              });
             }
           } catch (error) {
             console.error(`❌ Failed to sync setlist for ${show.artist.name}:`, error);
+            await ctx.runMutation(internal.shows.updateImportStatus, {
+              showId: show._id,
+              status: "failed",
+            });
           }
         }
         
-        // Rate limiting to respect setlist.fm API
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Rate limiting to respect setlist.fm API (2 second delay)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (error) {
+        console.error(`Error processing show ${show._id}:`, error);
       }
     }
     
-    console.log(`Completed shows check: ${completedCount} shows marked complete, ${setlistsSynced} setlists synced`);
+    console.log(`✅ Completed shows check: ${completedCount} newly completed, ${setlistsSynced} setlists synced, ${queuedForImport} queued for import`);
     return null;
   },
 });

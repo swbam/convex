@@ -68,20 +68,25 @@ export const triggerFullArtistSync = action({
     console.log(`🚀 Starting full sync for artist: ${args.artistName}`);
 
     try {
-      // Phase 1: Create basic artist record immediately for instant response
+      // Phase 1: Create basic artist record with all available data
       const artistId: Id<"artists"> = await ctx.runMutation(internal.artists.createFromTicketmaster, {
         ticketmasterId: args.ticketmasterId,
         name: args.artistName,
         genres: args.genres || [],
         images: args.images || [],
       });
+      
+      console.log(`✅ Created artist ${args.artistName} (ID: ${artistId})`);
 
-      // Phase 2 & 3: Schedule background jobs using scheduler to avoid dangling promises
-      void ctx.scheduler.runAfter(0, internal.ticketmaster.syncArtistShows, {
+      // Phase 2: Sync shows IMMEDIATELY (not async) to ensure shows are available
+      console.log(`📅 Syncing shows for ${args.artistName}...`);
+      await ctx.runAction(internal.ticketmaster.syncArtistShows, {
         artistId,
         ticketmasterId: args.ticketmasterId,
       });
+      console.log(`✅ Shows synced for ${args.artistName}`);
 
+      // Phase 3: Schedule Spotify catalog sync in background (can be async)
       void ctx.scheduler.runAfter(0, internal.spotify.syncArtistCatalog, {
         artistId,
         artistName: args.artistName,
@@ -90,11 +95,10 @@ export const triggerFullArtistSync = action({
       // Schedule trending update
       void ctx.scheduler.runAfter(5000, internal.trending.updateShowTrending, {});
 
-      console.log(`✅ Artist ${args.artistName} created with ID: ${artistId}, background sync started`);
+      console.log(`✅ Artist ${args.artistName} fully imported with ID: ${artistId}`);
       return artistId;
     } catch (error) {
-      console.error(`❌ Failed to create artist ${args.artistName}:`, error);
-      // Re-throw with a more user-friendly message
+      console.error(`❌ Failed to import artist ${args.artistName}:`, error);
       throw new Error(`Failed to import artist "${args.artistName}". Please try again.`);
     }
   },
@@ -124,32 +128,38 @@ export const syncArtistShows = internalAction({
       for (const event of events) {
         // Create or get venue
         const venue = event._embedded?.venues?.[0];
+        // CRITICAL: Ensure all venue fields are properly populated
         const venueId = await ctx.runMutation(internal.venues.createFromTicketmaster, {
-          ticketmasterId: venue?.id || undefined,
-          name: venue?.name || "Unknown Venue",
-          city: venue?.city?.name || "Unknown City",
-          state: venue?.state?.stateCode || venue?.state?.name || undefined,
-          country: venue?.country?.name || venue?.country?.countryCode || "Unknown Country",
-          address: venue?.address?.line1 || undefined,
+          ticketmasterId: venue?.id ? String(venue.id) : undefined,
+          name: venue?.name ? String(venue.name) : "Unknown Venue",
+          city: venue?.city?.name ? String(venue.city.name) : "Unknown City",
+          state: venue?.state?.stateCode ? String(venue.state.stateCode) : (venue?.state?.name ? String(venue.state.name) : undefined),
+          country: venue?.country?.name ? String(venue.country.name) : (venue?.country?.countryCode ? String(venue.country.countryCode) : "US"),
+          address: venue?.address?.line1 ? String(venue.address.line1) : undefined,
           capacity: venue?.generalInfo?.generalRule ? (() => {
             const parsed = parseInt(venue.generalInfo.generalRule, 10);
             return Number.isFinite(parsed) ? parsed : undefined;
-          })() : undefined,
+          })() : (venue?.capacity ? (() => {
+            const parsed = parseInt(String(venue.capacity), 10);
+            return Number.isFinite(parsed) ? parsed : undefined;
+          })() : undefined),
           lat: venue?.location?.latitude ? (() => {
-            const parsed = parseFloat(venue.location.latitude);
+            const parsed = parseFloat(String(venue.location.latitude));
             return Number.isFinite(parsed) ? parsed : undefined;
           })() : undefined,
           lng: venue?.location?.longitude ? (() => {
-            const parsed = parseFloat(venue.location.longitude);
+            const parsed = parseFloat(String(venue.location.longitude));
             return Number.isFinite(parsed) ? parsed : undefined;
           })() : undefined,
         });
+        
+        console.log(`✅ Created/found venue: ${venue?.name || 'Unknown'} (ID: ${venueId})`);
 
-        // Create show
-        await ctx.runMutation(internal.shows.createFromTicketmaster, {
+        // CRITICAL: Create show with all fields properly populated
+        const showId = await ctx.runMutation(internal.shows.createFromTicketmaster, {
           artistId: args.artistId,
           venueId,
-          ticketmasterId: event.id,
+          ticketmasterId: String(event.id || ''),
           date: (() => {
             const d = String(event.dates?.start?.localDate || '').trim();
             return d && /\d{4}-\d{2}-\d{2}/.test(d) ? d : new Date().toISOString().split('T')[0];
@@ -161,15 +171,34 @@ export const syncArtistShows = internalAction({
             const m = t.match(/^(\d{2}):(\d{2})/);
             return m ? `${m[1]}:${m[2]}` : undefined;
           })(),
-          status: event.dates?.status?.code === "onsale" ? "upcoming" : "upcoming",
-          ticketUrl: event.url,
+          status: (() => {
+            const eventDate = new Date(event.dates?.start?.localDate || '');
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            eventDate.setHours(0, 0, 0, 0);
+            
+            // If the event is in the past, mark as completed
+            if (eventDate < today) return "completed" as const;
+            return "upcoming" as const;
+          })(),
+          ticketUrl: event.url ? String(event.url) : undefined,
         });
+        
+        console.log(`✅ Created show ${showId} for ${event.name || 'Unknown Event'}`);
         
         // gentle backoff to respect API
         await new Promise(r => setTimeout(r, 75));
       }
 
-      console.log(`✅ Synced ${events.length} shows for artist`);
+      console.log(`✅ Synced ${events.length} shows for artist (ID: ${args.artistId})`);
+      
+      // CRITICAL: Update artist's upcomingShowsCount after syncing shows
+      const upcomingShows = await ctx.runQuery(internal.shows.countUpcomingByArtist, { artistId: args.artistId });
+      await ctx.runMutation(internal.artists.updateSpotifyData, {
+        artistId: args.artistId,
+        spotifyId: '', // Will be set later by Spotify sync
+        upcomingShowsCount: upcomingShows,
+      } as any);
       // Kick a trending refresh after syncing shows
       try {
         void ctx.scheduler.runAfter(0, internal.trending.updateShowTrending, {});

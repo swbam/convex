@@ -14,7 +14,10 @@
     "check:deployment": "node scripts/check-deployment.js",
     "check:env": "node scripts/check-deployment.js",
     "post-deploy": "sh scripts/post-deploy.sh",
-    "sync:trending": "npx convex run maintenance:triggerTrendingSync"
+    "sync:trending": "npx convex run maintenance:triggerTrendingSync",
+    "deploy:backend": "npx convex deploy --yes",
+    "deploy:frontend": "npm run build && vercel --prod --yes",
+    "all": "npm run deploy:backend && npm run deploy:frontend"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.45.0",

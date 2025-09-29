@@ -186,10 +186,13 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                       return (
                         <div
                           key={`${artistKey}`}
-                          className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer transition-all duration-200"
+                          className="flex items-center gap-4 py-4 hover:bg-white/5 cursor-pointer transition-all duration-200"
                           onClick={() => handleArtistClick(artist)}
+                          style={{
+                            borderBottom: index < trendingArtists.length - 1 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
+                          }}
                         >
-                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 text-white font-bold">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 text-white font-semibold text-sm">
                           {index + 1}
                         </div>
 
@@ -197,44 +200,38 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                           <img
                             src={image}
                             alt={artist.name}
-                            className="w-12 h-12 rounded-full object-cover"
+                            className="w-12 h-12 rounded-lg object-cover"
                           />
                         ) : (
-                          <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center">
                             <Music className="h-6 w-6 text-white/50" />
                           </div>
                         )}
                         
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-white">{artist.name}</h3>
-                          <div className="flex items-center gap-4 text-sm text-gray-400">
-                            <span className="flex items-center gap-1">
-                              <Users className="h-3.5 w-3.5" />
-                              {artist.followers ? `${(artist.followers / 1000000).toFixed(1)}M followers` : ''}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Music className="h-3.5 w-3.5" />
-                              {upcomingCount} upcoming shows
-                            </span>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-white text-sm truncate">{artist.name}</h3>
+                          <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+                            {artist.followers && (
+                              <span className="flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                {(artist.followers / 1000000).toFixed(1)}M
+                              </span>
+                            )}
+                            {upcomingCount > 0 && (
+                              <>
+                                <span>•</span>
+                                <span>{upcomingCount} shows</span>
+                              </>
+                            )}
                           </div>
                           {genres.length > 0 && (
-                            <div className="flex gap-2 mt-1">
-                              {genres.slice(0, 2).map((genre: string, idx: number) => (
-                                <span key={idx} className="text-xs px-2 py-0.5 bg-white/10 rounded-full">
-                                  {genre}
-                                </span>
-                              ))}
-                            </div>
+                            <p className="text-xs text-gray-500 mt-0.5 truncate">
+                              {genres.slice(0, 2).join(', ')}
+                            </p>
                           )}
                         </div>
 
-                        <div className="text-right">
-                          <div className="flex items-center gap-1 text-green-400">
-                            <TrendingUp className="h-4 w-4" />
-                            <span className="text-sm font-medium">0.0%</span>
-                          </div>
-                          <div className="text-xs text-gray-500">Score: {95 - index}</div>
-                        </div>
+                        <div className="text-xs text-gray-500">›</div>
                       </div>
                       );
                     })
@@ -264,7 +261,6 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                       <p>No trending shows data available</p>
                     </div>
                   ) : (
-<<<<<<< HEAD
                     trendingShows.map((show, index) => {
                       const showKey = show.ticketmasterId || show._id || index;
                       const artistName = show.artist?.name || show.artistName || 'Unknown Artist';
@@ -284,67 +280,38 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                       return (
                         <div
                           key={`${showKey}`}
-                          className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer transition-all duration-200"
+                          className="flex items-center gap-4 py-4 hover:bg-white/5 cursor-pointer transition-all duration-200"
                           onClick={() => handleShowClick(show)}
+                          style={{
+                            borderBottom: index < trendingShows.length - 1 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
+                          }}
                         >
-=======
-                    trendingShows.map((show, index) => (
-                      <div
-                        key={`${show._id}-${index}`}
-                        className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer transition-all duration-200"
-                        onClick={() => handleShowClick(show)}
-                      >
->>>>>>> 0dab9c7 (edits)
-                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 text-white font-bold">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 text-white font-semibold text-sm">
                           {show.trendingRank || index + 1}
                         </div>
-<<<<<<< HEAD
 
                         {artistImage ? (
                           <img
                             src={artistImage}
                             alt={artistName}
-=======
-                        
-                        {(show.artist?.images?.[0]) ? (
-                          <img
-                            src={show.artist.images[0]}
-                            alt={show.artist.name}
->>>>>>> 0dab9c7 (edits)
-                            className="w-12 h-12 rounded object-cover"
+                            className="w-12 h-12 rounded-lg object-cover"
                           />
                         ) : (
-                          <div className="w-12 h-12 rounded bg-white/10 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center">
                             <Music className="h-6 w-6 text-white/50" />
                           </div>
                         )}
 
-                        <div className="flex-1">
-<<<<<<< HEAD
-                          <h3 className="font-semibold text-white">{artistName}</h3>
-                          <div className="flex items-center gap-3 text-sm text-gray-400">
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5" />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-white text-sm truncate">{artistName}</h3>
+                          <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+                            <span className="flex items-center gap-1 truncate">
+                              <MapPin className="h-3 w-3 flex-shrink-0" />
                               {venueName}
-=======
-                          <h3 className="font-semibold text-white">{show.artist?.name}</h3>
-                          <div className="flex items-center gap-3 text-sm text-gray-400">
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5" />
-                              {show.venue?.name}
->>>>>>> 0dab9c7 (edits)
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3.5 w-3.5" />
-                              {dateLabel}
                             </span>
                           </div>
-                          <div className="text-xs text-gray-500 mt-1">
-<<<<<<< HEAD
-                            {locationLabel}
-=======
-                            {show.venue?.city}, {show.venue?.country}
->>>>>>> 0dab9c7 (edits)
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            {locationLabel} • {dateLabel}
                           </div>
                           {/* Dynamic engagement metrics */}
                           {((show.voteCount || 0) > 0 || (show.setlistCount || 0) > 0) && (
@@ -401,9 +368,12 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                     trendingSetlists.map((setlist, index) => (
                       <div
                         key={setlist._id}
-                        className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer transition-all duration-200"
+                        className="flex items-center gap-4 py-4 hover:bg-white/5 cursor-pointer transition-all duration-200"
+                        style={{
+                          borderBottom: index < trendingSetlists.length - 1 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
+                        }}
                       >
-                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 text-white font-bold">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 text-white font-semibold text-sm">
                           {index + 1}
                         </div>
                         
@@ -411,35 +381,36 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                           <img
                             src={setlist.artist.images[0]}
                             alt={setlist.artist.name}
-                            className="w-12 h-12 rounded object-cover"
+                            className="w-12 h-12 rounded-lg object-cover"
                           />
                         ) : (
-                          <div className="w-12 h-12 rounded bg-white/10 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center">
                             <Music className="h-6 w-6 text-white/50" />
                           </div>
                         )}
                         
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-white">{setlist.artist?.name}</h3>
-                          <div className="flex items-center gap-3 text-sm text-gray-400">
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5" />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-white text-sm truncate">{setlist.artist?.name}</h3>
+                          <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+                            <span className="flex items-center gap-1 truncate">
+                              <MapPin className="h-3 w-3" />
                               {setlist.venue?.name}
                             </span>
-                            <span className="flex items-center gap-1">
-                              <Music className="h-3.5 w-3.5" />
-                              {setlist.songs.length} songs
-                            </span>
+                            <span>•</span>
+                            <span>{setlist.songs.length} songs</span>
                           </div>
                           {setlist.verified && (
-                            <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full mt-1 inline-block">
-                              ✓ Verified
+                            <span className="text-xs text-green-400 mt-0.5 flex items-center gap-1">
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              Verified
                             </span>
                           )}
                         </div>
                         
                         <div className="text-right">
-                          <div className="text-sm font-medium text-white">{setlist.voteCount}</div>
+                          <div className="text-sm font-semibold text-white">{setlist.voteCount}</div>
                           <div className="text-xs text-gray-500">votes</div>
                         </div>
                       </div>

@@ -20,3 +20,5 @@ crons.interval("sync-engagement-counts", { minutes: 30 }, internal.trending.upda
 // Enhanced trending update with logging (every 2 hours for reliability)
 crons.interval("update-trending-enhanced", { hours: 2 }, internal.maintenance.syncTrendingDataWithLogging, {});
 
+export default crons;
+

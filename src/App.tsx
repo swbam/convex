@@ -90,18 +90,17 @@ function App() {
       if (artistBySlug && 'name' in artistBySlug) {
         setSelectedArtistId(artistBySlug._id as Id<"artists">);
         document.title = `${artistBySlug.name} – Artist | setlists.live`;
-        // Canonicalize to ID if URL isn't already the ID
+        // Canonicalize to slug (not ID) for better SEO and refresh resilience
         const currentKey = getSlugFromPath(path, '/artists/');
-        if (currentKey && currentKey !== artistBySlug._id) {
-          void navigate(`/artists/${artistBySlug._id}`, { replace: true });
+        if (currentKey && artistBySlug.slug && currentKey !== artistBySlug.slug) {
+          void navigate(`/artists/${artistBySlug.slug}`, { replace: true });
         }
       } else if (artistBySlug === null) {
-        // Artist not found yet, but keep the view to show loading state
-        // The artist might be in the process of being created
-        setSelectedArtistId(null);
+        // Artist not found - keep trying with reactive Convex updates
+        // Don't reset to null, keep view to show loading/importing state
         document.title = 'Loading Artist – setlists.live';
       }
-      // If artistBySlug is undefined, it's still loading
+      // If artistBySlug is undefined, it's still loading from Convex
     } else if (path.startsWith('/shows/')) {
       setCurrentView('show');
       if (showBySlugOrId) {
@@ -110,12 +109,13 @@ function App() {
         const dateStr = isNaN(dateObj.getTime()) ? 'Date TBA' : dateObj.toLocaleDateString('en-US');
         const titleBits = [showBySlugOrId.artist?.name, showBySlugOrId.venue?.name, dateStr].filter(Boolean).join(' @ ');
         document.title = `${titleBits} – Show | setlists.live`;
+        // Canonicalize to slug for better SEO and refresh resilience
         const currentKey = getSlugFromPath(path, '/shows/');
-        if (currentKey && currentKey !== showBySlugOrId._id) {
-          void navigate(`/shows/${showBySlugOrId._id}`, { replace: true });
+        if (currentKey && showBySlugOrId.slug && currentKey !== showBySlugOrId.slug) {
+          void navigate(`/shows/${showBySlugOrId.slug}`, { replace: true });
         }
       } else if (showBySlugOrId === null) {
-        // Show not found, reset to avoid showing "No show selected"
+        // Show not found, reset
         setSelectedShowId(null);
         document.title = 'Show Not Found – setlists.live';
       }
@@ -150,13 +150,14 @@ function App() {
     if (view === "artist" && id) {
       setSelectedArtistId(id as Id<"artists">);
       setSelectedShowId(null);
-      // Prefer Convex ID for stability after refresh; slug is secondary
-      const urlParam = id;
+      // CRITICAL: Prefer slug for SEO and refresh resilience - fall back to ID if slug not available
+      const urlParam = slug || id;
       void navigate(`/artists/${urlParam}`);
     } else if (view === "show" && id) {
       setSelectedShowId(id as Id<"shows">);
       setSelectedArtistId(null);
-      const urlParam = id;
+      // CRITICAL: Prefer slug for SEO and refresh resilience - fall back to ID
+      const urlParam = slug || id;
       void navigate(`/shows/${urlParam}`);
     } else if (view === "signin") {
       void navigate('/signin');

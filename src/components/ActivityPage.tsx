@@ -96,7 +96,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
         <BorderBeam size={150} duration={12} className="opacity-30" />
       </MagicCard>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Consistent with Admin Page */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <MagicCard className="p-0 rounded-xl border border-white/10 bg-black">
           <div className="p-4 sm:p-6 text-center">
@@ -167,7 +167,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
         </button>
       </div>
 
-      {/* Activity List */}
+      {/* Activity List - Apple Music Style */}
       <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
         <div className="p-4 sm:p-6">
           <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
@@ -177,10 +177,10 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
 
           {!activityFeed ? (
             // Loading state
-            <div className="space-y-4">
+            <div className="space-y-0">
               {[...Array(10)].map((_, i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="h-16 bg-white/5 rounded-lg" />
+                <div key={i} className="animate-pulse py-4" style={{borderBottom: '1px solid rgba(255, 255, 255, 0.05)'}}>
+                  <div className="h-12 bg-white/5 rounded" />
                 </div>
               ))}
             </div>
@@ -194,34 +194,34 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
               </Button>
             </div>
           ) : (
-            // Activity list
-            <div className="space-y-4">
-              {activityFeed.map((activity) => (
-                <div key={activity._id} className="flex items-start gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-200">
-                  <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+            // Activity list - Clean Apple Music style
+            <div className="space-y-0">
+              {activityFeed.map((activity, idx) => (
+                <div 
+                  key={activity._id} 
+                  className="flex items-start gap-4 py-4 hover:bg-white/5 transition-all duration-200"
+                  style={{borderBottom: idx < activityFeed.length - 1 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none'}}
+                >
+                  <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     {activity.type === 'song_vote' && <Star className="h-5 w-5 text-primary" />}
                     {activity.type === 'setlist_created' && <Music className="h-5 w-5 text-primary" />}
                     {activity.type === 'show_attended' && <Calendar className="h-5 w-5 text-primary" />}
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-medium text-white mb-1">
-                          {activity.type === 'song_vote' && `Voted for "${activity.data.songTitle}"`}
-                          {activity.type === 'setlist_created' && `Created setlist for ${activity.data.artistName}`}
-                          {activity.type === 'show_attended' && `Attended ${activity.data.artistName} show`}
-                        </p>
-                        <p className="text-sm text-gray-400">
-                          {activity.type === 'song_vote' && `${activity.data.artistName} at ${activity.data.venueName}`}
-                          {activity.type === 'setlist_created' && `${activity.data.songsCount} songs • ${activity.data.venueName}`}
-                          {activity.type === 'show_attended' && `${activity.data.venueName} • ${activity.data.showDate}`}
-                        </p>
-                      </div>
-                      <span className="text-xs text-gray-500 whitespace-nowrap ml-4">
-                        {new Date(activity.timestamp).toLocaleString()}
-                      </span>
-                    </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-white text-sm mb-1 truncate">
+                      {activity.type === 'song_vote' && `Voted for "${activity.data.songTitle}"`}
+                      {activity.type === 'setlist_created' && `Created setlist for ${activity.data.artistName}`}
+                      {activity.type === 'show_attended' && `Attended ${activity.data.artistName} show`}
+                    </p>
+                    <p className="text-xs text-gray-400 truncate">
+                      {activity.type === 'song_vote' && `${activity.data.artistName} at ${activity.data.venueName}`}
+                      {activity.type === 'setlist_created' && `${activity.data.songsCount} songs • ${activity.data.venueName}`}
+                      {activity.type === 'show_attended' && `${activity.data.venueName} • ${activity.data.showDate}`}
+                    </p>
                   </div>
+                  <span className="text-xs text-gray-500 whitespace-nowrap flex-shrink-0">
+                    {new Date(activity.timestamp).toLocaleDateString()}
+                  </span>
                 </div>
               ))}
             </div>

@@ -135,8 +135,11 @@ export const processSetlistImportQueue = internalAction({
           progress: 33, // 1/3 done
         });
 
-        // Get show data
-        const show = await ctx.runQuery(internal.syncJobs.getShowByIdInternal, { id: job.entityId });
+        // Get show data - ensure entityId is a valid show ID
+        if (!job.entityId) {
+          throw new Error("No entityId for job");
+        }
+        const show = await ctx.runQuery(internal.syncJobs.getShowByIdInternal, { id: job.entityId as any });
         if (!show) {
           throw new Error("Show not found for job");
         }
@@ -165,11 +168,9 @@ export const processSetlistImportQueue = internalAction({
             status: "completed",
             progress: 100,
           });
-          await ctx.db.patch(job._id, {
-            completedAt: Date.now(),
-            currentPhase: "completed",
-            completedSteps: 3,
-            progressPercentage: 100,
+          // Use mutation to update job fields (actions can't access db directly)
+          await ctx.runMutation(internal.syncJobs.completeJob, {
+            jobId: job._id,
           });
 
           // Alert: Update show status
@@ -186,10 +187,10 @@ export const processSetlistImportQueue = internalAction({
               errorMessage: "Sync failed after max retries",
               progress: 100,
             });
-            await ctx.db.patch(job._id, {
-              completedAt: Date.now(),
+            // Use mutation to mark as failed
+            await ctx.runMutation(internal.syncJobs.failJob, {
+              jobId: job._id,
               errorMessage: "Sync failed after max retries",
-              progressPercentage: 100,
             });
 
             // Alert: Mark show as failed
@@ -201,10 +202,10 @@ export const processSetlistImportQueue = internalAction({
               status: "pending",
               progress: 0,
             });
-            await ctx.db.patch(job._id, {
+            // Use mutation to update retry count
+            await ctx.runMutation(internal.syncJobs.retryJob, {
+              jobId: job._id,
               retryCount: newRetry,
-              currentPhase: "retrying",
-              progressPercentage: 0,
             });
             console.log(`⏳ Retrying setlist import job ${job._id} (attempt ${newRetry})`);
           }
@@ -229,6 +230,53 @@ export const processSetlistImportQueue = internalAction({
 });
 
 // Get failed jobs for alerting
+// Helper mutations for job state management
+export const completeJob = internalMutation({
+  args: { jobId: v.id("syncJobs") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.jobId, {
+      completedAt: Date.now(),
+      currentPhase: "completed",
+      completedSteps: 3,
+      progressPercentage: 100,
+    });
+    return null;
+  },
+});
+
+export const failJob = internalMutation({
+  args: { 
+    jobId: v.id("syncJobs"),
+    errorMessage: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.jobId, {
+      completedAt: Date.now(),
+      errorMessage: args.errorMessage,
+      progressPercentage: 100,
+    });
+    return null;
+  },
+});
+
+export const retryJob = internalMutation({
+  args: { 
+    jobId: v.id("syncJobs"),
+    retryCount: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.jobId, {
+      retryCount: args.retryCount,
+      currentPhase: "retrying",
+      progressPercentage: 0,
+    });
+    return null;
+  },
+});
+
 export const getFailedImports = query({
   args: {},
   returns: v.array(v.any()),

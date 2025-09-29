@@ -154,7 +154,7 @@ export function AdminDashboard() {
       </MagicCard>
 
       {/* Stats Overview */}
-      <MagicCard className="p-0 rounded-2xl border-0 bg-black">
+      <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
         <div className="p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-8 h-8 bg-blue-500/20 rounded-xl flex items-center justify-center">
@@ -184,7 +184,7 @@ export function AdminDashboard() {
       </MagicCard>
 
       {/* Trending Data Sync Controls */}
-      <MagicCard className="p-0 rounded-2xl border-0 bg-black">
+      <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
         <div className="p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-8 h-8 bg-green-500/20 rounded-xl flex items-center justify-center">
@@ -321,7 +321,7 @@ export function AdminDashboard() {
       </MagicCard>
 
       {/* System Health Overview */}
-      <MagicCard className="p-0 rounded-2xl border-0 bg-black">
+      <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
         <div className="p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-8 h-8 bg-green-500/20 rounded-xl flex items-center justify-center">
@@ -372,7 +372,7 @@ export function AdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Flagged Content */}
-        <MagicCard className="p-0 rounded-2xl border-0 bg-black">
+        <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
           <div className="p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -423,7 +423,7 @@ export function AdminDashboard() {
         </MagicCard>
 
         {/* Users */}
-        <MagicCard className="p-0 rounded-2xl border-0 bg-black">
+        <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
           <div className="p-4 sm:p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-8 h-8 bg-blue-500/20 rounded-xl flex items-center justify-center">

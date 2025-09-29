@@ -574,69 +574,46 @@ function FanRequestSongRow({
   
   return (
     <div
-      className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 ${
-        wasPlayed 
-          ? 'bg-green-500/10 border-green-500/20' 
-          : 'bg-white/5 border-white/10'
-      }`}
+      className="flex items-center justify-between py-3 px-0 hover:bg-white/5 transition-all duration-200"
+      style={{
+        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+      }}
     >
-      {/* Status Icon */}
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-        wasPlayed 
-          ? 'bg-green-500/20' 
-          : 'bg-gray-500/20'
-      }`}>
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        {/* Minimal status indicator */}
         {wasPlayed ? (
-          <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+          <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+            <svg className="w-3 h-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
         ) : (
-          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <span className="text-xs text-gray-500 w-5 text-center font-medium">{index + 1}</span>
         )}
+        
+        <div className="flex-1 min-w-0">
+          <h3 className={`font-medium text-sm ${
+            wasPlayed ? 'text-white' : 'text-gray-300'
+          } truncate`}>
+            {songTitle}
+          </h3>
+          {wasPlayed && (
+            <p className="text-xs text-green-400">Played</p>
+          )}
+        </div>
       </div>
       
-      {/* Song Info */}
-      <div className="flex-1">
-        <h3 className={`font-semibold text-base ${
-          wasPlayed ? 'text-white' : 'text-gray-300'
-        }`}>
-          {songTitle}
-        </h3>
-        <p className={`text-sm ${
-          wasPlayed ? 'text-green-400' : 'text-gray-500'
-        }`}>
-          {wasPlayed ? 'Played in setlist' : 'Not played'}
-        </p>
-      </div>
-      
-      {/* Vote Count */}
-      <div className={`flex items-center gap-2 rounded-lg px-3 py-2 ${
-        wasPlayed 
-          ? 'bg-green-500/20' 
-          : 'bg-white/10'
-      }`}>
+      {/* Clean vote count display */}
+      <div className="flex items-center gap-2 text-sm">
         <Heart className={`h-4 w-4 ${
-          wasPlayed ? 'text-green-400' : 'text-gray-400'
-        } fill-current`} />
-        <span className={`font-bold text-sm ${
+          wasPlayed ? 'text-green-400 fill-current' : 'text-gray-500'
+        }`} />
+        <span className={`font-semibold ${
           wasPlayed ? 'text-green-400' : 'text-gray-400'
         }`}>
           {voteCount}
         </span>
       </div>
-      
-      {/* Rank Badge for High-Voted Songs */}
-      {voteCount > 10 && (
-        <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-          wasPlayed 
-            ? 'bg-yellow-500/20 text-yellow-400' 
-            : 'bg-orange-500/20 text-orange-400'
-        }`}>
-          TOP {index + 1}
-        </span>
-      )}
     </div>
   );
 }
@@ -668,44 +645,43 @@ function ActualSetlistSongRow({
   
   return (
     <div
-      className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 ${
-        wasRequested 
-          ? 'bg-green-500/10 border-green-500/20' 
-          : 'bg-white/5 border-white/10'
+      className={`flex items-center justify-between py-3 px-0 transition-all duration-200 ${
+        wasRequested ? 'bg-green-500/5' : ''
       }`}
+      style={{
+        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+      }}
     >
-      <div className="w-8 h-8 bg-green-500/20 text-center rounded-full flex items-center justify-center text-sm font-bold text-green-400">
-        {index + 1}
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <span className={`text-sm font-semibold w-6 text-center ${
+          wasRequested ? 'text-green-400' : 'text-gray-500'
+        }`}>
+          {index + 1}
+        </span>
+        
+        <div className="flex-1 min-w-0">
+          <h3 className="font-medium text-sm sm:text-base text-white truncate">{song.title}</h3>
+          {song.album && (
+            <p className="text-xs text-gray-400 truncate">{song.album}</p>
+          )}
+        </div>
       </div>
       
-      <div className="flex-1">
-        <h3 className="font-semibold text-white text-lg sm:text-xl">{song.title}</h3>
-        {song.album && (
-          <p className="text-sm sm:text-base text-gray-400">{song.album}</p>
+      {/* Clean badges */}
+      <div className="flex items-center gap-2">
+        {song.encore && (
+          <span className="bg-yellow-500/10 text-yellow-400 text-xs font-medium px-2 py-0.5 rounded-full">
+            Encore
+          </span>
+        )}
+        
+        {wasRequested && voteCount > 0 && (
+          <div className="flex items-center gap-1 text-green-400">
+            <Heart className="h-3.5 w-3.5 fill-current" />
+            <span className="text-sm font-semibold">{voteCount}</span>
+          </div>
         )}
       </div>
-      
-      {/* Real Vote Count for Requested Songs */}
-      {wasRequested && voteCount > 0 && (
-        <div className="flex items-center gap-2 bg-green-500/20 rounded-lg px-3 py-2">
-          <Heart className="h-4 w-4 text-green-400 fill-current" />
-          <span className="text-green-400 font-semibold text-sm">{voteCount}</span>
-        </div>
-      )}
-
-      {/* Encore Badge */}
-      {song.encore && (
-        <span className="bg-yellow-500/20 text-yellow-400 text-xs font-semibold px-3 py-1 rounded-full">
-          Encore
-        </span>
-      )}
-      
-      {/* Fan Favorite Badge */}
-      {wasRequested && voteCount >= 10 && (
-        <span className="bg-green-500/20 text-green-400 text-xs font-semibold px-3 py-1 rounded-full">
-          Fan Favorite
-        </span>
-      )}
     </div>
   );
 }
@@ -742,36 +718,40 @@ function SongVoteRow({
         songTitle,
         voteType: "upvote",
       });
-      // No toast needed - the UI update is instant and clear
     } catch {
       toast.error("Failed to vote");
     }
   };
 
   return (
-    <div className="flex items-center justify-between py-3.5 px-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-200 group">
+    <div 
+      className="flex items-center justify-between py-3 px-0 hover:bg-white/5 transition-all duration-200 group"
+      style={{
+        borderBottom: position !== 0 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
+      }}
+    >
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div className="w-8 h-8 bg-primary/20 text-center rounded-full flex items-center justify-center text-sm font-semibold text-primary">
+        <span className="text-xs text-gray-500 w-6 text-right font-medium">
           {position}
-        </div>
-        <span className="font-medium text-base sm:text-lg text-white truncate">{songTitle}</span>
+        </span>
+        <span className="font-medium text-sm sm:text-base text-white truncate">{songTitle}</span>
       </div>
       
-      {/* Always-visible vote button with count */}
-      <AnimatedSubscribeButton
-        subscribeStatus={songVotes?.userVoted || false}
-        onClick={() => void handleSongVote()}
-        className="ml-3 h-8 sm:h-9 min-w-[70px] text-sm sm:text-base"
+      {/* Clean upvote button - Apple Music style */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          void handleSongVote();
+        }}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all duration-200 ${
+          songVotes?.userVoted 
+            ? 'bg-primary/20 text-primary' 
+            : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+        }`}
       >
-        <span className="flex items-center gap-1.5">
-          <ChevronUp className="h-4 w-4" />
-          <span className="font-semibold">{songVotes?.upvotes || 0}</span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <Heart className="h-4 w-4 fill-current" />
-          <span className="font-semibold">{songVotes?.upvotes || 0}</span>
-        </span>
-      </AnimatedSubscribeButton>
+        <ChevronUp className="h-4 w-4" />
+        <span className="font-semibold text-sm">{songVotes?.upvotes || 0}</span>
+      </button>
     </div>
   );
 }

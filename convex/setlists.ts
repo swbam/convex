@@ -610,12 +610,11 @@ export const updateWithActualSetlist = internalMutation({
 
       });
     } else {
+      // Create new official setlist with actual setlist data
       await ctx.db.insert("setlists", {
         showId: args.showId,
         userId: undefined,
-        songs: canonicalActualSongs,
-        songs: [],
-
+        songs: [], // Empty predictions (this is the official setlist)
         actualSetlist: args.actualSetlist,
         verified: true,
         source: "setlistfm",

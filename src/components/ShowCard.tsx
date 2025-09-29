@@ -69,17 +69,17 @@ export function ShowCard({
 
   if (compact) {
     return (
-      <MagicCard
-        className="group cursor-pointer p-0 transition-all duration-300 ease-out active:scale-[0.98] relative overflow-hidden border-0 touch-manipulation bg-black"
-        gradientColor="#000000"
-        gradientOpacity={0}
-        gradientSize={0}
+      <div
+        className="group cursor-pointer transition-all duration-200 ease-out active:scale-[0.98] relative overflow-hidden touch-manipulation bg-black py-3"
+        onClick={handleClick}
+        style={{
+          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+        }}
       >
-        
-        <div className="relative z-10 p-3 sm:p-4" onClick={handleClick}>
+        <div className="relative z-10" onClick={handleClick}>
           <div className="flex items-center gap-2.5 sm:gap-3">
             {showArtist && show.artist && (
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden bg-accent/20 flex items-center justify-center border border-border flex-shrink-0">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center flex-shrink-0">
                 {show.artist.images?.[0] ? (
                   <img 
                     src={show.artist.images[0]} 
@@ -89,7 +89,7 @@ export function ShowCard({
                     className="w-full h-full object-cover opacity-90"
                   />
                 ) : (
-                  <span className="text-foreground font-semibold text-xs sm:text-sm">
+                  <span className="text-white/60 font-semibold text-xs sm:text-sm">
                     {show.artist.name.slice(0, 2).toUpperCase()}
                   </span>
                 )}
@@ -98,42 +98,43 @@ export function ShowCard({
             
             <div className="flex-1 min-w-0">
               {showArtist && show.artist && (
-                <h3 className="font-semibold text-foreground text-responsive-sm truncate mb-0.5 sm:mb-1 group-hover:text-primary transition-colors">
+                <h3 className="font-medium text-white text-sm truncate mb-0.5 group-hover:text-primary transition-colors">
                   {show.artist.name}
                 </h3>
               )}
               
-              <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-xs text-gray-400">
                 <Calendar className="h-3 w-3 flex-shrink-0" />
                 <span className="whitespace-nowrap">{formatDate(show.date)}</span>
                 <span className="hidden sm:inline">•</span>
                 <span className="truncate hidden sm:inline">{show.venue?.name}</span>
               </div>
               {show.venue && (
-                <div className="sm:hidden text-[10px] text-muted-foreground truncate mt-0.5">
+                <div className="sm:hidden text-xs text-gray-500 truncate mt-0.5">
                   {show.venue.name}
                 </div>
               )}
             </div>
             
             {isToday && (
-              <div className="bg-primary/20 border border-primary/40 text-primary rounded-full px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold flex-shrink-0">
+              <div className="bg-primary/10 text-primary rounded-full px-2 py-1 text-xs font-medium flex-shrink-0">
                 Tonight
               </div>
             )}
           </div>
         </div>
-      </MagicCard>
+      </div>
     )
   }
 
   return (
-    <MagicCard
-      className="group cursor-pointer p-0 transition-all duration-300 ease-out hover:scale-[1.01] active:scale-[0.98] relative overflow-hidden border-0 touch-manipulation h-full bg-black"
+    <div
+      className="group cursor-pointer transition-all duration-300 ease-out hover:scale-[1.005] active:scale-[0.99] relative overflow-hidden touch-manipulation h-full bg-black"
       onClick={handleClick}
-      gradientColor="#000000"
-      gradientOpacity={0}
-      gradientSize={0}
+      style={{
+        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+      }}
     >
       {/* Enhanced Artist Image at Top */}
       {showArtist && show.artist?.images?.[0] && (
@@ -148,71 +149,57 @@ export function ShowCard({
         </div>
       )}
       
-      <div className="relative z-10 p-3 sm:p-4 lg:p-5 min-h-[180px] sm:min-h-[200px] flex flex-col" onClick={handleClick}>
-        {/* Status Badge - Top Right */}
+      <div className="relative z-10 p-3 sm:p-4 min-h-[160px] flex flex-col" onClick={handleClick}>
+        {/* Status Badge - Subtle */}
         {isToday && (
-          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-primary/20 border border-primary/40 text-primary rounded-full px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold backdrop-blur-sm">
+          <div className="absolute top-3 right-3 bg-primary/10 text-primary rounded-full px-2 py-1 text-xs font-medium">
             Tonight
           </div>
         )}
         
-        {/* Artist Info - Enhanced */}
-        <div className="mb-3 sm:mb-4 flex-1">
+        {/* Show Info - Clean Apple Style */}
+        <div className="mb-3 flex-1">
           {showArtist && show.artist && (
-            <h3 className="font-bold text-white text-responsive-base sm:text-responsive-lg lg:text-responsive-xl mb-1.5 sm:mb-2 group-hover:text-primary transition-colors line-clamp-2">
+            <h3 className="font-semibold text-white text-sm sm:text-base mb-1 group-hover:text-primary transition-colors line-clamp-2">
               {show.artist.name}
             </h3>
           )}
           
           {show.venue && (
-            <div className="flex items-center gap-1.5 sm:gap-2 text-gray-300 text-responsive-xs sm:text-responsive-sm">
-              <MapPin className="h-3 w-3 flex-shrink-0" />
-              <span className="truncate font-medium">{show.venue.name}</span>
-            </div>
+            <p className="text-xs text-gray-400 truncate mb-2">
+              {show.venue.name}
+            </p>
           )}
-        </div>
-        
-        {/* Event Details - Refined */}
-        <div className="flex flex-col gap-1.5 sm:gap-2 text-responsive-xs text-gray-300 mb-3 sm:mb-4">
-          <div className="flex items-center gap-1.5">
-            <Calendar className="h-3 w-3 flex-shrink-0" />
-            <span className="font-medium">{formatDate(show.date)}</span>
-          </div>
           
-          {show.startTime && (
-            <div className="flex items-center gap-1.5">
-              <Clock className="h-3 w-3 flex-shrink-0" />
-              <span className="font-medium">{formatTime(show.startTime)}</span>
+          <div className="flex items-center gap-3 text-xs text-gray-500">
+            <div className="flex items-center gap-1">
+              <Calendar className="h-3 w-3 flex-shrink-0" />
+              <span>{formatDate(show.date)}</span>
             </div>
-          )}
-        </div>
-        
-        {/* Stats - Clean */}
-        {(show.setlistCount !== undefined || (show.voteCount !== undefined && show.voteCount > 0)) && (
-          <div className="flex flex-wrap gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-gray-300 mb-3 sm:mb-4">
-            {show.setlistCount !== undefined && (
-              <span className="bg-white/10 px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg font-medium">{show.setlistCount} setlist{show.setlistCount !== 1 ? 's' : ''}</span>
-            )}
             
-            {show.voteCount !== undefined && show.voteCount > 0 && (
-              <span className="bg-white/10 px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg font-medium">{show.voteCount} vote{show.voteCount !== 1 ? 's' : ''}</span>
+            {show.startTime && (
+              <div className="flex items-center gap-1">
+                <Clock className="h-3 w-3 flex-shrink-0" />
+                <span>{formatTime(show.startTime)}</span>
+              </div>
             )}
           </div>
-        )}
+        </div>
         
-        {/* Single Action Button - Clean */}
-        <div className="mt-auto">
+        {/* Minimal Action - Apple Style */}
+        <div className="flex items-center justify-between mt-auto pt-2">
           <button
             onClick={(e) => {
               e.stopPropagation()
               handleClick()
             }}
-            className="w-full bg-white/10 hover:bg-primary hover:text-primary-foreground text-white rounded-lg sm:rounded-xl py-2 sm:py-2.5 lg:py-3 px-3 sm:px-4 text-responsive-xs sm:text-responsive-sm font-semibold transition-all duration-200 border border-white/20 hover:border-primary/30 touch-target"
+            className="text-primary text-sm font-medium hover:text-primary/80 transition-colors"
           >
             View Setlist
           </button>
+          <div className="text-xs text-gray-500">›</div>
         </div>
       </div>
-    </MagicCard>
+    </div>
   )
 }

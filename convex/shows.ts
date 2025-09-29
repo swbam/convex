@@ -473,10 +473,17 @@ export const createInternal = internalMutation({
     // Generate SEO-friendly slug: artist-name-venue-name-city-date
     const slug = createShowSlug(artist.name, venue.name, venue.city, args.date, args.startTime);
     
-    return await ctx.db.insert("shows", {
+    const showId = await ctx.db.insert("shows", {
       ...args,
       slug,
+      voteCount: 0, // Initialize counts
+      setlistCount: 0,
+      lastSynced: Date.now(), // CRITICAL: Set sync timestamp
+      importStatus: args.status === "completed" ? "pending" : undefined,
     });
+    
+    console.log(`✅ Created internal show ${showId} with slug: ${slug}`);
+    return showId;
   },
 });
 
@@ -540,8 +547,13 @@ export const createFromTicketmaster = internalMutation({
       ticketmasterId: args.ticketmasterId,
       ticketUrl: args.ticketUrl,
       slug,
-      lastSynced: Date.now(), // Set sync timestamp
+      lastSynced: Date.now(), // CRITICAL: Set sync timestamp
+      voteCount: 0, // Initialize vote count
+      setlistCount: 0, // Initialize setlist count
+      importStatus: args.status === "completed" ? "pending" : undefined, // Auto-queue completed shows for import
     });
+    
+    console.log(`✅ Created show ${showId} with slug: ${slug}`);
 
     // Auto-generate initial setlist for the new show
     await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
