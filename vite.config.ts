@@ -40,6 +40,9 @@ window.addEventListener('message', async (message) => {
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       external: ['old/**/*'],
+      input: {
+        main: './index.html',
+      },
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom'],
@@ -56,10 +59,15 @@ window.addEventListener('message', async (message) => {
           return `assets/${facadeModuleId}-[hash].js`;
         }
       }
-    }
+    },
+    // Copy public folder to dist (includes _redirects)
+    copyPublicDir: true,
   },
   server: {
-    host: true
+    host: true,
+    // CRITICAL: Enable SPA fallback for direct URL access
+    // Without this, /artists/slug returns 404 when accessed directly
+    historyApiFallback: true,
   },
   resolve: {
     alias: {
