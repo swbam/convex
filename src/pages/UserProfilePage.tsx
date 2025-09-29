@@ -23,7 +23,16 @@ export function UserProfilePage() {
     appUser?.appUser ? { limit: 50, onlyWithShows: true } : 'skip'
   );
   const { hasSpotify, isImporting, refreshSpotifyArtists } = useSpotifyAuth();
-  const [activeTab, setActiveTab] = useState('general');
+  // CRITICAL: Default to 'spotify' tab if user has Spotify, otherwise 'general'
+  const defaultTab = hasSpotify ? 'spotify' : 'general';
+  const [activeTab, setActiveTab] = useState(defaultTab);
+  
+  // Update activeTab when hasSpotify changes
+  React.useEffect(() => {
+    if (hasSpotify && activeTab === 'general') {
+      setActiveTab('spotify');
+    }
+  }, [hasSpotify, activeTab]);
   
   // Redirect if not signed in
   if (!isSignedIn) {
@@ -221,16 +230,40 @@ export function UserProfilePage() {
                         </Button>
                       </div>
                       
+                      {/* Debug info */}
+                      {console.log('Spotify Artists Data:', { 
+                        hasSpotify, 
+                        isImporting, 
+                        spotifyArtistsCount: spotifyArtists?.length || 0,
+                        appUserSpotifyId: appUser?.appUser?.spotifyId
+                      })}
+                      
                       {isImporting ? (
                         <div className="text-center py-8">
                           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
                           <p className="text-gray-400">Importing your Spotify artists...</p>
+                          <p className="text-xs text-gray-500 mt-2">This may take 30-60 seconds</p>
                         </div>
                       ) : !spotifyArtists || spotifyArtists.length === 0 ? (
                         <div className="text-center py-8">
                           <Music className="h-12 w-12 mx-auto mb-4 text-gray-500" />
-                          <p className="text-gray-400 mb-2">No artists with upcoming shows found</p>
-                          <p className="text-sm text-gray-500">We'll show your Spotify artists here when they have concerts scheduled</p>
+                          <div className="space-y-2">
+                            <p className="text-gray-400 mb-2">No artists with upcoming shows found</p>
+                            <p className="text-sm text-gray-500">Your Spotify artists will appear here when they have concerts scheduled</p>
+                            {!appUser?.appUser?.spotifyId && (
+                              <p className="text-xs text-yellow-500 mt-4">Note: Spotify ID not detected. Try refreshing.</p>
+                            )}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-4"
+                            onClick={() => refreshSpotifyArtists()}
+                            disabled={isImporting}
+                          >
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Import Spotify Artists Now
+                          </Button>
                         </div>
                       ) : (
                         <div>

@@ -2,13 +2,14 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import React, { useMemo, useState } from "react";
-import { ArrowLeft, MapPin, Users, Music, ChevronUp, Heart, Vote } from "lucide-react";
+import { ArrowLeft, MapPin, Users, Music, ChevronUp, Heart, Vote, Calendar, ExternalLink, Ticket } from "lucide-react";
 import { toast } from "sonner";
 import { SEOHead } from "./SEOHead";
 import { AnimatedSubscribeButton } from "./ui/animated-subscribe-button";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
-// import { ShimmerButton } from "./ui/shimmer-button";
+import { ShimmerButton } from "./ui/shimmer-button";
+import { buildTicketmasterAffiliateUrl } from "../utils/ticketmaster";
 
 interface ShowDetailProps {
   showId: Id<"shows">;
@@ -140,51 +141,86 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
       </button>
       </MagicCard>
 
-      {/* Clean Apple-Style Show Header */}
-      <MagicCard className="relative overflow-hidden rounded-xl p-0 border-0 bg-black">
-        <div className="relative z-10 p-3 sm:p-4">
-          <div className="flex items-center gap-3 sm:gap-4">
-            {/* Compact Artist Image */}
+      {/* Revamped Show Header with Cover Photo Background */}
+      <div className="relative overflow-hidden rounded-2xl">
+        {/* Background Cover Image */}
+        {show.artist?.images?.[0] && (
+          <div className="absolute inset-0 z-0">
+            <img
+              src={show.artist.images[0]}
+              alt=""
+              className="w-full h-full object-cover opacity-25 blur-md scale-110"
+            />
+            {/* Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/85 to-black" />
+          </div>
+        )}
+        
+        {/* Content */}
+        <div className="relative z-10 p-6 sm:p-8 lg:p-10">
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-6">
+            {/* Large Artist Profile Image */}
             {show.artist?.images?.[0] && (
               <div className="flex-shrink-0">
                 <img
                   src={show.artist.images[0]}
                   alt={show.artist.name}
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover"
+                  className="w-32 h-32 sm:w-36 sm:h-36 lg:w-40 lg:h-40 rounded-2xl object-cover shadow-2xl border-4 border-black/50"
                 />
               </div>
             )}
             
-            {/* Show Info - Clean Typography */}
+            {/* Show Info */}
             <div className="flex-1 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-gray-300 mb-2 uppercase tracking-wider">Concert</p>
               <button
                 onClick={() => onArtistClick(show.artistId)}
-                className="text-xl sm:text-2xl lg:text-3xl font-bold text-white hover:text-primary transition-colors text-left truncate block"
+                className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white hover:text-primary transition-colors text-left mb-2 leading-tight"
               >
                 {show.artist?.name}
               </button>
-              <div className="flex items-center gap-2 text-sm text-gray-400 mt-1">
-                <MapPin className="h-3 w-3 flex-shrink-0" />
-                <span className="truncate">{show.venue?.name}</span>
-                <span>•</span>
-                <span className="truncate">
-                  {showDate.toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric'
-                  })}
-                </span>
+              
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm sm:text-base text-gray-200 mb-4">
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 sm:h-5 sm:h-5 flex-shrink-0" />
+                  <span className="font-medium">{show.venue?.name}</span>
+                </div>
+                <span className="text-gray-500">•</span>
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                  <span className="font-medium">
+                    {showDate.toLocaleDateString('en-US', {
+                      weekday: 'short',
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </span>
+                </div>
+                {show.startTime && (
+                  <>
+                    <span className="text-gray-500">•</span>
+                    <span className="font-medium">{show.startTime}</span>
+                  </>
+                )}
               </div>
+              
+              {/* Buy Tickets Button - Prominent for Upcoming Shows */}
+              {isUpcoming && (
+                <ShimmerButton
+                  onClick={() => window.open(buildTicketmasterAffiliateUrl(show.ticketUrl), '_blank')}
+                  className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white border-0 px-6 py-3 text-base font-semibold"
+                  shimmerColor="#60a5fa"
+                >
+                  <Ticket className="h-5 w-5 mr-2" />
+                  Get Tickets
+                  <ExternalLink className="h-4 w-4 ml-2" />
+                </ShimmerButton>
+              )}
             </div>
-            
-            {/* Status Badge - Minimal */}
-            {isToday && (
-              <div className="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-semibold">
-                Tonight
-              </div>
-            )}
           </div>
         </div>
-      </MagicCard>
+      </div>
 
       {/* Two-Column Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">

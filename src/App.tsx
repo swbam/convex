@@ -319,28 +319,9 @@ function App() {
           />
         );
       case "profile":
-        if (!user?.appUser) {
-          return (
-            <div className="container mx-auto px-4 sm:px-6 py-8">
-              <div className="text-center">
-                <h2 className="text-2xl font-bold mb-4">Sign In Required</h2>
-                <p className="text-muted-foreground mb-4">Please sign in to view your profile.</p>
-                <button 
-                  onClick={() => handleViewChange("signin")}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                >
-                  Sign In
-                </button>
-              </div>
-            </div>
-          );
-        }
-        return (
-          <UserDashboard 
-            onArtistClick={handleArtistClick}
-            onShowClick={handleShowClick}
-          />
-        );
+        // Profile now handled by separate route - redirect there
+        void navigate('/profile');
+        return null;
       case "admin":
         return (
           <AdminDashboard />

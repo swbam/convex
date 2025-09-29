@@ -10,6 +10,7 @@ import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { ShimmerButton } from "./ui/shimmer-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { buildTicketmasterAffiliateUrl } from "../utils/ticketmaster";
 
 interface ArtistDetailProps {
   artistId: Id<"artists">;
@@ -91,29 +92,66 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         </button>
       </MagicCard>
 
-      {/* Clean Apple-Style Artist Header */}
-      <MagicCard className="relative overflow-hidden rounded-xl p-0 border-0 bg-black">
-        <div className="relative z-10 p-3 sm:p-4">
-          <div className="flex items-center gap-3 sm:gap-4">
-            {/* Compact Artist Image */}
+      {/* Revamped Header with Cover Photo Background */}
+      <div className="relative overflow-hidden rounded-2xl">
+        {/* Background Cover Image */}
+        {artist.images?.[0] && (
+          <div className="absolute inset-0 z-0">
+            <img
+              src={artist.images[0]}
+              alt=""
+              className="w-full h-full object-cover opacity-30 blur-sm scale-110"
+            />
+            {/* Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-black" />
+          </div>
+        )}
+        
+        {/* Content */}
+        <div className="relative z-10 p-6 sm:p-8 lg:p-10">
+          <div className="flex items-end gap-4 sm:gap-6">
+            {/* Large Profile Image */}
             {artist.images?.[0] && (
               <div className="flex-shrink-0">
                 <img
                   src={artist.images[0]}
                   alt={artist.name}
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover"
+                  className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 rounded-2xl object-cover shadow-2xl border-4 border-black/50"
                 />
               </div>
             )}
             
-            {/* Artist Name - Clean Typography */}
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white truncate">{artist.name}</h1>
-              <p className="text-sm text-gray-400 mt-1">{upcomingShows.length} shows</p>
+            {/* Artist Info */}
+            <div className="flex-1 min-w-0 pb-2">
+              <p className="text-xs sm:text-sm font-medium text-gray-300 mb-2 uppercase tracking-wider">Artist</p>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-3 leading-tight">
+                {artist.name}
+              </h1>
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-300">
+                {artist.followers && (
+                  <div className="flex items-center gap-1.5">
+                    <Users className="h-4 w-4" />
+                    <span className="font-medium">{(artist.followers / 1000000).toFixed(1)}M followers</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4" />
+                  <span className="font-medium">{upcomingShows.length} upcoming {upcomingShows.length === 1 ? 'show' : 'shows'}</span>
+                </div>
+                {artist.genres && artist.genres.length > 0 && (
+                  <div className="hidden sm:flex items-center gap-2">
+                    {artist.genres.slice(0, 2).map((genre, idx) => (
+                      <span key={idx} className="px-2 py-1 bg-white/10 rounded-full text-xs font-medium">
+                        {genre}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </MagicCard>
+      </div>
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">

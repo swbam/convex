@@ -89,9 +89,7 @@ export function Footer() {
               <span className="hidden sm:inline w-1 h-1 bg-muted-foreground rounded-full"></span>
               <span className="hidden sm:inline">All rights reserved</span>
               <span className="hidden lg:inline w-1 h-1 bg-muted-foreground rounded-full"></span>
-              <span className="hidden lg:flex items-center gap-1">
-                Made with <Heart className="h-3 w-3 text-red-400 fill-current animate-pulse" /> for music fans
-              </span>
+             
             </div>
             
             {/* Simple Brand */}
