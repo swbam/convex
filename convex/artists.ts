@@ -193,8 +193,24 @@ export const createFromTicketmaster = internalMutation({
       .filter((q) => q.eq(q.field("ticketmasterId"), args.ticketmasterId))
       .first();
 
-    if (existing) {
-      return existing._id;
+    if (existing) return existing._id;
+
+    const lowerName = args.name.toLowerCase();
+    const existingByName = await ctx.db
+      .query("artists")
+      .withIndex("by_lower_name", (q) => q.eq("lowerName", lowerName))
+      .first();
+
+    if (existingByName) {
+      // Merge: Patch with new data if different
+      await ctx.db.patch(existingByName._id, {
+        genres: args.genres,
+        images: args.images,
+        // Merge other fields, e.g., if no Spotify yet, but since this is TM, add TM-specific
+        ticketmasterId: args.ticketmasterId, // Ensure TM ID is set
+        lastSynced: Date.now(),
+      });
+      return existingByName._id;
     }
 
     // Create slug from name
@@ -238,6 +254,7 @@ export const createFromTicketmaster = internalMutation({
       spotifyId: undefined, // Will be set by Spotify sync
       lastSynced: Date.now(), // Set initial sync timestamp
       lastTrendingUpdate: undefined,
+      lowerName,
     });
   },
 });
@@ -342,6 +359,24 @@ export const createInternal = internalMutation({
     followers: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const lowerName = args.name.toLowerCase();
+    const existingByName = await ctx.db
+      .query("artists")
+      .withIndex("by_lower_name", (q) => q.eq("lowerName", lowerName))
+      .first();
+
+    if (existingByName) {
+      // Merge: Patch with new data if different
+      await ctx.db.patch(existingByName._id, {
+        genres: args.genres,
+        images: args.images,
+        // Merge other fields, e.g., if no Spotify yet, but since this is TM, add TM-specific
+        ticketmasterId: args.ticketmasterId, // Ensure TM ID is set
+        lastSynced: Date.now(),
+      });
+      return existingByName._id;
+    }
+
     // Create SEO-friendly slug
     const slug = args.name.toLowerCase()
       .normalize('NFD')
@@ -363,6 +398,7 @@ export const createInternal = internalMutation({
       followers: args.followers,
       isActive: true,
       trendingScore: 1,
+      lowerName,
     });
   },
 });
@@ -489,6 +525,22 @@ export const create = internalMutation({
     lastSynced: v.number(),
   },
   handler: async (ctx, args) => {
+    const lowerName = args.name.toLowerCase();
+    const existingByName = await ctx.db
+      .query("artists")
+      .withIndex("by_lower_name", (q) => q.eq("lowerName", lowerName))
+      .first();
+
+    if (existingByName) {
+      // Merge: Patch with new data if different
+      await ctx.db.patch(existingByName._id, {
+        genres: args.genres,
+        images: args.image ? [args.image] : [],
+        lastSynced: args.lastSynced,
+      });
+      return existingByName._id;
+    }
+
     // Create SEO-friendly slug
     const slug = args.name.toLowerCase()
       .normalize('NFD')
@@ -511,6 +563,7 @@ export const create = internalMutation({
       lastSynced: args.lastSynced,
       isActive: true,
       trendingScore: 1,
+      lowerName,
     });
   },
 });

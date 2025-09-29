@@ -29,6 +29,8 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
   const [isLoadingArtists, setIsLoadingArtists] = useState(false);
 
   const triggerFullSync = useAction(api.ticketmaster.triggerFullArtistSync);
+  const getLiveShows = useAction(api.ticketmaster.getTrendingShows);
+  const getLiveArtists = useAction(api.ticketmaster.getTrendingArtists);
 
   // Load trending data directly from the optimized trending system
   const dbTrendingShows = useQuery(api.trending.getTrendingShows, { limit: 20 });
@@ -38,10 +40,18 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
   const fallbackArtists = useQuery(api.artists.getTrending, { limit: 20 });
   const fallbackShows = useQuery(api.shows.getUpcoming, { limit: 20 });
 
+  // Helper to check if DB data is fresh
+  const isDbFresh = (data: any[]) => {
+    if (!data || data.length === 0) return false;
+    const now = Date.now();
+    return data.some(item => item.lastTrendingUpdate && (now - item.lastTrendingUpdate < 4 * 60 * 60 * 1000));
+  };
+
   useEffect(() => {
-    // Use trending data if available, otherwise use fallback
-    if (dbTrendingShows && dbTrendingShows.length > 0) {
-      // The data from trending already includes artist and venue data
+    setIsLoadingShows(true);
+    
+    if (dbTrendingShows && dbTrendingShows.length > 0 && isDbFresh(dbTrendingShows)) {
+      // Use DB (existing logic)
       const uniqueShows = dbTrendingShows.filter((show, index, self) => 
         index === self.findIndex(s => s.artist?.name === show.artist?.name)
       );
@@ -63,6 +73,7 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
         startTime: show.startTime,
         artistImage: show.artist?.images?.[0] || show.artistImage,
         ticketUrl: show.ticketUrl,
+<<<<<<< HEAD
         status: show.status || 'upcoming',
       }));
       
@@ -92,6 +103,45 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
         }));
       setTrendingShows(convertedShows.slice(0, 12));
       setIsLoadingShows(false);
+=======
+        status: show.status,
+        lastTrendingUpdate: show.lastTrendingUpdate,
+      }));
+      
+      setTrendingShows(formattedShows);
+    } else {
+      toast.info("Fetching live trending shows...");
+      getLiveShows({ limit: 20 }).then(liveData => {
+        if (liveData && liveData.length > 0) {
+          setTrendingShows(liveData);
+        } else {
+          // Fallback to DB upcoming
+          if (fallbackShows) {
+            const convertedShows = fallbackShows
+              .filter(show => show.artist?.name && show.artist.name.trim() !== '' && show.artist.name !== 'Unknown Artist')
+              .map(show => ({
+                ticketmasterId: show.ticketmasterId || show._id,
+                artistTicketmasterId: show.artist?.ticketmasterId,
+                artistName: show.artist.name,
+                artist: show.artist, // Include full artist data
+                venueName: show.venue?.name || 'Unknown Venue',
+                venueCity: show.venue?.city || '',
+                venueCountry: show.venue?.country || '',
+                date: show.date,
+                startTime: show.startTime,
+                artistImage: show.artist?.images?.[0],
+                ticketUrl: show.ticketUrl,
+                status: show.status,
+                lastTrendingUpdate: show.lastTrendingUpdate,
+              }));
+            setTrendingShows(convertedShows.slice(0, 12));
+          }
+        }
+      }).catch(() => {
+        toast.error("Using cached shows");
+        // Fallback as above
+      }).finally(() => setIsLoadingShows(false));
+>>>>>>> 0dab9c7 (edits)
     }
     
     if (dbTrendingArtists && dbTrendingArtists.length > 0) {
@@ -125,7 +175,7 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
       setTrendingArtists(convertedArtists);
       setIsLoadingArtists(false);
     }
-  }, [dbTrendingShows, dbTrendingArtists, fallbackShows, fallbackArtists]);
+  }, [dbTrendingShows, dbTrendingArtists, fallbackShows, fallbackArtists, getLiveShows]);
 
   const handleArtistClick = async (
     artistOrTicketmasterId: string,

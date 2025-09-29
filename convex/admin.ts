@@ -487,6 +487,16 @@ export const testTriggerSetlistSync = action({
   },
 });
 
+// Add public action for manual sync:
+export const triggerSetlistSyncManual = action({
+  args: {},
+  returns: v.object({ success: v.boolean(), message: v.string() }),
+  handler: async (ctx) => {
+    await ctx.runAction(internal.setlistfm.checkCompletedShows, {});
+    return { success: true, message: "Manual setlist sync triggered" };
+  },
+});
+
 // ===== SONG DATABASE CLEANUP =====
 
 export const cleanupNonStudioSongs = action({

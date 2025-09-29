@@ -484,7 +484,6 @@ export const updateArtistTrending = internalMutation({
   },
 });
 
-// Update show trending ranks (simple ordering: soonest upcoming first).
 export const updateShowTrending = internalMutation({
   args: {},
   returns: v.null(),
@@ -494,19 +493,84 @@ export const updateShowTrending = internalMutation({
       .withIndex("by_status", (q) => q.eq("status", "upcoming"))
       .collect();
 
+    const now = Date.now();
     const parsed = upcoming
-      .map((s) => ({ show: s, when: new Date(s.date).getTime() }))
-      .filter((p) => Number.isFinite(p.when));
-    parsed.sort((a, b) => a.when - b.when);
+      .map((s) => {
+        const showDate = new Date(s.date).getTime();
+        const daysUntil = (showDate - now) / (1000 * 60 * 60 * 24);
+        const recencyScore = Math.max(0, 1 - (daysUntil / 30)); // Decay over 30 days, 1 for today
+        const voteCount = typeof s.voteCount === 'number' ? s.voteCount : 0;
+        const setlistCount = typeof s.setlistCount === 'number' ? s.setlistCount : 0;
+        const engagement = voteCount + setlistCount * 2; // Weight setlists higher
+        const totalScore = recencyScore * (1 + engagement / 10); // Boost by engagement
+        return { show: s, score: totalScore, when: showDate };
+      })
+      .filter((p) => Number.isFinite(p.when) && Number.isFinite(p.score));
+
+    // Sort by score descending, then by date ascending for ties
+    parsed.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.when - b.when;
+    });
 
     const TOP_N = 200;
     for (let i = 0; i < parsed.length; i += 1) {
       const { show } = parsed[i];
       await ctx.db.patch(show._id, {
+        trendingScore: Number.isFinite(parsed[i].score) ? parsed[i].score : 0,
         trendingRank: i < TOP_N ? i + 1 : undefined,
         lastTrendingUpdate: Date.now(),
       });
     }
+    return null;
+  },
+});
+
+// Update engagement counts (voteCount and setlistCount) for shows
+export const updateEngagementCounts = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    console.log("🔄 Updating show engagement counts...");
+    
+    // Update setlistCount: count setlists per show
+    const setlists = await ctx.db.query("setlists").collect();
+    const setlistCounts = new Map();
+    for (const setlist of setlists) {
+      if (setlist.showId) {
+        setlistCounts.set(setlist.showId.toString(), (setlistCounts.get(setlist.showId.toString()) || 0) + 1);
+      }
+    }
+    
+    // Update voteCount: count votes per show via setlists
+    const votes = await ctx.db.query("votes").collect();
+    const voteCounts = new Map();
+    for (const vote of votes) {
+      if (vote.setlistId) {
+        // Get showId from setlist
+        const setlist = await ctx.db.get(vote.setlistId);
+        if (setlist && setlist.showId) {
+          voteCounts.set(setlist.showId.toString(), (voteCounts.get(setlist.showId.toString()) || 0) + 1);
+        }
+      }
+    }
+    
+    // Apply updates to shows
+    const shows = await ctx.db.query("shows").collect();
+    let updated = 0;
+    for (const show of shows) {
+      const newSetlistCount = setlistCounts.get(show._id.toString()) || 0;
+      const newVoteCount = voteCounts.get(show._id.toString()) || 0;
+      if (show.setlistCount !== newSetlistCount || show.voteCount !== newVoteCount) {
+        await ctx.db.patch(show._id, {
+          setlistCount: newSetlistCount,
+          voteCount: newVoteCount,
+        });
+        updated++;
+      }
+    }
+    
+    console.log(`✅ Updated engagement counts for ${updated} shows`);
     return null;
   },
 });

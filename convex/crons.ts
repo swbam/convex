@@ -3,37 +3,20 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-// Update trending scores and rankings
-crons.interval(
-  "update-trending",
-  { hours: 4 },
-  internal.maintenance.syncTrendingData,
-  {}
-);
+// Ensure existing crons are present:
+crons.interval("update-trending", { hours: 4 }, internal.maintenance.syncTrendingData, {});
 
-// Fix missing artist data (Spotify sync)
-crons.interval(
-  "fix-missing-artist-data",
-  { hours: 6 },
-  internal.maintenance.fixMissingArtistData,
-  {}
-);
+crons.interval("check-completed-shows", { hours: 6 }, internal.setlistfm.checkCompletedShows, {});
 
-// Clean up orphaned records
-crons.interval(
-  "data-cleanup",
-  { hours: 24 },
-  internal.maintenance.cleanupOrphanedRecords,
-  {}
-);
+// Daily cleanup using existing function
+crons.interval("daily-cleanup", { hours: 24 }, internal.maintenance.cleanupOrphanedRecords, {});
 
-// Check for completed shows and import setlists
-crons.interval(
-  "check-completed-shows",
-  { hours: 6 },
-  internal.setlistfm.checkCompletedShows,
-  {}
-);
+// Daily Setlist.fm scan for pending imports
+crons.interval("daily-setlistfm-scan", { hours: 24 }, internal.setlistfm.scanPendingImports, {});
 
-export default crons;
+// Reliable sync for vote and setlist counts (every 30 min)
+crons.interval("sync-engagement-counts", { minutes: 30 }, internal.trending.updateEngagementCounts, {});
+
+// Enhanced trending update with logging (every 2 hours for reliability)
+crons.interval("update-trending-enhanced", { hours: 2 }, internal.maintenance.syncTrendingDataWithLogging, {});
 

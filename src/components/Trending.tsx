@@ -264,6 +264,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                       <p>No trending shows data available</p>
                     </div>
                   ) : (
+<<<<<<< HEAD
                     trendingShows.map((show, index) => {
                       const showKey = show.ticketmasterId || show._id || index;
                       const artistName = show.artist?.name || show.artistName || 'Unknown Artist';
@@ -286,14 +287,30 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                           className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer transition-all duration-200"
                           onClick={() => handleShowClick(show)}
                         >
+=======
+                    trendingShows.map((show, index) => (
+                      <div
+                        key={`${show._id}-${index}`}
+                        className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer transition-all duration-200"
+                        onClick={() => handleShowClick(show)}
+                      >
+>>>>>>> 0dab9c7 (edits)
                         <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 text-white font-bold">
-                          {index + 1}
+                          {show.trendingRank || index + 1}
                         </div>
+<<<<<<< HEAD
 
                         {artistImage ? (
                           <img
                             src={artistImage}
                             alt={artistName}
+=======
+                        
+                        {(show.artist?.images?.[0]) ? (
+                          <img
+                            src={show.artist.images[0]}
+                            alt={show.artist.name}
+>>>>>>> 0dab9c7 (edits)
                             className="w-12 h-12 rounded object-cover"
                           />
                         ) : (
@@ -303,11 +320,19 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                         )}
 
                         <div className="flex-1">
+<<<<<<< HEAD
                           <h3 className="font-semibold text-white">{artistName}</h3>
                           <div className="flex items-center gap-3 text-sm text-gray-400">
                             <span className="flex items-center gap-1">
                               <MapPin className="h-3.5 w-3.5" />
                               {venueName}
+=======
+                          <h3 className="font-semibold text-white">{show.artist?.name}</h3>
+                          <div className="flex items-center gap-3 text-sm text-gray-400">
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3.5 w-3.5" />
+                              {show.venue?.name}
+>>>>>>> 0dab9c7 (edits)
                             </span>
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3.5 w-3.5" />
@@ -315,16 +340,35 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                             </span>
                           </div>
                           <div className="text-xs text-gray-500 mt-1">
+<<<<<<< HEAD
                             {locationLabel}
+=======
+                            {show.venue?.city}, {show.venue?.country}
+>>>>>>> 0dab9c7 (edits)
                           </div>
+                          {/* Dynamic engagement metrics */}
+                          {((show.voteCount || 0) > 0 || (show.setlistCount || 0) > 0) && (
+                            <div className="flex gap-4 mt-2 text-xs">
+                              <span className="flex items-center gap-1 text-blue-400">
+                                <Users className="h-3 w-3" />
+                                {show.voteCount || 0} votes
+                              </span>
+                              <span className="flex items-center gap-1 text-purple-400">
+                                <Music className="h-3 w-3" />
+                                {show.setlistCount || 0} setlists
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="text-right">
                           <div className="flex items-center gap-1 text-green-400">
                             <TrendingUp className="h-4 w-4" />
-                            <span className="text-sm font-medium">0.0%</span>
+                            <span className="text-sm font-medium">
+                              {show.trendingScore ? show.trendingScore.toFixed(1) : 'N/A'}
+                            </span>
                           </div>
-                          <div className="text-xs text-gray-500">Score: {95 - index}</div>
+                          <div className="text-xs text-gray-500">Score</div>
                         </div>
                       </div>
                       );

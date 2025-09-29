@@ -37,13 +37,15 @@ const applicationTables = {
     lastTrendingUpdate: v.optional(v.number()), // When trending was calculated
     isActive: v.boolean(),
     lastSynced: v.optional(v.number()),
+    lowerName: v.string(),
   })
     .index("by_slug", ["slug"])
     .index("by_trending_rank", ["trendingRank"]) // Fast top-20 query
     .index("by_trending_score", ["trendingScore"])
     .index("by_spotify_id", ["spotifyId"]) 
     .index("by_ticketmaster_id", ["ticketmasterId"]) 
-    .index("by_name", ["name"]),
+    .index("by_name", ["name"])
+    .index("by_lower_name", ["lowerName"]),
 
   venues: defineTable({
     name: v.string(),
@@ -74,6 +76,9 @@ const applicationTables = {
     trendingRank: v.optional(v.number()), // 1-20 for top trending
     lastTrendingUpdate: v.optional(v.number()),
     lastSynced: v.optional(v.number()),
+    voteCount: v.optional(v.number()), // Total votes on setlists for this show
+    setlistCount: v.optional(v.number()), // Number of user-submitted setlists
+    importStatus: v.optional(v.union(v.literal("pending"), v.literal("importing"), v.literal("completed"), v.literal("failed"))), // Setlist.fm import status
   })
     .index("by_slug", ["slug"])
     .index("by_ticketmaster_id", ["ticketmasterId"])
@@ -176,7 +181,8 @@ const applicationTables = {
       v.literal("trending_sync"),
       v.literal("active_sync"),
       v.literal("full_sync"),
-      v.literal("artist_import")
+      v.literal("artist_import"),
+      v.literal("setlist_import")
     ),
     entityId: v.optional(v.string()),
     priority: v.number(),

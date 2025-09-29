@@ -250,3 +250,68 @@ export const triggerNaNFix = action({
     return null;
   },
 });
+
+// Enhanced trending sync with detailed logging
+export const syncTrendingDataWithLogging = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    console.log("📈 Starting enhanced trending sync with logging...");
+    const startTime = Date.now();
+    
+    try {
+      // Step 1: Update engagement counts first (new)
+      await ctx.runMutation(internal.trending.updateEngagementCounts, {});
+      console.log("✅ Engagement counts updated");
+
+      // Step 2: Update artist show counts
+      await ctx.runMutation(internal.trending.updateArtistShowCounts, {});
+      console.log("✅ Artist show counts updated");
+
+      // Step 3: Update artist trending
+      await ctx.runMutation(internal.trending.updateArtistTrending, {});
+      console.log("✅ Artist trending updated");
+
+      // Step 4: Update show trending with new weighting
+      await ctx.runMutation(internal.trending.updateShowTrending, {});
+      console.log("✅ Show trending updated");
+
+      // Step 5: Optional Ticketmaster enrichment
+      try {
+        const trendingArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 10 });
+        let imported = 0;
+        for (const tmArtist of trendingArtists) {
+          try {
+            const existing = await ctx.runQuery(internal.artists.getByTicketmasterIdInternal, {
+              ticketmasterId: tmArtist.ticketmasterId
+            });
+            
+            if (!existing) {
+              console.log(`🆕 Importing trending artist: ${tmArtist.name}`);
+              await ctx.runAction(api.ticketmaster.triggerFullArtistSync, {
+                ticketmasterId: tmArtist.ticketmasterId,
+                artistName: tmArtist.name,
+                genres: tmArtist.genres,
+                images: tmArtist.images,
+              });
+              imported++;
+            }
+          } catch (error) {
+            console.error(`Failed to import ${tmArtist.name}:`, error);
+          }
+        }
+        console.log(`✅ Imported ${imported} new trending artists from Ticketmaster`);
+      } catch (error) {
+        console.log("⚠️ Ticketmaster enrichment skipped:", error);
+      }
+
+      const duration = Date.now() - startTime;
+      console.log(`✅ Enhanced trending sync completed in ${duration}ms`);
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error(`❌ Enhanced trending sync failed after ${duration}ms:`, error);
+    }
+
+    return null;
+  },
+});

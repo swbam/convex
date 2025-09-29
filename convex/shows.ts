@@ -657,6 +657,33 @@ export const getAllInternal = internalQuery({
   },
 });
 
+// Internal mutation to update importStatus
+export const updateImportStatus = internalMutation({
+  args: {
+    showId: v.id("shows"),
+    status: v.union(v.literal("pending"), v.literal("importing"), v.literal("completed"), v.literal("failed")),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.showId, { importStatus: args.status });
+  },
+});
+
+// Internal query to get artist by ID
+export const getArtistByIdInternal = internalQuery({
+  args: { id: v.id("artists") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
+// Internal query to get venue by ID
+export const getVenueByIdInternal = internalQuery({
+  args: { id: v.id("venues") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
 export const markCompleted = internalMutation({
   args: { showId: v.id("shows") },
   handler: async (ctx, args) => {
@@ -664,12 +691,86 @@ export const markCompleted = internalMutation({
     if (!show) {
       throw new Error("Show not found");
     }
-    
+
+    // Date validation: ensure date is valid ISO and in the past or today
+    const showDate = new Date(show.date);
+    if (isNaN(showDate.getTime())) {
+      throw new Error(`Invalid date format for show ${args.showId}: ${show.date}`);
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize to start of day
+    const showDay = new Date(showDate);
+    showDay.setHours(0, 0, 0, 0);
+
+    if (showDay > today) {
+      console.warn(`⚠️ Attempt to mark future show as completed: ${show.date} for ${args.showId}`);
+      // Optionally throw error or just log; for now, allow but warn
+    }
+
+    // If status is already completed, no-op
+    if (show.status === "completed") {
+      console.log(`ℹ️ Show ${args.showId} already completed`);
+      return;
+    }
+
     await ctx.db.patch(args.showId, {
       status: "completed",
       lastSynced: Date.now(),
     });
     
-    console.log(`✅ Marked show as completed: ${args.showId}`);
+    console.log(`✅ Marked show as completed: ${args.showId} (date: ${show.date})`);
+  },
+});
+
+// Auto-transition statuses for all shows based on current date
+export const autoTransitionStatuses = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    console.log("🔄 Auto-transitioning show statuses based on date...");
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
+
+    // Get upcoming shows that might need transitioning
+    const upcomingShows = await ctx.db
+      .query("shows")
+      .withIndex("by_status", (q) => q.eq("status", "upcoming"))
+      .collect();
+
+    let transitioned = 0;
+    let errors = 0;
+
+    for (const show of upcomingShows) {
+      try {
+        const showDate = new Date(show.date);
+        if (isNaN(showDate.getTime())) {
+          console.error(`Invalid date for show ${show._id}: ${show.date}`);
+          errors++;
+          continue;
+        }
+
+        const showDay = new Date(showDate);
+        showDay.setHours(0, 0, 0, 0);
+
+        if (showDay < today) {
+          // Transition to completed (or cancelled if needed, but assume completed)
+          await ctx.db.patch(show._id, {
+            status: "completed",
+            lastSynced: Date.now(),
+          });
+          transitioned++;
+          console.log(`✅ Auto-completed show ${show._id} (past date: ${show.date})`);
+        }
+      } catch (error) {
+        console.error(`Failed to transition show ${show._id}:`, error);
+        errors++;
+      }
+    }
+
+    console.log(`Auto-transition complete: ${transitioned} shows transitioned, ${errors} errors`);
+    return null;
   },
 });

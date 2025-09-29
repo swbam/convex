@@ -1,5 +1,49 @@
-import { query, internalMutation } from "./_generated/server";
+import { query, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
+
+// Add missing internals at top:
+
+// Internal: Get pending setlist import jobs
+export const getPendingJobs = internalQuery({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("syncJobs")
+      .withIndex("by_status", (q: any) => q.eq("status", "pending"))
+      .filter((q: any) => q.eq(q.field("type"), "setlist_import"))
+      .order("asc")
+      .take(5); // Limit for performance
+  },
+});
+
+// Internal: Get show by ID
+export const getShowByIdInternal = internalQuery({
+  args: { id: v.id("shows") },
+  returns: v.union(v.any(), v.null()),
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
+// Internal: Get artist by ID (reuse from artists if exists, or add)
+export const getArtistByIdInternal = internalQuery({
+  args: { id: v.id("artists") },
+  returns: v.union(v.any(), v.null()),
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
+// Internal: Get venue by ID
+export const getVenueByIdInternal = internalQuery({
+  args: { id: v.id("venues") },
+  returns: v.union(v.any(), v.null()),
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
 
 // Get active sync jobs for progress display
 export const getActive = query({
@@ -20,12 +64,180 @@ export const updateJobStatus = internalMutation({
   args: {
     jobId: v.id("syncJobs"),
     status: v.union(v.literal("pending"), v.literal("running"), v.literal("completed"), v.literal("failed")),
+    errorMessage: v.optional(v.string()),
+    progress: v.optional(v.number()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.jobId, {
-      status: args.status,
-    });
+    const patch: any = { status: args.status };
+    if (args.errorMessage) patch.errorMessage = args.errorMessage;
+    if (args.progress !== undefined) patch.progressPercentage = args.progress;
+    await ctx.db.patch(args.jobId, patch);
     return null;
+  },
+});
+
+// Queue a setlist import job
+export const queueSetlistImport = internalMutation({
+  args: {
+    showId: v.id("shows"),
+    artistName: v.string(),
+    venueCity: v.string(),
+    showDate: v.string(),
+  },
+  returns: v.id("syncJobs"),
+  handler: async (ctx, args) => {
+    // Update show importStatus to pending
+    await ctx.db.patch(args.showId, { importStatus: "pending" });
+
+    const jobId = await ctx.db.insert("syncJobs", {
+      type: "setlist_import",
+      entityId: args.showId,
+      priority: 5, // Medium priority
+      status: "pending",
+      retryCount: 0,
+      maxRetries: 3,
+      startedAt: undefined,
+      completedAt: undefined,
+      errorMessage: undefined,
+      currentPhase: "queued",
+      totalSteps: 3, // Queue, sync, alert
+      completedSteps: 0,
+      currentStep: "queued",
+      itemsProcessed: 0,
+      totalItems: 1,
+      progressPercentage: 0,
+    });
+
+    console.log(`Queued setlist import job ${jobId} for show ${args.showId}`);
+    return jobId;
+  },
+});
+
+// Process setlist import jobs from queue
+export const processSetlistImportQueue = internalAction({
+  args: { maxJobs: v.optional(v.number()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const maxJobs = args.maxJobs || 5;
+    console.log(`Processing up to ${maxJobs} setlist import jobs...`);
+
+    // Get pending jobs
+    const pendingJobs = await ctx.runQuery(internal.syncJobs.getPendingJobs, {});
+
+    let processed = 0;
+    for (const job of pendingJobs) {
+      try {
+        // Mark as running
+        await ctx.runMutation(internal.syncJobs.updateJobStatus, {
+          jobId: job._id,
+          status: "running",
+          progress: 33, // 1/3 done
+        });
+
+        // Get show data
+        const show = await ctx.runQuery(internal.syncJobs.getShowByIdInternal, { id: job.entityId });
+        if (!show) {
+          throw new Error("Show not found for job");
+        }
+
+        const [artist, venue] = await Promise.all([
+          ctx.runQuery(internal.syncJobs.getArtistByIdInternal, { id: show.artistId }),
+          ctx.runQuery(internal.syncJobs.getVenueByIdInternal, { id: show.venueId }),
+        ]);
+
+        if (!artist || !venue) {
+          throw new Error("Artist or venue not found for show");
+        }
+
+        // Perform the sync
+        const setlistId = await ctx.runAction(internal.setlistfm.syncActualSetlist, {
+          showId: show._id,
+          artistName: artist.name,
+          venueCity: venue.city,
+          showDate: show.date,
+        });
+
+        if (setlistId) {
+          // Success
+          await ctx.runMutation(internal.syncJobs.updateJobStatus, {
+            jobId: job._id,
+            status: "completed",
+            progress: 100,
+          });
+          await ctx.db.patch(job._id, {
+            completedAt: Date.now(),
+            currentPhase: "completed",
+            completedSteps: 3,
+            progressPercentage: 100,
+          });
+
+          // Alert: Update show status
+          await ctx.runMutation(internal.shows.updateImportStatus, { showId: show._id, status: "completed" });
+
+          console.log(`✅ Completed setlist import job ${job._id} for show ${show._id}`);
+        } else {
+          // Failure - increment retry
+          const newRetry = job.retryCount + 1;
+          if (newRetry >= job.maxRetries) {
+            await ctx.runMutation(internal.syncJobs.updateJobStatus, {
+              jobId: job._id,
+              status: "failed",
+              errorMessage: "Sync failed after max retries",
+              progress: 100,
+            });
+            await ctx.db.patch(job._id, {
+              completedAt: Date.now(),
+              errorMessage: "Sync failed after max retries",
+              progressPercentage: 100,
+            });
+
+            // Alert: Mark show as failed
+            await ctx.runMutation(internal.shows.updateImportStatus, { showId: show._id, status: "failed" });
+            console.log(`❌ Failed setlist import job ${job._id} after ${job.maxRetries} retries`);
+          } else {
+            await ctx.runMutation(internal.syncJobs.updateJobStatus, {
+              jobId: job._id,
+              status: "pending",
+              progress: 0,
+            });
+            await ctx.db.patch(job._id, {
+              retryCount: newRetry,
+              currentPhase: "retrying",
+              progressPercentage: 0,
+            });
+            console.log(`⏳ Retrying setlist import job ${job._id} (attempt ${newRetry})`);
+          }
+        }
+
+        processed++;
+      } catch (error) {
+        console.error(`Error processing job ${job._id}:`, error);
+        await ctx.runMutation(internal.syncJobs.updateJobStatus, {
+          jobId: job._id,
+          status: "failed",
+          errorMessage: error instanceof Error ? error.message : "Unknown error",
+          progress: 0,
+        });
+        processed++;
+      }
+    }
+
+    console.log(`Processed ${processed} setlist import jobs`);
+    return null;
+  },
+});
+
+// Get failed jobs for alerting
+export const getFailedImports = query({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("syncJobs")
+      .withIndex("by_status", (q) => q.eq("status", "failed"))
+      .filter((q) => q.eq(q.field("type"), "setlist_import"))
+      .order("desc")
+      .take(10);
   },
 });
