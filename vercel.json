@@ -7,7 +7,7 @@
   "installCommand": "npm install",
   "redirects": [
     {
-      "source": "https://www.setlists.live/:path*",
+      "source": "/www.setlists.live/:path*",
       "destination": "https://setlists.live/:path*",
       "permanent": true
     }
@@ -16,20 +16,6 @@
     {
       "source": "/(.*)",
       "destination": "/index.html"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "/(.*\\.(ico|png|jpg|jpeg|svg|css|js))",
-      "dest": "/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
     }
   ],
   "headers": [
