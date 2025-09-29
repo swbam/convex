@@ -204,12 +204,12 @@ export const createFromTicketmaster = internalMutation({
     if (existingByName) {
       // Merge: Patch with new data if different
       await ctx.db.patch(existingByName._id, {
-        genres: args.genres,
-        images: args.images,
-        // Merge other fields, e.g., if no Spotify yet, but since this is TM, add TM-specific
+        genres: args.genres && args.genres.length > 0 ? args.genres : existingByName.genres,
+        images: args.images && args.images.length > 0 ? args.images : existingByName.images,
         ticketmasterId: args.ticketmasterId, // Ensure TM ID is set
         lastSynced: Date.now(),
       });
+      console.log(`✅ Updated existing artist ${args.name} (ID: ${existingByName._id}), genres: ${args.genres?.length || 0}`);
       return existingByName._id;
     }
 
@@ -231,6 +231,7 @@ export const createFromTicketmaster = internalMutation({
       
       // If an artist with this slug exists but it's the same ticketmaster ID, return it
       if (existingWithSlug.ticketmasterId === args.ticketmasterId) {
+        console.log(`✅ Found existing artist by slug ${slug} (ID: ${existingWithSlug._id})`);
         return existingWithSlug._id;
       }
       
@@ -239,13 +240,13 @@ export const createFromTicketmaster = internalMutation({
       counter++;
     }
 
-    // Critical: Always set lastSynced on creation
+    // Critical: Always set lastSynced on creation  
     const artistId = await ctx.db.insert("artists", {
       slug,
       name: args.name,
       ticketmasterId: args.ticketmasterId,
-      genres: args.genres || [],
-      images: args.images || [],
+      genres: args.genres && args.genres.length > 0 ? args.genres : [],
+      images: args.images && args.images.length > 0 ? args.images : [],
       isActive: true,
       trendingScore: 0, // Initialize with 0 instead of undefined
       trendingRank: undefined,
@@ -255,10 +256,10 @@ export const createFromTicketmaster = internalMutation({
       spotifyId: undefined, // Will be set by Spotify sync
       lastSynced: Date.now(), // CRITICAL: Set initial sync timestamp
       lastTrendingUpdate: undefined,
-      lowerName,
+      lowerName, // Already defined above from checking existingByName
     });
     
-    console.log(`✅ Created artist ${args.name} with ID ${artistId}, slug: ${slug}`);
+    console.log(`✅ Created artist ${args.name} with ID ${artistId}, slug: ${slug}, genres: ${args.genres?.length || 0}`);
     return artistId;
   },
 });
@@ -310,21 +311,40 @@ export const getAllForMaintenance = internalQuery({
 export const updateSpotifyData = internalMutation({
   args: {
     artistId: v.id("artists"),
-    spotifyId: v.string(),
+    spotifyId: v.optional(v.string()),
     followers: v.optional(v.number()),
     popularity: v.optional(v.number()),
-    genres: v.array(v.string()),
-    images: v.array(v.string()),
+    genres: v.optional(v.array(v.string())),
+    images: v.optional(v.array(v.string())),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const updates: any = {
+      lastSynced: Date.now(), // CRITICAL: Always update sync timestamp
+    };
+    
+    if (args.spotifyId !== undefined) updates.spotifyId = args.spotifyId;
+    if (args.followers !== undefined) updates.followers = args.followers;
+    if (args.popularity !== undefined) updates.popularity = args.popularity;
+    if (args.genres !== undefined) updates.genres = args.genres;
+    if (args.images !== undefined) updates.images = args.images;
+    
+    await ctx.db.patch(args.artistId, updates);
+    return null;
+  },
+});
+
+// New mutation specifically for updating show counts
+export const updateShowCount = internalMutation({
+  args: {
+    artistId: v.id("artists"),
+    upcomingShowsCount: v.number(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.patch(args.artistId, {
-      spotifyId: args.spotifyId,
-      followers: args.followers,
-      popularity: args.popularity,
-      genres: args.genres,
-      images: args.images,
-      lastSynced: Date.now(), // CRITICAL: Update sync timestamp
+      upcomingShowsCount: args.upcomingShowsCount,
+      lastSynced: Date.now(),
     });
     return null;
   },

@@ -5,6 +5,13 @@
   "outputDirectory": "dist",
   "devCommand": "npm run dev:frontend",
   "installCommand": "npm install",
+  "redirects": [
+    {
+      "source": "https://www.setlists.live/:path*",
+      "destination": "https://setlists.live/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",

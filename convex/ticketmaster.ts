@@ -194,11 +194,12 @@ export const syncArtistShows = internalAction({
       
       // CRITICAL: Update artist's upcomingShowsCount after syncing shows
       const upcomingShows = await ctx.runQuery(internal.shows.countUpcomingByArtist, { artistId: args.artistId });
-      await ctx.runMutation(internal.artists.updateSpotifyData, {
+      await ctx.runMutation(internal.artists.updateShowCount, {
         artistId: args.artistId,
-        spotifyId: '', // Will be set later by Spotify sync
         upcomingShowsCount: upcomingShows,
-      } as any);
+      });
+      console.log(`✅ Updated show count for artist: ${upcomingShows} upcoming shows`);
+      
       // Kick a trending refresh after syncing shows
       try {
         void ctx.scheduler.runAfter(0, internal.trending.updateShowTrending, {});
