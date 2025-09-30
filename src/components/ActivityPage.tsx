@@ -83,7 +83,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
     <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 relative z-10">
       {/* Header */}
       <FadeIn delay={0} duration={0.5}>
-        <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-white/10 bg-black">
+        <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 bg-black" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
         <div className="relative z-10 p-4 sm:p-6 lg:p-8">
           <div className="flex items-center justify-between mb-4">
             <Button 
@@ -114,7 +114,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
       {/* Stats Cards - Consistent with Admin Page */}
       <FadeIn delay={0.2} duration={0.5}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MagicCard className="p-0 rounded-xl border border-white/10 bg-black">
+        <MagicCard className="p-0 rounded-xl border-0 bg-black" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
           <div className="p-4 sm:p-6 text-center">
             <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
               <Vote className="h-5 w-5 text-green-400" />
@@ -125,7 +125,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
           <BorderBeam size={80} duration={8} className="opacity-20" />
         </MagicCard>
 
-        <MagicCard className="p-0 rounded-xl border border-white/10 bg-black">
+        <MagicCard className="p-0 rounded-xl border-0 bg-black" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
           <div className="p-4 sm:p-6 text-center">
             <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
               <Music className="h-5 w-5 text-blue-400" />
@@ -136,7 +136,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
           <BorderBeam size={80} duration={8} className="opacity-20" />
         </MagicCard>
 
-        <MagicCard className="p-0 rounded-xl border border-white/10 bg-black">
+        <MagicCard className="p-0 rounded-xl border-0 bg-black" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
           <div className="p-4 sm:p-6 text-center">
             <div className="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
               <TrendingUp className="h-5 w-5 text-purple-400" />
@@ -147,7 +147,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
           <BorderBeam size={80} duration={8} className="opacity-20" />
         </MagicCard>
 
-        <MagicCard className="p-0 rounded-xl border border-white/10 bg-black">
+        <MagicCard className="p-0 rounded-xl border-0 bg-black" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
           <div className="p-4 sm:p-6 text-center">
             <div className="w-10 h-10 bg-orange-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
               <Star className="h-5 w-5 text-orange-400" />
@@ -188,7 +188,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
 
       {/* Activity List - Apple Music Style */}
       <FadeIn delay={0.6} duration={0.5}>
-      <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
+      <MagicCard className="p-0 rounded-2xl border-0 bg-black" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
         <div className="p-4 sm:p-6">
           <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
             <Clock className="h-5 w-5 text-gray-400" />

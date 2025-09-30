@@ -78,7 +78,7 @@ export const triggerFullArtistSync = action({
       
       console.log(`✅ Created artist ${args.artistName} (ID: ${artistId})`);
 
-      // Phase 2: Sync shows IMMEDIATELY (not async) to ensure shows are available
+      // Phase 2: Sync shows IMMEDIATELY (not async) to ensure shows are available before page loads
       console.log(`📅 Syncing shows for ${args.artistName}...`);
       await ctx.runAction(internal.ticketmaster.syncArtistShows, {
         artistId,
@@ -86,7 +86,21 @@ export const triggerFullArtistSync = action({
       });
       console.log(`✅ Shows synced for ${args.artistName}`);
 
-      // Phase 3: Schedule Spotify catalog sync in background (can be async)
+      // Phase 3: Try to enrich with Spotify basics SYNCHRONOUSLY (non-blocking for UI but improves data)
+      // This is a lightweight call that only gets artist metadata, not full catalog
+      console.log(`🎵 Enriching with Spotify basics for ${args.artistName}...`);
+      try {
+        await ctx.runAction(internal.spotify.enrichArtistBasics, {
+          artistId,
+          artistName: args.artistName,
+        });
+        console.log(`✅ Spotify basics synced for ${args.artistName}`);
+      } catch (spotifyError: unknown) {
+        const errorMsg = spotifyError instanceof Error ? spotifyError.message : String(spotifyError);
+        console.warn(`⚠️ Spotify basics sync failed (non-critical): ${errorMsg}`);
+      }
+
+      // Phase 4: Schedule FULL Spotify catalog sync in background (can be async)
       void ctx.scheduler.runAfter(0, internal.spotify.syncArtistCatalog, {
         artistId,
         artistName: args.artistName,
@@ -94,6 +108,9 @@ export const triggerFullArtistSync = action({
 
       // Schedule trending update
       void ctx.scheduler.runAfter(5000, internal.trending.updateShowTrending, {});
+      
+      // Validate all fields were populated (scheduled for future implementation)
+      // void ctx.scheduler.runAfter(2000, internal.common.validateArtistFields, { artistId });
 
       console.log(`✅ Artist ${args.artistName} fully imported with ID: ${artistId}`);
       return artistId;
@@ -155,7 +172,11 @@ export const syncArtistShows = internalAction({
         
         console.log(`✅ Created/found venue: ${venue?.name || 'Unknown'} (ID: ${venueId})`);
 
-        // CRITICAL: Create show with all fields properly populated
+        // CRITICAL: Create show with all fields properly populated including priceRange
+        const priceRange = event.priceRanges?.[0] 
+          ? `$${event.priceRanges[0].min || 0}-${event.priceRanges[0].max || 0}` 
+          : undefined;
+
         const showId = await ctx.runMutation(internal.shows.createFromTicketmaster, {
           artistId: args.artistId,
           venueId,
@@ -184,7 +205,15 @@ export const syncArtistShows = internalAction({
           ticketUrl: event.url ? String(event.url) : undefined,
         });
         
-        console.log(`✅ Created show ${showId} for ${event.name || 'Unknown Event'}`);
+        // NEW: Patch show with priceRange after creation (since createFromTicketmaster doesn't accept it)
+        if (priceRange) {
+          await ctx.runMutation(internal.shows.updatePriceRange, {
+            showId,
+            priceRange,
+          });
+        }
+        
+        console.log(`✅ Created show ${showId} for ${event.name || 'Unknown Event'} ${priceRange ? `(${priceRange})` : ''}`);
         
         // gentle backoff to respect API
         await new Promise(r => setTimeout(r, 75));

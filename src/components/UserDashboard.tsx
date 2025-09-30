@@ -8,6 +8,7 @@ import { MagicCard } from './ui/magic-card'
 import { BorderBeam } from './ui/border-beam'
 import { Button } from './ui/button'
 import { UserPredictions } from './UserPredictions'
+import { MySpotifyArtists } from './MySpotifyArtists'
 import { User, Settings, Activity, Calendar, Music, TrendingUp } from 'lucide-react'
 import { FadeIn } from './animations/FadeIn'
 
@@ -93,9 +94,19 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
           <BorderBeam size={60} duration={8} className="opacity-20" />
         </MagicCard>
       </div>
+      </FadeIn>
+
+      {/* ENHANCED: My Spotify Artists Section */}
+      {appUser?.appUser?.spotifyId && (
+        <FadeIn delay={0.2} duration={0.6}>
+          <MySpotifyArtists onArtistClick={onArtistClick} />
+        </FadeIn>
+      )}
 
       {/* User Activity Dashboard */}
-      <UserPredictions />
+      <FadeIn delay={0.3} duration={0.6}>
+        <UserPredictions />
+      </FadeIn>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import React from 'react';
+import { AlertCircle, Home, RefreshCcw } from 'lucide-react';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -22,7 +23,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     
-    // Log additional debugging info for production issues
+    // ENHANCED: Log additional debugging info for production issues
     console.error('Error details:', {
       message: error.message,
       stack: error.stack,
@@ -45,34 +46,53 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-black flex items-center justify-center p-4">
-          <div className="max-w-md mx-auto text-center">
-            <div className="mb-4">
-              <h1 className="text-2xl font-bold text-foreground mb-2">Something went wrong</h1>
-              <p className="text-muted-foreground">
-                We encountered an unexpected error. Please refresh the page to try again.
-              </p>
-              {this.state.error && (
-                <details className="mt-4 text-left">
-                  <summary className="cursor-pointer text-sm text-muted-foreground">
-                    Show error details
-                  </summary>
-                  <pre className="mt-2 text-xs bg-muted p-2 rounded overflow-auto max-h-64">
-                    {this.state.error.message}
-                    {'\n\n'}
-                    {this.state.error.stack}
-                  </pre>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Error logged to console. Check window.lastError for full details.
-                  </p>
-                </details>
-              )}
+          <div className="fixed inset-0 bg-gradient-to-br from-black via-gray-950 to-black" />
+          <div className="relative z-10 max-w-md mx-auto text-center">
+            {/* ENHANCED: Better error UI with icon and actions */}
+            <div className="w-20 h-20 mx-auto mb-6 bg-red-500/20 rounded-2xl flex items-center justify-center">
+              <AlertCircle className="h-10 w-10 text-red-400" />
             </div>
-            <button
-              onClick={() => typeof window !== 'undefined' && window.location.reload()}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              Refresh Page
-            </button>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-4">Something went wrong</h1>
+            <p className="text-gray-400 mb-2">
+              {this.state.error?.message || "An unexpected error occurred"}
+            </p>
+            <p className="text-sm text-gray-600 mb-8">
+              This error has been logged. Try refreshing or going back home.
+            </p>
+            {this.state.error && (
+              <details className="mt-4 text-left mb-6">
+                <summary className="cursor-pointer text-sm text-gray-400 hover:text-white transition-colors">
+                  Show error details
+                </summary>
+                <pre className="mt-2 text-xs bg-white/5 p-3 rounded-lg overflow-auto max-h-64 text-gray-300 border border-white/10">
+                  {this.state.error.message}
+                  {'\n\n'}
+                  {this.state.error.stack}
+                </pre>
+                <p className="mt-2 text-xs text-gray-600">
+                  Error logged to console. Check window.lastError for full details.
+                </p>
+              </details>
+            )}
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => window.location.reload()}
+                className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all min-h-[44px]"
+              >
+                <RefreshCcw className="h-4 w-4" />
+                Refresh Page
+              </button>
+              <button
+                onClick={() => {
+                  this.setState({ hasError: false, error: undefined });
+                  window.location.href = "/";
+                }}
+                className="flex items-center gap-2 px-6 py-3 bg-primary/20 hover:bg-primary/30 text-white rounded-xl transition-all min-h-[44px]"
+              >
+                <Home className="h-4 w-4" />
+                Go Home
+              </button>
+            </div>
           </div>
         </div>
       );

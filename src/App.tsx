@@ -193,7 +193,7 @@ function App() {
   const renderMainContent = () => {
     switch (currentView) {
       case "artist":
-        // Show loading state while query is pending
+        // ENHANCED: Show loading state while query is pending
         if (location.pathname.startsWith('/artists/') && artistBySlug === undefined) {
           const artistSlug = getSlugFromPath(location.pathname, '/artists/');
           const artistName = artistSlug ? artistSlug.split('-').map(word => 
@@ -202,7 +202,7 @@ function App() {
           
           return (
             <div className="container mx-auto px-4 sm:px-6 py-8">
-              <MagicCard className="p-6 rounded-2xl border border-white/10">
+              <MagicCard className="p-6 rounded-2xl border-0 bg-black">
                 <div className="animate-pulse space-y-6">
                   <div className="flex items-center gap-4">
                     <div className="w-32 h-32 bg-white/10 rounded-xl"></div>
@@ -221,7 +221,7 @@ function App() {
             </div>
           );
         }
-        // Show special loading state if artist doesn't exist yet but might be creating
+        // ENHANCED: Show import status if artist doesn't exist yet (reactive query will update when ready)
         if (location.pathname.startsWith('/artists/') && artistBySlug === null && !selectedArtistId) {
           const artistSlug = getSlugFromPath(location.pathname, '/artists/');
           const artistName = artistSlug ? artistSlug.split('-').map(word => 
@@ -230,18 +230,23 @@ function App() {
           
           return (
             <div className="container mx-auto px-4 sm:px-6 py-8">
-              <MagicCard className="p-6 rounded-2xl border border-white/10">
+              <MagicCard className="p-6 rounded-2xl border-0 bg-black">
                 <div className="text-center space-y-4">
-                  <div className="w-20 h-20 mx-auto bg-primary/20 rounded-full flex items-center justify-center animate-pulse">
-                    <span className="text-3xl font-bold text-primary">T</span>
+                  <div className="w-20 h-20 mx-auto bg-primary/20 rounded-full flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
                   </div>
                   <h2 className="text-2xl font-bold text-white">Setting up {artistName}</h2>
                   <p className="text-gray-400">Importing shows, venues, and song catalog...</p>
                   <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
                     <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                    <span>This may take a few moments</span>
+                    <span>The page will update automatically when ready</span>
                   </div>
-                  <p className="text-xs text-gray-600 mt-4">The page will refresh automatically when ready</p>
+                  <button
+                    onClick={() => navigate('/')}
+                    className="mt-6 px-6 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all"
+                  >
+                    Back to Home
+                  </button>
                 </div>
               </MagicCard>
             </div>

@@ -229,8 +229,8 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
         <div className="lg:col-span-2 space-y-4 sm:space-y-6">
 
 
-          {/* Enhanced Shared Setlist Display with Better Border */}
-          <MagicCard className="p-0 rounded-2xl border border-white/10">
+          {/* Enhanced Shared Setlist Display - Apple Music Style (no side borders) */}
+          <MagicCard className="p-0 rounded-2xl border-0 bg-black" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
             <div className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
@@ -242,6 +242,20 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                   </h2>
                 </div>
                 <div className="flex items-center gap-4">
+                  {/* ENHANCED: Show import status for completed shows */}
+                  {!hasActualSetlist && show.status === "completed" && show.importStatus && (
+                    <div className={`text-xs px-3 py-1.5 rounded-full backdrop-blur-sm ${
+                      show.importStatus === "importing" ? "bg-blue-500/20 text-blue-400" :
+                      show.importStatus === "pending" ? "bg-yellow-500/20 text-yellow-400" :
+                      show.importStatus === "failed" ? "bg-red-500/20 text-red-400" :
+                      "bg-green-500/20 text-green-400"
+                    }`}>
+                      {show.importStatus === "importing" && "Syncing setlist..."}
+                      {show.importStatus === "pending" && "Setlist sync pending"}
+                      {show.importStatus === "failed" && "Setlist not found"}
+                      {show.importStatus === "completed" && "Setlist synced"}
+                    </div>
+                  )}
                   {(predictionSetlist || hasActualSetlist) && (
                     <div className="text-lg font-medium text-gray-300">
                       {hasActualSetlist
@@ -249,7 +263,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                         : predictionSetlist?.songs?.length || 0} songs
                     </div>
                   )}
-                  {predictionSetlist && !hasActualSetlist && (
+                  {predictionSetlist && !hasActualSetlist && !show.importStatus && (
                     <div className="text-sm text-gray-400 bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm">
                       Community Predictions
                     </div>
@@ -611,9 +625,9 @@ function FanRequestSongRow({
   
   return (
     <div
-      className="flex items-center justify-between py-3 px-0 hover:bg-white/5 transition-all duration-200"
+      className="flex items-center justify-between py-3 px-0 hover:bg-white/5 transition-all duration-200 min-h-[44px]"
       style={{
-        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.03)',
       }}
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -682,11 +696,11 @@ function ActualSetlistSongRow({
   
   return (
     <div
-      className={`flex items-center justify-between py-3 px-0 transition-all duration-200 ${
+      className={`flex items-center justify-between py-3 px-0 transition-all duration-200 min-h-[44px] ${
         wasRequested ? 'bg-green-500/5' : ''
       }`}
       style={{
-        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.03)',
       }}
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -723,7 +737,7 @@ function ActualSetlistSongRow({
   );
 }
 
-// Individual Song in Shared Setlist with Always-Visible Voting
+// Individual Song in Shared Setlist with Always-Visible Voting - ENHANCED: Cleaner, simpler UI
 function SongVoteRow({ 
   setlistId, 
   songTitle, 
@@ -762,9 +776,9 @@ function SongVoteRow({
 
   return (
     <div 
-      className="flex items-center justify-between py-3 px-0 hover:bg-white/5 transition-all duration-200 group"
+      className="flex items-center justify-between py-3 px-0 hover:bg-white/5 transition-all duration-200 group min-h-[44px]"
       style={{
-        borderBottom: position !== 0 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.03)',
       }}
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -774,19 +788,19 @@ function SongVoteRow({
         <span className="font-medium text-sm sm:text-base text-white truncate">{songTitle}</span>
       </div>
       
-      {/* Clean upvote button - Apple Music style */}
+      {/* ENHANCED: Minimal upvote button - just icon and number, no border/background */}
       <button
         onClick={(e) => {
           e.stopPropagation();
           void handleSongVote();
         }}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all duration-200 ${
+        className={`flex items-center gap-1.5 px-2 py-1 transition-all duration-200 min-h-[44px] ${
           songVotes?.userVoted 
-            ? 'bg-primary/20 text-primary' 
-            : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+            ? 'text-primary' 
+            : 'text-gray-500 hover:text-white'
         }`}
       >
-        <ChevronUp className="h-4 w-4" />
+        <ChevronUp className={`h-5 w-5 ${songVotes?.userVoted ? 'fill-current' : ''}`} />
         <span className="font-semibold text-sm">{songVotes?.upvotes || 0}</span>
       </button>
     </div>

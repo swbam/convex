@@ -37,11 +37,11 @@ export function ArtistCard({
       transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
       whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
       whileTap={{ scale: 0.98 }}
-      className="group cursor-pointer relative overflow-hidden touch-manipulation h-full bg-black"
+      className="group cursor-pointer relative overflow-hidden touch-manipulation h-full bg-black rounded-2xl"
       onClick={handleClick}
       style={{
-        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+        borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
       }}
     >
       {/* Enhanced Artist Image with Better Visibility */}

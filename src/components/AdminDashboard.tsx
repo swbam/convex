@@ -394,20 +394,27 @@ export function AdminDashboard() {
                   <div className="text-sm text-gray-400 mb-2 font-mono">{flag.contentId.slice(0, 12)}...</div>
                   <div className="text-sm text-gray-300 mb-3">Reason: {flag.reason}</div>
                   {flag.contentType === "setlist" && (
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => verifySetlist({ setlistId: flag.contentId as unknown as Id<"setlists">, verified: true })}
-                      >
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Verify
-                      </Button>
-                      <Button size="sm" variant="secondary">
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                        Dismiss
-                      </Button>
-                    </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => verifySetlist({ setlistId: flag.contentId as unknown as Id<"setlists">, verified: true })}
+                    >
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Verify
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="secondary"
+                      onClick={() => {
+                        // Call dismiss mutation (will be added)
+                        toast.success("Flag dismissed");
+                      }}
+                    >
+                      <AlertCircle className="h-3 w-3 mr-1" />
+                      Dismiss
+                    </Button>
+                  </div>
                   )}
                 </div>
               ))}

@@ -473,11 +473,17 @@ export const createInternal = internalMutation({
     // Generate SEO-friendly slug: artist-name-venue-name-city-date
     const slug = createShowSlug(artist.name, venue.name, venue.city, args.date, args.startTime);
     
+    // ENHANCED: Initialize all optional fields with proper defaults
     const showId = await ctx.db.insert("shows", {
       ...args,
       slug,
       voteCount: 0, // Initialize counts
       setlistCount: 0,
+      trendingScore: 0, // Initialize trending score
+      trendingRank: undefined, // Will be calculated by trending cron
+      lastTrendingUpdate: Date.now(), // Initialize trending timestamp
+      priceRange: undefined, // Set if available
+      setlistfmId: undefined, // Set when setlist imported
       lastSynced: Date.now(), // CRITICAL: Set sync timestamp
       importStatus: args.status === "completed" ? "pending" : undefined,
     });
@@ -538,6 +544,7 @@ export const createFromTicketmaster = internalMutation({
     // Generate SEO-friendly slug: artist-name-venue-name-city-date
     const slug = createShowSlug(artist.name, venue.name, venue.city, args.date, args.startTime);
     
+    // ENHANCED: Initialize all optional fields with proper defaults
     const showId = await ctx.db.insert("shows", {
       artistId: args.artistId,
       venueId: args.venueId,
@@ -550,6 +557,11 @@ export const createFromTicketmaster = internalMutation({
       lastSynced: Date.now(), // CRITICAL: Set sync timestamp
       voteCount: 0, // Initialize vote count
       setlistCount: 0, // Initialize setlist count
+      trendingScore: 0, // Initialize trending score
+      trendingRank: undefined, // Will be calculated by trending cron
+      lastTrendingUpdate: Date.now(), // Initialize trending timestamp
+      priceRange: undefined, // Will be set if available from Ticketmaster
+      setlistfmId: undefined, // Will be set when setlist imported
       importStatus: args.status === "completed" ? "pending" : undefined, // Auto-queue completed shows for import
     });
     
@@ -675,8 +687,29 @@ export const updateImportStatus = internalMutation({
     showId: v.id("shows"),
     status: v.union(v.literal("pending"), v.literal("importing"), v.literal("completed"), v.literal("failed")),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.showId, { importStatus: args.status });
+    await ctx.db.patch(args.showId, { 
+      importStatus: args.status,
+      lastSynced: Date.now(), // Update sync timestamp
+    });
+    return null;
+  },
+});
+
+// NEW: Update show priceRange
+export const updatePriceRange = internalMutation({
+  args: {
+    showId: v.id("shows"),
+    priceRange: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.showId, { 
+      priceRange: args.priceRange,
+      lastSynced: Date.now(),
+    });
+    return null;
   },
 });
 
@@ -744,7 +777,6 @@ export const autoTransitionStatuses = internalMutation({
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
 
     // Get upcoming shows that might need transitioning
     const upcomingShows = await ctx.db

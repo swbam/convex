@@ -100,32 +100,78 @@ export const syncActualSetlist = internalAction({
           return null;
         }
 
-        // Enhanced matching with fuzzy logic
+        // ENHANCED: Better fuzzy matching with multiple strategies
         let bestMatch = null;
         let bestScore = 0;
 
-        // Simple fuzzy match function
-        const fuzzyMatch = (str1: string, str2: string): number => {
+        // Improved fuzzy match using Levenshtein-inspired algorithm
+        const levenshteinDistance = (str1: string, str2: string): number => {
           if (!str1 || !str2) return 0;
-          str1 = str1.toLowerCase().replace(/[^a-z0-9]/g, '');
-          str2 = str2.toLowerCase().replace(/[^a-z0-9]/g, '');
-          if (str1.length === 0 || str2.length === 0) return 0;
-          const longer = Math.max(str1.length, str2.length);
-          let distance = 0;
-          for (let i = 0; i < longer; i++) {
-            if (str1[i] !== str2[i]) distance++;
+          const s1 = str1.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const s2 = str2.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (s1.length === 0 || s2.length === 0) return 0;
+          
+          const matrix: number[][] = [];
+          for (let i = 0; i <= s2.length; i++) {
+            matrix[i] = [i];
           }
-          return 1 - (distance / longer);
+          for (let j = 0; j <= s1.length; j++) {
+            matrix[0][j] = j;
+          }
+          
+          for (let i = 1; i <= s2.length; i++) {
+            for (let j = 1; j <= s1.length; j++) {
+              if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+              } else {
+                matrix[i][j] = Math.min(
+                  matrix[i - 1][j - 1] + 1, // substitution
+                  matrix[i][j - 1] + 1,     // insertion
+                  matrix[i - 1][j] + 1      // deletion
+                );
+              }
+            }
+          }
+          
+          const maxLen = Math.max(s1.length, s2.length);
+          return maxLen > 0 ? 1 - (matrix[s2.length][s1.length] / maxLen) : 0;
         };
 
         for (const setlist of setlists) {
           let score = 0;
-          if (setlist.eventDate === setlistfmDate) score += 0.4;
-          if (setlist.venue) {
-            const venueScore = fuzzyMatch(setlist.venue.name || '', args.venueCity) + fuzzyMatch(setlist.venue.city?.name || '', args.venueCity);
-            score += venueScore * 0.6;
+          
+          // Date matching: exact date gets highest weight
+          if (setlist.eventDate === setlistfmDate) {
+            score += 0.5; // Increased from 0.4
+          } else {
+            // NEW: Allow ±1 day tolerance for date mismatches
+            const setlistDate = new Date(setlist.eventDate);
+            const targetDate = new Date(args.showDate);
+            const daysDiff = Math.abs((setlistDate.getTime() - targetDate.getTime()) / (1000 * 60 * 60 * 24));
+            if (daysDiff <= 1) score += 0.3; // Partial credit for nearby dates
           }
-          if (setlist.artist?.name.toLowerCase().includes(args.artistName.toLowerCase())) score += 0.2;
+          
+          // Venue matching: use better fuzzy algorithm
+          if (setlist.venue) {
+            const venueName = setlist.venue.name || '';
+            const venueCity = setlist.venue.city?.name || '';
+            
+            // Match against both venue name and city
+            const cityMatch = levenshteinDistance(venueCity, args.venueCity);
+            score += cityMatch * 0.3;
+            
+            // NEW: Also try venue name matching
+            if (venueName.length > 0) {
+              const venueNameWords = venueName.toLowerCase().split(/\s+/);
+              const cityWords = args.venueCity.toLowerCase().split(/\s+/);
+              const wordOverlap = venueNameWords.filter((w: string) => cityWords.some((cw: string) => cw.includes(w) || w.includes(cw))).length;
+              score += (wordOverlap / Math.max(venueNameWords.length, cityWords.length)) * 0.1;
+            }
+          }
+          
+          // Artist name matching: use fuzzy
+          const artistMatch = levenshteinDistance(setlist.artist?.name || '', args.artistName);
+          score += artistMatch * 0.2;
 
           if (score > bestScore) {
             bestScore = score;
@@ -133,8 +179,9 @@ export const syncActualSetlist = internalAction({
           }
         }
 
-        if (!bestMatch || bestScore < 0.3) { // Threshold for match
-          console.log(`No good match found for ${args.artistName} on ${setlistfmDate} (best score: ${bestScore})`);
+        // ENHANCED: Lower threshold to 0.25 (from 0.3) to catch more matches
+        if (!bestMatch || bestScore < 0.25) {
+          console.log(`No good match found for ${args.artistName} on ${setlistfmDate} (best score: ${bestScore.toFixed(2)})`);
           return null;
         }
         

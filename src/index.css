@@ -153,6 +153,26 @@
     overflow-x: hidden;
     position: relative;
   }
+  
+  /* ENHANCED: Mobile container padding with safe areas */
+  @media (max-width: 640px) {
+    .container {
+      padding-left: max(1rem, env(safe-area-inset-left));
+      padding-right: max(1rem, env(safe-area-inset-right));
+    }
+  }
+  
+  /* ENHANCED: Ensure all interactive elements meet 44px touch target minimum */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* ENHANCED: Better focus states for accessibility */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
 }
 
 /* =========================================

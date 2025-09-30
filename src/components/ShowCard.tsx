@@ -74,14 +74,14 @@ export function ShowCard({
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-        whileHover={{ x: 4, transition: { duration: 0.2 } }}
-        whileTap={{ scale: 0.98 }}
-        className="group cursor-pointer relative overflow-hidden touch-manipulation bg-black py-3"
-        onClick={handleClick}
-        style={{
-          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-        }}
-      >
+      whileHover={{ x: 4, transition: { duration: 0.2 } }}
+      whileTap={{ scale: 0.98 }}
+      className="group cursor-pointer relative overflow-hidden touch-manipulation bg-black py-3 min-h-[44px]"
+      onClick={handleClick}
+      style={{
+        borderBottom: '1px solid rgba(255, 255, 255, 0.03)',
+      }}
+    >
         <div className="relative z-10" onClick={handleClick}>
           <div className="flex items-center gap-2.5 sm:gap-3">
             {showArtist && show.artist && (
@@ -140,11 +140,11 @@ export function ShowCard({
       transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
       whileHover={{ scale: 1.02, y: -4, transition: { duration: 0.2 } }}
       whileTap={{ scale: 0.98 }}
-      className="group cursor-pointer relative overflow-hidden touch-manipulation h-full bg-black"
+      className="group cursor-pointer relative overflow-hidden touch-manipulation h-full bg-black rounded-2xl"
       onClick={handleClick}
       style={{
-        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+        borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
       }}
     >
       {/* Enhanced Artist Image at Top */}

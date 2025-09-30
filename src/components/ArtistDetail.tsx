@@ -157,7 +157,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
           {/* Upcoming Shows - Main Content */}
         <div className="lg:col-span-2">
-          <MagicCard className="p-0 rounded-2xl border border-white/10">
+          <MagicCard className="p-0 rounded-2xl border-0 bg-black" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
             <div className="p-4 sm:p-6">
               <Tabs defaultValue="upcoming" className="w-full">
                 <div className="flex items-center justify-between mb-6">
@@ -316,7 +316,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
 
         {/* Top Songs - Right Sidebar */}
         <div className="space-y-4 sm:space-y-6">
-          <MagicCard className="p-0 rounded-2xl border border-white/10">
+          <MagicCard className="p-0 rounded-2xl border-0 bg-black" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center">

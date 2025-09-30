@@ -167,14 +167,58 @@ export const getFlaggedContent = query({
 export const verifySetlist = mutation({
   args: {
     setlistId: v.id("setlists"),
-    isVerified: v.boolean(),
+    verified: v.boolean(),
   },
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
+    await requireAdmin(ctx); // ENHANCED: Require admin access
+    
     await ctx.db.patch(args.setlistId, { 
-      verified: args.isVerified,
+      verified: args.verified,
+      lastUpdated: Date.now(), // Update timestamp
     });
     
+    console.log(`✅ Setlist ${args.setlistId} verification: ${args.verified}`);
+    return { success: true };
+  },
+});
+
+// NEW: Dismiss flagged content
+export const dismissFlag = mutation({
+  args: {
+    flagId: v.id("contentFlags"),
+  },
+  returns: v.object({ success: v.boolean() }),
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    
+    await ctx.db.patch(args.flagId, {
+      status: "dismissed",
+      reviewedBy: adminId,
+      reviewedAt: Date.now(),
+    });
+    
+    console.log(`✅ Flag ${args.flagId} dismissed by admin ${adminId}`);
+    return { success: true };
+  },
+});
+
+// NEW: Resolve flagged content (mark as reviewed)
+export const resolveFlag = mutation({
+  args: {
+    flagId: v.id("contentFlags"),
+  },
+  returns: v.object({ success: v.boolean() }),
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    
+    await ctx.db.patch(args.flagId, {
+      status: "reviewed",
+      reviewedBy: adminId,
+      reviewedAt: Date.now(),
+    });
+    
+    console.log(`✅ Flag ${args.flagId} resolved by admin ${adminId}`);
     return { success: true };
   },
 });
@@ -524,7 +568,7 @@ export const cleanupNonStudioSongs = action({
 export const resyncArtistCatalogs = action({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ success: v.boolean(), message: v.string() }),
-  handler: async (ctx, args): Promise<{ success: boolean; message: string }> => {
+  handler: async (ctx, _args): Promise<{ success: boolean; message: string }> => {
     const user = await ctx.runQuery(api.auth.loggedInUser);
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");

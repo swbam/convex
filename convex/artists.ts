@@ -54,6 +54,25 @@ export const getBySlugOrId = query({
       .first();
     if (byTicketmaster) return byTicketmaster;
 
+    // NEW: Fuzzy fallback by partial name match (for refresh resilience)
+    const fuzzyMatches = await ctx.db
+      .query("artists")
+      .withIndex("by_lower_name", (q) => q.eq("lowerName", args.key.toLowerCase()))
+      .first();
+    if (fuzzyMatches) return fuzzyMatches;
+
+    // NEW: Try partial slug match (e.g., slug with extra chars)
+    const normalizedKey = args.key.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const partialMatches = await ctx.db
+      .query("artists")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .take(100);
+    
+    const bestMatch = partialMatches.find(artist => 
+      artist.slug.includes(normalizedKey) || normalizedKey.includes(artist.slug)
+    );
+    if (bestMatch) return bestMatch;
+
     return null;
   },
 });
@@ -107,17 +126,17 @@ export const search = query({
   },
 });
 
-// Get all artists with basic sorting and optional limit
+// Get all artists with basic sorting and optional limit - ENHANCED with pagination support
 export const getAll = query({
   args: { limit: v.optional(v.number()) },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const limit = args.limit || 50;
-    // Return active artists ordered by trendingScore then followers/popularity
+    // ENHANCED: Use indexed query for better performance
     const artists = await ctx.db
       .query("artists")
       .filter((q) => q.eq(q.field("isActive"), true))
-      .take(500);
+      .take(Math.min(limit * 2, 200)); // Take more for sorting, but cap at 200
 
     return artists
       .sort((a, b) => {
@@ -240,7 +259,7 @@ export const createFromTicketmaster = internalMutation({
       counter++;
     }
 
-    // Critical: Always set lastSynced on creation  
+    // Critical: Always set lastSynced on creation and initialize ALL optional fields
     const artistId = await ctx.db.insert("artists", {
       slug,
       name: args.name,
@@ -250,12 +269,12 @@ export const createFromTicketmaster = internalMutation({
       isActive: true,
       trendingScore: 0, // Initialize with 0 instead of undefined
       trendingRank: undefined,
-      upcomingShowsCount: 0, // Initialize with 0
-      popularity: undefined, // Will be set by Spotify sync
-      followers: undefined, // Will be set by Spotify sync
+      upcomingShowsCount: 0, // Initialize with 0 - will be updated after show sync
+      popularity: 0, // Initialize with 0 - will be updated by Spotify sync
+      followers: 0, // Initialize with 0 - will be updated by Spotify sync
       spotifyId: undefined, // Will be set by Spotify sync
       lastSynced: Date.now(), // CRITICAL: Set initial sync timestamp
-      lastTrendingUpdate: undefined,
+      lastTrendingUpdate: Date.now(), // Initialize trending timestamp
       lowerName, // Already defined above from checking existingByName
     });
     
@@ -321,15 +340,26 @@ export const updateSpotifyData = internalMutation({
   handler: async (ctx, args) => {
     const updates: any = {
       lastSynced: Date.now(), // CRITICAL: Always update sync timestamp
+      lastTrendingUpdate: Date.now(), // Update trending timestamp when Spotify data changes
     };
     
     if (args.spotifyId !== undefined) updates.spotifyId = args.spotifyId;
-    if (args.followers !== undefined) updates.followers = args.followers;
-    if (args.popularity !== undefined) updates.popularity = args.popularity;
-    if (args.genres !== undefined) updates.genres = args.genres;
-    if (args.images !== undefined) updates.images = args.images;
+    // ENHANCED: Validate numeric fields and filter out NaN/Infinity
+    if (args.followers !== undefined && Number.isFinite(args.followers)) {
+      updates.followers = Math.max(0, args.followers);
+    }
+    if (args.popularity !== undefined && Number.isFinite(args.popularity)) {
+      updates.popularity = Math.max(0, Math.min(100, args.popularity)); // Clamp to 0-100
+    }
+    if (args.genres !== undefined && Array.isArray(args.genres)) {
+      updates.genres = args.genres.filter(g => typeof g === 'string' && g.trim().length > 0);
+    }
+    if (args.images !== undefined && Array.isArray(args.images)) {
+      updates.images = args.images.filter(img => typeof img === 'string' && img.startsWith('http'));
+    }
     
     await ctx.db.patch(args.artistId, updates);
+    console.log(`✅ Updated Spotify data for artist ${args.artistId}`);
     return null;
   },
 });
@@ -342,10 +372,14 @@ export const updateShowCount = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    // ENHANCED: Validate count is never negative
+    const validatedCount = Math.max(0, args.upcomingShowsCount);
     await ctx.db.patch(args.artistId, {
-      upcomingShowsCount: args.upcomingShowsCount,
+      upcomingShowsCount: validatedCount,
       lastSynced: Date.now(),
+      lastTrendingUpdate: Date.now(), // Also update trending timestamp when show count changes
     });
+    console.log(`✅ Updated artist ${args.artistId} show count: ${validatedCount}`);
     return null;
   },
 });

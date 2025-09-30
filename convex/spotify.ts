@@ -82,6 +82,82 @@ export const enrichArtistData = action({
   },
 });
 
+// NEW: Lightweight Spotify basics sync (just artist metadata, no catalog)
+export const enrichArtistBasics = internalAction({
+  args: {
+    artistId: v.id("artists"),
+    artistName: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const clientId = process.env.SPOTIFY_CLIENT_ID;
+    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+    
+    if (!clientId || !clientSecret) {
+      console.log("Spotify credentials not configured");
+      return null;
+    }
+
+    try {
+      // Get access token
+      const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+        },
+        body: 'grant_type=client_credentials',
+      });
+
+      if (!tokenResponse.ok) {
+        console.warn('Failed to get Spotify access token for basics');
+        return null;
+      }
+
+      const tokenData = await tokenResponse.json();
+      const accessToken = tokenData.access_token;
+
+      // Search for artist (lightweight call)
+      const searchResponse = await fetch(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(args.artistName)}&type=artist&limit=1`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (!searchResponse.ok) return null;
+
+      const searchData = await searchResponse.json();
+      const artists = searchData.artists?.items || [];
+      
+      if (artists.length === 0) {
+        console.log(`No Spotify artist found for basics: ${args.artistName}`);
+        return null;
+      }
+
+      const spotifyArtist = artists[0];
+      
+      // Update artist with JUST the basics (not full catalog)
+      await ctx.runMutation(internal.artists.updateSpotifyData, {
+        artistId: args.artistId,
+        spotifyId: spotifyArtist.id,
+        followers: spotifyArtist.followers?.total,
+        popularity: spotifyArtist.popularity,
+        genres: spotifyArtist.genres || [],
+        images: spotifyArtist.images?.map((img: any) => img.url) || [],
+      });
+
+      console.log(`✅ Updated artist ${args.artistName} with Spotify basics (ID: ${spotifyArtist.id})`);
+      return null;
+    } catch (error) {
+      console.error("Failed to sync Spotify basics:", error);
+      return null;
+    }
+  },
+});
+
 export const syncArtistCatalog = internalAction({
   args: {
     artistId: v.id("artists"),

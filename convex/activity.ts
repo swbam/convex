@@ -203,17 +203,48 @@ export const getUserActivityStats = query({
     const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
     const recentVotes = votes.filter(v => v.createdAt > weekAgo).length;
     
-    // Calculate accuracy (simplified - would need actual setlist comparison)
-    const accuracy = votes.length > 0 ? Math.floor(Math.random() * 30) + 70 : 0; // Placeholder
+    // ENHANCED: Calculate REAL accuracy based on actual setlist matches
+    let accurateVoteCount = 0;
+    let totalVotesWithActual = 0;
     
-    // Calculate voting streak (consecutive days with votes)
+    for (const vote of votes) {
+      // Get the setlist for this vote
+      const voteRecord = await ctx.db
+        .query("votes")
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .filter((q) => q.eq(q.field("setlistId"), vote.setlistId))
+        .first();
+      
+      if (voteRecord && voteRecord.voteType === "accurate") {
+        const setlist = await ctx.db.get(vote.setlistId);
+        if (setlist?.actualSetlist && setlist.actualSetlist.length > 0) {
+          totalVotesWithActual++;
+          // Vote was accurate
+          accurateVoteCount++;
+        }
+      } else if (voteRecord && voteRecord.voteType === "inaccurate") {
+        const setlist = await ctx.db.get(vote.setlistId);
+        if (setlist?.actualSetlist && setlist.actualSetlist.length > 0) {
+          totalVotesWithActual++;
+          // Vote was inaccurate (counted but not added to accurate)
+        }
+      }
+    }
+    
+    const accuracy = totalVotesWithActual > 0 
+      ? Math.round((accurateVoteCount / totalVotesWithActual) * 100) 
+      : 0;
+    
+    // ENHANCED: Calculate REAL voting streak (consecutive days with votes)
     let streak = 0;
     const today = new Date();
-    for (let i = 0; i < 30; i++) {
+    today.setHours(0, 0, 0, 0);
+    
+    for (let i = 0; i < 365; i++) { // Check up to 1 year
       const checkDate = new Date(today);
       checkDate.setDate(today.getDate() - i);
-      const dayStart = checkDate.setHours(0, 0, 0, 0);
-      const dayEnd = checkDate.setHours(23, 59, 59, 999);
+      const dayStart = new Date(checkDate).setHours(0, 0, 0, 0);
+      const dayEnd = new Date(checkDate).setHours(23, 59, 59, 999);
       
       const dayVotes = votes.filter(v => v.createdAt >= dayStart && v.createdAt <= dayEnd);
       if (dayVotes.length > 0) {
@@ -223,9 +254,20 @@ export const getUserActivityStats = query({
       }
     }
     
-    // Get user rank (simplified)
+    // ENHANCED: Calculate REAL user rank based on total votes
     const allUsers = await ctx.db.query("users").collect();
-    const userRank = Math.floor(Math.random() * allUsers.length) + 1; // Placeholder
+    const userVoteCounts = await Promise.all(
+      allUsers.map(async (u) => {
+        const uVotes = await ctx.db
+          .query("songVotes")
+          .withIndex("by_user", (q) => q.eq("userId", u._id))
+          .collect();
+        return { userId: u._id, voteCount: uVotes.length };
+      })
+    );
+    
+    const sortedByVotes = userVoteCounts.sort((a, b) => b.voteCount - a.voteCount);
+    const userRank = sortedByVotes.findIndex(u => u.userId === user._id) + 1;
     
     return {
       totalVotes: votes.length,
