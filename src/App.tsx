@@ -42,8 +42,17 @@ function App() {
 
   // Auto-create app user when authenticated
   useEffect(() => {
-    if (user && !user.appUser) {
-      createAppUser().catch(console.error);
+    console.log('🔍 User state:', { 
+      hasUser: !!user, 
+      hasAppUser: !!user?.appUser,
+      identity: user?.identity 
+    });
+    
+    if (user && user.identity && !user.appUser) {
+      console.log('🔵 Calling createAppUser...');
+      createAppUser()
+        .then(id => console.log('✅ User created:', id))
+        .catch(err => console.error('❌ User creation failed:', err));
     }
   }, [user, createAppUser]);
 
