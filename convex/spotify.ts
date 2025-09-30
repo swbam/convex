@@ -183,8 +183,9 @@ export const syncArtistCatalog = internalAction({
           ];
           
           // Don't filter out "remastered" - those contain original songs!
-          if (exclude.some(k => albumName.includes(k))) {
-            console.log(`❌ Filtered album: ${album.name} (contains: ${k})`);
+          const matchedExclude = exclude.find(k => albumName.includes(k));
+          if (matchedExclude) {
+            console.log(`❌ Filtered album: ${album.name} (contains: ${matchedExclude})`);
             return false;
           }
           
