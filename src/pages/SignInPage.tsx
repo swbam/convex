@@ -7,6 +7,7 @@ import { ShimmerButton } from '../components/ui/shimmer-button';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, Music, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { FaSpotify } from 'react-icons/fa';
+import { FadeIn } from '../components/animations/FadeIn';
 
 export function SignInPage() {
   const { signIn, isLoaded } = useSignIn();

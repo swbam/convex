@@ -9,6 +9,7 @@ import { BorderBeam } from './ui/border-beam'
 import { Button } from './ui/button'
 import { UserPredictions } from './UserPredictions'
 import { User, Settings, Activity, Calendar, Music, TrendingUp } from 'lucide-react'
+import { FadeIn } from './animations/FadeIn'
 
 interface UserDashboardProps {
   onArtistClick: (artistId: Id<"artists">) => void;
@@ -24,6 +25,7 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
   return (
     <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 relative z-10">
       {/* Header */}
+      <FadeIn delay={0} duration={0.6}>
       <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 bg-black">
         <div className="relative z-10 p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -49,8 +51,10 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
         </div>
         <BorderBeam size={150} duration={12} className="opacity-30" />
       </MagicCard>
+      </FadeIn>
 
       {/* Quick Stats */}
+      <FadeIn delay={0.1} duration={0.6}>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <MagicCard className="p-0 rounded-xl border-0 bg-black">
           <div className="p-4 text-center">

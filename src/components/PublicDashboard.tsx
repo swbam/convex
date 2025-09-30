@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { SearchBar } from "./SearchBar";
+import { FadeIn } from "./animations/FadeIn";
 
 interface PublicDashboardProps {
   onArtistClick: (artistKey: Id<"artists"> | string) => void;
