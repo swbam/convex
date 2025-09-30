@@ -163,7 +163,7 @@ export const syncArtistCatalog = internalAction({
 
       let songsImported = 0;
 
-      // CRITICAL: Only ORIGINAL studio albums - NO deluxe, remaster, or duplicatesn
+      // CRITICAL FIX: Allow remastered albums (they contain original songs!)
       const studioAlbums = (albums as any[])
         .filter(album => {
           // Skip compilations and appears_on
@@ -172,30 +172,23 @@ export const syncArtistCatalog = internalAction({
           
           const albumName = album.name.toLowerCase();
           
-          // EXCLUDE all these (prevents duplicates):
+          // ONLY exclude these specific types (much more permissive):
           const exclude = [
             // Live albums
-            'live at', 'live from', 'live in', 'live on', 'concert', 'unplugged',
-            // Compilations
-            'greatest hits', 'best of', 'anthology', 'collection', 'hits',
-            // Deluxe/Reissues (DUPLICATES!)
-            'deluxe', 'remaster', 'remastered', 'expanded', 'anniversary',
-            'special edition', 'collector', 'limited edition', 'super deluxe',
-            'bonus', 'extended', 'vault',
+            'live',
+            // True compilations (not studio albums)
+            'greatest hits', 'best of', 'collection',
             // Soundtracks
-            'soundtrack', 'ost', 'score',
-            // Other
-            'demo', 'rough', 'sessions',
+            'soundtrack',
           ];
           
-          if (exclude.some(k => albumName.includes(k))) return false;
+          // Don't filter out "remastered" - those contain original songs!
+          if (exclude.some(k => albumName.includes(k))) {
+            console.log(`❌ Filtered album: ${album.name} (contains: ${k})`);
+            return false;
+          }
           
-          // Only full albums (not singles/EPs which might be duplicates)
-          if (album.album_type !== 'album') return false;
-          
-          // Minimum track count for legitimate studio albums
-          if (album.total_tracks < 8) return false;
-          
+          console.log(`✅ Keeping album: ${album.name} (${album.album_type})`);
           return true;
         })
         .sort((a, b) => {
@@ -283,62 +276,32 @@ export const syncArtistCatalog = internalAction({
   },
 });
 
-// STRICT: Only ORIGINAL studio albums - prevents all duplicates
-function isStudioAlbum(albumName: string): boolean {
-  const albumLower = albumName.toLowerCase().trim();
-  
-  // Comprehensive exclusion list to prevent duplicates:
-  const exclude = [
-    // Live
-    'live', 'concert', 'unplugged',
-    // Compilations
-    'greatest hits', 'best of', 'anthology', 'collection', 'hits',
-    // Deluxe/Reissues/Remasters (DUPLICATES!)
-    'deluxe', 'remaster', 'expanded', 'anniversary', 'special edition',
-    'collector', 'limited', 'super', 'bonus', 'extended', 'vault',
-    // Soundtracks
-    'soundtrack', 'ost', 'score',
-    // Other duplicates
-    'demo', 'sessions', 'rough', 'outtakes',
-  ];
-  
-  return !exclude.some(k => albumLower.includes(k));
-}
+// Not used anymore - album filtering done inline above
 
-// STRICT: Only pure studio songs - NO live, remix, alternate versions
+// BALANCED: Allow studio songs but exclude obvious live/remix variations
 function isStudioSong(songName: string, albumName: string): boolean {
   const songLower = songName.toLowerCase().trim();
   
-  // Exclude ALL variations and non-studio content:
-  const exclude = [
-    // Live
-    'live', '(live)', '[live]', ' - live',
-    // Remixes/Edits
-    'remix', 'rmx', 'mix', 'edit', 'radio edit', 'extended',
-    // Alternate versions
-    'version', 'alternate', 'demo', 'acoustic',
-    // Instrumentals
-    'instrumental', 'karaoke', 'backing',
-    // Features (often duplicates)
-    'feat.', 'featuring', 'ft.', 'with',
-    // Bonus (often alternate takes)
-    'bonus',
-    // Remaster indicators
-    'remaster', 'remastered',
+  // ONLY exclude obvious non-studio indicators in SONG title:
+  const songExcludes = [
+    '(live)', '[live]', ' - live', 'live at', 'live from',
+    'remix', 'rmx', '(remix)', '[remix]',
+    'demo', '(demo)', '[demo]',
+    'instrumental', 'karaoke',
   ];
   
-  // Skip intros/outros/interludes
-  const skipWords = ['intro', 'outro', 'interlude', 'skit', 'reprise'];
-  if (skipWords.some(w => songLower === w || songLower.startsWith(w + ' ') || songLower.endsWith(' ' + w))) {
+  // Skip pure intro/outro tracks
+  if (['intro', 'outro', 'interlude', 'skit'].includes(songLower)) {
     return false;
   }
   
-  // Check for exclusions
-  if (exclude.some(k => songLower.includes(k))) {
-    return false;
+  // Check song title for exclusions
+  for (const word of songExcludes) {
+    if (songLower.includes(word)) {
+      return false;
+    }
   }
   
-  // Valid title length
   return songLower.length > 0 && songLower.length <= 100;
 }
 
