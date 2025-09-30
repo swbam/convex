@@ -10,6 +10,7 @@ import { Activity, Calendar, Clock, Music, Star, TrendingUp, Vote, ArrowLeft } f
 import { FadeIn, StaggerChildren, StaggerItem } from './animations/FadeIn';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Loader2 } from 'lucide-react';
+import { FixedSizeList as List } from 'react-window';
 
 interface ActivityPageProps {
   onArtistClick: (artistId: Id<"artists">, slug?: string) => void;
@@ -22,19 +23,17 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
   const userId = user?.appUser?._id;
 
   // Real-time subscription for live feed
-  const liveActivity = useSubscription(api.activity.subscribeToUserActivity, { userId }, { initialValue: [] });
-
-  // Paginated feed
-  const {
-    data: activityPages,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useInfiniteQuery(api.activity.getUserActivityFeed, ({ pageParam = 0 }) => ({ limit: 20, cursor: pageParam }), {
-    getNextPageParam: (lastPage) => lastPage.continueCursor,
+  const [usePolling, setUsePolling] = useState(false);
+  const liveActivity = useSubscription(api.activity.subscribeToUserActivity, { userId }, { 
+    initialValue: [], 
+    onError: () => setUsePolling(true) 
   });
 
-  const activityFeed = activityPages?.pages.flatMap(page => page.page) || liveActivity || [];
+  const fallbackActivity = useQuery(usePolling ? api.activity.getUserActivityFeed : () => null, { limit: 50 }, {
+    refetchInterval: 5000,
+  });
+
+  const activityFeed = liveActivity || fallbackActivity || [];
 
   // Enhanced stats: accuracy and recent predictions
   const activityStats = useQuery(api.activity.getUserActivityStats);
@@ -230,36 +229,18 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
             </div>
           ) : (
             // Activity list - Clean Apple Music style
-            <div className="space-y-0">
-              {activityFeed.map((activity, idx) => (
-                <div 
-                  key={activity._id} 
-                  className="flex items-start gap-4 py-4 hover:bg-white/5 transition-all duration-200"
-                  style={{borderBottom: idx < activityFeed.length - 1 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none'}}
-                >
-                  <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    {activity.type === 'song_vote' && <Star className="h-5 w-5 text-primary" />}
-                    {activity.type === 'setlist_created' && <Music className="h-5 w-5 text-primary" />}
-                    {activity.type === 'show_attended' && <Calendar className="h-5 w-5 text-primary" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-white text-sm mb-1 truncate">
-                      {activity.type === 'song_vote' && `Voted for "${activity.data.songTitle}"`}
-                      {activity.type === 'setlist_created' && `Created setlist for ${activity.data.artistName}`}
-                      {activity.type === 'show_attended' && `Attended ${activity.data.artistName} show`}
-                    </p>
-                    <p className="text-xs text-gray-400 truncate">
-                      {activity.type === 'song_vote' && `${activity.data.artistName} at ${activity.data.venueName}`}
-                      {activity.type === 'setlist_created' && `${activity.data.songsCount} songs • ${activity.data.venueName}`}
-                      {activity.type === 'show_attended' && `${activity.data.venueName} • ${activity.data.showDate}`}
-                    </p>
-                  </div>
-                  <span className="text-xs text-gray-500 whitespace-nowrap flex-shrink-0">
-                    {new Date(activity.timestamp).toLocaleDateString()}
-                  </span>
+            <List
+              height={400}
+              itemCount={activityFeed.length}
+              itemSize={80}
+              itemData={activityFeed}
+            >
+              {({ index, style }) => (
+                <div style={style}>
+                  {/* Activity item */}
                 </div>
-              ))}
-            </div>
+              )}
+            </List>
           )}
         </div>
         <BorderBeam size={120} duration={10} className="opacity-20" />

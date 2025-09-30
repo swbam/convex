@@ -40,222 +40,167 @@ const normalizeShowStatus = (status?: string) => {
 
 export const getTrendingShows = query({
   args: { limit: v.optional(v.number()) },
-  returns: v.array(v.any()),
+  returns: v.object({
+    page: v.array(v.any()),
+    isDone: v.boolean(),
+    continueCursor: v.optional(v.string()),
+  }),
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
-
-    const cached = await ctx.db
+    const result = await ctx.db
       .query("trendingShows")
       .withIndex("by_rank")
       .order("asc")
-      .take(limit);
+      .paginate({ numItems: limit });
 
-    if (cached.length > 0) {
-      const hydrated = await Promise.all(
-        cached.map(async (entry) => {
-          let show = entry.showId ? await ctx.db.get(entry.showId) : null;
-          if (!show && entry.ticketmasterId) {
-            show = await ctx.db
-              .query("shows")
-              .withIndex("by_ticketmaster_id", (q) =>
-                q.eq("ticketmasterId", entry.ticketmasterId)
-              )
-              .first();
-          }
+    // Hydrate page
+    const hydrated = await Promise.all(result.page.map(async (entry) => {
+      let show = entry.showId ? await ctx.db.get(entry.showId) : null;
+      if (!show && entry.ticketmasterId) {
+        show = await ctx.db
+          .query("shows")
+          .withIndex("by_ticketmaster_id", (q) =>
+            q.eq("ticketmasterId", entry.ticketmasterId)
+          )
+          .first();
+      }
 
-          let artist =
-            (show ? await ctx.db.get(show.artistId) : null) ??
-            (entry.artistId ? await ctx.db.get(entry.artistId) : null);
+      let artist =
+        (show ? await ctx.db.get(show.artistId) : null) ??
+        (entry.artistId ? await ctx.db.get(entry.artistId) : null);
 
-          if (!artist && entry.artistTicketmasterId) {
-            artist = await ctx.db
-              .query("artists")
-              .withIndex("by_ticketmaster_id", (q) =>
-                q.eq("ticketmasterId", entry.artistTicketmasterId!)
-              )
-              .first();
-          }
+      if (!artist && entry.artistTicketmasterId) {
+        artist = await ctx.db
+          .query("artists")
+          .withIndex("by_ticketmaster_id", (q) =>
+            q.eq("ticketmasterId", entry.artistTicketmasterId!)
+          )
+          .first();
+      }
 
-          const venue =
-            show && show.venueId ? await ctx.db.get(show.venueId) : null;
+      const venue =
+        show && show.venueId ? await ctx.db.get(show.venueId) : null;
 
-          const artistName =
-            artist?.name || entry.artistName || "Unknown Artist";
-          const computedSlug =
-            entry.showSlug ||
-            createShowSlug(
-              artistName,
-              entry.venueName,
-              entry.venueCity,
-              entry.date,
-              entry.startTime
-            );
+      const artistName =
+        artist?.name || entry.artistName || "Unknown Artist";
+      const computedSlug =
+        entry.showSlug ||
+        createShowSlug(
+          artistName,
+          entry.venueName,
+          entry.venueCity,
+          entry.date,
+          entry.startTime
+        );
 
-          const baseShow =
-            show ??
-            ({
-              _id: `ticketmaster:${entry.ticketmasterId}`,
-              ticketmasterId: entry.ticketmasterId,
-              date: entry.date,
-              startTime: entry.startTime,
-              status: normalizeShowStatus(entry.status),
-              ticketUrl: entry.ticketUrl,
-              priceRange: entry.priceRange,
-              slug: computedSlug,
-            } as any);
+      const baseShow =
+        show ??
+        ({
+          _id: `ticketmaster:${entry.ticketmasterId}`,
+          ticketmasterId: entry.ticketmasterId,
+          date: entry.date,
+          startTime: entry.startTime,
+          status: normalizeShowStatus(entry.status),
+          ticketUrl: entry.ticketUrl,
+          priceRange: entry.priceRange,
+          slug: computedSlug,
+        } as any);
 
-          const resolvedArtist =
-            artist ??
-            ({
-              _id: `ticketmaster:${entry.artistTicketmasterId ?? entry.ticketmasterId}`,
-              ticketmasterId:
-                entry.artistTicketmasterId ?? entry.ticketmasterId,
-              name: artistName,
-              slug: entry.artistSlug || slugify(artistName),
-              images: entry.artistImage ? [entry.artistImage] : [],
-            } as any);
+      const resolvedArtist =
+        artist ??
+        ({
+          _id: `ticketmaster:${entry.artistTicketmasterId ?? entry.ticketmasterId}`,
+          ticketmasterId:
+            entry.artistTicketmasterId ?? entry.ticketmasterId,
+          name: artistName,
+          slug: entry.artistSlug || slugify(artistName),
+          images: entry.artistImage ? [entry.artistImage] : [],
+        } as any);
 
-          const resolvedVenue =
-            venue ??
-            ({
-              name: entry.venueName,
-              city: entry.venueCity,
-              country: entry.venueCountry,
-            } as any);
+      const resolvedVenue =
+        venue ??
+        ({
+          name: entry.venueName,
+          city: entry.venueCity,
+          country: entry.venueCountry,
+        } as any);
 
-          return {
-            ...baseShow,
-            slug: baseShow.slug || computedSlug,
-            artist: resolvedArtist,
-            venue: resolvedVenue,
-            trendingRank: show?.trendingRank ?? entry.rank,
-            trendingScore: show?.trendingScore,
-            lastTrendingUpdate: show?.lastTrendingUpdate ?? entry.lastUpdated,
-            source: show ? "database" : "ticketmaster",
-          };
-        })
-      );
+      return {
+        ...baseShow,
+        slug: baseShow.slug || computedSlug,
+        artist: resolvedArtist,
+        venue: resolvedVenue,
+        trendingRank: show?.trendingRank ?? entry.rank,
+        trendingScore: show?.trendingScore,
+        lastTrendingUpdate: show?.lastTrendingUpdate ?? entry.lastUpdated,
+        source: show ? "database" : "ticketmaster",
+      };
+    }));
 
-      return hydrated.slice(0, limit);
-    }
-
-    // NEW: Fallback to canonical shows sorted by trendingScore
-    console.log("Using fallback: querying upcoming shows by trendingScore");
-    const fallbackShows = await ctx.db
-      .query("shows")
-      .filter((q) => q.eq(q.field("status"), "upcoming"))
-      .order("desc") // Assuming trendingScore desc for recency/hotness
-      .take(limit * 2); // Oversample to ensure limit after hydration
-
-    if (fallbackShows.length === 0) return [];
-
-    // Hydrate fallback
-    const enriched = await Promise.all(
-      fallbackShows.map(async (show) => {
-        const artist = await ctx.db.get(show.artistId);
-        const venue = await ctx.db.get(show.venueId);
-        const slug = show.slug || createShowSlug(artist?.name || "", venue?.name || "", venue?.city || "", show.date, show.startTime);
-        return {
-          ...show,
-          slug,
-          artist: artist ? { name: artist.name, slug: artist.slug, images: artist.images || [] } : null,
-          venue: venue ? { name: venue.name, city: venue.city, country: venue.country } : null,
-          trendingRank: show.trendingRank || Math.random() * 20, // Fallback rank
-          trendingScore: show.trendingScore || (artist?.popularity || 0) * (show.voteCount || 1), // Compute if null
-          lastTrendingUpdate: show.lastTrendingUpdate || Date.now(),
-          source: "fallback_db",
-        };
-      })
-    );
-
-    // Sort by computed score if needed
-    const sortedFallback = enriched.sort((a, b) => (b.trendingScore || 0) - (a.trendingScore || 0));
-    return sortedFallback.slice(0, limit);
+    return { page: hydrated, isDone: result.isDone, continueCursor: result.continueCursor };
   },
 });
 
 export const getTrendingArtists = query({
   args: { limit: v.optional(v.number()) },
-  returns: v.array(v.any()),
+  returns: v.object({
+    page: v.array(v.any()),
+    isDone: v.boolean(),
+    continueCursor: v.optional(v.string()),
+  }),
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
-
-    const cached = await ctx.db
+    const result = await ctx.db
       .query("trendingArtists")
       .withIndex("by_rank")
       .order("asc")
-      .take(limit);
+      .paginate({ numItems: limit });
 
-    if (cached.length > 0) {
-      const enriched = await Promise.all(
-        cached.map(async (entry) => {
-          let artist = entry.artistId ? await ctx.db.get(entry.artistId) : null;
-          if (!artist) {
-            artist = await ctx.db
-              .query("artists")
-              .withIndex("by_ticketmaster_id", (q) =>
-                q.eq("ticketmasterId", entry.ticketmasterId)
-              )
-              .first();
-          }
+    // Enrich page
+    const enriched = await Promise.all(result.page.map(async (entry) => {
+      let artist = entry.artistId ? await ctx.db.get(entry.artistId) : null;
+      if (!artist) {
+        artist = await ctx.db
+          .query("artists")
+          .withIndex("by_ticketmaster_id", (q) =>
+            q.eq("ticketmasterId", entry.ticketmasterId)
+          )
+          .first();
+      }
 
-          if (artist) {
-            return {
-              ...artist,
-              images:
-                artist.images && artist.images.length > 0
-                  ? artist.images
-                  : entry.images,
-              upcomingShowsCount:
-                artist.upcomingShowsCount ?? entry.upcomingEvents,
-              trendingRank: artist.trendingRank ?? entry.rank,
-              lastTrendingUpdate:
-                artist.lastTrendingUpdate ?? entry.lastUpdated,
-            };
-          }
+      if (artist) {
+        return {
+          ...artist,
+          images:
+            artist.images && artist.images.length > 0
+              ? artist.images
+              : entry.images,
+          upcomingShowsCount:
+            artist.upcomingShowsCount ?? entry.upcomingEvents,
+          trendingRank: artist.trendingRank ?? entry.rank,
+          lastTrendingUpdate:
+            artist.lastTrendingUpdate ?? entry.lastUpdated,
+        };
+      }
 
-          const name = entry.name || "Unknown Artist";
+      const name = entry.name || "Unknown Artist";
 
-          return {
-            _id: `ticketmaster:${entry.ticketmasterId}`,
-            ticketmasterId: entry.ticketmasterId,
-            name,
-            slug: entry.slug || slugify(name),
-            genres: entry.genres,
-            images: entry.images,
-            upcomingShowsCount: entry.upcomingEvents,
-            url: entry.url,
-            trendingRank: entry.rank,
-            trendingScore: entry.upcomingEvents,
-            isActive: true,
-          } as any;
-        })
-      );
+      return {
+        _id: `ticketmaster:${entry.ticketmasterId}`,
+        ticketmasterId: entry.ticketmasterId,
+        name,
+        slug: entry.slug || slugify(name),
+        genres: entry.genres,
+        images: entry.images,
+        upcomingShowsCount: entry.upcomingEvents,
+        url: entry.url,
+        trendingRank: entry.rank,
+        trendingScore: entry.upcomingEvents,
+        isActive: true,
+      } as any;
+    }));
 
-      return enriched.slice(0, limit);
-    }
-
-    // NEW: Fallback to canonical artists sorted by trendingRank or score
-    console.log("Using fallback: querying artists by trendingRank");
-    const fallbackArtists = await ctx.db
-      .query("artists")
-      .withIndex("by_trending_rank")
-      .filter((q) => q.gt(q.field("trendingRank"), 0))
-      .take(limit * 2);
-
-    if (fallbackArtists.length === 0) return [];
-
-    const sortedFallback = fallbackArtists
-      .sort((a, b) => (b.trendingScore || 0) - (a.trendingScore || 0))
-      .map(artist => ({
-        ...artist,
-        upcomingShowsCount: artist.upcomingShowsCount || 0,
-        trendingRank: artist.trendingRank || Math.floor(Math.random() * 20) + 1,
-        lastTrendingUpdate: artist.lastTrendingUpdate || Date.now(),
-        source: "fallback_db",
-      }));
-
-    return sortedFallback.slice(0, limit);
+    return { page: enriched, isDone: result.isDone, continueCursor: result.continueCursor };
   },
 });
 

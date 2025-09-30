@@ -4,6 +4,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { toast } from "sonner";
+import { useDebounce } from "../lib/utils";
 
 interface VotingButtonProps {
   setlistId: Id<"setlists">;
@@ -11,27 +12,34 @@ interface VotingButtonProps {
 }
 
 export function VotingButton({ setlistId, onSignInRequired }: VotingButtonProps) {
+  const [localVotes, setLocalVotes] = useState(0); // Optimistic update
   const [isVoting, setIsVoting] = useState(false);
   const user = useQuery(api.auth.loggedInUser);
   const userVote = useQuery(api.setlists.getUserVote, { setlistId });
   const submitVote = useMutation(api.setlists.submitVote);
 
-  const handleVote = async (voteType: "up" | "down") => {
+  const debouncedVote = useDebounce(async (voteType: "up" | "down") => {
     if (!user) {
       onSignInRequired?.();
       return;
     }
 
     setIsVoting(true);
+    setLocalVotes(prev => prev + 1); // Optimistic
     try {
       await submitVote({ setlistId, voteType: voteType === "up" ? "accurate" : "inaccurate" });
       toast.success(voteType === "up" ? "Upvoted setlist" : "Downvoted setlist");
     } catch (error) {
+      setLocalVotes(0); // Revert
       toast.error("Failed to vote");
       console.error("Vote failed:", error);
     } finally {
       setIsVoting(false);
     }
+  }, 500);
+
+  const handleVote = async (voteType: "up" | "down") => {
+    debouncedVote(voteType);
   };
 
   return (
