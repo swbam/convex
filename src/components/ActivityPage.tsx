@@ -56,7 +56,11 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
     v.createdAt > Date.now() - (7 * 24 * 60 * 60 * 1000)
   ).length || 0;
 
-  // CRITICAL FIX: Check if user is loading vs actually not signed in
+  // CRITICAL FIX: Proper user state detection
+  // user === undefined means still loading from Convex
+  // user === null means definitely not signed in
+  // user === {identity: {...}, appUser?: {...}} means signed in
+  
   if (user === undefined) {
     // Still loading user data from Convex
     return (
@@ -67,8 +71,8 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
     );
   }
 
-  if (user === null || !user.identity) {
-    // User is definitely not signed in
+  if (user === null) {
+    // User is definitely not signed in (Convex returned null, not an object)
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <p className="text-gray-400">Please sign in to view your activity</p>
@@ -78,6 +82,9 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
       </div>
     );
   }
+
+  // At this point, user is an object with at least {identity: ...}
+  // User IS signed in (even if appUser hasn't been created yet)
 
   return (
     <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 relative z-10">
