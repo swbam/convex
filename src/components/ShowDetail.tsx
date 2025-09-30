@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import React, { useMemo, useState } from "react";
-import { ArrowLeft, MapPin, Users, Music, ChevronUp, Heart, Calendar, ExternalLink, Ticket } from "lucide-react";
+import { ArrowLeft, MapPin, Users, Music, ChevronUp, Heart, Calendar, ExternalLink, Ticket, Vote } from "lucide-react";
 import { toast } from "sonner";
 import { SEOHead } from "./SEOHead";
 import { AnimatedSubscribeButton } from "./ui/animated-subscribe-button";
