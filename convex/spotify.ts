@@ -163,7 +163,7 @@ export const syncArtistCatalog = internalAction({
 
       let songsImported = 0;
 
-      // CRITICAL: Only ORIGINAL studio albums - NO deluxe, remaster, or duplicates
+      // CRITICAL: Only ORIGINAL studio albums - NO deluxe, remaster, or duplicatesn
       const studioAlbums = (albums as any[])
         .filter(album => {
           // Skip compilations and appears_on
