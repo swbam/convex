@@ -160,14 +160,14 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
           <MagicCard className="p-0 rounded-2xl border-0 bg-black" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
             <div className="p-4 sm:p-6">
               <Tabs defaultValue="upcoming" className="w-full">
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
                       <Calendar className="h-5 w-5 text-white" />
                     </div>
                     <h2 className="text-2xl sm:text-3xl font-bold text-white">Shows</h2>
                   </div>
-                  <TabsList className="grid w-[200px] grid-cols-2">
+                  <TabsList className="grid w-full sm:w-[200px] grid-cols-2 shrink-0">
                     <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
                     <TabsTrigger value="past">Past</TabsTrigger>
                   </TabsList>
