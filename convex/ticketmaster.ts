@@ -100,17 +100,16 @@ export const triggerFullArtistSync = action({
         console.warn(`⚠️ Spotify basics sync failed (non-critical): ${errorMsg}`);
       }
 
-      // Phase 4: Schedule FULL Spotify catalog sync in background (can be async)
-      void ctx.scheduler.runAfter(0, internal.spotify.syncArtistCatalog, {
+      // Phase 4: Schedule FULL Spotify catalog sync in background
+      // CRITICAL FIX: Properly await scheduler to ensure it runs
+      await ctx.scheduler.runAfter(0, internal.spotify.syncArtistCatalog, {
         artistId,
         artistName: args.artistName,
       });
+      console.log(`📚 Scheduled catalog sync for ${args.artistName}`);
 
       // Schedule trending update
-      void ctx.scheduler.runAfter(5000, internal.trending.updateShowTrending, {});
-      
-      // Validate all fields were populated (scheduled for future implementation)
-      // void ctx.scheduler.runAfter(2000, internal.common.validateArtistFields, { artistId });
+      await ctx.scheduler.runAfter(5000, internal.trending.updateShowTrending, {});
 
       console.log(`✅ Artist ${args.artistName} fully imported with ID: ${artistId}`);
       return artistId;
