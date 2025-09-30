@@ -19,10 +19,10 @@ export function SSOCallback() {
         // Handle the OAuth callback
         await handleRedirectCallback();
         
-        // Wait a moment for Convex to create the user
+        // Redirect to home - App.tsx will handle user creation
         setTimeout(() => {
-          navigate('/profile');
-        }, 1000);
+          navigate('/');
+        }, 500);
       } catch (err: any) {
         console.error('OAuth callback error:', err);
         setError(err.message || 'Authentication failed');

@@ -54,8 +54,8 @@ export function SignUpPage() {
         }
         toast.success("Account created successfully!");
         
-        // CRITICAL FIX: Redirect to profile for better UX
-        setTimeout(() => navigate('/profile'), 500);
+        // Redirect to home - let App.tsx handle user creation
+        setTimeout(() => navigate('/'), 500);
       } else {
         await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
         setVerificationStep(true);
@@ -88,7 +88,7 @@ export function SignUpPage() {
           await setActive({ session: result.createdSessionId });
         }
         toast.success("Email verified! Welcome to setlists.live!");
-        setTimeout(() => navigate('/profile'), 500);
+        setTimeout(() => navigate('/'), 500);
       } else {
         toast.error("Invalid verification code. Please try again.");
       }

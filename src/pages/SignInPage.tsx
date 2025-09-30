@@ -54,8 +54,8 @@ export function SignInPage() {
         }
         toast.success("Welcome back!");
         
-        // CRITICAL FIX: Redirect to profile for better UX
-        setTimeout(() => navigate('/profile'), 500);
+        // Redirect to home - let App.tsx handle user creation and routing
+        setTimeout(() => navigate('/'), 500);
       } else {
         toast.error("Sign in incomplete. Please check your email.");
       }
