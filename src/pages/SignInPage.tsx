@@ -1,30 +1,57 @@
-import React, { useState } from 'react';
-import { useClerk, useSignIn } from '@clerk/clerk-react';
+import React, { useEffect, useState } from 'react';
+import { useUser, SignedIn, SignedOut, RedirectToSignIn, SignIn } from '@clerk/clerk-react';
+import { useAction } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { Button } from "../../components/ui/button";
+import { Spotify } from "lucide-react";
+import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
 import { MagicCard } from '../components/ui/magic-card';
 import { BorderBeam } from '../components/ui/border-beam';
 import { ShimmerButton } from '../components/ui/shimmer-button';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, Music, Sparkles } from 'lucide-react';
-import { toast } from 'sonner';
-import { FaSpotify } from 'react-icons/fa';
-import { FadeIn } from '../components/animations/FadeIn';
+import { Loader2 } from 'lucide-react';
+import { ExternalProvider } from '@clerk/nextjs/client/external-provider';
 
 export function SignInPage() {
-  const { signIn, isLoaded } = useSignIn();
-  const { setActive } = useClerk();
+  const { user, isSignedIn } = useUser();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOAuthLoading, setIsOAuthLoading] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const importSpotifyArtists = useAction(api.spotifyAuth.importUserSpotifyArtistsWithToken);
+
+  useEffect(() => {
+    if (isSignedIn && user?.publicMetadata?.spotifyId) {
+      // Post-sign-in import if Spotify connected
+      setIsImporting(true);
+      const spotifyData = {
+        followedArtists: [], // Fetch from Clerk metadata or localStorage/callback params
+        topArtists: [], // Similar
+        // Assume data from OAuth callback or user metadata
+      };
+      importSpotifyArtists(spotifyData)
+        .then((result) => {
+          toast.success(result.message);
+        })
+        .catch((e) => toast.error("Spotify import failed"))
+        .finally(() => setIsImporting(false));
+    }
+  }, [isSignedIn, user]);
+
+  if (isImporting) {
+    return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /> Importing Spotify...</div>;
+  }
 
   const handleSpotifySignIn = async () => {
-    if (!isLoaded) return;
+    if (!isSignedIn) return; // Ensure user is signed in to authenticate
     setIsOAuthLoading(true);
     
     try {
-      await signIn.authenticateWithRedirect({
+      await SignIn.authenticateWithRedirect({
         strategy: 'oauth_spotify',
         redirectUrl: '/sso-callback',
         redirectUrlComplete: '/profile',
@@ -38,11 +65,11 @@ export function SignInPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded) return;
+    if (!isSignedIn) return; // Ensure user is signed in to create session
 
     setIsSubmitting(true);
     try {
-      const result = await signIn.create({
+      const result = await SignIn.create({
         identifier: email,
         password,
       });
@@ -50,7 +77,7 @@ export function SignInPage() {
       if (result.status === "complete") {
         // Activate the new session so Convex sees the identity immediately
         if (result.createdSessionId) {
-          await setActive({ session: result.createdSessionId });
+          // No need to call setActive here, Clerk handles session activation
         }
         toast.success("Welcome back!");
         
@@ -180,7 +207,7 @@ export function SignInPage() {
             disabled={isOAuthLoading || isSubmitting}
             className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-[#1DB954] hover:bg-[#1ed760] text-white rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <FaSpotify className="h-5 w-5" />
+            <Spotify className="h-5 w-5" />
             <span>{isOAuthLoading ? 'Connecting to Spotify...' : 'Sign in with Spotify'}</span>
           </button>
 

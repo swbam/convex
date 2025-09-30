@@ -2,6 +2,37 @@ import { query, mutation, internalQuery, internalMutation } from "./_generated/s
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { getAuthUserId } from "./auth";
+import { internal } from "./_generated/api";
+
+// Add Levenshtein helper
+function levenshteinDistance(str1: string, str2: string): number {
+  str1 = str1.toLowerCase().replace(/[^a-z0-9]/g, '');
+  str2 = str2.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (str1.length === 0) return str2.length;
+  if (str2.length === 0) return str1.length;
+  const matrix: number[][] = [];
+  for (let i = 0; i <= str2.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= str1.length; j++) {
+    matrix[0][j] = j;
+  }
+  for (let i = 1; i <= str2.length; i++) {
+    for (let j = 1; j <= str1.length; j++) {
+      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  const maxLen = Math.max(str1.length, str2.length);
+  return maxLen > 0 ? 1 - (matrix[str2.length][str1.length] / maxLen) : 0;
+}
 
 export const getById = query({
   args: { id: v.id("artists") },
@@ -27,51 +58,70 @@ export const getBySlugOrId = query({
   args: { key: v.string() },
   returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
-    // Try by slug first (gracefully handle duplicates)
+    // Existing: Try by slug
     const bySlug = await ctx.db
       .query("artists")
       .withIndex("by_slug", (q) => q.eq("slug", args.key))
       .first();
     if (bySlug) return bySlug;
 
-    // Fallback: try by id
+    // Existing: Try by ID
     try {
-      // Validate that the key is a valid artist ID format
       const artistId = args.key as Id<"artists">;
       const artist = await ctx.db.get(artistId);
-      // Verify it's actually an artist by checking for required fields
-      if (artist && 'name' in artist && 'slug' in artist) {
-        return artist;
-      }
-    } catch {
-      // ignore invalid id format
-    }
+      if (artist && 'name' in artist && 'slug' in artist) return artist;
+    } catch {}
 
-    // Finally: support navigation via Ticketmaster ID slugs
+    // Existing: By Ticketmaster ID
     const byTicketmaster = await ctx.db
       .query("artists")
       .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.key))
       .first();
     if (byTicketmaster) return byTicketmaster;
 
-    // NEW: Fuzzy fallback by partial name match (for refresh resilience)
+    // Existing: Fuzzy by lowerName
     const fuzzyMatches = await ctx.db
       .query("artists")
       .withIndex("by_lower_name", (q) => q.eq("lowerName", args.key.toLowerCase()))
       .first();
     if (fuzzyMatches) return fuzzyMatches;
 
-    // NEW: Try partial slug match (e.g., slug with extra chars)
-    const normalizedKey = args.key.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const partialMatches = await ctx.db
+    // NEW: Parse TM ID from slug (e.g., /artists/tm:ABC123)
+    if (args.key.startsWith("tm:")) {
+      const tmId = args.key.slice(3);
+      const byParsedTM = await ctx.db
+        .query("artists")
+        .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", tmId))
+        .first();
+      if (byParsedTM) return byParsedTM;
+    }
+
+    // NEW: Enhanced fuzzy by partial slug/name match with Levenshtein
+    const partialCandidates = await ctx.db
       .query("artists")
       .filter((q) => q.eq(q.field("isActive"), true))
-      .take(100);
-    
-    const bestMatch = partialMatches.find(artist => 
-      artist.slug.includes(normalizedKey) || normalizedKey.includes(artist.slug)
-    );
-    if (bestMatch) return bestMatch;
+      .take(100); // Limit candidates
+
+    let bestMatch = null;
+    let bestScore = 0;
+    const threshold = 0.7; // Min similarity
+
+    for (const artist of partialCandidates) {
+      const normalizedKey = args.key.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const score = Math.max(
+        levenshteinDistance(artist.slug, normalizedKey),
+        levenshteinDistance(artist.name.toLowerCase(), args.key.toLowerCase())
+      );
+      if (score > bestScore && score > threshold) {
+        bestScore = score;
+        bestMatch = artist;
+      }
+    }
+
+    if (bestMatch) {
+      console.log(`Fuzzy match found for "${args.key}": ${bestMatch.name} (score: ${bestScore})`);
+      return bestMatch;
+    }
 
     return null;
   },
@@ -202,42 +252,45 @@ export const createFromTicketmaster = internalMutation({
   args: {
     ticketmasterId: v.string(),
     name: v.string(),
-    genres: v.array(v.string()),
-    images: v.array(v.string()),
+    genres: v.optional(v.array(v.string())),
+    images: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
-    // Check if artist already exists
-    const existing = await ctx.db
-      .query("artists")
-      .filter((q) => q.eq(q.field("ticketmasterId"), args.ticketmasterId))
-      .first();
-
-    if (existing) return existing._id;
-
     const lowerName = args.name.toLowerCase();
-    const existingByName = await ctx.db
+    // Check existing by name or TM ID
+    let existing = await ctx.db
       .query("artists")
       .withIndex("by_lower_name", (q) => q.eq("lowerName", lowerName))
       .first();
 
-    if (existingByName) {
-      // Merge: Patch with new data if different
-      await ctx.db.patch(existingByName._id, {
-        genres: args.genres && args.genres.length > 0 ? args.genres : existingByName.genres,
-        images: args.images && args.images.length > 0 ? args.images : existingByName.images,
-        ticketmasterId: args.ticketmasterId, // Ensure TM ID is set
-        lastSynced: Date.now(),
-      });
-      console.log(`✅ Updated existing artist ${args.name} (ID: ${existingByName._id}), genres: ${args.genres?.length || 0}`);
-      return existingByName._id;
+    if (!existing) {
+      existing = await ctx.db
+        .query("artists")
+        .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.ticketmasterId))
+        .first();
     }
 
-    // Create slug from name
-    const baseSlug = args.name.toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
-    
-    // Check for existing slugs and add a number if needed
+    if (existing) {
+      // Merge: Patch with new data
+      await ctx.db.patch(existing._id, {
+        genres: args.genres || existing.genres || [],
+        images: args.images || existing.images || [],
+        lastSynced: Date.now(),
+        popularity: existing.popularity || 0,
+        followers: existing.followers || 0,
+        upcomingShowsCount: existing.upcomingShowsCount || 0,
+        trendingScore: existing.trendingScore || 0,
+      });
+      // Sync post-merge
+      void ctx.scheduler.runAfter(0, internal.ticketmaster.syncArtistShows, { artistId: existing._id, ticketmasterId: args.ticketmasterId });
+      void ctx.scheduler.runAfter(0, internal.spotify.enrichArtistBasics, { artistId: existing._id, artistName: args.name });
+      const showCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId: existing._id });
+      await ctx.db.patch(existing._id, { upcomingShowsCount: showCount });
+      return existing._id;
+    }
+
+    // Create new
+    const baseSlug = args.name.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     let slug = baseSlug;
     let counter = 1;
     while (true) {
@@ -245,40 +298,33 @@ export const createFromTicketmaster = internalMutation({
         .query("artists")
         .withIndex("by_slug", (q) => q.eq("slug", slug))
         .first();
-      
       if (!existingWithSlug) break;
-      
-      // If an artist with this slug exists but it's the same ticketmaster ID, return it
-      if (existingWithSlug.ticketmasterId === args.ticketmasterId) {
-        console.log(`✅ Found existing artist by slug ${slug} (ID: ${existingWithSlug._id})`);
-        return existingWithSlug._id;
-      }
-      
-      // Otherwise, try a new slug
+      if (existingWithSlug.ticketmasterId === args.ticketmasterId) return existingWithSlug._id;
       slug = `${baseSlug}-${counter}`;
       counter++;
     }
 
-    // Critical: Always set lastSynced on creation and initialize ALL optional fields
     const artistId = await ctx.db.insert("artists", {
       slug,
       name: args.name,
       ticketmasterId: args.ticketmasterId,
-      genres: args.genres && args.genres.length > 0 ? args.genres : [],
-      images: args.images && args.images.length > 0 ? args.images : [],
+      genres: args.genres || [],
+      images: args.images || [],
       isActive: true,
-      trendingScore: 0, // Initialize with 0 instead of undefined
-      trendingRank: undefined,
-      upcomingShowsCount: 0, // Initialize with 0 - will be updated after show sync
-      popularity: 0, // Initialize with 0 - will be updated by Spotify sync
-      followers: 0, // Initialize with 0 - will be updated by Spotify sync
-      spotifyId: undefined, // Will be set by Spotify sync
-      lastSynced: Date.now(), // CRITICAL: Set initial sync timestamp
-      lastTrendingUpdate: Date.now(), // Initialize trending timestamp
-      lowerName, // Already defined above from checking existingByName
+      popularity: 0,
+      followers: 0,
+      lastSynced: Date.now(),
+      trendingScore: 0,
+      upcomingShowsCount: 0,
+      lowerName,
     });
-    
-    console.log(`✅ Created artist ${args.name} with ID ${artistId}, slug: ${slug}, genres: ${args.genres?.length || 0}`);
+
+    // Post-create sync
+    void ctx.scheduler.runAfter(0, internal.ticketmaster.syncArtistShows, { artistId, ticketmasterId: args.ticketmasterId });
+    void ctx.scheduler.runAfter(0, internal.spotify.enrichArtistBasics, { artistId, artistName: args.name });
+    const showCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId });
+    await ctx.db.patch(artistId, { upcomingShowsCount: showCount });
+
     return artistId;
   },
 });
@@ -579,12 +625,12 @@ export const getByTicketmasterIdInternal = internalQuery({
 export const create = internalMutation({
   args: {
     name: v.string(),
-    spotifyId: v.string(),
+    spotifyId: v.optional(v.string()),
     image: v.optional(v.string()),
     genres: v.array(v.string()),
-    popularity: v.number(),
-    followers: v.number(),
-    lastSynced: v.number(),
+    popularity: v.optional(v.number()),
+    followers: v.optional(v.number()),
+    lastSynced: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const lowerName = args.name.toLowerCase();
@@ -594,16 +640,26 @@ export const create = internalMutation({
       .first();
 
     if (existingByName) {
-      // Merge: Patch with new data if different
       await ctx.db.patch(existingByName._id, {
         genres: args.genres,
-        images: args.image ? [args.image] : [],
-        lastSynced: args.lastSynced,
+        images: args.image ? [args.image] : existingByName.images,
+        spotifyId: args.spotifyId || existingByName.spotifyId,
+        popularity: args.popularity || existingByName.popularity || 0,
+        followers: args.followers || existingByName.followers || 0,
+        lastSynced: args.lastSynced || Date.now(),
+        trendingScore: existingByName.trendingScore || 0,
+        upcomingShowsCount: existingByName.upcomingShowsCount || 0,
       });
+      // Sync if new Spotify data
+      if (args.spotifyId) {
+        await ctx.runAction(internal.spotify.enrichArtistBasics, { artistId: existingByName._id, artistName: args.name });
+      }
+      const showCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId: existingByName._id });
+      await ctx.db.patch(existingByName._id, { upcomingShowsCount: showCount });
       return existingByName._id;
     }
 
-    // Create SEO-friendly slug
+    // Create logic similar to above, with all fields set
     const slug = args.name.toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '') // Remove accents
@@ -620,15 +676,22 @@ export const create = internalMutation({
       spotifyId: args.spotifyId,
       images,
       genres: args.genres,
-      popularity: args.popularity,
-      followers: args.followers,
-      lastSynced: args.lastSynced || Date.now(), // CRITICAL: Ensure timestamp
+      popularity: args.popularity || 0,
+      followers: args.followers || 0,
+      lastSynced: args.lastSynced || Date.now(),
       isActive: true,
-      trendingScore: 1,
+      trendingScore: 0,
+      upcomingShowsCount: 0,
       lowerName,
     });
-    
-    console.log(`✅ Created artist ${args.name} with ID ${artistId}, slug: ${slug}`);
+
+    // Post-create sync for Spotify if ID provided
+    if (args.spotifyId) {
+      await ctx.runAction(internal.spotify.enrichArtistBasics, { artistId, artistName: args.name });
+    }
+    const showCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId });
+    await ctx.db.patch(artistId, { upcomingShowsCount: showCount });
+
     return artistId;
   },
 });

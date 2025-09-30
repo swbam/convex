@@ -169,3 +169,87 @@ export const setUserRoleById = internalMutation({
     return { success: true };
   },
 });
+
+export const createFromClerk = mutation({
+  args: { clerkUser: v.any() },
+  handler: async (ctx, args) => {
+    const { id, email_addresses, full_name, image_url, public_metadata } = args.clerkUser;
+    const email = email_addresses[0]?.email_address;
+    const name = full_name || email;
+    const avatar = image_url;
+    const spotifyId = public_metadata.spotifyId;
+
+    // Check existing
+    let user = await ctx.db
+      .query("users")
+      .withIndex("by_auth_id", { fields: ["authId"] })
+      .filter((q) => q.eq("authId", id))
+      .first();
+
+    if (!user) {
+      userId = await ctx.db.insert("users", {
+        authId: id,
+        email,
+        name,
+        avatar,
+        spotifyId,
+        role: "user", // Default
+        createdAt: Date.now(),
+      });
+    } else {
+      await ctx.db.patch(user._id, { email, name, avatar, spotifyId });
+      userId = user._id;
+    }
+
+    return userId;
+  },
+});
+
+export const updateFromClerk = mutation({
+  args: { clerkUser: v.any() },
+  handler: async (ctx, args) => {
+    const { id, email_addresses, full_name, image_url, public_metadata } = args.clerkUser;
+    const email = email_addresses[0]?.email_address;
+    const name = full_name || email;
+    const avatar = image_url;
+    const spotifyId = public_metadata.spotifyId;
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth_id", { fields: ["authId"] })
+      .filter((q) => q.eq("authId", id))
+      .first();
+
+    if (user) {
+      await ctx.db.patch(user._id, { email, name, avatar, spotifyId });
+    }
+  },
+});
+
+// For rate-limit in followArtist, fix to use runQuery
+export const followArtist = mutation({
+  args: { artistId: v.id("artists") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    const recentFollows = await ctx.runQuery(internal.users.getRecentActions, { userId, action: "follow", timeWindow: 60000 });
+
+    if (recentFollows.length >= 10) throw new Error("Rate limit exceeded");
+
+    await ctx.db.insert("userActions", { userId, action: "follow", timestamp: Date.now() });
+
+    // Existing follow logic...
+  },
+});
+
+// Add getRecentActions query
+export const getRecentActions = query({
+  args: { userId: v.id("users"), action: v.string(), timeWindow: v.number() },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("userActions")
+      .withIndex("by_user_time", { fields: ["userId", "timestamp"] })
+      .filter((q) => q.eq("userId", args.userId) && q.eq("action", args.action) && q.gt("timestamp", Date.now() - args.timeWindow))
+      .collect();
+  },
+});

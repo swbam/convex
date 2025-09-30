@@ -57,9 +57,11 @@ const applicationTables = {
     lat: v.optional(v.number()),
     lng: v.optional(v.number()),
     ticketmasterId: v.optional(v.string()),
+    postalCode: v.optional(v.string()),
   })
     .index("by_location", ["city", "country"]) 
-    .index("by_ticketmaster_id", ["ticketmasterId"]),
+    .index("by_ticketmaster_id", ["ticketmasterId"])
+    .index("by_name_city", ["name", "city"]),
 
   shows: defineTable({
     slug: v.optional(v.string()),
@@ -86,7 +88,8 @@ const applicationTables = {
     .index("by_venue", ["venueId"])
     .index("by_status", ["status"])
     .index("by_date", ["date"])
-    .index("by_trending_rank", ["trendingRank"]), // Fast trending query
+    .index("by_trending_rank", ["trendingRank"]) // Fast trending query
+    .index("by_date_status", ["date", "status"]), // Add for efficient upcoming queries
 
   songs: defineTable({
     title: v.string(),
@@ -307,4 +310,56 @@ const applicationTables = {
 
 export default defineSchema({
   ...applicationTables,
+  artists: defineTable({
+    name: v.string(),
+    slug: v.string(),
+    ticketmasterId: v.optional(v.string()),
+    spotifyId: v.optional(v.string()),
+    genres: v.array(v.string()),
+    images: v.array(v.string()),
+    popularity: v.number(),
+    followers: v.number(),
+    lastSynced: v.number(), // Now required
+    trendingScore: v.number(), // Now required, default 0 in mutations
+    upcomingShowsCount: v.number(), // Now required, default 0
+    isActive: v.boolean(),
+    lowerName: v.string(), // For fuzzy search, ensure always set
+    lastTrendingUpdate: v.number(), // Added
+  })
+    .index("by_slug", ["slug"])
+    .index("by_ticketmaster_id", ["ticketmasterId"])
+    .index("by_lower_name", ["lowerName"])
+    .index("by_trending_rank", { fields: ["trendingRank"] }), // Fixed syntax
+
+  shows: defineTable({
+    slug: v.optional(v.string()),
+    artistId: v.id("artists"),
+    venueId: v.id("venues"),
+    date: v.string(),
+    startTime: v.optional(v.string()),
+    status: v.union(v.literal("upcoming"), v.literal("completed"), v.literal("cancelled")),
+    ticketmasterId: v.optional(v.string()),
+    ticketUrl: v.optional(v.string()),
+    priceRange: v.optional(v.string()), // Min-max price
+    setlistfmId: v.optional(v.string()),
+    trendingScore: v.optional(v.number()),
+    trendingRank: v.optional(v.number()), // 1-20 for top trending
+    lastTrendingUpdate: v.optional(v.number()),
+    lastSynced: v.optional(v.number()),
+    voteCount: v.optional(v.number()), // Total votes on setlists for this show
+    setlistCount: v.optional(v.number()), // Number of user-submitted setlists
+    importStatus: v.optional(v.union(v.literal("pending"), v.literal("importing"), v.literal("completed"), v.literal("failed"), v.literal("no_setlist"))), // Added no_setlist
+    error: v.optional(v.string()), // Added for status
+  })
+    .index("by_trending_rank", { fields: ["trendingRank"] }) // Fixed
+    .index("by_date_status", { fields: ["date", "status"] }), // Fixed
+
+  venues: defineTable({
+    name: v.string(),
+    city: v.string(),
+    country: v.string(),
+    state: v.optional(v.string()), // Ensure optional but populate when available
+    postalCode: v.optional(v.string()), // Add for completeness
+  })
+    .index("by_name_city", ["name", "city"]), // Existing or add fuzzy if needed
 });

@@ -315,3 +315,108 @@ export const syncTrendingDataWithLogging = internalAction({
     return null;
   },
 });
+
+export const populateMissingFields = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    console.log("🔍 Scanning for missing/incomplete fields...");
+
+    const now = Date.now();
+    const staleThreshold = now - 24 * 60 * 60 * 1000; // 24h
+
+    // Scan artists: missing counts or stale
+    const incompleteArtists = await ctx.db
+      .query("artists")
+      .filter((q) => 
+        q.or(
+          q.eq(q.field("upcomingShowsCount"), 0),
+          q.lt(q.field("lastSynced"), staleThreshold)
+        )
+      )
+      .collect();
+
+    for (const artist of incompleteArtists.slice(0, 10)) { // Limit to 10 per run
+      try {
+        if (artist.ticketmasterId) {
+          await ctx.runAction(internal.ticketmaster.syncArtistShows, {
+            artistId: artist._id,
+            ticketmasterId: artist.ticketmasterId,
+          });
+          await ctx.runAction(internal.spotify.enrichArtistBasics, {
+            artistId: artist._id,
+            artistName: artist.name,
+          });
+        }
+        const showCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId: artist._id });
+        await ctx.db.patch(artist._id, {
+          upcomingShowsCount: showCount,
+          lastSynced: now,
+        });
+        console.log(`✅ Populated fields for artist ${artist.name}`);
+      } catch (e) {
+        console.error(`❌ Failed to populate ${artist.name}:`, e);
+      }
+    }
+
+    // Scan shows: missing artist/venue embeds or importStatus
+    const incompleteShows = await ctx.db
+      .query("shows")
+      .filter((q) => 
+        q.or(
+          q.eq(q.field("artist.name"), undefined), // Assuming embeds are fields like artist.name
+          q.eq(q.field("importStatus"), undefined),
+          q.neq(q.field("status"), "upcoming") // Focus on past for setlist
+        )
+      )
+      .take(20);
+
+    for (const show of incompleteShows) {
+      try {
+        if (show.artistId) {
+          const artist = await ctx.runQuery(internal.artists.getById, { id: show.artistId });
+          if (artist) {
+            await ctx.db.patch(show._id, {
+              artist: { name: artist.name, slug: artist.slug, images: artist.images },
+            });
+          }
+        }
+        if (show.venueId) {
+          const venue = await ctx.runQuery(internal.venues.getById, { id: show.venueId });
+          if (venue) {
+            await ctx.db.patch(show._id, {
+              venue: { name: venue.name, city: venue.city, state: venue.state, postalCode: venue.postalCode, country: venue.country },
+              importStatus: show.status === "completed" ? "pending" : show.importStatus || "pending",
+            });
+          }
+        }
+        // Trigger setlist if completed and pending
+        if (show.status === "completed" && (show.importStatus === "pending" || !show.importStatus)) {
+          await ctx.scheduler.runAfter(0, internal.setlistfm.syncActualSetlist, {
+            showId: show._id,
+            artistName: show.artist?.name,
+            venueCity: show.venue?.city,
+            showDate: show.date,
+          });
+        }
+        console.log(`✅ Fixed show ${show._id}`);
+      } catch (e) {
+        console.error(`❌ Failed to fix show ${show._id}:`, e);
+      }
+    }
+
+    // Similar for venues: populate state/postalCode if missing
+    const incompleteVenues = await ctx.db
+      .query("venues")
+      .filter((q) => q.or(q.eq(q.field("state"), undefined), q.eq(q.field("postalCode"), undefined)))
+      .take(10);
+
+    for (const venue of incompleteVenues) {
+      // Would need external lookup, but for now log or skip
+      console.log(`⚠️ Venue ${venue.name} missing details - manual update needed`);
+    }
+
+    console.log("✅ Missing fields population complete");
+    return null;
+  },
+});

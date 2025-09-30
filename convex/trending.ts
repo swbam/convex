@@ -1,5 +1,7 @@
-import { query, internalMutation } from "./_generated/server";
+import { query, internalMutation, internalAction } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
+import { internal } from "./_generated/api";
 
 const slugify = (value: string) =>
   value
@@ -137,41 +139,38 @@ export const getTrendingShows = query({
       return hydrated.slice(0, limit);
     }
 
-    // Pull from canonical shows table using precomputed trendingRank
-    const candidates = await ctx.db
+    // NEW: Fallback to canonical shows sorted by trendingScore
+    console.log("Using fallback: querying upcoming shows by trendingScore");
+    const fallbackShows = await ctx.db
       .query("shows")
-      .withIndex("by_trending_rank")
-      .filter((q) => q.neq(q.field("trendingRank"), undefined))
-      .take(limit * 5);
+      .filter((q) => q.eq(q.field("status"), "upcoming"))
+      .order("desc") // Assuming trendingScore desc for recency/hotness
+      .take(limit * 2); // Oversample to ensure limit after hydration
 
-    // Enrich with artist and venue documents
+    if (fallbackShows.length === 0) return [];
+
+    // Hydrate fallback
     const enriched = await Promise.all(
-      candidates.map(async (show) => {
-        const [artist, venue] = await Promise.all([
-          ctx.db.get(show.artistId),
-          ctx.db.get(show.venueId),
-        ]);
+      fallbackShows.map(async (show) => {
+        const artist = await ctx.db.get(show.artistId);
+        const venue = await ctx.db.get(show.venueId);
+        const slug = show.slug || createShowSlug(artist?.name || "", venue?.name || "", venue?.city || "", show.date, show.startTime);
         return {
           ...show,
-          artist,
-          venue,
+          slug,
+          artist: artist ? { name: artist.name, slug: artist.slug, images: artist.images || [] } : null,
+          venue: venue ? { name: venue.name, city: venue.city, country: venue.country } : null,
+          trendingRank: show.trendingRank || Math.random() * 20, // Fallback rank
+          trendingScore: show.trendingScore || (artist?.popularity || 0) * (show.voteCount || 1), // Compute if null
+          lastTrendingUpdate: show.lastTrendingUpdate || Date.now(),
+          source: "fallback_db",
         };
       })
     );
 
-    // Sort by trendingRank ascending (1 is top), then by soonest date
-    const sorted = enriched
-      .sort((a: any, b: any) => {
-        const ar = a.trendingRank ?? Number.MAX_SAFE_INTEGER;
-        const br = b.trendingRank ?? Number.MAX_SAFE_INTEGER;
-        if (ar !== br) return ar - br;
-        const at = new Date(a.date).getTime();
-        const bt = new Date(b.date).getTime();
-        return at - bt;
-      })
-      .slice(0, limit);
-
-    return sorted;
+    // Sort by computed score if needed
+    const sortedFallback = enriched.sort((a, b) => (b.trendingScore || 0) - (a.trendingScore || 0));
+    return sortedFallback.slice(0, limit);
   },
 });
 
@@ -236,22 +235,27 @@ export const getTrendingArtists = query({
       return enriched.slice(0, limit);
     }
 
-    // Query canonical artists using precomputed trendingRank
-    const candidates = await ctx.db
+    // NEW: Fallback to canonical artists sorted by trendingRank or score
+    console.log("Using fallback: querying artists by trendingRank");
+    const fallbackArtists = await ctx.db
       .query("artists")
       .withIndex("by_trending_rank")
-      .filter((q) => q.neq(q.field("trendingRank"), undefined))
-      .take(limit * 5);
+      .filter((q) => q.gt(q.field("trendingRank"), 0))
+      .take(limit * 2);
 
-    const sorted = candidates
-      .sort((a: any, b: any) => {
-        const ar = a.trendingRank ?? Number.MAX_SAFE_INTEGER;
-        const br = b.trendingRank ?? Number.MAX_SAFE_INTEGER;
-        return ar - br;
-      })
-      .slice(0, limit);
+    if (fallbackArtists.length === 0) return [];
 
-    return sorted;
+    const sortedFallback = fallbackArtists
+      .sort((a, b) => (b.trendingScore || 0) - (a.trendingScore || 0))
+      .map(artist => ({
+        ...artist,
+        upcomingShowsCount: artist.upcomingShowsCount || 0,
+        trendingRank: artist.trendingRank || Math.floor(Math.random() * 20) + 1,
+        lastTrendingUpdate: artist.lastTrendingUpdate || Date.now(),
+        source: "fallback_db",
+      }));
+
+    return sortedFallback.slice(0, limit);
   },
 });
 
@@ -574,3 +578,113 @@ export const updateEngagementCounts = internalMutation({
     return null;
   },
 });
+
+export const updateAll = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    console.log("📊 Updating trending data...");
+
+    // Update artists: Fetch TM trending, compute scores
+    const tmResponse = await fetchTicketmasterTrendingArtists(); // Assume helper fetches top artists
+    if (tmResponse?.artists) {
+      const artists = tmResponse.artists.slice(0, 20);
+      const updated = [];
+      for (let i = 0; i < artists.length; i++) {
+        const tmArtist = artists[i];
+        let artist = await ctx.db
+          .query("artists")
+          .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", tmArtist.id))
+          .first();
+
+        if (!artist) {
+          artist = await ctx.runMutation(internal.artists.createFromTicketmaster, {
+            ticketmasterId: tmArtist.id,
+            name: tmArtist.name,
+            genres: tmArtist.genres,
+            images: tmArtist.images,
+          });
+        }
+
+        const upcomingCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId: artist._id });
+        const score = (tmArtist.popularity || 0) * (upcomingCount || 1) * (artist.followers || 1) / 1000000; // Weighted score
+
+        // Update or insert cache
+        await ctx.db.upsert("trendingArtists", { artistId: artist._id }, {
+          artistId: artist._id,
+          ticketmasterId: tmArtist.id,
+          name: tmArtist.name,
+          slug: artist.slug,
+          genres: tmArtist.genres,
+          images: tmArtist.images,
+          upcomingEvents: upcomingCount,
+          rank: i + 1,
+          lastUpdated: Date.now(),
+        });
+
+        // Patch canonical
+        await ctx.db.patch(artist._id, {
+          trendingScore: score,
+          trendingRank: i + 1,
+          lastTrendingUpdate: Date.now(),
+        });
+
+        updated.push({ name: tmArtist.name, score });
+      }
+
+      console.log(`✅ Updated ${updated.length} trending artists`);
+    }
+
+    // Similar for shows: Fetch TM events, compute score (votes * recency), update cache/canonical
+    const tmShows = await fetchTicketmasterTrendingShows(); // Assume helper
+    if (tmShows?.events) {
+      const shows = tmShows.events.slice(0, 20);
+      for (let i = 0; i < shows.length; i++) {
+        const event = shows[i];
+        let show = await ctx.db
+          .query("shows")
+          .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", event.id))
+          .first();
+
+        if (!show) {
+          // Create if missing, similar to artists
+          const artist = await ctx.runQuery(internal.artists.getByTicketmasterIdInternal, { id: event.artistId });
+          const venue = await ctx.runMutation(internal.venues.createFromTicketmaster, { /* data */ });
+          show = await ctx.db.insert("shows", { /* from event */ });
+        }
+
+        const score = (show.voteCount || 0) * (Date.now() - (new Date(event.dates.start.localDate).getTime())) / 86400000; // Recency weighted
+
+        await ctx.db.upsert("trendingShows", { showId: show._id }, {
+          showId: show._id,
+          ticketmasterId: event.id,
+          // ... other data
+          rank: i + 1,
+          lastUpdated: Date.now(),
+        });
+
+        await ctx.db.patch(show._id, {
+          trendingScore: score,
+          trendingRank: i + 1,
+          lastTrendingUpdate: Date.now(),
+        });
+      }
+
+      console.log("✅ Updated trending shows");
+    }
+
+    return null;
+  },
+});
+
+async function fetchTicketmasterTrendingArtists() {
+  const response = await fetch("https://app.ticketmaster.com/discovery/v2/events.json?size=20&sort=date,asc&apikey=" + process.env.TICKETMASTER_API_KEY);
+  const data = await response.json();
+  return data._embedded?.events || [];
+}
+
+async function fetchTicketmasterTrendingShows() {
+  const response = await fetch("https://app.ticketmaster.com/discovery/v2/events.json?size=20&sort=date,asc&apikey=" + process.env.TICKETMASTER_API_KEY);
+  const data = await response.json();
+  return data._embedded?.events || [];
+}

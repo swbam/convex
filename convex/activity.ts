@@ -1,4 +1,4 @@
-import { query, internalMutation } from "./_generated/server";
+import { query, internalMutation, subscription } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "./auth";
 import { Id } from "./_generated/dataModel";
@@ -432,5 +432,55 @@ export const getTrendingSetlists = query({
       .filter(s => s !== null)
       .sort((a: any, b: any) => b.voteCount - a.voteCount)
       .slice(0, limit);
+  },
+});
+
+export const getVoteAccuracy = query({
+  args: { userId: v.id("users") },
+  returns: v.number(), // Percentage 0-1
+  handler: async (ctx, args) => {
+    const userVotes = await ctx.db
+      .query("songVotes")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    let correct = 0;
+    let total = 0;
+    for (const vote of userVotes) {
+      if (vote.setlistId) {
+        const setlist = await ctx.db.get(vote.setlistId);
+        if (setlist && setlist.actualSetlist) {
+          const song = setlist.actualSetlist.find(s => s.title === vote.songTitle);
+          if (song && vote.voteType === "upvote") correct++; // Simple: upvote if in setlist
+          total++;
+        }
+      }
+    }
+    return total > 0 ? correct / total : 0;
+  },
+});
+
+export const getRecentPredictions = query({
+  args: { userId: v.id("users"), limit: v.number() },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    // Assume predictions in activity or separate table; query last votes as proxy
+    return await ctx.db
+      .query("songVotes")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .take(args.limit);
+  },
+});
+
+export const subscribeToUserActivity = subscription({
+  args: { userId: v.id("users") },
+  returns: v.array(v.any()),
+  handler: (ctx, args) => {
+    return ctx.db
+      .query("activity")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .take(50);
   },
 });

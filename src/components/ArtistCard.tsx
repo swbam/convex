@@ -1,24 +1,17 @@
-import React from 'react'
-import { motion } from 'framer-motion'
-import { Id } from '../../convex/_generated/dataModel'
-import { MagicCard } from './ui/magic-card'
-import { BorderBeam } from './ui/border-beam'
-import { Users } from 'lucide-react'
-
-interface Artist {
-  _id: Id<'artists'>
-  name: string
-  genres?: string[]
-  images?: string[]
-  followers?: number
-  popularity?: number
-  trendingScore?: number
-  slug?: string
-}
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Id } from "../../convex/_generated/dataModel";
+import { api } from "../../convex/_generated/api";
+import { useMutation } from "convex/react";
+import { Button } from "./ui/button";
+import { Heart } from "lucide-react";
+import { toast } from "sonner";
+import { Card } from "./ui/Card"; // New shared
 
 interface ArtistCardProps {
-  artist: Artist
-  onClick: (artistId: Id<'artists'>, slug?: string) => void
+  artist: any;
+  onClick: (artistId: Id<'artists'>, slug?: string) => void;
+  showFollowButton?: boolean;
 }
 
 export function ArtistCard({ 
@@ -26,9 +19,21 @@ export function ArtistCard({
   onClick,
   showFollowButton = true,
 }: ArtistCardProps & { showFollowButton?: boolean }) {
+  const followArtist = useMutation(api.artists.followArtist);
+  const isFollowing = artist.isFollowing;
+
   const handleClick = () => {
-    onClick(artist._id, artist.slug)
-  }
+    onClick(artist._id, artist.slug);
+  };
+
+  const handleFollow = async () => {
+    try {
+      await followArtist({ artistId: artist._id });
+      toast.success(isFollowing ? "Unfollowed" : "Following");
+    } catch (error) {
+      toast.error("Failed to update follow");
+    }
+  };
 
   return (
     <motion.div
@@ -37,69 +42,30 @@ export function ArtistCard({
       transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
       whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
       whileTap={{ scale: 0.98 }}
-      className="group cursor-pointer relative overflow-hidden touch-manipulation h-full bg-black rounded-2xl"
-      onClick={handleClick}
-      style={{
-        borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-      }}
     >
-      {/* Enhanced Artist Image with Better Visibility */}
-      <div className="relative w-full h-32 sm:h-36 lg:h-40 overflow-hidden">
-        {artist.images?.[0] ? (
-          <img 
-            src={artist.images[0]} 
-            alt={artist.name}
-            loading="lazy"
-            decoding="async"
-            className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-all duration-500 group-hover:scale-105"
-          />
-        ) : (
-          <div className="w-full h-full bg-white/5 flex items-center justify-center">
-            <span className="text-white/60 font-bold text-2xl sm:text-3xl">
-              {artist.name.slice(0, 2).toUpperCase()}
-            </span>
-          </div>
-        )}
-      </div>
-      
-      <div className="relative z-10 p-3 sm:p-4 min-h-[140px] flex flex-col" onClick={handleClick}>
-        {/* Artist Info - Clean Apple Style */}
-        <div className="mb-3 flex-1">
-          <h3 className="font-semibold text-white text-sm sm:text-base mb-1 group-hover:text-primary transition-colors line-clamp-2">
-            {artist.name}
-          </h3>
-          
-          <div className="space-y-1">
-            {artist.genres?.[0] && (
-              <p className="text-xs text-gray-400 truncate">
-                {artist.genres[0]}
-              </p>
-            )}
-            
-            {artist.followers && (
-              <div className="flex items-center gap-1 text-xs text-gray-500">
-                <Users className="h-3 w-3 flex-shrink-0" />
-                <span>{(artist.followers / 1000000).toFixed(1)}M followers</span>
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {/* Minimal Action - Apple Style */}
-        <div className="flex items-center justify-between mt-auto pt-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onClick(artist._id, artist.slug)
-            }}
-            className="text-primary text-sm font-medium hover:text-primary/80 transition-colors"
+      <Card 
+        variant="artist"
+        onClick={handleClick}
+        imageSrc={artist.images?.[0]}
+        title={artist.name}
+        subtitle={artist.genres?.[0]}
+      >
+        <p className="text-gray-400 text-sm">{artist.upcomingShowsCount || 0} shows</p>
+        {showFollowButton && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={(e) => { e.stopPropagation(); handleFollow(); }}
+            className="mt-2 p-1 h-auto self-end"
           >
-            View Shows
-          </button>
-          <div className="text-xs text-gray-500">\u203A</div>
-        </div>
-      </div>
+            <Heart className={`h-4 w-4 ${isFollowing ? 'fill-red-500 text-red-500' : ''}`} />
+          </Button>
+        )}
+      </Card>
     </motion.div>
-  )
+  );
 }
+
+const ArtistCardMemo = React.memo(ArtistCard);
+
+export { ArtistCardMemo as ArtistCard };

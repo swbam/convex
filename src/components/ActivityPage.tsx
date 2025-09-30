@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useQuery } from 'convex/react';
+import React, { useState, useMemo } from 'react';
+import { useQuery, useSubscription, useInfiniteQuery } from 'convex/react'; // Assume useInfiniteQuery available or implement pagination
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
@@ -8,6 +8,8 @@ import { BorderBeam } from './ui/border-beam';
 import { Button } from './ui/button';
 import { Activity, Calendar, Clock, Music, Star, TrendingUp, Vote, ArrowLeft } from 'lucide-react';
 import { FadeIn, StaggerChildren, StaggerItem } from './animations/FadeIn';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Loader2 } from 'lucide-react';
 
 interface ActivityPageProps {
   onArtistClick: (artistId: Id<"artists">, slug?: string) => void;
@@ -16,45 +18,51 @@ interface ActivityPageProps {
 
 export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) {
   const navigate = useNavigate();
-  const userVotes = useQuery(api.songVotes.getUserVotes, { limit: 100 });
   const user = useQuery(api.auth.loggedInUser);
-  const activityFeed = useQuery(api.activity.getUserActivityFeed, { limit: 50 });
+  const userId = user?.appUser?._id;
+
+  // Real-time subscription for live feed
+  const liveActivity = useSubscription(api.activity.subscribeToUserActivity, { userId }, { initialValue: [] });
+
+  // Paginated feed
+  const {
+    data: activityPages,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery(api.activity.getUserActivityFeed, ({ pageParam = 0 }) => ({ limit: 20, cursor: pageParam }), {
+    getNextPageParam: (lastPage) => lastPage.continueCursor,
+  });
+
+  const activityFeed = activityPages?.pages.flatMap(page => page.page) || liveActivity || [];
+
+  // Enhanced stats: accuracy and recent predictions
   const activityStats = useQuery(api.activity.getUserActivityStats);
+  const voteAccuracy = useQuery(api.activity.getVoteAccuracy, { userId }); // New query: % votes matching actual setlists
+  const recentPredictions = useQuery(api.activity.getRecentPredictions, { userId, limit: 5 });
+
   const [filter, setFilter] = useState<'all' | 'recent'>('all');
 
-  // Group votes by date
-  const groupedVotes = React.useMemo(() => {
-    if (!userVotes) return {};
-    
-    const groups: Record<string, typeof userVotes> = {};
+  // Group by date with dividers
+  const groupedActivity = useMemo(() => {
+    if (!activityFeed) return {};
+    const groups: Record<string, any[]> = {};
     const now = Date.now();
     const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
-    
-    const filteredVotes = filter === 'recent' 
-      ? userVotes.filter(v => v.createdAt > oneWeekAgo)
-      : userVotes;
-    
-    filteredVotes.forEach(vote => {
-      const date = new Date(vote.createdAt).toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric'
-      });
-      
-      if (!groups[date]) {
-        groups[date] = [];
-      }
-      groups[date].push(vote);
-    });
-    
-    return groups;
-  }, [userVotes, filter]);
 
-  const totalVotes = userVotes?.length || 0;
-  const uniqueSetlists = userVotes ? new Set(userVotes.map(v => v.setlistId)).size : 0;
-  const recentVotes = userVotes?.filter(v => 
-    v.createdAt > Date.now() - (7 * 24 * 60 * 60 * 1000)
-  ).length || 0;
+    const filtered = filter === 'recent' ? activityFeed.filter(a => a.createdAt > oneWeekAgo) : activityFeed;
+
+    filtered.forEach(activity => {
+      const date = new Date(activity.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+      if (!groups[date]) groups[date] = [];
+      groups[date].push(activity);
+    });
+
+    return groups;
+  }, [activityFeed, filter]);
+
+  const totalVotes = activityFeed.filter(a => a.type === 'song_vote').length || 0;
+  const accuracy = voteAccuracy ? `${Math.round(voteAccuracy * 100)}%` : 'N/A';
 
   // CRITICAL FIX: Proper user state detection
   // user === undefined means still loading from Convex
@@ -256,6 +264,27 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
         </div>
         <BorderBeam size={120} duration={10} className="opacity-20" />
       </MagicCard>
+      </FadeIn>
+
+      {/* Recent Predictions */}
+      <FadeIn delay={0.8} duration={0.5}>
+        <MagicCard className="p-0 rounded-2xl border-0 bg-black" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
+          <div className="p-4 sm:p-6">
+            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+              <Star className="h-5 w-5 text-yellow-400" />
+              Recent Predictions
+            </h2>
+            <div className="space-y-4">
+              {recentPredictions?.map(pred => (
+                <div key={pred._id} className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-white font-medium">{pred.show.artist.name} - {pred.predictedSongs.join(', ')}</p>
+                  <p className="text-xs text-gray-400">{new Date(pred.createdAt).toLocaleDateString()} {new Date(pred.createdAt).toLocaleTimeString()}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <BorderBeam size={120} duration={10} className="opacity-20" />
+        </MagicCard>
       </FadeIn>
     </div>
   );

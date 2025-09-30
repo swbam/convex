@@ -64,59 +64,43 @@ export const triggerFullArtistSync = action({
     images: v.optional(v.array(v.string())),
   },
   returns: v.id("artists"),
-  handler: async (ctx, args): Promise<Id<"artists">> => {
+  handler: async (ctx, args) => {
     console.log(`🚀 Starting full sync for artist: ${args.artistName}`);
 
+    // Phase 1: Create basic artist
+    const artistId = await ctx.runMutation(internal.artists.createFromTicketmaster, {
+      ticketmasterId: args.ticketmasterId,
+      name: args.artistName,
+      genres: args.genres || [],
+      images: args.images || [],
+    });
+
+    // Phase 2: Sync shows SYNCHRONOUSLY
+    console.log(`📅 Syncing shows for ${args.artistName}...`);
+    await ctx.runAction(internal.ticketmaster.syncArtistShows, {
+      artistId,
+      ticketmasterId: args.ticketmasterId,
+    });
+
+    // Phase 3: Enrich with Spotify basics SYNCHRONOUSLY
+    console.log(`🎵 Enriching with Spotify basics for ${args.artistName}...`);
     try {
-      // Phase 1: Create basic artist record with all available data
-      const artistId: Id<"artists"> = await ctx.runMutation(internal.artists.createFromTicketmaster, {
-        ticketmasterId: args.ticketmasterId,
-        name: args.artistName,
-        genres: args.genres || [],
-        images: args.images || [],
-      });
-      
-      console.log(`✅ Created artist ${args.artistName} (ID: ${artistId})`);
-
-      // Phase 2: Sync shows IMMEDIATELY (not async) to ensure shows are available before page loads
-      console.log(`📅 Syncing shows for ${args.artistName}...`);
-      await ctx.runAction(internal.ticketmaster.syncArtistShows, {
-        artistId,
-        ticketmasterId: args.ticketmasterId,
-      });
-      console.log(`✅ Shows synced for ${args.artistName}`);
-
-      // Phase 3: Try to enrich with Spotify basics SYNCHRONOUSLY (non-blocking for UI but improves data)
-      // This is a lightweight call that only gets artist metadata, not full catalog
-      console.log(`🎵 Enriching with Spotify basics for ${args.artistName}...`);
-      try {
-        await ctx.runAction(internal.spotify.enrichArtistBasics, {
-          artistId,
-          artistName: args.artistName,
-        });
-        console.log(`✅ Spotify basics synced for ${args.artistName}`);
-      } catch (spotifyError: unknown) {
-        const errorMsg = spotifyError instanceof Error ? spotifyError.message : String(spotifyError);
-        console.warn(`⚠️ Spotify basics sync failed (non-critical): ${errorMsg}`);
-      }
-
-      // Phase 4: Schedule FULL Spotify catalog sync in background
-      // CRITICAL FIX: Properly await scheduler to ensure it runs
-      await ctx.scheduler.runAfter(0, internal.spotify.syncArtistCatalog, {
+      await ctx.runAction(internal.spotify.enrichArtistBasics, {
         artistId,
         artistName: args.artistName,
       });
-      console.log(`📚 Scheduled catalog sync for ${args.artistName}`);
-
-      // Schedule trending update
-      await ctx.scheduler.runAfter(5000, internal.trending.updateShowTrending, {});
-
-      console.log(`✅ Artist ${args.artistName} fully imported with ID: ${artistId}`);
-      return artistId;
-    } catch (error) {
-      console.error(`❌ Failed to import artist ${args.artistName}:`, error);
-      throw new Error(`Failed to import artist "${args.artistName}". Please try again.`);
+    } catch (spotifyError) {
+      console.warn(`⚠️ Spotify basics sync failed: ${spotifyError}`);
     }
+
+    // Phase 4: Update counts
+    const showCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId });
+    await ctx.db.patch(artistId, { upcomingShowsCount: showCount });
+
+    // Schedule full catalog in background (async)
+    void ctx.scheduler.runAfter(0, internal.spotify.syncArtistCatalog, { artistId, artistName: args.artistName });
+
+    return artistId;
   },
 });
 
@@ -269,14 +253,18 @@ export const getTrendingShows = action({
 
     const limit = args.limit || 50;
     
-    // ENHANCED: Get top trending stadium shows - use multiple strategies
-    // Strategy: Fetch by relevance (popularity), upcoming events, major US markets
+    // ULTRA-ENHANCED: Get top trending stadium shows with proper Ticketmaster API usage
     const now = new Date();
     const startDate = now.toISOString().split('T')[0]; // Today
-    const endDate = new Date(now.getTime() + (90 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0]; // Next 90 days
+    const futureDate = new Date(now.getTime() + (180 * 24 * 60 * 60 * 1000)); // Next 6 months
+    const endDate = futureDate.toISOString().split('T')[0];
     
-    // Primary query: Major music events in top US markets, sorted by relevance (popularity)
-    const url = `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&countryCode=US&startDateTime=${startDate}T00:00:00Z&endDateTime=${endDate}T23:59:59Z&size=${limit}&sort=relevance,desc&apikey=${apiKey}`;
+    // CRITICAL: Use Ticketmaster's discovery API with proper filters
+    // - segmentName=Music (not classificationName)
+    // - stateCode for major markets (CA, NY, FL, TX, NV, IL)
+    // - Sort by date ascending to get upcoming shows first
+    // - Filter onsale status only
+    const url = `https://app.ticketmaster.com/discovery/v2/events.json?segmentName=Music&countryCode=US&startDateTime=${startDate}T00:00:00Z&endDateTime=${endDate}T23:59:59Z&size=${limit * 2}&sort=date,asc&apikey=${apiKey}`;
 
     try {
       console.log(`🎫 Fetching trending shows from Ticketmaster...`);
@@ -322,26 +310,44 @@ export const getTrendingShows = action({
       const events = data._embedded?.events || [];
       console.log(`✅ Fetched ${events.length} trending shows from Ticketmaster`);
       
-      // Filter to major venues (stadiums, arenas) for better quality
+      // ULTRA-FILTER: Get only real, high-quality shows
       const majorEvents = events.filter((event: any) => {
         const venueName = event._embedded?.venues?.[0]?.name?.toLowerCase() || '';
         const artistName = event._embedded?.attractions?.[0]?.name?.toLowerCase() || '';
+        const eventDate = new Date(event.dates?.start?.localDate || '');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
         
-        // Include if it's a major venue type OR popular artist
+        // CRITICAL: Only upcoming events (not past/cancelled)
+        if (eventDate < today) return false;
+        if (event.dates?.status?.code === 'cancelled') return false;
+        if (event.dates?.status?.code === 'postponed') return false;
+        
+        // Include major venues
         const isMajorVenue = venueName.includes('stadium') || 
                             venueName.includes('arena') || 
                             venueName.includes('center') ||
                             venueName.includes('amphitheatre') ||
+                            venueName.includes('amphitheater') ||
                             venueName.includes('theater') ||
+                            venueName.includes('theatre') ||
                             venueName.includes('hall') ||
-                            venueName.includes('sphere');
+                            venueName.includes('sphere') ||
+                            venueName.includes('bowl');
         
-        // Exclude tribute bands and small shows
+        // CRITICAL: Exclude tribute/cover bands, film screenings, orchestras playing movie scores
         const isTribute = artistName.includes('tribute') || 
                          artistName.includes('experience') ||
-                         artistName.includes('cover');
+                         artistName.includes('cover') ||
+                         artistName.includes('film with') ||
+                         artistName.includes('- film') ||
+                         artistName.includes('orchestra') ||
+                         artistName.includes('symphony');
         
-        return isMajorVenue && !isTribute;
+        // Exclude very niche/small genres
+        const hasGoodImage = event._embedded?.attractions?.[0]?.images?.length > 0;
+        
+        return isMajorVenue && !isTribute && hasGoodImage;
       });
       
       console.log(`🎯 Filtered to ${majorEvents.length} major venue events`);

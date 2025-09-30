@@ -24,5 +24,18 @@ crons.interval("sync-engagement-counts", { minutes: 30 }, internal.trending.upda
 // NEW: Auto-transition show statuses (every hour to catch completed shows quickly)
 crons.interval("auto-transition-shows", { hours: 1 }, internal.shows.autoTransitionStatuses, {});
 
+// New: Data validation and population
+crons.interval("populate-missing-fields", { minutes: 30 }, internal.maintenance.populateMissingFields, {});
+
+// New: Setlist imports
+crons.interval("setlist-check", { hours: 1 }, internal.setlistfm.checkCompletedShows, {});
+crons.interval("pending-scan", { minutes: 15 }, internal.setlistfm.scanPendingImports, {});
+
+// Spotify refresh
+crons.interval("spotify-refresh", { hours: 6 }, internal.spotifyAuth.refreshUserTokens, {});
+
+// Trending update
+crons.interval("trending-update", { hours: 2 }, internal.trending.updateAll, {});
+
 export default crons;
 

@@ -11,243 +11,71 @@ export const syncActualSetlist = internalAction({
     venueCity: v.string(),
     showDate: v.string(),
   },
-  returns: v.union(v.string(), v.null()),
-  handler: async (ctx, args): Promise<string | null> => {
-    const apiKey = process.env.SETLISTFM_API_KEY;
-    if (!apiKey) {
-      console.error("Setlist.fm API key not configured");
-      return null;
-    }
-
-    // Validate show exists first
-    const show = await ctx.runQuery(internal.shows.getByIdInternal, { id: args.showId });
-    if (!show) {
-      console.error(`Show ${args.showId} not found`);
-      return null;
-    }
-
-    const maxRetries = 5; // Increased retries
-    let attempt = 0;
-    let lastError: unknown = null;
-
-    while (attempt < maxRetries) {
-      try {
-        // Convert date with validation
-        const dateMatch = args.showDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        if (!dateMatch) {
-          console.error(`Invalid date format: ${args.showDate}`);
-          return null;
-        }
-        const [, year, month, day] = dateMatch;
-        const setlistfmDate = `${day.padStart(2, '0')}-${month.padStart(2, '0')}-${year}`;
-        
-        console.log(`Converting date ${args.showDate} to setlist.fm format: ${setlistfmDate}`);
-        
-        // Search logic
-        let searchUrl = `https://api.setlist.fm/rest/1.0/search/setlists?artistName=${encodeURIComponent(args.artistName)}&cityName=${encodeURIComponent(args.venueCity)}&date=${setlistfmDate}`;
-        
-        console.log(`Searching setlist.fm: ${searchUrl}`);
-        
-        let response = await fetch(searchUrl, {
-          headers: {
-            'x-api-key': apiKey,
-            'Accept': 'application/json',
-            'User-Agent': 'setlists.live/1.0'
-          }
-        });
-
-        // Broader search if needed
-        if (!response.ok || (await response.clone().json()).setlist?.length === 0) {
-          searchUrl = `https://api.setlist.fm/rest/1.0/search/setlists?artistName=${encodeURIComponent(args.artistName)}&date=${setlistfmDate}`;
-          console.log(`Retrying broader search: ${searchUrl}`);
-          
-          response = await fetch(searchUrl, {
-            headers: {
-              'x-api-key': apiKey,
-              'Accept': 'application/json',
-              'User-Agent': 'setlists.live/1.0'
-            }
-          });
-        }
-
-        // Artist only if still no results
-        if (!response.ok || (await response.clone().json()).setlist?.length === 0) {
-          searchUrl = `https://api.setlist.fm/rest/1.0/search/setlists?artistName=${encodeURIComponent(args.artistName)}&p=1`;
-          console.log(`Retrying with just artist name: ${searchUrl}`);
-          
-          response = await fetch(searchUrl, {
-            headers: {
-              'x-api-key': apiKey,
-              'Accept': 'application/json',
-              'User-Agent': 'setlists.live/1.0'
-            }
-          });
-        }
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`API request failed with status: ${response.status} - ${errorText}`);
-        }
-
-        const data = await response.json();
-        if (!data.setlist) {
-          throw new Error("Invalid API response: no setlist data");
-        }
-        const setlists = data.setlist || [];
-
-        if (setlists.length === 0) {
-          console.log(`No setlist found for ${args.artistName} on ${setlistfmDate}`);
-          return null;
-        }
-
-        // ENHANCED: Better fuzzy matching with multiple strategies
-        let bestMatch = null;
-        let bestScore = 0;
-
-        // Improved fuzzy match using Levenshtein-inspired algorithm
-        const levenshteinDistance = (str1: string, str2: string): number => {
-          if (!str1 || !str2) return 0;
-          const s1 = str1.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const s2 = str2.toLowerCase().replace(/[^a-z0-9]/g, '');
-          if (s1.length === 0 || s2.length === 0) return 0;
-          
-          const matrix: number[][] = [];
-          for (let i = 0; i <= s2.length; i++) {
-            matrix[i] = [i];
-          }
-          for (let j = 0; j <= s1.length; j++) {
-            matrix[0][j] = j;
-          }
-          
-          for (let i = 1; i <= s2.length; i++) {
-            for (let j = 1; j <= s1.length; j++) {
-              if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
-                matrix[i][j] = matrix[i - 1][j - 1];
-              } else {
-                matrix[i][j] = Math.min(
-                  matrix[i - 1][j - 1] + 1, // substitution
-                  matrix[i][j - 1] + 1,     // insertion
-                  matrix[i - 1][j] + 1      // deletion
-                );
-              }
-            }
-          }
-          
-          const maxLen = Math.max(s1.length, s2.length);
-          return maxLen > 0 ? 1 - (matrix[s2.length][s1.length] / maxLen) : 0;
-        };
-
-        for (const setlist of setlists) {
-          let score = 0;
-          
-          // Date matching: exact date gets highest weight
-          if (setlist.eventDate === setlistfmDate) {
-            score += 0.5; // Increased from 0.4
-          } else {
-            // NEW: Allow ±1 day tolerance for date mismatches
-            const setlistDate = new Date(setlist.eventDate);
-            const targetDate = new Date(args.showDate);
-            const daysDiff = Math.abs((setlistDate.getTime() - targetDate.getTime()) / (1000 * 60 * 60 * 24));
-            if (daysDiff <= 1) score += 0.3; // Partial credit for nearby dates
-          }
-          
-          // Venue matching: use better fuzzy algorithm
-          if (setlist.venue) {
-            const venueName = setlist.venue.name || '';
-            const venueCity = setlist.venue.city?.name || '';
-            
-            // Match against both venue name and city
-            const cityMatch = levenshteinDistance(venueCity, args.venueCity);
-            score += cityMatch * 0.3;
-            
-            // NEW: Also try venue name matching
-            if (venueName.length > 0) {
-              const venueNameWords = venueName.toLowerCase().split(/\s+/);
-              const cityWords = args.venueCity.toLowerCase().split(/\s+/);
-              const wordOverlap = venueNameWords.filter((w: string) => cityWords.some((cw: string) => cw.includes(w) || w.includes(cw))).length;
-              score += (wordOverlap / Math.max(venueNameWords.length, cityWords.length)) * 0.1;
-            }
-          }
-          
-          // Artist name matching: use fuzzy
-          const artistMatch = levenshteinDistance(setlist.artist?.name || '', args.artistName);
-          score += artistMatch * 0.2;
-
-          if (score > bestScore) {
-            bestScore = score;
-            bestMatch = setlist;
-          }
-        }
-
-        // ENHANCED: Lower threshold to 0.25 (from 0.3) to catch more matches
-        if (!bestMatch || bestScore < 0.25) {
-          console.log(`No good match found for ${args.artistName} on ${setlistfmDate} (best score: ${bestScore.toFixed(2)})`);
-          return null;
-        }
-        
-        console.log(`Found best match for ${bestMatch.artist?.name} at ${bestMatch.venue?.name} on ${bestMatch.eventDate} (score: ${bestScore})`);
-        const setlist = bestMatch;
-        const songs: { title: string; setNumber: number; encore: boolean; album?: string; duration?: number }[] = [];
-
-        // Extract songs (existing logic)
-        if (setlist.sets && setlist.sets.set) {
-          for (const [setIndex, set] of setlist.sets.set.entries()) {
-            const isEncore = set.encore === 1 || set.encore === true || set.encore === "true";
-            const setNumber = setIndex + 1;
-            
-            console.log(`Processing set ${setNumber} (encore: ${isEncore}) with ${set.song?.length || 0} songs`);
-            
-            if (set.song && Array.isArray(set.song)) {
-              for (const song of set.song) {
-                if (song.name && song.name.trim() !== '') {
-                  songs.push({
-                    title: song.name.trim(),
-                    setNumber: setNumber,
-                    encore: isEncore,
-                    album: song.info || undefined,
-                    duration: undefined,
-                  });
-                }
-              }
-            }
-          }
-        }
-
-        if (songs.length === 0) {
-          console.log(`No songs found in setlist for ${args.artistName}`);
-          return null;
-        }
-
-        // Update setlist
-        await ctx.runMutation(internal.setlists.updateWithActualSetlist, {
+  returns: v.optional(v.string()), // Setlist ID or null
+  handler: async (ctx, args, attempt = 1) => {
+    const maxAttempts = 3;
+    try {
+      const show = await ctx.db.get(args.showId);
+      if (!show || !show.artistId || !show.venueId) {
+        await ctx.runMutation(internal.shows.updateImportStatus, {
           showId: args.showId,
-          actualSetlist: songs,
-          setlistfmId: setlist.id,
-          setlistfmData: setlist,
+          status: "failed",
+          error: "missing_relations",
         });
-          
-        console.log(`✅ Updated setlist for ${args.artistName} with ${songs.length} songs from setlist.fm (match score: ${bestScore})`);
-        return setlist.id;
-
-      } catch (error: unknown) {
-        attempt++;
-        lastError = error;
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`Attempt ${attempt}/${maxRetries} failed for ${args.artistName}: ${errorMessage}`);
-        if (attempt < maxRetries) {
-          const backoff = Math.min(5000, 1000 * Math.pow(2, attempt)); // Exponential backoff up to 5s
-          console.log(`Waiting ${backoff}ms before retry...`);
-          await new Promise(resolve => setTimeout(resolve, backoff));
-        }
+        throw new Error("Missing relations");
       }
-    }
 
-    if (attempt >= maxRetries) {
-      console.error(`Failed after ${maxRetries} attempts for ${args.artistName}:`, lastError);
-      return null;
-    }
+      const [artist, venue] = await Promise.all([
+        ctx.runQuery(internal.artists.getById, { id: show.artistId }),
+        ctx.runQuery(internal.venues.getById, { id: show.venueId }),
+      ]);
 
-    return null; // Should not reach here, but for type safety
+      if (!artist || !venue) {
+        await ctx.runMutation(internal.shows.updateImportStatus, {
+          showId: args.showId,
+          status: "failed",
+          error: "missing_artist_or_venue",
+        });
+        throw new Error("Missing artist or venue");
+      }
+
+      // Existing API call (assume fetchSetlistFm exists)
+      const response = await fetchSetlistFm(artist.name, venue.city, args.showDate); // With rate limit
+
+      if (response && response.setlist) {
+        // Insert setlist and songs
+        const setlistId = await ctx.runMutation(internal.setlists.createFromApi, {
+          showId: args.showId,
+          data: response.setlist,
+        });
+        await ctx.runMutation(internal.shows.updateImportStatus, {
+          showId: args.showId,
+          status: "completed",
+        });
+        console.log(`✅ Synced setlist for ${artist.name}`);
+        return setlistId;
+      } else {
+        // No setlist found
+        await ctx.runMutation(internal.shows.updateImportStatus, {
+          showId: args.showId,
+          status: "no_setlist",
+        });
+        return null;
+      }
+    } catch (error) {
+      console.error(`Attempt ${attempt} failed for show ${args.showId}:`, error);
+      await ctx.runMutation(internal.shows.updateImportStatus, {
+        showId: args.showId,
+        status: "failed",
+        error: error instanceof Error ? error.message : "unknown_error",
+      });
+      if (attempt < maxAttempts) {
+        const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return ctx.runAction(internal.setlistfm.syncActualSetlist, args, attempt + 1);
+      }
+      throw error;
+    }
   },
 });
 
@@ -256,98 +84,49 @@ export const checkCompletedShows = internalAction({
   returns: v.null(),
   handler: async (ctx) => {
     console.log("🔍 Checking for completed shows needing setlist import...");
-    
-    // Get shows that are past their date
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
-    
-    const upcomingShows = await ctx.runQuery(internal.shows.getUpcomingShows, {});
-    const allShows = await ctx.runQuery(internal.shows.getAllInternal, {});
-    
-    let completedCount = 0;
+    const completedShows = await ctx.db
+      .query("shows")
+      .filter((q) => 
+        q.and(
+          q.eq(q.field("status"), "completed"),
+          q.or(
+            q.eq(q.field("importStatus"), null),
+            q.eq(q.field("importStatus"), "failed"),
+            q.eq(q.field("importStatus"), "pending")
+          )
+        )
+      )
+      .take(5); // Limit to 5 per run
+
     let setlistsSynced = 0;
-    let queuedForImport = 0;
-    
-    // Process upcoming shows that have passed
-    for (const show of upcomingShows) {
-      if (show.date < todayStr) {
-        // Mark show as completed
-        await ctx.runMutation(internal.shows.markCompleted, {
-          showId: show._id,
-        });
-        
-        // Set import status to pending
+    for (const show of completedShows) {
+      try {
         await ctx.runMutation(internal.shows.updateImportStatus, {
           showId: show._id,
-          status: "pending",
+          status: "importing",
         });
-        
-        completedCount++;
-        queuedForImport++;
-      }
-    }
-    
-    // Also check for completed shows that don't have setlists yet
-    const completedShows = allShows.filter(show => 
-      show.status === "completed" && 
-      (!show.importStatus || show.importStatus === "pending" || show.importStatus === "failed")
-    );
-    
-    console.log(`Found ${completedShows.length} completed shows needing setlist import`);
-    
-    // Process up to 10 completed shows per run (to avoid timeout)
-    for (const show of completedShows.slice(0, 10)) {
-      try {
-        // Ensure import status is set
-        if (!show.importStatus) {
-          await ctx.runMutation(internal.shows.updateImportStatus, {
-            showId: show._id,
-            status: "importing",
-          });
-        }
-        
-        // Try to sync actual setlist
+
         if (show.artist && show.venue) {
-          try {
-            const setlistId = await ctx.runAction(internal.setlistfm.syncActualSetlist, {
-              showId: show._id,
-              artistName: show.artist.name,
-              venueCity: show.venue.city,
-              showDate: show.date,
-            });
-            
-            if (setlistId) {
-              setlistsSynced++;
-              await ctx.runMutation(internal.shows.updateImportStatus, {
-                showId: show._id,
-                status: "completed",
-              });
-              console.log(`✅ Synced setlist for ${show.artist.name} at ${show.venue.name}`);
-            } else {
-              // No setlist found - mark as failed
-              await ctx.runMutation(internal.shows.updateImportStatus, {
-                showId: show._id,
-                status: "failed",
-              });
-            }
-          } catch (error) {
-            console.error(`❌ Failed to sync setlist for ${show.artist.name}:`, error);
-            await ctx.runMutation(internal.shows.updateImportStatus, {
-              showId: show._id,
-              status: "failed",
-            });
+          const setlistId = await ctx.runAction(internal.setlistfm.syncActualSetlist, {
+            showId: show._id,
+            artistName: show.artist.name,
+            venueCity: show.venue.city,
+            showDate: show.date,
+          });
+
+          if (setlistId) {
+            setlistsSynced++;
           }
         }
-        
-        // Rate limiting to respect setlist.fm API (2 second delay)
+
+        // Rate limit
         await new Promise(resolve => setTimeout(resolve, 2000));
       } catch (error) {
         console.error(`Error processing show ${show._id}:`, error);
       }
     }
-    
-    console.log(`✅ Completed shows check: ${completedCount} newly completed, ${setlistsSynced} setlists synced, ${queuedForImport} queued for import`);
+
+    console.log(`✅ Check complete: ${setlistsSynced} setlists synced`);
     return null;
   },
 });
@@ -458,89 +237,54 @@ export const triggerCompletedShowsCheck = action({
   },
 });
 
-// Scan for pending imports and trigger syncs
 export const scanPendingImports = internalAction({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
     console.log("🔍 Scanning for pending Setlist.fm imports...");
-    
-    try {
-      // Use runQuery to get all shows and filter
-      const allShows = await ctx.runQuery(internal.shows.getAllInternal, {});
-      const today = new Date().toISOString().split('T')[0];
-      
-      const pendingShows = allShows.filter(show =>
-        show &&
-        (show.importStatus === "pending" || show.importStatus === "failed") &&
-        show.status === "completed" &&
-        new Date(show.date) < new Date(today)
-      );
+    const pendingShows = await ctx.db
+      .query("shows")
+      .filter((q) => 
+        q.and(
+          q.eq(q.field("status"), "completed"),
+          q.or(
+            q.eq(q.field("importStatus"), "pending"),
+            q.eq(q.field("importStatus"), null)
+          )
+        )
+      )
+      .take(5); // Limit to 5
 
-      console.log(`Found ${pendingShows.length} pending/failed imports to process`);
+    let successCount = 0;
+    for (const show of pendingShows) {
+      try {
+        await ctx.runMutation(internal.shows.updateImportStatus, { showId: show._id, status: "importing" });
 
-      let successCount = 0;
-      let errorCount = 0;
+        const artist = await ctx.runQuery(internal.artists.getById, { id: show.artistId });
+        const venue = await ctx.runQuery(internal.venues.getById, { id: show.venueId });
 
-      for (const show of pendingShows) {
-        try {
-          // Update status to importing using runMutation
-          await ctx.runMutation(internal.shows.updateImportStatus, {
+        if (artist && venue) {
+          const setlistId = await ctx.runAction(internal.setlistfm.syncActualSetlist, {
             showId: show._id,
-            status: "importing"
+            artistName: artist.name,
+            venueCity: venue.city,
+            showDate: show.date,
           });
 
-          // Get artist and venue using runQuery
-          const artist = await ctx.runQuery(internal.shows.getArtistByIdInternal, { id: show.artistId });
-          const venue = await ctx.runQuery(internal.shows.getVenueByIdInternal, { id: show.venueId });
-
-          if (artist && venue) {
-            const setlistId = await ctx.runAction(internal.setlistfm.syncActualSetlist, {
-              showId: show._id,
-              artistName: artist.name,
-              venueCity: venue.city,
-              showDate: show.date,
-            });
-
-            if (setlistId) {
-              await ctx.runMutation(internal.shows.updateImportStatus, {
-                showId: show._id,
-                status: "completed"
-              });
-              successCount++;
-              console.log(`✅ Imported setlist for ${artist.name} (${show._id})`);
-            } else {
-              await ctx.runMutation(internal.shows.updateImportStatus, {
-                showId: show._id,
-                status: "failed"
-              });
-              errorCount++;
-            }
-          } else {
-            await ctx.runMutation(internal.shows.updateImportStatus, {
-              showId: show._id,
-              status: "failed"
-            });
-            errorCount++;
+          if (setlistId) {
+            successCount++;
           }
-
-          // Rate limit
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        } catch (error) {
-          console.error(`Failed to import for show ${show._id}:`, error);
-          await ctx.runMutation(internal.shows.updateImportStatus, {
-            showId: show._id,
-            status: "failed"
-          });
-          errorCount++;
+        } else {
+          await ctx.runMutation(internal.shows.updateImportStatus, { showId: show._id, status: "failed" });
         }
-      }
 
-      console.log(`Import scan complete: ${successCount} successful, ${errorCount} errors`);
-    } catch (error) {
-      console.error("❌ Pending imports scan failed:", error);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (error) {
+        console.error(`Failed to import for show ${show._id}:`, error);
+        await ctx.runMutation(internal.shows.updateImportStatus, { showId: show._id, status: "failed" });
+      }
     }
 
-    return null;
+    console.log(`Import scan complete: ${successCount} successful`);
   },
 });

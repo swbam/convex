@@ -882,3 +882,24 @@ function isNonStudioSong(songTitle: string, albumName: string): boolean {
     songLower.includes(indicator) || albumLower.includes(indicator)
   );
 }
+
+export const bulkDeleteFlagged = mutation({
+  args: { ids: v.array(v.id("flagged")) },
+  handler: async (ctx, args) => {
+    for (const id of args.ids) {
+      await ctx.db.delete(id);
+    }
+    return { deleted: args.ids.length };
+  },
+});
+
+export const updateUserRole = mutation({
+  args: { userId: v.id("users"), role: v.string() }, // 'admin' or 'user'
+  handler: async (ctx, args) => {
+    // Assume local role field; for Clerk, use external API or webhook
+    await ctx.db.patch(args.userId, { role: args.role });
+    // Clerk update: In production, call Clerk API to set metadata
+    console.log(`Updated role for user ${args.userId} to ${args.role}`);
+    return { success: true };
+  },
+});

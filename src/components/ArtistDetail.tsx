@@ -1,8 +1,10 @@
+import React, { useState } from 'react';
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { ArrowLeft, Calendar, MapPin, Users, Music, Plus } from "lucide-react";
-import { useState } from "react";
+import { Link } from "react-router-dom";
+import { Button } from "./ui/button";
 import { toast } from "sonner";
 import { AddToSetlistModal } from "./AddToSetlistModal";
 import { SEOHead } from "./SEOHead";
@@ -57,7 +59,28 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
     setAddToSetlistModal({ isOpen: true, songTitle });
   };
 
-  if (!artist) {
+  // NEW: Handle null artist (404 or not found)
+  if (artist === null) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center min-h-screen flex flex-col items-center justify-center">
+        <div className="max-w-md space-y-4">
+          <h1 className="text-2xl font-bold text-white">Artist Not Found</h1>
+          <p className="text-gray-400">The artist could not be found in our database. Try searching for them.</p>
+          <Link to="/search">
+            <Button className="w-full">
+              Search Artists
+            </Button>
+          </Link>
+          <Button variant="ghost" onClick={onBack}>
+            Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (artist === undefined) {
+    // Existing loading skeleton
     return (
       <div className="container mx-auto px-6 py-8">
         <div className="animate-pulse space-y-6">

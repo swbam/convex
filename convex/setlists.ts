@@ -735,3 +735,22 @@ export const getSetlistWithVotes = query({
     };
   },
 });
+
+export const createFromApi = mutation({
+  args: { 
+    showId: v.id("shows"),
+    data: v.object({ 
+      id: v.string(),
+      songs: v.array(v.object({ title: v.string() })),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const setlistId = await ctx.db.insert("setlists", {
+      showId: args.showId,
+      setlistfmId: args.data.id,
+      songs: args.data.songs,
+      verified: true, // From API
+    });
+    return setlistId;
+  },
+});

@@ -1,0 +1,6 @@
+import React from 'react';
+// ... imports
+
+const ShowCardMemo = React.memo(ShowCard);
+
+export { ShowCardMemo as ShowCard };

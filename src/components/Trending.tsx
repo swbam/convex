@@ -5,6 +5,8 @@ import { Id } from '../../convex/_generated/dataModel';
 import { TrendingUp, Music, MapPin, Calendar, Clock, Users, Star } from 'lucide-react';
 import { MagicCard } from './ui/magic-card';
 import { BorderBeam } from './ui/border-beam';
+import { Card } from "./ui/Card"; // Shared
+import { Button } from './ui/button'; // Shared
 
 const toSlug = (value: string) =>
   value
@@ -184,55 +186,15 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                           : 0;
 
                       return (
-                        <div
+                        <Card
                           key={`${artistKey}`}
-                          className="flex items-center gap-4 py-4 hover:bg-white/5 cursor-pointer transition-all duration-200"
+                          variant="artist"
+                          imageSrc={image}
+                          title={artist.name}
+                          subtitle={`${upcomingCount} shows`}
                           onClick={() => handleArtistClick(artist)}
-                          style={{
-                            borderBottom: index < trendingArtists.length - 1 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
-                          }}
-                        >
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 text-white font-semibold text-sm">
-                          {index + 1}
-                        </div>
-
-                        {image ? (
-                          <img
-                            src={image}
-                            alt={artist.name}
-                            className="w-12 h-12 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center">
-                            <Music className="h-6 w-6 text-white/50" />
-                          </div>
-                        )}
-                        
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-white text-sm truncate">{artist.name}</h3>
-                          <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-                            {artist.followers && (
-                              <span className="flex items-center gap-1">
-                                <Users className="h-3 w-3" />
-                                {(artist.followers / 1000000).toFixed(1)}M
-                              </span>
-                            )}
-                            {upcomingCount > 0 && (
-                              <>
-                                <span>•</span>
-                                <span>{upcomingCount} shows</span>
-                              </>
-                            )}
-                          </div>
-                          {genres.length > 0 && (
-                            <p className="text-xs text-gray-500 mt-0.5 truncate">
-                              {genres.slice(0, 2).join(', ')}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="text-xs text-gray-500">›</div>
-                      </div>
+                          footer={<Button variant="outline" size="sm">View Artist</Button>}
+                        />
                       );
                     })
                   )}
@@ -278,66 +240,15 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                       const locationLabel = [venueCity, venueCountry].filter(Boolean).join(', ');
 
                       return (
-                        <div
+                        <Card
                           key={`${showKey}`}
-                          className="flex items-center gap-4 py-4 hover:bg-white/5 cursor-pointer transition-all duration-200"
+                          variant="show"
+                          imageSrc={artistImage}
+                          title={artistName}
+                          subtitle={`${locationLabel} • ${dateLabel}`}
                           onClick={() => handleShowClick(show)}
-                          style={{
-                            borderBottom: index < trendingShows.length - 1 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
-                          }}
-                        >
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 text-white font-semibold text-sm">
-                          {show.trendingRank || index + 1}
-                        </div>
-
-                        {artistImage ? (
-                          <img
-                            src={artistImage}
-                            alt={artistName}
-                            className="w-12 h-12 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center">
-                            <Music className="h-6 w-6 text-white/50" />
-                          </div>
-                        )}
-
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-white text-sm truncate">{artistName}</h3>
-                          <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-                            <span className="flex items-center gap-1 truncate">
-                              <MapPin className="h-3 w-3 flex-shrink-0" />
-                              {venueName}
-                            </span>
-                          </div>
-                          <div className="text-xs text-gray-500 mt-0.5">
-                            {locationLabel} • {dateLabel}
-                          </div>
-                          {/* Dynamic engagement metrics */}
-                          {((show.voteCount || 0) > 0 || (show.setlistCount || 0) > 0) && (
-                            <div className="flex gap-4 mt-2 text-xs">
-                              <span className="flex items-center gap-1 text-blue-400">
-                                <Users className="h-3 w-3" />
-                                {show.voteCount || 0} votes
-                              </span>
-                              <span className="flex items-center gap-1 text-purple-400">
-                                <Music className="h-3 w-3" />
-                                {show.setlistCount || 0} setlists
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="text-right">
-                          <div className="flex items-center gap-1 text-green-400">
-                            <TrendingUp className="h-4 w-4" />
-                            <span className="text-sm font-medium">
-                              {show.trendingScore ? show.trendingScore.toFixed(1) : 'N/A'}
-                            </span>
-                          </div>
-                          <div className="text-xs text-gray-500">Score</div>
-                        </div>
-                      </div>
+                          footer={<Button variant="outline" size="sm">View Show</Button>}
+                        />
                       );
                     })
                   )}
@@ -366,54 +277,20 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                     </div>
                   ) : (
                     trendingSetlists.map((setlist, index) => (
-                      <div
+                      <Card
                         key={setlist._id}
-                        className="flex items-center gap-4 py-4 hover:bg-white/5 cursor-pointer transition-all duration-200"
-                        style={{
-                          borderBottom: index < trendingSetlists.length - 1 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
+                        variant="setlist"
+                        imageSrc={setlist.artist?.images?.[0]}
+                        title={setlist.artist?.name}
+                        subtitle={`${setlist.venue?.name} • ${setlist.songs.length} songs`}
+                        onClick={() => {
+                          // Assuming setlist._id is the showId or showKey
+                          const showId = setlist._id;
+                          const showSlug = setlist.slug; // Assuming setlist has a slug
+                          onShowClick(showId, showSlug);
                         }}
-                      >
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 text-white font-semibold text-sm">
-                          {index + 1}
-                        </div>
-                        
-                        {setlist.artist?.images?.[0] ? (
-                          <img
-                            src={setlist.artist.images[0]}
-                            alt={setlist.artist.name}
-                            className="w-12 h-12 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center">
-                            <Music className="h-6 w-6 text-white/50" />
-                          </div>
-                        )}
-                        
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-white text-sm truncate">{setlist.artist?.name}</h3>
-                          <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-                            <span className="flex items-center gap-1 truncate">
-                              <MapPin className="h-3 w-3" />
-                              {setlist.venue?.name}
-                            </span>
-                            <span>•</span>
-                            <span>{setlist.songs.length} songs</span>
-                          </div>
-                          {setlist.verified && (
-                            <span className="text-xs text-green-400 mt-0.5 flex items-center gap-1">
-                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                              </svg>
-                              Verified
-                            </span>
-                          )}
-                        </div>
-                        
-                        <div className="text-right">
-                          <div className="text-sm font-semibold text-white">{setlist.voteCount}</div>
-                          <div className="text-xs text-gray-500">votes</div>
-                        </div>
-                      </div>
+                        footer={<Button variant="outline" size="sm">View Setlist</Button>}
+                      />
                     ))
                   )}
                 </div>

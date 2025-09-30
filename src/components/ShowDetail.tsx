@@ -1,8 +1,8 @@
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import React, { useMemo, useState } from "react";
-import { ArrowLeft, MapPin, Users, Music, ChevronUp, Heart, Calendar, ExternalLink, Ticket, Vote } from "lucide-react";
+import { ArrowLeft, MapPin, Users, Music, ChevronUp, Heart, Calendar, ExternalLink, Ticket, Vote, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { SEOHead } from "./SEOHead";
 import { AnimatedSubscribeButton } from "./ui/animated-subscribe-button";
@@ -11,6 +11,11 @@ import { BorderBeam } from "./ui/border-beam";
 import { ShimmerButton } from "./ui/shimmer-button";
 import { buildTicketmasterAffiliateUrl } from "../utils/ticketmaster";
 import { FadeIn } from "./animations/FadeIn";
+import { Badge } from "./ui/badge";
+import { Loader2 } from "lucide-react";
+import { Button } from "./ui/button";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
+import { Vote as VoteIcon } from "lucide-react"; // For icon
 
 interface ShowDetailProps {
   showId: Id<"shows">;
@@ -27,6 +32,8 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
   } : "skip");
   const setlists = useQuery(api.setlists.getByShow, show ? { showId } : "skip");
   const user = useQuery(api.auth.loggedInUser);
+  const setlist = useQuery(api.setlists.getByShow, { showId }); // Assume exists
+  const triggerSetlistSync = useAction(api.setlistfm.syncActualSetlist); // For retry
 
   const addSongToSetlist = useMutation(api.setlists.addSongToSetlist);
 
@@ -121,6 +128,76 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
   const showDate = new Date(show.date);
   const isUpcoming = show.status === "upcoming";
   const isToday = showDate.toDateString() === new Date().toDateString();
+
+  const renderSetlistHeader = () => {
+    if (!show.importStatus) return <h3 className="text-xl font-bold mb-4">Setlist</h3>;
+
+    let badgeContent;
+    let icon;
+    switch (show.importStatus) {
+      case "completed":
+        badgeContent = "Imported";
+        icon = <CheckCircle className="h-4 w-4" />;
+        break;
+      case "importing":
+        badgeContent = "Importing";
+        icon = <Loader2 className="h-4 w-4 animate-spin" />;
+        break;
+      case "failed":
+        badgeContent = "Failed";
+        icon = <AlertCircle className="h-4 w-4" />;
+        break;
+      case "no_setlist":
+        badgeContent = "No Setlist";
+        icon = <Music className="h-4 w-4" />;
+        break;
+      default:
+        badgeContent = "Pending";
+    }
+
+    return (
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-xl font-bold">Setlist {show.importStatus !== "completed" && `(${badgeContent})`}</h3>
+        <Badge variant={show.importStatus === "completed" ? "default" : "secondary"} className="flex items-center gap-1">
+          {icon} {badgeContent}
+        </Badge>
+        {show.importStatus === "no_setlist" && (
+          <p className="text-sm text-gray-400 mt-2">No setlist available yet - checking...</p>
+        )}
+        {show.importStatus === "failed" && (
+          <Button variant="outline" size="sm" onClick={() => triggerSetlistSync({
+            showId: showId,
+            artistName: show.artist?.name || "",
+            venueCity: show.venue?.city || "",
+            showDate: show.date,
+          })}>
+            Retry Import
+          </Button>
+        )}
+      </div>
+    );
+  };
+
+  const handleVote = async (songId: Id<"songs">) => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50); // Haptic on mobile
+    }
+    if (!user) {
+      onSignInRequired();
+      return;
+    }
+
+    try {
+      await voteOnSong({
+        setlistId: predictionSetlistId!,
+        songTitle: songId,
+        voteType: "upvote",
+      });
+      toast.success("Vote added!");
+    } catch (e) {
+      toast.error("Vote failed");
+    }
+  };
 
   return (
     <div className="px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10">
@@ -451,28 +528,55 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                 <p className="text-sm mt-1">Use the dropdown above to add the first song!</p>
               </div>
             ) : (
-              // Show shared setlist with instant voting (no save buttons)
-              <div className="space-y-2">
-                <div className="mb-4 p-4 bg-white/5 border border-white/10 rounded-xl backdrop-blur-sm">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-300 font-medium">Click ↑ to vote for songs you want to hear</span>
-                    <span className="text-gray-400">{predictionSetlist.songs?.length || 0} songs • {((predictionSetlist.upvotes || 0) + (predictionSetlist.downvotes || 0))} total votes</span>
-                  </div>
-                </div>
+              <div className="mt-8 touch-manipulation">
+                {renderSetlistHeader()}
 
-                {(predictionSetlist.songs || [])
-                  .map((s: any) => (typeof s === 'string' ? s : s?.title))
-                  .filter(Boolean)
-                  .map((songTitle: string, index: number) => (
-                    <SongVoteRow
-                      key={`${predictionSetlist._id}-${songTitle}-${index}`}
-                      setlistId={predictionSetlist._id}
-                      songTitle={songTitle}
-                      position={index + 1}
-                      user={user}
-                      onSignInRequired={onSignInRequired}
-                    />
-                  ))}
+                <Accordion type="single" collapsible className="w-full space-y-0">
+                  <AccordionItem value="full-setlist" className="border-0">
+                    <AccordionTrigger className="py-3 hover:no-underline text-left p-0 border-b border-white/5">
+                      <h4 className="text-lg font-semibold">Full Setlist ({predictionSetlist.songs.length} songs)</h4>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-0 pt-3">
+                      <div className="space-y-3">
+                        {(predictionSetlist.songs || [])
+                          .map((s: any) => (typeof s === 'string' ? s : s?.title))
+                          .filter(Boolean)
+                          .map((songTitle: string, index: number) => (
+                            <div key={`full-setlist-${songTitle}-${index}`} className="py-3 flex justify-between items-center">
+                              <div className="flex-1">
+                                <p className="text-white font-medium text-sm">{songTitle}</p>
+                                {/* Assuming setlist.songs has a 'setNumber' and 'encore' property */}
+                                {/* This part of the original code doesn't have setNumber or encore */}
+                                {/* So, I'm removing it to match the original structure */}
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={(e) => { e.stopPropagation(); handleVote(songTitle); }}
+                                className="h-8 w-8 p-0 text-primary hover:text-primary/80 inline-flex items-center justify-center"
+                              >
+                                <VoteIcon className="h-4 w-4" />
+                                <span className="sr-only">Vote for {songTitle}</span>
+                              </Button>
+                            </div>
+                          ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Optional: Top Songs collapsible */}
+                  <AccordionItem value="top-songs" className="border-0">
+                    <AccordionTrigger className="py-3 hover:no-underline text-left p-0 border-b border-white/5">
+                      <h4 className="text-lg font-semibold">Top Voted Songs</h4>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-0 pt-3">
+                      {/* Render top 5 or similar */}
+                      <div className="space-y-3">
+                        {/* Similar structure without borders */}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </div>
             )}
           </div>

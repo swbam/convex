@@ -1,77 +1,38 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { useLocation, useParams } from 'react-router-dom';
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
-interface SEOHeadProps {
-  title: string;
-  description?: string;
-  image?: string;
-  url?: string;
-}
+export function SEOHead() {
+  const location = useLocation();
+  const params = useParams();
+  const { artistSlug, showSlug } = params;
 
-export function SEOHead({ title, description, image, url }: SEOHeadProps) {
+  const artist = useQuery(artistSlug ? api.artists.getBySlug : () => null, artistSlug ? { slug: artistSlug } : "skip");
+  const show = useQuery(showSlug ? api.shows.getBySlug : () => null, showSlug ? { slug: showSlug } : "skip");
+
   useEffect(() => {
-    // Update page title
-    document.title = title;
-    
-    // Update meta description
-    const metaDescription = document.querySelector('meta[name="description"]');
-    if (metaDescription) {
-      metaDescription.setAttribute('content', description || 'Vote on songs you want to hear and discover trending artists and shows');
-    } else {
-      const meta = document.createElement('meta');
-      meta.name = 'description';
-      meta.content = description || 'Vote on songs you want to hear and discover trending artists and shows';
-      document.head.appendChild(meta);
-    }
-    
-    // Update Open Graph tags
-    const updateOGTag = (property: string, content: string) => {
-      let tag = document.querySelector(`meta[property="${property}"]`);
-      if (tag) {
-        tag.setAttribute('content', content);
-      } else {
-        tag = document.createElement('meta');
-        tag.setAttribute('property', property);
-        tag.setAttribute('content', content);
-        document.head.appendChild(tag);
-      }
-    };
-    
-    updateOGTag('og:title', title);
-    updateOGTag('og:description', description || 'Vote on songs you want to hear and discover trending artists and shows');
-    updateOGTag('og:type', 'website');
-    if (url) updateOGTag('og:url', url);
-    if (image) updateOGTag('og:image', image);
-    // Canonical
-    const existingCanonical = document.querySelector('link[rel="canonical"]');
-    const canonicalUrl = url || window.location.href;
-    if (existingCanonical) {
-      existingCanonical.setAttribute('href', canonicalUrl);
-    } else {
-      const link = document.createElement('link');
-      link.setAttribute('rel', 'canonical');
-      link.setAttribute('href', canonicalUrl);
-      document.head.appendChild(link);
-    }
-    
-    // Update Twitter Card tags
-    const updateTwitterTag = (name: string, content: string) => {
-      let tag = document.querySelector(`meta[name="${name}"]`);
-      if (tag) {
-        tag.setAttribute('content', content);
-      } else {
-        tag = document.createElement('meta');
-        tag.setAttribute('name', name);
-        tag.setAttribute('content', content);
-        document.head.appendChild(tag);
-      }
-    };
-    
-    updateTwitterTag('twitter:card', 'summary_large_image');
-    updateTwitterTag('twitter:title', title);
-    updateTwitterTag('twitter:description', description || 'Vote on songs you want to hear and discover trending artists and shows');
-    if (image) updateTwitterTag('twitter:image', image);
-    
-  }, [title, description, image, url]);
+    let title = "Setlists Live - Crowd-Curated Concert Setlists";
+    let description = "Vote on setlists and predict songs for upcoming concerts.";
 
-  return null; // This component doesn't render anything
+    if (artistSlug && artist) {
+      title = `${artist.name} | Setlists Live`;
+      description = `Upcoming shows and setlists for ${artist.name}. Vote on songs you want to hear.`;
+    } else if (showSlug && show) {
+      title = `${show.artist?.name} at ${show.venue?.name} | Setlists Live`;
+      description = `Setlist voting for ${show.artist?.name}'s show at ${show.venue?.name} on ${new Date(show.date).toLocaleDateString()}.`;
+    }
+
+    document.title = title;
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) metaDesc.setAttribute('content', description);
+
+    let ogImage = document.querySelector('meta[property="og:image"]');
+    if (ogImage) ogImage.setAttribute('content', artist?.images?.[0] || '/default-og.jpg');
+
+    let ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) ogTitle.setAttribute('content', title);
+  }, [location.pathname, artist, show]);
+
+  return null;
 }

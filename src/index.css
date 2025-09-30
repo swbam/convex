@@ -502,3 +502,13 @@
   --grad-b: 0 0% 100%;
   --grad-c: 0 0% 92%;
 }
+
+// NEW: Global touch-manipulation utility
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+// NEW: Subtle border if not in Tailwind
+.border-subtle {
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}

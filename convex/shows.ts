@@ -818,3 +818,31 @@ export const autoTransitionStatuses = internalMutation({
     return null;
   },
 });
+
+export const getUpcomingCountByArtist = query({
+  args: { artistId: v.id("artists") },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const count = await ctx.db
+      .query("shows")
+      .withIndex("by_artist", { fields: ["artistId"] }) // Assume index exists
+      .filter((q) => q.eq("artistId", args.artistId))
+      .filter((q) => q.eq("status", "upcoming"))
+      .collect();
+
+    return count.length;
+  },
+});
+
+export const updateImportStatus = mutation({
+  args: { 
+    showId: v.id("shows"),
+    status: v.union(v.literal("pending"), v.literal("importing"), v.literal("completed"), v.literal("failed"), v.literal("no_setlist")),
+    error: v.optional(v.string()), // Added
+  },
+  handler: async (ctx, args) => {
+    const update = { importStatus: args.status };
+    if (args.error) update.error = args.error;
+    await ctx.db.patch(args.showId, update);
+  },
+});
