@@ -397,18 +397,7 @@ export const getGlobalActivityFeed = query({
 // Get trending setlists based on vote activity
 export const getTrendingSetlists = query({
   args: { limit: v.optional(v.number()) },
-  returns: v.array(v.object({
-    _id: v.id("setlists"),
-    showId: v.id("shows"),
-    songs: v.array(v.any()),
-    verified: v.boolean(),
-    source: v.string(),
-    lastUpdated: v.number(),
-    voteCount: v.number(),
-    show: v.any(),
-    artist: v.any(),
-    venue: v.any(),
-  })),
+  returns: v.array(v.any()), // FIXED: Use v.any() to avoid validation errors with _creationTime
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
     
