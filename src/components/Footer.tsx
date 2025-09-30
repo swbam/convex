@@ -15,20 +15,7 @@ export function Footer() {
             <p className="text-responsive-xs sm:text-responsive-sm text-muted-foreground max-w-xs leading-relaxed hidden sm:block">
               The ultimate platform for concert setlist voting and music discovery. Join thousands of fans predicting their favorite shows.
             </p>
-            <div className="flex items-center gap-1 sm:gap-2">
-              <a href="https://github.com/swbam" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors p-1.5 sm:p-2 hover:bg-accent rounded-md sm:rounded-lg touch-target">
-                <Github className="h-4 w-4 sm:h-5 sm:w-5" />
-              </a>
-              <a href="https://twitter.com/theset" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors p-1.5 sm:p-2 hover:bg-accent rounded-md sm:rounded-lg touch-target">
-                <Twitter className="h-4 w-4 sm:h-5 sm:w-5" />
-              </a>
-              <a href="https://instagram.com/theset" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors p-1.5 sm:p-2 hover:bg-accent rounded-md sm:rounded-lg touch-target">
-                <Instagram className="h-4 w-4 sm:h-5 sm:w-5" />
-              </a>
-              <a href="mailto:hello@theset.app" className="text-muted-foreground hover:text-foreground transition-colors p-1.5 sm:p-2 hover:bg-accent rounded-md sm:rounded-lg touch-target">
-                <Mail className="h-4 w-4 sm:h-5 sm:w-5" />
-              </a>
-            </div>
+         
           </div>
 
           {/* Product */}
