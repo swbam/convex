@@ -4,9 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npm-run-all --parallel dev:frontend dev:backend",
+    "dev": "npm-run-all --parallel dev:frontend dev:backend dev:post-start",
     "dev:frontend": "vite --open",
     "dev:backend": "convex dev",
+    "dev:post-start": "sleep 10 && npm run sync:trending",
     "build": "tsc && vite build",
     "build:check": "tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false",
     "lint": "npm run build:check",
@@ -17,7 +18,7 @@
     "sync:trending": "npx convex run maintenance:triggerTrendingSync",
     "deploy:backend": "npx convex deploy --yes",
     "deploy:frontend": "npm run build && vercel --prod --yes",
-    "all": "npm run deploy:backend && npm run deploy:frontend"
+    "all": "npm run deploy:backend && npm run deploy:frontend && npm run sync:trending"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.45.0",

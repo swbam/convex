@@ -268,20 +268,88 @@ export const getTrendingShows = action({
     }
 
     const limit = args.limit || 50;
-    // Simplified query - just get music events sorted by date
-    const url = `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=${limit}&sort=date,asc&apikey=${apiKey}`;
+    
+    // ENHANCED: Get top trending stadium shows - use multiple strategies
+    // Strategy: Fetch by relevance (popularity), upcoming events, major US markets
+    const now = new Date();
+    const startDate = now.toISOString().split('T')[0]; // Today
+    const endDate = new Date(now.getTime() + (90 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0]; // Next 90 days
+    
+    // Primary query: Major music events in top US markets, sorted by relevance (popularity)
+    const url = `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&countryCode=US&startDateTime=${startDate}T00:00:00Z&endDateTime=${endDate}T23:59:59Z&size=${limit}&sort=relevance,desc&apikey=${apiKey}`;
 
     try {
+      console.log(`🎫 Fetching trending shows from Ticketmaster...`);
       const response = await fetch(url);
       if (!response.ok) {
         console.error("Ticketmaster API error:", response.status, response.statusText);
-        return [];
+        
+        // FALLBACK: Try simpler query if detailed one fails
+        const fallbackUrl = `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=${limit}&sort=date,asc&apikey=${apiKey}`;
+        const fallbackResponse = await fetch(fallbackUrl);
+        if (!fallbackResponse.ok) return [];
+        const fallbackData = await fallbackResponse.json();
+        const events = fallbackData._embedded?.events || [];
+        console.log(`✅ Fetched ${events.length} shows (fallback query)`);
+        return events.map((event: any) => ({
+          ticketmasterId: String(event.id || ''),
+          artistTicketmasterId: String(event._embedded?.attractions?.[0]?.id || ''),
+          artistName: String(event._embedded?.attractions?.[0]?.name || 'Unknown Artist'),
+          venueName: String(event._embedded?.venues?.[0]?.name || 'Unknown Venue'),
+          venueCity: String(event._embedded?.venues?.[0]?.city?.name || ''),
+          venueCountry: String(event._embedded?.venues?.[0]?.country?.name || ''),
+          date: String(event.dates?.start?.localDate || ''),
+          startTime: event.dates?.start?.localTime ? String(event.dates.start.localTime) : undefined,
+          artistImage: (() => {
+            const images = event._embedded?.attractions?.[0]?.images || [];
+            const bestImage = images
+              .filter((img: any) => img.url && img.width && img.height)
+              .sort((a: any, b: any) => {
+                const aRatio = Math.abs((a.width / a.height) - (16/9));
+                const bRatio = Math.abs((b.width / b.height) - (16/9));
+                if (Math.abs(aRatio - bRatio) > 0.1) return aRatio - bRatio;
+                return b.width - a.width;
+              })[0];
+            return bestImage?.url ? String(bestImage.url) : undefined;
+          })(),
+          ticketUrl: event.url ? String(event.url) : undefined,
+          priceRange: event.priceRanges?.[0] ? `$${event.priceRanges[0].min}-${event.priceRanges[0].max}` : undefined,
+          status: String(event.dates?.status?.code || 'unknown'),
+        }));
       }
 
       const data = await response.json();
       const events = data._embedded?.events || [];
+      console.log(`✅ Fetched ${events.length} trending shows from Ticketmaster`);
+      
+      // Filter to major venues (stadiums, arenas) for better quality
+      const majorEvents = events.filter((event: any) => {
+        const venueName = event._embedded?.venues?.[0]?.name?.toLowerCase() || '';
+        const artistName = event._embedded?.attractions?.[0]?.name?.toLowerCase() || '';
+        
+        // Include if it's a major venue type OR popular artist
+        const isMajorVenue = venueName.includes('stadium') || 
+                            venueName.includes('arena') || 
+                            venueName.includes('center') ||
+                            venueName.includes('amphitheatre') ||
+                            venueName.includes('theater') ||
+                            venueName.includes('hall') ||
+                            venueName.includes('sphere');
+        
+        // Exclude tribute bands and small shows
+        const isTribute = artistName.includes('tribute') || 
+                         artistName.includes('experience') ||
+                         artistName.includes('cover');
+        
+        return isMajorVenue && !isTribute;
+      });
+      
+      console.log(`🎯 Filtered to ${majorEvents.length} major venue events`);
 
-      return events.map((event: any) => ({
+      // Use majorEvents if we have good results, otherwise fallback to all events
+      const finalEvents = majorEvents.length >= 10 ? majorEvents : events;
+      
+      return finalEvents.slice(0, limit).map((event: any) => ({
         ticketmasterId: String(event.id || ''),
         artistTicketmasterId: String(event._embedded?.attractions?.[0]?.id || ''),
         artistName: String(event._embedded?.attractions?.[0]?.name || 'Unknown Artist'),
