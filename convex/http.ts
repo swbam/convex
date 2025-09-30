@@ -1,6 +1,5 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { api } from "./_generated/api";
 
 const http = httpRouter();
 
@@ -11,10 +10,14 @@ http.route({
   handler: httpAction(async (ctx, req) => {
     return new Response(JSON.stringify({ 
       status: "ok", 
-      timestamp: Date.now(),
-      version: "1.0.0"
+      timestamp: Date.now()
     }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "1; mode=block"
+      },
     });
   }),
 });
