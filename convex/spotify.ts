@@ -163,25 +163,45 @@ export const syncArtistCatalog = internalAction({
 
       let songsImported = 0;
 
-      // GENIUS ALBUM FILTERING: Advanced filtering with appears_on exclusion
+      // CRITICAL: Only ORIGINAL studio albums - NO deluxe, remaster, or duplicates
       const studioAlbums = (albums as any[])
         .filter(album => {
-          // Skip compilations and appears_on at API level
+          // Skip compilations and appears_on
           if (album.album_type === 'compilation') return false;
           if (album.album_group === 'appears_on') return false;
           
-          return isStudioAlbum(album.name) && isHighQualityStudioAlbum(album);
+          const albumName = album.name.toLowerCase();
+          
+          // EXCLUDE all these (prevents duplicates):
+          const exclude = [
+            // Live albums
+            'live at', 'live from', 'live in', 'live on', 'concert', 'unplugged',
+            // Compilations
+            'greatest hits', 'best of', 'anthology', 'collection', 'hits',
+            // Deluxe/Reissues (DUPLICATES!)
+            'deluxe', 'remaster', 'remastered', 'expanded', 'anniversary',
+            'special edition', 'collector', 'limited edition', 'super deluxe',
+            'bonus', 'extended', 'vault',
+            // Soundtracks
+            'soundtrack', 'ost', 'score',
+            // Other
+            'demo', 'rough', 'sessions',
+          ];
+          
+          if (exclude.some(k => albumName.includes(k))) return false;
+          
+          // Only full albums (not singles/EPs which might be duplicates)
+          if (album.album_type !== 'album') return false;
+          
+          // Minimum track count for legitimate studio albums
+          if (album.total_tracks < 8) return false;
+          
+          return true;
         })
         .sort((a, b) => {
-          // Prioritize by album type: album > single
-          const typeScore = (album: any) => album.album_type === 'album' ? 3 : 2;
-          
-          // Prioritize by release date (newer first for relevance)
-          const dateScore = new Date(b.release_date).getTime() - new Date(a.release_date).getTime();
-          
-          return typeScore(b) - typeScore(a) || dateScore;
-        })
-; // Import ALL studio albums - no artificial limits!
+          // Sort by release date (oldest first = original albums)
+          return new Date(a.release_date).getTime() - new Date(b.release_date).getTime();
+        });
       
       console.log(`🎯 Filtered to ${studioAlbums.length} pure studio albums from ${albums.length} total`);
 
@@ -263,170 +283,67 @@ export const syncArtistCatalog = internalAction({
   },
 });
 
-// GENIUS studio album filtering system - ULTRATHINK 10x
+// STRICT: Only ORIGINAL studio albums - prevents all duplicates
 function isStudioAlbum(albumName: string): boolean {
   const albumLower = albumName.toLowerCase().trim();
   
-  // LIVE ALBUM KEYWORDS - Comprehensive list
-  const liveKeywords = [
-    'live at', 'live from', 'live in', 'live on', 'live session', 'live recording',
-    'concert at', 'concert from', 'bootleg', 'acoustic session', 'unplugged',
-    'bbc session', 'radio session', 'live performance', 'in concert',
-    '(live)', '[live]', 'mtv unplugged', 'tiny desk', 'live lounge',
-    'live acoustic', 'live version', 'concert recording', 'live album',
-    'live ep', 'live tracks', 'performance', 'sessions', 'live studio',
-    '- live', ' - live'
+  // Comprehensive exclusion list to prevent duplicates:
+  const exclude = [
+    // Live
+    'live', 'concert', 'unplugged',
+    // Compilations
+    'greatest hits', 'best of', 'anthology', 'collection', 'hits',
+    // Deluxe/Reissues/Remasters (DUPLICATES!)
+    'deluxe', 'remaster', 'expanded', 'anniversary', 'special edition',
+    'collector', 'limited', 'super', 'bonus', 'extended', 'vault',
+    // Soundtracks
+    'soundtrack', 'ost', 'score',
+    // Other duplicates
+    'demo', 'sessions', 'rough', 'outtakes',
   ];
   
-  // COMPILATION/REISSUE KEYWORDS
-  const compilationKeywords = [
-    'greatest hits', 'best of', 'collection', 'anthology', 'complete works',
-    'essential', 'definitive', 'ultimate', 'platinum collection', 'gold',
-    'retrospective', 'selected', 'hits', 'singles collection', 'compilation',
-    'the very best', 'classics', 'masterpiece', 'legendary'
-  ];
-  
-  // DELUXE/REISSUE KEYWORDS (often contain duplicate/live tracks)
-  const deluxeKeywords = [
-    'deluxe', 'deluxe edition', 'édition de luxe', 'expanded edition', 'special edition',
-    'collector edition', 'anniversary edition', 'remaster', 'remastered', 'redux',
-    'revisited', 'extended', 'super deluxe', 'platinum edition', 'limited edition',
-    'bonus tracks', 'expanded', 'reissue', 'anniversary', 'collector\'s edition',
-    'tour edition', 'tour version', 'concert edition', 'live edition',
-    '[deluxe]', '(deluxe)', '3am edition', 'til dawn edition', 'vault edition',
-    'complete edition', 'enhanced edition', 'director\'s cut', 'extended play'
-  ];
-  
-  // SOUNDTRACK/MISC KEYWORDS
-  const soundtrackKeywords = [
-    'soundtrack', 'ost', 'original soundtrack', 'score', 'theme from',
-    'music from', 'inspired by', 'songs from', 'motion picture'
-  ];
-  
-  // Check all exclusion categories
-  const isLive = liveKeywords.some(keyword => albumLower.includes(keyword));
-  const isCompilation = compilationKeywords.some(keyword => albumLower.includes(keyword));
-  const isDeluxe = deluxeKeywords.some(keyword => albumLower.includes(keyword));
-  const isSoundtrack = soundtrackKeywords.some(keyword => albumLower.includes(keyword));
-  
-  // GENIUS LOGIC: Only accept pure studio albums
-  return !isLive && !isCompilation && !isDeluxe && !isSoundtrack;
+  return !exclude.some(k => albumLower.includes(k));
 }
 
-// GENIUS studio song filtering system - ULTRATHINK 10x
+// STRICT: Only pure studio songs - NO live, remix, alternate versions
 function isStudioSong(songName: string, albumName: string): boolean {
   const songLower = songName.toLowerCase().trim();
-  const albumLower = albumName.toLowerCase().trim();
   
-  // LIVE SONG KEYWORDS - Comprehensive
-  const liveSongKeywords = [
-    'live at', 'live from', 'live in', 'live on', 'live version', 'live recording',
-    'concert at', 'concert from', 'concert version', 'bootleg', '(live)', '[live]',
-    'acoustic live', 'acoustic version', 'acoustic session', 'unplugged version',
-    'radio session', 'bbc session', 'live session', 'live acoustic', 'live performance',
-    'live studio', 'live rehearsal', 'soundcheck', 'rehearsal', 'demo version',
-    'live demo', 'live take', 'live cut', 'concert recording', '- live', ' - live'
+  // Exclude ALL variations and non-studio content:
+  const exclude = [
+    // Live
+    'live', '(live)', '[live]', ' - live',
+    // Remixes/Edits
+    'remix', 'rmx', 'mix', 'edit', 'radio edit', 'extended',
+    // Alternate versions
+    'version', 'alternate', 'demo', 'acoustic',
+    // Instrumentals
+    'instrumental', 'karaoke', 'backing',
+    // Features (often duplicates)
+    'feat.', 'featuring', 'ft.', 'with',
+    // Bonus (often alternate takes)
+    'bonus',
+    // Remaster indicators
+    'remaster', 'remastered',
   ];
   
-  // REMIX/ALTERNATE VERSION KEYWORDS
-  const remixKeywords = [
-    'remix', 'rmx', 'rework', 'edit', 'mix)', 'version)', 'alternate version',
-    'alternative version', 'radio edit', 'extended version', 'club mix', 'dance mix',
-    'instrumental version', 'karaoke version', 'backing track', 'minus one',
-    'clean version', 'explicit version', 'radio version', 'single version',
-    'album version', 'original mix', 'vocal mix', 'dub mix', 'ambient mix'
-  ];
+  // Skip intros/outros/interludes
+  const skipWords = ['intro', 'outro', 'interlude', 'skit', 'reprise'];
+  if (skipWords.some(w => songLower === w || songLower.startsWith(w + ' ') || songLower.endsWith(' ' + w))) {
+    return false;
+  }
   
-  // COLLABORATION/FEATURE KEYWORDS (often duplicates)
-  const featureKeywords = [
-    'feat.', 'featuring', 'ft.', 'with', '(with ', 'duet with', 'vs.', 'versus',
-    'and', ' x ', 'collaboration', 'collab'
-  ];
+  // Check for exclusions
+  if (exclude.some(k => songLower.includes(k))) {
+    return false;
+  }
   
-  // BONUS/EXTRA TRACK KEYWORDS
-  const bonusKeywords = [
-    'bonus track', 'bonus', 'extra track', 'hidden track', 'secret track',
-    'unlisted track', 'b-side', 'rare track', 'outtake', 'alternate take',
-    'unreleased', 'vault track', 'deleted scene', 'cut track'
-  ];
-  
-  // INSTRUMENTAL/KARAOKE KEYWORDS
-  const instrumentalKeywords = [
-    'instrumental', 'karaoke', 'backing track', 'playback', 'minus one',
-    'without vocals', 'music only', 'track only', 'accompaniment'
-  ];
-  
-  // Check all exclusion categories
-  const isLive = liveSongKeywords.some(keyword => 
-    songLower.includes(keyword) || albumLower.includes(keyword)
-  );
-  
-  const isRemix = remixKeywords.some(keyword => 
-    songLower.includes(keyword)
-  );
-  
-  const hasFeatures = featureKeywords.some(keyword => 
-    songLower.includes(keyword)
-  );
-  
-  const isBonus = bonusKeywords.some(keyword => 
-    songLower.includes(keyword) || albumLower.includes(keyword)
-  );
-  
-  const isInstrumental = instrumentalKeywords.some(keyword => 
-    songLower.includes(keyword)
-  );
-  
-  // GENIUS LOGIC: Only accept pure studio songs
-  const isPureStudio = !isLive && !isRemix && !hasFeatures && !isBonus && !isInstrumental;
-  
-  // Additional validation: Song title should be reasonable length and not contain weird characters
-  const hasReasonableTitle = songLower.length >= 1 && songLower.length <= 100 && 
-                            !songLower.includes('track ') && 
-                            !songLower.match(/^(intro|outro|interlude|skit)$/);
-  
-  return isPureStudio && hasReasonableTitle;
+  // Valid title length
+  return songLower.length > 0 && songLower.length <= 100;
 }
 
-// GENIUS high-quality studio album detection
-function isHighQualityStudioAlbum(album: any): boolean {
-  const albumName = album.name.toLowerCase().trim();
-  
-  // Check for minimum track count (avoid singles masquerading as albums)
-  const minTracks = album.album_type === 'album' ? 8 : 3;
-  if (album.total_tracks < minTracks) return false;
-  
-  // Avoid albums with suspicious patterns
-  const suspiciousPatterns = [
-    /\d{4}/, // Years in title often indicate reissues
-    /vol\./i, // Volume numbers indicate compilations
-    /part \d/i, // Part numbers
-    /disc \d/i, // Disc numbers
-    /cd \d/i, // CD numbers
-    /\(disc \d\)/i, // Disc indicators
-  ];
-  
-  const hasSuspiciousPattern = suspiciousPatterns.some(pattern => 
-    pattern.test(albumName)
-  );
-  
-  if (hasSuspiciousPattern) return false;
-  
-  // Prefer albums with reasonable names (not too long, not too short)
-  if (albumName.length < 2 || albumName.length > 80) return false;
-  
-  // Avoid albums that are clearly not main releases
-  const avoidPatterns = [
-    'ep', 'single', 'maxi', 'promo', 'sampler', 'preview', 'teaser',
-    'snippet', 'clip', 'trailer', 'demo tape', 'rough mix'
-  ];
-  
-  const shouldAvoid = avoidPatterns.some(pattern => 
-    albumName.includes(pattern)
-  );
-  
-  return !shouldAvoid;
-}
+// Removed isHighQualityStudioAlbum - was filtering out too many legitimate albums
+// Now relying on isStudioAlbum only for simpler, more inclusive filtering
 
 // GENIUS duplicate detection and original track filtering
 async function filterOriginalTracks(allTracks: any[], artistId: string, ctx: any): Promise<any[]> {

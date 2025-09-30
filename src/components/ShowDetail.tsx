@@ -564,8 +564,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
             </MagicCard>
           )}
         </div>
-        </div>
-      </FadeIn>
+      </div>
 
       {/* Sticky mobile CTA for primary action */}
       {isUpcoming && (
