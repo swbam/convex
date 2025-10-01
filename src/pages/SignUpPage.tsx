@@ -22,49 +22,83 @@ export function SignUpPage() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const handleSpotifySignUp = async () => {
-    if (!isLoaded) return;
+    if (!isLoaded || !signUp) {
+      console.error('Clerk not loaded or signUp not available');
+      toast.error('Authentication not ready. Please refresh the page.');
+      return;
+    }
+    
     setIsSpotifyLoading(true);
+    console.log('🎵 Starting Spotify OAuth sign up flow...');
     
     try {
       await signUp.authenticateWithRedirect({
         strategy: 'oauth_spotify',
-        redirectUrl: '/sso-callback',
-        redirectUrlComplete: '/',
+        redirectUrl: `${window.location.origin}/sso-callback`,
+        redirectUrlComplete: `${window.location.origin}/`,
       });
     } catch (error: any) {
-      console.error('Spotify sign up error:', error);
-      toast.error('Failed to sign up with Spotify');
+      console.error('❌ Spotify sign up error:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        errors: error?.errors,
+        status: error?.status
+      });
+      
+      const errorMessage = error?.errors?.[0]?.message || error?.message || 'Failed to sign up with Spotify';
+      toast.error(errorMessage);
       setIsSpotifyLoading(false);
     }
   };
 
   const handleGoogleSignUp = async () => {
-    if (!isLoaded) return;
+    if (!isLoaded || !signUp) {
+      console.error('Clerk not loaded or signUp not available');
+      toast.error('Authentication not ready. Please refresh the page.');
+      return;
+    }
+    
     setIsGoogleLoading(true);
+    console.log('🔍 Starting Google OAuth sign up flow...');
     
     try {
       await signUp.authenticateWithRedirect({
         strategy: 'oauth_google',
-        redirectUrl: '/sso-callback',
-        redirectUrlComplete: '/',
+        redirectUrl: `${window.location.origin}/sso-callback`,
+        redirectUrlComplete: `${window.location.origin}/`,
       });
     } catch (error: any) {
-      console.error('Google sign up error:', error);
-      toast.error('Failed to sign up with Google');
+      console.error('❌ Google sign up error:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        errors: error?.errors,
+        status: error?.status
+      });
+      
+      const errorMessage = error?.errors?.[0]?.message || error?.message || 'Failed to sign up with Google';
+      toast.error(errorMessage);
       setIsGoogleLoading(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded) return;
+    if (!isLoaded || !signUp) {
+      console.error('Clerk not loaded or signUp not available');
+      toast.error('Authentication not ready. Please refresh the page.');
+      return;
+    }
 
     setIsSubmitting(true);
+    console.log('📧 Starting email sign up...');
+    
     try {
       const result = await signUp.create({
         emailAddress: email,
         password,
       });
+
+      console.log('Sign up result status:', result.status);
 
       if (result.status === "complete") {
         if (result.createdSessionId) {
@@ -72,17 +106,28 @@ export function SignUpPage() {
         }
         toast.success("Account created successfully!");
         
+        console.log('✅ Sign up successful, redirecting...');
         // Redirect to home - let App.tsx handle user creation
         setTimeout(() => navigate('/'), 500);
       } else {
+        console.log('Sign up requires verification');
         await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
         setVerificationStep(true);
         toast.success("Please check your email for verification code.");
       }
     } catch (error: any) {
-      console.error("Sign up error:", error);
+      console.error("❌ Sign up error:", error);
+      console.error('Error details:', {
+        message: error?.message,
+        errors: error?.errors,
+        status: error?.status,
+        clerkError: error?.clerkError
+      });
+      
       if (error.errors?.[0]?.message) {
         toast.error(error.errors[0].message);
+      } else if (error.message) {
+        toast.error(error.message);
       } else {
         toast.error("Could not create account. Please try again.");
       }
@@ -93,26 +138,48 @@ export function SignUpPage() {
 
   const handleVerification = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded) return;
+    if (!isLoaded || !signUp) {
+      console.error('Clerk not loaded or signUp not available');
+      toast.error('Authentication not ready. Please refresh the page.');
+      return;
+    }
 
     setIsSubmitting(true);
+    console.log('✉️ Attempting email verification...');
+    
     try {
       const result = await signUp.attemptEmailAddressVerification({
         code: verificationCode,
       });
+
+      console.log('Verification result status:', result.status);
 
       if (result.status === "complete") {
         if (result.createdSessionId) {
           await setActive({ session: result.createdSessionId });
         }
         toast.success("Email verified! Welcome to setlists.live!");
+        console.log('✅ Email verified, redirecting...');
         setTimeout(() => navigate('/'), 500);
       } else {
+        console.warn('Verification incomplete:', result.status);
         toast.error("Invalid verification code. Please try again.");
       }
     } catch (error: any) {
-      console.error("Verification error:", error);
-      toast.error("Verification failed. Please try again.");
+      console.error("❌ Verification error:", error);
+      console.error('Error details:', {
+        message: error?.message,
+        errors: error?.errors,
+        status: error?.status
+      });
+      
+      if (error.errors?.[0]?.message) {
+        toast.error(error.errors[0].message);
+      } else if (error.message) {
+        toast.error(error.message);
+      } else {
+        toast.error("Verification failed. Please check your code and try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }

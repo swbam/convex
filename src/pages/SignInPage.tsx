@@ -47,49 +47,83 @@ export function SignInPage() {
   }
 
   const handleSpotifySignIn = async () => {
-    if (!isLoaded) return;
+    if (!isLoaded || !signIn) {
+      console.error('Clerk not loaded or signIn not available');
+      toast.error('Authentication not ready. Please refresh the page.');
+      return;
+    }
+    
     setIsSpotifyLoading(true);
+    console.log('🎵 Starting Spotify OAuth flow...');
     
     try {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_spotify',
-        redirectUrl: '/sso-callback',
-        redirectUrlComplete: '/',
+        redirectUrl: `${window.location.origin}/sso-callback`,
+        redirectUrlComplete: `${window.location.origin}/`,
       });
     } catch (error: any) {
-      console.error('Spotify sign in error:', error);
-      toast.error('Failed to sign in with Spotify');
+      console.error('❌ Spotify sign in error:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        errors: error?.errors,
+        status: error?.status
+      });
+      
+      const errorMessage = error?.errors?.[0]?.message || error?.message || 'Failed to sign in with Spotify';
+      toast.error(errorMessage);
       setIsSpotifyLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
-    if (!isLoaded) return;
+    if (!isLoaded || !signIn) {
+      console.error('Clerk not loaded or signIn not available');
+      toast.error('Authentication not ready. Please refresh the page.');
+      return;
+    }
+    
     setIsGoogleLoading(true);
+    console.log('🔍 Starting Google OAuth flow...');
     
     try {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',
-        redirectUrl: '/sso-callback',
-        redirectUrlComplete: '/',
+        redirectUrl: `${window.location.origin}/sso-callback`,
+        redirectUrlComplete: `${window.location.origin}/`,
       });
     } catch (error: any) {
-      console.error('Google sign in error:', error);
-      toast.error('Failed to sign in with Google');
+      console.error('❌ Google sign in error:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        errors: error?.errors,
+        status: error?.status
+      });
+      
+      const errorMessage = error?.errors?.[0]?.message || error?.message || 'Failed to sign in with Google';
+      toast.error(errorMessage);
       setIsGoogleLoading(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded) return;
+    if (!isLoaded || !signIn) {
+      console.error('Clerk not loaded or signIn not available');
+      toast.error('Authentication not ready. Please refresh the page.');
+      return;
+    }
 
     setIsSubmitting(true);
+    console.log('📧 Starting email sign in...');
+    
     try {
       const result = await signIn.create({
         identifier: email,
         password,
       });
+
+      console.log('Sign in result status:', result.status);
 
       if (result.status === "complete") {
         if (result.createdSessionId) {
@@ -97,17 +131,28 @@ export function SignInPage() {
         }
         toast.success("Welcome back!");
         
+        console.log('✅ Sign in successful, redirecting...');
         // Redirect to home - let App.tsx handle user creation and routing
         setTimeout(() => navigate('/'), 500);
       } else {
-        toast.error("Sign in incomplete. Please check your email.");
+        console.warn('Sign in incomplete:', result.status);
+        toast.error("Sign in incomplete. Please check your email for verification.");
       }
     } catch (error: any) {
-      console.error("Sign in error:", error);
+      console.error("❌ Sign in error:", error);
+      console.error('Error details:', {
+        message: error?.message,
+        errors: error?.errors,
+        status: error?.status,
+        clerkError: error?.clerkError
+      });
+      
       if (error.errors?.[0]?.message) {
         toast.error(error.errors[0].message);
+      } else if (error.message) {
+        toast.error(error.message);
       } else {
-        toast.error("Could not sign in. Please try again.");
+        toast.error("Could not sign in. Please check your email and password.");
       }
     } finally {
       setIsSubmitting(false);
