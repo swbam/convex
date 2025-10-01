@@ -48,13 +48,23 @@ export const getTrendingShows = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
     
-    // PREMIUM APPROACH: Query from main shows table with trending ranks
-    const shows = await ctx.db
+    // Try trending ranked shows first
+    let shows = await ctx.db
       .query("shows")
       .withIndex("by_trending_rank")
       .order("asc")
       .filter(q => q.neq(q.field("trendingRank"), undefined))
       .take(limit * 2);
+
+    // FALLBACK: If no trending ranks, get upcoming shows by date
+    if (shows.length === 0) {
+      console.log("⚠️ No trending ranks found for shows, falling back to date sort");
+      shows = await ctx.db
+        .query("shows")
+        .withIndex("by_status", (q) => q.eq("status", "upcoming"))
+        .order("desc")
+        .take(limit * 2);
+    }
 
     // Hydrate with full artist + venue data
     const hydrated = await Promise.all(shows.map(async (show) => {
@@ -68,7 +78,7 @@ export const getTrendingShows = query({
       };
     }));
 
-    // PREMIUM FILTERING: Show quality shows with reasonable criteria
+    // PREMIUM FILTERING: Show quality shows
     const filtered = hydrated.filter(show => {
       const artist = show.artist;
       if (!artist) return false;
@@ -96,15 +106,30 @@ export const getTrendingArtists = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
     
-    // PREMIUM APPROACH: Query from main artists table with trending scores
-    const artists = await ctx.db
+    // Try trending ranked artists first
+    let artists = await ctx.db
       .query("artists")
       .withIndex("by_trending_rank")
       .order("asc")
       .filter(q => q.neq(q.field("trendingRank"), undefined))
       .take(limit * 2);
 
-    // PREMIUM FILTERING: Show quality artists with reasonable criteria
+    // FALLBACK: If no trending ranks exist yet, get by popularity
+    if (artists.length === 0) {
+      console.log("⚠️ No trending ranks found, falling back to popularity sort");
+      const allArtists = await ctx.db
+        .query("artists")
+        .filter(q => q.eq(q.field("isActive"), true))
+        .collect();
+      
+      // Sort by popularity descending
+      artists = allArtists
+        .filter(a => a.popularity !== undefined)
+        .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+        .slice(0, limit * 2);
+    }
+
+    // PREMIUM FILTERING: Show quality artists
     const filtered = artists.filter(artist => {
       const hasImage = artist.images && artist.images.length > 0;
       const notUnknown = !artist.name.toLowerCase().includes("unknown");
@@ -112,7 +137,7 @@ export const getTrendingArtists = query({
       const hasSpotifyData = artist.spotifyId && artist.popularity;
       const hasRealId = artist._id.startsWith('j');
       
-      // Premium filter: Must have Spotify data + image + real name (shows count optional for display)
+      // Premium filter: Must have Spotify data + image + real name
       return hasImage && notUnknown && notGeneric && hasSpotifyData && hasRealId;
     }).slice(0, limit);
 
