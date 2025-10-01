@@ -558,7 +558,7 @@ export const createFromTicketmaster = internalMutation({
       voteCount: 0, // Initialize vote count
       setlistCount: 0, // Initialize setlist count
       trendingScore: 0, // Initialize trending score
-      trendingRank: undefined, // Will be calculated by trending cron
+      trendingRank: 0, // FIXED: Initialize to 0 for trending queries
       lastTrendingUpdate: Date.now(), // Initialize trending timestamp
       priceRange: undefined, // Will be set if available from Ticketmaster
       setlistfmId: undefined, // Will be set when setlist imported

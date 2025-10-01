@@ -167,11 +167,28 @@ export const syncArtistCatalog = internalAction({
   handler: async (ctx, args) => {
     const clientId = process.env.SPOTIFY_CLIENT_ID;
     const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-    
+
     if (!clientId || !clientSecret) {
       console.log("Spotify credentials not configured");
       return null;
     }
+
+    // CRITICAL FIX: Prevent duplicate syncs with timestamp guard
+    const artist = await ctx.runQuery(internal.artists.getByIdInternal, { id: args.artistId });
+
+    if (!artist) {
+      console.log(`❌ Artist not found: ${args.artistId}`);
+      return null;
+    }
+
+    // Skip if synced within last hour (prevents duplicate triggers)
+    const ONE_HOUR = 60 * 60 * 1000;
+    if (artist.lastSynced && (Date.now() - artist.lastSynced) < ONE_HOUR) {
+      console.log(`⏭️ Skipping catalog sync for ${args.artistName} - synced ${Math.round((Date.now() - artist.lastSynced) / 1000 / 60)} minutes ago`);
+      return null;
+    }
+
+    console.log(`🎵 Starting catalog sync for ${args.artistName} (Last sync: ${artist.lastSynced ? new Date(artist.lastSynced).toISOString() : 'never'})`);
 
     try {
       // Get access token
@@ -291,15 +308,19 @@ export const syncArtistCatalog = internalAction({
         }
       }
       
-      console.log(`📊 Collected ${allTracks.length} tracks from ${studioAlbums.length} albums`);
+      console.log(`📊 Collected ${allTracks.length} total tracks from ${studioAlbums.length} albums`);
 
       // GENIUS DUPLICATE DETECTION: Filter original tracks only
       const originalTracks = await filterOriginalTracks(allTracks, args.artistId, ctx);
-      
-      console.log(`🎯 Filtered to ${originalTracks.length} original studio tracks`);
 
-      // Process filtered tracks
-      for (const track of originalTracks) {
+      console.log(`🎯 Filtered to ${originalTracks.length} original studio tracks (from ${allTracks.length} total, ${((originalTracks.length / allTracks.length) * 100).toFixed(1)}% kept)`);
+
+      // CRITICAL FIX: Track import progress every 50 songs to detect caps
+      console.log(`📝 Beginning import of ${originalTracks.length} songs...`);
+
+      for (let i = 0; i < originalTracks.length; i++) {
+        const track = originalTracks[i];
+
         try {
           // Create song with full metadata
           const songId = await ctx.runMutation(internal.songs.create, {
@@ -313,7 +334,7 @@ export const syncArtistCatalog = internalAction({
             isRemix: false,
           });
 
-          // Link artist to song
+          // Link artist to song (with duplicate prevention)
           await ctx.runMutation(internal.artistSongs.create, {
             artistId: args.artistId,
             songId,
@@ -321,12 +342,17 @@ export const syncArtistCatalog = internalAction({
           });
 
           songsImported++;
+
+          // Progress logging every 50 songs
+          if ((i + 1) % 50 === 0) {
+            console.log(`📊 Progress: ${i + 1}/${originalTracks.length} songs processed (${songsImported} imported)`);
+          }
         } catch (error) {
-          console.error(`Failed to import song ${track.name}:`, error);
+          console.error(`❌ Failed to import song ${track.name}:`, error);
         }
       }
 
-      console.log(`✅ Catalog sync completed for ${args.artistName}: ${songsImported} songs imported`);
+      console.log(`✅ Catalog sync completed for ${args.artistName}: ${songsImported}/${originalTracks.length} songs imported successfully`);
 
       // Auto-generate setlists for shows without them
       try {
@@ -355,31 +381,63 @@ export const syncArtistCatalog = internalAction({
 
 // Not used anymore - album filtering done inline above
 
-// BALANCED: Allow studio songs but exclude obvious live/remix variations
+// ULTRA-STRICT: Studio songs ONLY - exclude all variations
 function isStudioSong(songName: string, albumName: string): boolean {
   const songLower = songName.toLowerCase().trim();
-  
-  // ONLY exclude obvious non-studio indicators in SONG title:
+  const albumLower = albumName.toLowerCase().trim();
+
+  // Exclude non-studio indicators in SONG title
   const songExcludes = [
-    '(live)', '[live]', ' - live', 'live at', 'live from',
-    'remix', 'rmx', '(remix)', '[remix]',
-    'demo', '(demo)', '[demo]',
-    'instrumental', 'karaoke',
+    // Live versions
+    '(live)', '[live]', ' - live', 'live at', 'live from', 'live version', 'live recording',
+    // Remixes and variations
+    'remix', 'rmx', '(remix)', '[remix]', 'edit', 'radio edit', 'extended', 'extended version',
+    'acoustic', 'acoustic version', 'stripped', 'unplugged',
+    // Demos and alternates
+    'demo', '(demo)', '[demo]', 'alternate', 'alternative version', 'alternate take',
+    'outtake', 'rough mix', 'work in progress',
+    // Instrumentals
+    'instrumental', 'karaoke', 'backing track', 'acapella', 'a cappella',
+    // Commentary/extras
+    'commentary', 'interview', 'spoken word', 'voice memo',
   ];
-  
-  // Skip pure intro/outro tracks
-  if (['intro', 'outro', 'interlude', 'skit'].includes(songLower)) {
+
+  // Exclude non-studio indicators in ALBUM title (extra safety)
+  const albumExcludes = [
+    'live', 'concert', 'tour', 'mtv unplugged',
+    'acoustic', 'stripped',
+    'remix', 'remixes', 'remixed',
+    'demo', 'demos',
+  ];
+
+  // Skip pure intro/outro/interlude tracks
+  if (['intro', 'outro', 'interlude', 'skit', 'prelude', 'segue'].includes(songLower)) {
     return false;
   }
-  
+
   // Check song title for exclusions
   for (const word of songExcludes) {
     if (songLower.includes(word)) {
+      console.log(`🚫 Excluded song (title): ${songName} (contains: ${word})`);
       return false;
     }
   }
-  
-  return songLower.length > 0 && songLower.length <= 100;
+
+  // Check album title for exclusions (extra safety layer)
+  for (const word of albumExcludes) {
+    if (albumLower.includes(word)) {
+      console.log(`🚫 Excluded song (album): ${songName} from ${albumName} (album contains: ${word})`);
+      return false;
+    }
+  }
+
+  // Validate length
+  if (songLower.length === 0 || songLower.length > 100) {
+    console.log(`🚫 Excluded song (length): ${songName} (length: ${songLower.length})`);
+    return false;
+  }
+
+  return true;
 }
 
 // Removed isHighQualityStudioAlbum - was filtering out too many legitimate albums

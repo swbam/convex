@@ -577,13 +577,44 @@ export const updateTrendingArtist = internalMutation({
 });
 
 async function fetchTicketmasterTrendingArtists() {
-  const response = await fetch("https://app.ticketmaster.com/discovery/v2/events.json?size=20&sort=date,asc&apikey=" + process.env.TICKETMASTER_API_KEY);
+  // FIXED: Use attractions API, not events API!
+  const response = await fetch("https://app.ticketmaster.com/discovery/v2/attractions.json?classificationName=music&size=20&apikey=" + process.env.TICKETMASTER_API_KEY);
+  if (!response.ok) {
+    console.error("Failed to fetch trending artists:", response.status);
+    return { artists: [] };
+  }
   const data = await response.json();
-  return data._embedded?.events || [];
+  const attractions = data._embedded?.attractions || [];
+
+  // Return in expected format with artists array
+  return {
+    artists: attractions.map((attraction: any) => ({
+      id: attraction.id,
+      name: attraction.name,
+      genres: attraction.classifications?.[0]?.genre?.name ? [attraction.classifications[0].genre.name] : [],
+      images: attraction.images?.map((img: any) => img.url) || [],
+      popularity: attraction.upcomingEvents?._total || 0,
+    }))
+  };
 }
 
 async function fetchTicketmasterTrendingShows() {
-  const response = await fetch("https://app.ticketmaster.com/discovery/v2/events.json?size=20&sort=date,asc&apikey=" + process.env.TICKETMASTER_API_KEY);
+  const response = await fetch("https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=20&sort=date,asc&apikey=" + process.env.TICKETMASTER_API_KEY);
+  if (!response.ok) {
+    console.error("Failed to fetch trending shows:", response.status);
+    return { shows: [] };
+  }
   const data = await response.json();
-  return data._embedded?.events || [];
+  const events = data._embedded?.events || [];
+
+  // Return in expected format with shows array
+  return {
+    shows: events.map((event: any) => ({
+      id: event.id,
+      name: event.name,
+      date: event.dates?.start?.localDate,
+      venue: event._embedded?.venues?.[0],
+      artist: event._embedded?.attractions?.[0],
+    }))
+  };
 }

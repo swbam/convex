@@ -227,7 +227,7 @@ export const updateFromClerk = internalMutation({
     const email = email_addresses?.[0]?.email_address;
     const name = [first_name, last_name].filter(Boolean).join(" ") || email;
     const avatar = image_url;
-    
+
     // CRITICAL: Extract Spotify ID from external_accounts (Clerk webhook payload)
     const spotifyAccount = external_accounts?.find((acc: any) => acc.provider === 'oauth_spotify');
     const spotifyId = spotifyAccount?.provider_user_id || unsafe_metadata?.spotifyId;
@@ -248,6 +248,30 @@ export const updateFromClerk = internalMutation({
       await ctx.db.patch(user._id, { email, name, avatar, spotifyId });
       console.log('✅ User updated from webhook:', user._id);
     }
+    return null;
+  },
+});
+
+// FIXED: Alias for createFromClerk (which already does upsert logic)
+export const upsertFromClerk = createFromClerk;
+
+// FIXED: Add deleteFromClerk mutation for Clerk webhooks
+export const deleteFromClerk = internalMutation({
+  args: { clerkUserId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth_id", (q) => q.eq("authId", args.clerkUserId))
+      .first();
+
+    if (user) {
+      await ctx.db.delete(user._id);
+      console.log('✅ User deleted from webhook:', user._id);
+    } else {
+      console.warn('⚠️ User not found for deletion:', args.clerkUserId);
+    }
+
     return null;
   },
 });

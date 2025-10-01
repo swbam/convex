@@ -280,6 +280,7 @@ export const createFromTicketmaster = internalMutation({
         followers: existing.followers || 0,
         upcomingShowsCount: existing.upcomingShowsCount || 0,
         trendingScore: existing.trendingScore || 0,
+        trendingRank: existing.trendingRank || 0, // FIXED: Ensure trendingRank exists
       });
       // Sync post-merge via scheduler (async, non-blocking)
       void ctx.scheduler.runAfter(0, internal.ticketmaster.syncArtistShows, { artistId: existing._id, ticketmasterId: args.ticketmasterId });
@@ -313,6 +314,7 @@ export const createFromTicketmaster = internalMutation({
       followers: 0,
       lastSynced: Date.now(),
       trendingScore: 0,
+      trendingRank: 0, // FIXED: Initialize trendingRank for trending queries
       upcomingShowsCount: 0,
       lastTrendingUpdate: Date.now(),
       lowerName,
