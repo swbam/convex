@@ -6,6 +6,7 @@ import { TrendingUp, Users, MapPin, Music, Sparkles } from "lucide-react";
 import { SearchBar } from "./SearchBar";
 import { Id } from "../../convex/_generated/dataModel";
 import { ArtistCardSkeleton, ShowCardSkeleton } from "./LoadingSkeleton";
+import { motion } from "framer-motion";
 
 interface PublicDashboardProps {
   onArtistClick: (artistKey: Id<"artists"> | string) => void;
@@ -27,175 +28,261 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
 
   const isLoading = !dbTrendingShowsResult || !dbTrendingArtistsResult;
 
+  // Animation variants for stagger effect
+  const heroVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.15,
+        delayChildren: 0.1,
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08,
+      }
+    }
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        duration: 0.5,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    }
+  };
+
   return (
     <div className="w-full">
-      {/* Hero Section with Search - Landing Page Style */}
-      <section className="relative w-full py-16 md:py-24 overflow-hidden">
-        {/* Gradient Background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />
+      {/* Hero Section with Search - Premium Dark Landing Page */}
+      <motion.section 
+        className="relative w-full py-16 md:py-24 overflow-hidden"
+        initial="hidden"
+        animate="show"
+        variants={heroVariants}
+      >
+        {/* Subtle monochrome gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] via-transparent to-transparent pointer-events-none" />
         
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-4xl mx-auto text-center space-y-6">
-            {/* Headline */}
+            {/* Headline with stagger animation */}
             <div className="space-y-4">
-              <div className="flex items-center justify-center gap-2 text-primary">
+              <motion.div 
+                variants={itemVariants}
+                className="flex items-center justify-center gap-2 text-white/60"
+              >
                 <Sparkles className="h-5 w-5" />
                 <span className="text-sm font-semibold uppercase tracking-wider">Live Concert Setlists</span>
-              </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight">
+              </motion.div>
+              
+              <motion.h1 
+                variants={itemVariants}
+                className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight gradient-text"
+              >
                 Discover Your Next
-                <span className="block text-primary mt-2">Unforgettable Show</span>
-              </h1>
-              <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto">
+                <span className="block mt-2">Unforgettable Show</span>
+              </motion.h1>
+              
+              <motion.p 
+                variants={itemVariants}
+                className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto"
+              >
                 Search trending artists, explore upcoming concerts, and vote on predicted setlists
-              </p>
-            </div>
-
-            {/* Search Bar - Centered and Prominent */}
-            <div className="max-w-2xl mx-auto pt-4">
-              <SearchBar 
-                onArtistClick={(key) => navigateTo(`/artists/${key}`)}
-                onShowClick={(key) => navigateTo(`/shows/${key}`)}
-                onVenueClick={(key) => navigateTo(`/venues/${key}`)}
-              />
-            </div>
+              </motion.p>
+          </div>
+          
+            {/* Search Bar - Centered with glass effect */}
+            <motion.div 
+              variants={itemVariants}
+              className="max-w-2xl mx-auto pt-4"
+            >
+              <div className="glass-card rounded-2xl p-1 shadow-elevated">
+                <SearchBar 
+                  onArtistClick={(key) => navigateTo(`/artists/${key}`)}
+                  onShowClick={(key) => navigateTo(`/shows/${key}`)}
+                  onVenueClick={(key) => navigateTo(`/venues/${key}`)}
+                />
+          </div>
+            </motion.div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Content Sections */}
       <div className="container mx-auto px-4 space-y-16 pb-16">
         
         {/* Trending Artists Section */}
-        <section>
-          <div className="flex items-center justify-between mb-8">
+        <motion.section
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={containerVariants}
+        >
+          <motion.div variants={itemVariants} className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <Users className="h-6 w-6 text-primary" />
-              </div>
-              <div>
+              <div className="h-12 w-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
+                <Users className="h-6 w-6 text-white/80" />
+            </div>
+            <div>
                 <h2 className="text-2xl md:text-3xl font-bold text-white">Trending Artists</h2>
-                <p className="text-sm text-gray-400">Most popular artists with upcoming shows</p>
+                <p className="text-sm text-gray-500">Most popular artists with upcoming shows</p>
               </div>
             </div>
-          </div>
+          </motion.div>
           
-          <div className="relative">
+          <motion.div variants={containerVariants} className="relative">
             {/* Horizontal Scroll Container */}
             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory -mx-2 px-2">
               {isLoading ? (
                 [...Array(6)].map((_, i) => <ArtistCardSkeleton key={i} />)
               ) : dbTrendingArtists.length === 0 ? (
                 <div className="w-full flex flex-col items-center justify-center py-16 text-center">
-                  <Music className="h-16 w-16 text-gray-700 mb-4" />
-                  <p className="text-gray-400 text-lg">No artists found</p>
-                  <p className="text-gray-500 text-sm mt-2">Check back soon for trending artists</p>
+                  <Music className="h-16 w-16 text-gray-800 mb-4" />
+                  <p className="text-gray-500 text-lg">No artists available</p>
+                  <p className="text-gray-600 text-sm mt-2">Check back soon</p>
                 </div>
               ) : (
-                dbTrendingArtists.map(artist => (
-                  <ArtistCard 
-                    key={artist._id} 
-                    artist={artist}
-                    onClick={() => navigateTo(`/artists/${artist.slug}`)}
-                  />
-                ))
-              )}
-            </div>
+                dbTrendingArtists.map((artist, index) => (
+                  <motion.div key={artist._id} variants={cardVariants} custom={index}>
+                    <ArtistCard 
+                  artist={artist}
+                      onClick={() => navigateTo(`/artists/${artist.slug}`)}
+                    />
+                  </motion.div>
+              ))
+            )}
           </div>
-        </section>
+          </motion.div>
+        </motion.section>
 
         {/* Trending Shows Section */}
-        <section>
-          <div className="flex items-center justify-between mb-8">
+        <motion.section
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={containerVariants}
+        >
+          <motion.div variants={itemVariants} className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-primary" />
+              <div className="h-12 w-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
+                <TrendingUp className="h-6 w-6 text-white/80" />
               </div>
-              <div>
+          <div>
                 <h2 className="text-2xl md:text-3xl font-bold text-white">Hottest Shows</h2>
-                <p className="text-sm text-gray-400">Top upcoming concerts near you</p>
+                <p className="text-sm text-gray-500">Top upcoming concerts near you</p>
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Shows Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {/* Shows Grid with stagger animation */}
+          <motion.div 
+            variants={containerVariants}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+          >
             {isLoading ? (
               [...Array(8)].map((_, i) => <ShowCardSkeleton key={i} />)
             ) : dbTrendingShows.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
-                <Music className="h-16 w-16 text-gray-700 mb-4" />
-                <p className="text-gray-400 text-lg">No shows found</p>
-                <p className="text-gray-500 text-sm mt-2">Check back soon for trending concerts</p>
+                <Music className="h-16 w-16 text-gray-800 mb-4" />
+                <p className="text-gray-500 text-lg">No shows available</p>
+                <p className="text-gray-600 text-sm mt-2">Check back soon</p>
               </div>
             ) : (
-              dbTrendingShows.slice(0, 12).map(show => (
-                <ShowCard 
-                  key={show._id} 
-                  show={show} 
-                  onClick={() => navigateTo(`/shows/${show.slug}`)}
-                />
+              dbTrendingShows.slice(0, 12).map((show, index) => (
+                <motion.div key={show._id} variants={cardVariants} custom={index}>
+                  <ShowCard 
+                    show={show} 
+                    onClick={() => navigateTo(`/shows/${show.slug}`)}
+                  />
+                </motion.div>
               ))
             )}
-          </div>
-        </section>
+          </motion.div>
+        </motion.section>
       </div>
     </div>
   );
 }
 
-// Premium Artist Card - Fully Clickable
+// Premium Artist Card - Fully Clickable with Glass Morphism
 function ArtistCard({ artist, onClick }: {
   artist: any;
   onClick: () => void;
 }) {
   return (
-    <div 
-      className="flex-shrink-0 w-64 snap-start group cursor-pointer"
+    <motion.div 
+      className="flex-shrink-0 w-64 snap-start cursor-pointer"
       onClick={onClick}
+      whileHover={{ y: -6, transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } }}
+      whileTap={{ scale: 0.98 }}
     >
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-white/5 to-transparent border border-white/10 transition-all duration-300 hover:scale-105 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 active:scale-95">
+      <div className="glass-card glass-card-hover rounded-2xl overflow-hidden card-lift shadow-elevated shadow-elevated-hover">
         {/* Artist Image */}
         <div className="relative w-full aspect-square overflow-hidden">
           {artist.images?.[0] ? (
-            <img 
-              src={artist.images[0]} 
-              alt={artist.name}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-            />
+            <motion.img 
+                src={artist.images[0]} 
+                alt={artist.name}
+              className="w-full h-full object-cover"
+              whileHover={{ scale: 1.05 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-              <span className="text-white font-bold text-4xl">
+            <div className="w-full h-full bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center">
+              <span className="text-white/80 font-bold text-4xl">
                 {artist.name.slice(0, 2).toUpperCase()}
               </span>
             </div>
           )}
-          {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          {/* Monochrome gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
         </div>
-
+        
         {/* Content */}
         <div className="p-4 space-y-2">
-          <h3 className="text-white font-bold text-lg leading-tight line-clamp-1 group-hover:text-primary transition-colors">
-            {artist.name}
-          </h3>
-          <div className="flex items-center justify-between">
+          <h3 className="text-white font-bold text-lg leading-tight line-clamp-1 group-hover:shimmer-text transition-all">
+              {artist.name}
+            </h3>
+            <div className="flex items-center justify-between">
             <p className="text-gray-400 text-sm">
               {artist.upcomingShowsCount || 0} shows
             </p>
-            {artist.genres?.[0] && (
-              <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
-                {artist.genres[0]}
-              </span>
-            )}
+              {artist.genres?.[0] && (
+              <span className="text-xs px-2 py-1 rounded-full bg-white/5 text-white/70 border border-white/10">
+                  {artist.genres[0]}
+                </span>
+              )}
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-// Premium Show Card - Fully Clickable
+// Premium Show Card - Fully Clickable with Glass Morphism
 function ShowCard({
   show,
   onClick,
@@ -207,32 +294,36 @@ function ShowCard({
   const isUpcoming = showDate >= new Date();
 
   return (
-    <div 
-      className="group cursor-pointer"
+    <motion.div 
+      className="cursor-pointer"
       onClick={onClick}
+      whileHover={{ y: -6, transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } }}
+      whileTap={{ scale: 0.98 }}
     >
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-white/5 to-transparent border border-white/10 transition-all duration-300 hover:scale-105 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 active:scale-95">
+      <div className="glass-card glass-card-hover rounded-2xl overflow-hidden card-lift shadow-elevated shadow-elevated-hover">
         {/* Show Image */}
         <div className="relative w-full aspect-[4/3] overflow-hidden">
           {(show.artist?.images?.[0] || show.artistImage) ? (
-            <img
+            <motion.img
               src={show.artist?.images?.[0] || show.artistImage}
               alt={show.artist?.name || show.artistName}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              className="w-full h-full object-cover"
+              whileHover={{ scale: 1.05 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-              <span className="text-white font-bold text-3xl">
+            <div className="w-full h-full bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center">
+              <span className="text-white/80 font-bold text-3xl">
                 {(show.artist?.name || show.artistName).slice(0, 2).toUpperCase()}
               </span>
             </div>
           )}
-          {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+          {/* Monochrome gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent" />
           
-          {/* Date Badge */}
+          {/* Date Badge with glass effect */}
           <div className="absolute top-3 right-3">
-            <div className="bg-black/80 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10">
+            <div className="glass-card rounded-lg px-3 py-2">
               <p className="text-white text-xs font-bold">
                 {showDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </p>
@@ -242,7 +333,7 @@ function ShowCard({
 
         {/* Content */}
         <div className="p-4 space-y-2">
-          <h3 className="text-white font-bold text-base leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+          <h3 className="text-white font-bold text-base leading-tight line-clamp-1 group-hover:shimmer-text transition-all">
             {show.artist?.name || show.artistName}
           </h3>
           {show.venue && (
@@ -257,12 +348,12 @@ function ShowCard({
             </div>
           )}
           {show.priceRange && (
-            <p className="text-xs text-primary font-semibold">
+            <p className="text-xs text-white/70 font-semibold">
               {show.priceRange}
             </p>
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
+import { motion, AnimatePresence } from "framer-motion";
 
 
 import { ArtistDetail } from "./components/ArtistDetail";
@@ -190,6 +191,24 @@ function App() {
     toast.info("Sign in to add more songs and create setlists");
   };
 
+  // Page transition variants
+  const pageVariants = {
+    initial: { opacity: 0, y: 20 },
+    enter: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        duration: 0.4,
+        ease: [0.16, 1, 0.3, 1]
+      }
+    },
+    exit: { 
+      opacity: 0, 
+      y: -20,
+      transition: { duration: 0.3 }
+    }
+  };
+
   const renderMainContent = () => {
     switch (currentView) {
       case "artist":
@@ -360,14 +379,24 @@ function App() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Cohesive dark blue gradient background */}
+      {/* Premium monochrome gradient background */}
       <div className="fixed inset-0 bg-gradient-to-br from-black via-gray-950 to-black" />
       
       <div className="relative z-10">
         <ErrorBoundary>
           <ScrollToTop />
           <AppLayout>
-            {renderMainContent()}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                variants={pageVariants}
+                initial="initial"
+                animate="enter"
+                exit="exit"
+              >
+                {renderMainContent()}
+              </motion.div>
+            </AnimatePresence>
           </AppLayout>
         </ErrorBoundary>
       </div>
