@@ -1,24 +1,17 @@
 import React, { useState } from 'react';
-import { useQuery } from "convex/react";
+import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useNavigate } from "react-router-dom";
-import { useInfiniteQuery } from "convex/react"; // For infinite if needed
-import { Shows, Users, Calendar, Filter, TrendingUp } from "lucide-react";
+import { Shows, Users, Calendar, Filter, TrendingUp, MapPin, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
-import { Loader2 } from "lucide-react";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { SearchBar } from "./SearchBar";
 import { FadeIn } from "./animations/FadeIn";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
-import { HorizontalScrollingSection } from "./HorizontalScrollingSection";
-import { PremiumShowCard } from "./PremiumShowCard";
-import { PremiumArtistCard } from "./PremiumArtistCard";
-import { MobileShowCard } from "./MobileShowCard";
-import { MobileArtistCard } from "./MobileArtistCard";
 
 interface PublicDashboardProps {
   onArtistClick: (artistKey: Id<"artists"> | string) => void;
@@ -38,42 +31,25 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
   const [filterGenre, setFilterGenre] = useState('');
   const [filterCity, setFilterCity] = useState('');
 
-  // State for Ticketmaster trending data
-  const [trendingShows, setTrendingShows] = useState<any[]>([]);
-  const [trendingArtists, setTrendingArtists] = useState<any[]>([]);
-  const [isLoadingShows, setIsLoadingShows] = useState(false);
-  const [isLoadingArtists, setIsLoadingArtists] = useState(false);
-
-  const triggerFullSync = useAction(api.ticketmaster.triggerFullArtistSync);
-  const getLiveShows = useAction(api.ticketmaster.getTrendingShows);
-  const getLiveArtists = useAction(api.ticketmaster.getTrendingArtists);
-
   // Load trending data directly from the optimized trending system
-  const dbTrendingShows = useQuery(api.trending.getTrendingShows, { limit: 20 });
-  const dbTrendingArtists = useQuery(api.trending.getTrendingArtists, { limit: 20 });
+  const dbTrendingShowsResult = useQuery(api.trending.getTrendingShows, { limit: 20 });
+  const dbTrendingArtistsResult = useQuery(api.trending.getTrendingArtists, { limit: 20 });
   
-  // Fallback: Load from main tables if trending data is empty
-  const fallbackArtists = useQuery(api.artists.getTrending, { limit: 20 });
-  const fallbackShows = useQuery(api.shows.getUpcoming, { limit: 20 });
-
-  // Helper to check if DB data is fresh
-  const isDbFresh = (data: any[]) => {
-    if (!data || data.length === 0) return false;
-    const now = Date.now();
-    return data.some(item => item.lastTrendingUpdate && (now - item.lastTrendingUpdate < 4 * 60 * 60 * 1000));
-  };
+  // Extract page arrays from paginated results
+  const dbTrendingShows = dbTrendingShowsResult?.page || [];
+  const dbTrendingArtists = dbTrendingArtistsResult?.page || [];
 
   // Filtered data
-  const filteredShows = dbTrendingShows?.filter(show => 
+  const filteredShows = dbTrendingShows.filter(show => 
     (!filterGenre || show.artist?.genres?.[0]?.includes(filterGenre)) &&
     (!filterCity || show.venue?.city?.includes(filterCity))
-  ) || [];
+  );
 
-  const filteredArtists = dbTrendingArtists?.filter(artist => 
+  const filteredArtists = dbTrendingArtists.filter(artist => 
     (!filterGenre || artist.genres?.includes(filterGenre))
-  ) || [];
+  );
 
-  if (!dbTrendingShows && !dbTrendingArtists) {
+  if (!dbTrendingShowsResult && !dbTrendingArtistsResult) {
     return <div className="container mx-auto px-4 py-8 text-center"><Loader2 className="animate-spin h-12 w-12 mx-auto" /></div>;
   }
 
