@@ -281,11 +281,9 @@ export const createFromTicketmaster = internalMutation({
         upcomingShowsCount: existing.upcomingShowsCount || 0,
         trendingScore: existing.trendingScore || 0,
       });
-      // Sync post-merge
+      // Sync post-merge via scheduler (async, non-blocking)
       void ctx.scheduler.runAfter(0, internal.ticketmaster.syncArtistShows, { artistId: existing._id, ticketmasterId: args.ticketmasterId });
-      void ctx.scheduler.runAfter(0, internal.spotify.enrichArtistBasics, { artistId: existing._id, artistName: args.name });
-      const showCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId: existing._id });
-      await ctx.db.patch(existing._id, { upcomingShowsCount: showCount });
+      void ctx.scheduler.runAfter(1000, internal.spotify.enrichArtistBasics, { artistId: existing._id, artistName: args.name });
       return existing._id;
     }
 
@@ -316,14 +314,13 @@ export const createFromTicketmaster = internalMutation({
       lastSynced: Date.now(),
       trendingScore: 0,
       upcomingShowsCount: 0,
+      lastTrendingUpdate: Date.now(),
       lowerName,
     });
 
-    // Post-create sync
+    // Post-create sync via scheduler
     void ctx.scheduler.runAfter(0, internal.ticketmaster.syncArtistShows, { artistId, ticketmasterId: args.ticketmasterId });
-    void ctx.scheduler.runAfter(0, internal.spotify.enrichArtistBasics, { artistId, artistName: args.name });
-    const showCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId });
-    await ctx.db.patch(artistId, { upcomingShowsCount: showCount });
+    void ctx.scheduler.runAfter(1000, internal.spotify.enrichArtistBasics, { artistId, artistName: args.name });
 
     return artistId;
   },
@@ -650,12 +647,10 @@ export const create = internalMutation({
         trendingScore: existingByName.trendingScore || 0,
         upcomingShowsCount: existingByName.upcomingShowsCount || 0,
       });
-      // Sync if new Spotify data
+      // Sync if new Spotify data via scheduler
       if (args.spotifyId) {
-        await ctx.runAction(internal.spotify.enrichArtistBasics, { artistId: existingByName._id, artistName: args.name });
+        void ctx.scheduler.runAfter(0, internal.spotify.enrichArtistBasics, { artistId: existingByName._id, artistName: args.name });
       }
-      const showCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId: existingByName._id });
-      await ctx.db.patch(existingByName._id, { upcomingShowsCount: showCount });
       return existingByName._id;
     }
 
@@ -676,21 +671,20 @@ export const create = internalMutation({
       spotifyId: args.spotifyId,
       images,
       genres: args.genres,
-      popularity: args.popularity || 0,
-      followers: args.followers || 0,
-      lastSynced: args.lastSynced || Date.now(),
+      popularity: args.popularity ?? 0,
+      followers: args.followers ?? 0,
+      lastSynced: args.lastSynced ?? Date.now(),
       isActive: true,
       trendingScore: 0,
       upcomingShowsCount: 0,
+      lastTrendingUpdate: Date.now(),
       lowerName,
     });
 
-    // Post-create sync for Spotify if ID provided
+    // Post-create sync via scheduler
     if (args.spotifyId) {
-      await ctx.runAction(internal.spotify.enrichArtistBasics, { artistId, artistName: args.name });
+      void ctx.scheduler.runAfter(0, internal.spotify.enrichArtistBasics, { artistId, artistName: args.name });
     }
-    const showCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId });
-    await ctx.db.patch(artistId, { upcomingShowsCount: showCount });
 
     return artistId;
   },

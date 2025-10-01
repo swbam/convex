@@ -1,6 +1,4 @@
-"use node";
-
-import { action, internalAction } from "./_generated/server";
+import { action, internalAction, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 
@@ -326,15 +324,7 @@ export const populateMissingFields = internalAction({
     const staleThreshold = now - 24 * 60 * 60 * 1000; // 24h
 
     // Scan artists: missing counts or stale
-    const incompleteArtists = await ctx.db
-      .query("artists")
-      .filter((q) => 
-        q.or(
-          q.eq(q.field("upcomingShowsCount"), 0),
-          q.lt(q.field("lastSynced"), staleThreshold)
-        )
-      )
-      .collect();
+    const incompleteArtists = await ctx.runQuery(internal.maintenance.getIncompleteArtists, { staleThreshold });
 
     for (const artist of incompleteArtists.slice(0, 10)) { // Limit to 10 per run
       try {
@@ -349,7 +339,8 @@ export const populateMissingFields = internalAction({
           });
         }
         const showCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId: artist._id });
-        await ctx.db.patch(artist._id, {
+        await ctx.runMutation(internal.maintenance.updateArtistFields, {
+          artistId: artist._id,
           upcomingShowsCount: showCount,
           lastSynced: now,
         });
@@ -360,42 +351,31 @@ export const populateMissingFields = internalAction({
     }
 
     // Scan shows: missing artist/venue embeds or importStatus
-    const incompleteShows = await ctx.db
-      .query("shows")
-      .filter((q) => 
-        q.or(
-          q.eq(q.field("artist.name"), undefined), // Assuming embeds are fields like artist.name
-          q.eq(q.field("importStatus"), undefined),
-          q.neq(q.field("status"), "upcoming") // Focus on past for setlist
-        )
-      )
-      .take(20);
+    const incompleteShows = await ctx.runQuery(internal.maintenance.getIncompleteShows, {});
 
     for (const show of incompleteShows) {
       try {
         if (show.artistId) {
-          const artist = await ctx.runQuery(internal.artists.getById, { id: show.artistId });
-          if (artist) {
-            await ctx.db.patch(show._id, {
-              artist: { name: artist.name, slug: artist.slug, images: artist.images },
-            });
-          }
-        }
-        if (show.venueId) {
-          const venue = await ctx.runQuery(internal.venues.getById, { id: show.venueId });
-          if (venue) {
-            await ctx.db.patch(show._id, {
-              venue: { name: venue.name, city: venue.city, state: venue.state, postalCode: venue.postalCode, country: venue.country },
-              importStatus: show.status === "completed" ? "pending" : show.importStatus || "pending",
+          const artist = await ctx.runQuery(internal.artists.getByIdInternal, { id: show.artistId });
+          const venue = await ctx.runQuery(internal.venues.getByIdInternal, { id: show.venueId });
+          
+          if (artist || venue) {
+            await ctx.runMutation(internal.maintenance.updateShowEmbeds, {
+              showId: show._id,
+              artist: artist ? { name: artist.name, slug: artist.slug, images: artist.images } : undefined,
+              venue: venue ? { name: venue.name, city: venue.city, state: venue.state, country: venue.country } : undefined,
             });
           }
         }
         // Trigger setlist if completed and pending
-        if (show.status === "completed" && (show.importStatus === "pending" || !show.importStatus)) {
+        const artist = await ctx.runQuery(internal.artists.getByIdInternal, { id: show.artistId });
+        const venue = await ctx.runQuery(internal.venues.getByIdInternal, { id: show.venueId });
+        
+        if (show.status === "completed" && (show.importStatus === "pending" || !show.importStatus) && artist && venue) {
           await ctx.scheduler.runAfter(0, internal.setlistfm.syncActualSetlist, {
             showId: show._id,
-            artistName: show.artist?.name,
-            venueCity: show.venue?.city,
+            artistName: artist.name,
+            venueCity: venue.city,
             showDate: show.date,
           });
         }
@@ -405,18 +385,77 @@ export const populateMissingFields = internalAction({
       }
     }
 
-    // Similar for venues: populate state/postalCode if missing
-    const incompleteVenues = await ctx.db
-      .query("venues")
-      .filter((q) => q.or(q.eq(q.field("state"), undefined), q.eq(q.field("postalCode"), undefined)))
-      .take(10);
-
-    for (const venue of incompleteVenues) {
-      // Would need external lookup, but for now log or skip
-      console.log(`⚠️ Venue ${venue.name} missing details - manual update needed`);
-    }
-
     console.log("✅ Missing fields population complete");
+    return null;
+  },
+});
+
+// Helper queries/mutations for populateMissingFields
+export const getIncompleteArtists = internalQuery({
+  args: { staleThreshold: v.number() },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("artists")
+      .filter((q) => q.or(
+        q.eq(q.field("upcomingShowsCount"), 0),
+        q.lt(q.field("lastSynced"), args.staleThreshold)
+      ))
+      .take(10);
+  },
+});
+
+export const getIncompleteShows = internalQuery({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("shows")
+      .filter((q) => q.eq(q.field("status"), "completed"))
+      .take(20);
+  },
+});
+
+export const updateArtistFields = internalMutation({
+  args: { artistId: v.id("artists"), upcomingShowsCount: v.number(), lastSynced: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.artistId, {
+      upcomingShowsCount: args.upcomingShowsCount,
+      lastSynced: args.lastSynced,
+    });
+    return null;
+  },
+});
+
+export const updateShowEmbeds = internalMutation({
+  args: { 
+    showId: v.id("shows"), 
+    artist: v.optional(v.any()),
+    venue: v.optional(v.any()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const update: any = {};
+    if (args.artist) update.artist = args.artist;
+    if (args.venue) update.venue = args.venue;
+    if (Object.keys(update).length > 0) {
+      await ctx.db.patch(args.showId, update);
+    }
+    return null;
+  },
+});
+
+export const updateArtistCounts = internalAction({
+  args: { artistId: v.id("artists") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const showCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId: args.artistId });
+    await ctx.runMutation(internal.maintenance.updateArtistFields, {
+      artistId: args.artistId,
+      upcomingShowsCount: showCount,
+      lastSynced: Date.now(),
+    });
     return null;
   },
 });

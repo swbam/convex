@@ -1,4 +1,4 @@
-import { query, internalMutation, subscription } from "./_generated/server";
+import { query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "./auth";
 import { Id } from "./_generated/dataModel";
@@ -473,11 +473,11 @@ export const getRecentPredictions = query({
   },
 });
 
-export const subscribeToUserActivity = subscription({
+export const subscribeToUserActivity = query({
   args: { userId: v.id("users") },
   returns: v.array(v.any()),
-  handler: (ctx, args) => {
-    return ctx.db
+  handler: async (ctx, args) => {
+    return await ctx.db
       .query("activity")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .order("desc")

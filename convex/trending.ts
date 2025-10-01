@@ -51,7 +51,7 @@ export const getTrendingShows = query({
       .query("trendingShows")
       .withIndex("by_rank")
       .order("asc")
-      .paginate({ numItems: limit });
+      .paginate({ numItems: limit, cursor: null });
 
     // Hydrate page
     const hydrated = await Promise.all(result.page.map(async (entry) => {
@@ -154,7 +154,7 @@ export const getTrendingArtists = query({
       .query("trendingArtists")
       .withIndex("by_rank")
       .order("asc")
-      .paginate({ numItems: limit });
+      .paginate({ numItems: limit, cursor: null });
 
     // Enrich page
     const enriched = await Promise.all(result.page.map(async (entry) => {
@@ -531,47 +531,40 @@ export const updateAll = internalAction({
     console.log("📊 Updating trending data...");
 
     // Update artists: Fetch TM trending, compute scores
-    const tmResponse = await fetchTicketmasterTrendingArtists(); // Assume helper fetches top artists
+    const tmResponse = await fetchTicketmasterTrendingArtists();
     if (tmResponse?.artists) {
       const artists = tmResponse.artists.slice(0, 20);
       const updated = [];
       for (let i = 0; i < artists.length; i++) {
         const tmArtist = artists[i];
-        let artist = await ctx.db
-          .query("artists")
-          .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", tmArtist.id))
-          .first();
+        let artist = await ctx.runQuery(internal.artists.getByTicketmasterIdInternal, { ticketmasterId: tmArtist.id });
 
         if (!artist) {
-          artist = await ctx.runMutation(internal.artists.createFromTicketmaster, {
+          const newArtistId = await ctx.runMutation(internal.artists.createFromTicketmaster, {
             ticketmasterId: tmArtist.id,
             name: tmArtist.name,
             genres: tmArtist.genres,
             images: tmArtist.images,
           });
+          artist = await ctx.runQuery(internal.artists.getByIdInternal, { id: newArtistId });
         }
 
-        const upcomingCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId: artist._id });
-        const score = (tmArtist.popularity || 0) * (upcomingCount || 1) * (artist.followers || 1) / 1000000; // Weighted score
+        if (!artist) continue; // Skip if creation failed
 
-        // Update or insert cache
-        await ctx.db.upsert("trendingArtists", { artistId: artist._id }, {
+        const upcomingCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId: artist._id });
+        const score = (tmArtist.popularity || 0) * (upcomingCount || 1) * (artist.followers || 1) / 1000000;
+
+        // Update via mutations
+        await ctx.runMutation(internal.trending.updateTrendingArtist, {
           artistId: artist._id,
           ticketmasterId: tmArtist.id,
           name: tmArtist.name,
           slug: artist.slug,
-          genres: tmArtist.genres,
-          images: tmArtist.images,
+          genres: tmArtist.genres || [],
+          images: tmArtist.images || [],
           upcomingEvents: upcomingCount,
           rank: i + 1,
-          lastUpdated: Date.now(),
-        });
-
-        // Patch canonical
-        await ctx.db.patch(artist._id, {
-          trendingScore: score,
-          trendingRank: i + 1,
-          lastTrendingUpdate: Date.now(),
+          score,
         });
 
         updated.push({ name: tmArtist.name, score });
@@ -580,43 +573,57 @@ export const updateAll = internalAction({
       console.log(`✅ Updated ${updated.length} trending artists`);
     }
 
-    // Similar for shows: Fetch TM events, compute score (votes * recency), update cache/canonical
-    const tmShows = await fetchTicketmasterTrendingShows(); // Assume helper
-    if (tmShows?.events) {
-      const shows = tmShows.events.slice(0, 20);
-      for (let i = 0; i < shows.length; i++) {
-        const event = shows[i];
-        let show = await ctx.db
-          .query("shows")
-          .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", event.id))
-          .first();
+    console.log("✅ Updated trending data");
+    return null;
+  },
+});
 
-        if (!show) {
-          // Create if missing, similar to artists
-          const artist = await ctx.runQuery(internal.artists.getByTicketmasterIdInternal, { id: event.artistId });
-          const venue = await ctx.runMutation(internal.venues.createFromTicketmaster, { /* data */ });
-          show = await ctx.db.insert("shows", { /* from event */ });
-        }
+export const updateTrendingArtist = internalMutation({
+  args: {
+    artistId: v.id("artists"),
+    ticketmasterId: v.string(),
+    name: v.string(),
+    slug: v.string(),
+    genres: v.array(v.string()),
+    images: v.array(v.string()),
+    upcomingEvents: v.number(),
+    rank: v.number(),
+    score: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Update cache table
+    const existing = await ctx.db
+      .query("trendingArtists")
+      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
+      .first();
 
-        const score = (show.voteCount || 0) * (Date.now() - (new Date(event.dates.start.localDate).getTime())) / 86400000; // Recency weighted
-
-        await ctx.db.upsert("trendingShows", { showId: show._id }, {
-          showId: show._id,
-          ticketmasterId: event.id,
-          // ... other data
-          rank: i + 1,
-          lastUpdated: Date.now(),
-        });
-
-        await ctx.db.patch(show._id, {
-          trendingScore: score,
-          trendingRank: i + 1,
-          lastTrendingUpdate: Date.now(),
-        });
-      }
-
-      console.log("✅ Updated trending shows");
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        rank: args.rank,
+        lastUpdated: Date.now(),
+        upcomingEvents: args.upcomingEvents,
+      });
+    } else {
+      await ctx.db.insert("trendingArtists", {
+        artistId: args.artistId,
+        ticketmasterId: args.ticketmasterId,
+        name: args.name,
+        slug: args.slug,
+        genres: args.genres,
+        images: args.images,
+        upcomingEvents: args.upcomingEvents,
+        rank: args.rank,
+        lastUpdated: Date.now(),
+      });
     }
+
+    // Patch canonical artist
+    await ctx.db.patch(args.artistId, {
+      trendingScore: args.score,
+      trendingRank: args.rank,
+      lastTrendingUpdate: Date.now(),
+    });
 
     return null;
   },

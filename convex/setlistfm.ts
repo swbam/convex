@@ -1,8 +1,7 @@
-"use node";
-
-import { action, internalAction } from "./_generated/server";
+import { action, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 export const syncActualSetlist = internalAction({
   args: {
@@ -11,36 +10,62 @@ export const syncActualSetlist = internalAction({
     venueCity: v.string(),
     showDate: v.string(),
   },
-  returns: v.optional(v.string()), // Setlist ID or null
-  handler: async (ctx, args, attempt = 1) => {
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args): Promise<string | null> => {
+    const attempt = 1;
     const maxAttempts = 3;
     try {
-      const show = await ctx.db.get(args.showId);
+      const show = await ctx.runQuery(internal.shows.getByIdInternal, { id: args.showId });
       if (!show || !show.artistId || !show.venueId) {
         await ctx.runMutation(internal.shows.updateImportStatus, {
           showId: args.showId,
-          status: "failed",
-          error: "missing_relations",
+          status: "failed" as const,
         });
         throw new Error("Missing relations");
       }
 
       const [artist, venue] = await Promise.all([
-        ctx.runQuery(internal.artists.getById, { id: show.artistId }),
-        ctx.runQuery(internal.venues.getById, { id: show.venueId }),
+        ctx.runQuery(internal.artists.getByIdInternal, { id: show.artistId }),
+        ctx.runQuery(internal.venues.getByIdInternal, { id: show.venueId }),
       ]);
 
       if (!artist || !venue) {
         await ctx.runMutation(internal.shows.updateImportStatus, {
           showId: args.showId,
-          status: "failed",
-          error: "missing_artist_or_venue",
+          status: "failed" as const,
         });
         throw new Error("Missing artist or venue");
       }
 
-      // Existing API call (assume fetchSetlistFm exists)
-      const response = await fetchSetlistFm(artist.name, venue.city, args.showDate); // With rate limit
+      // API call to Setlist.fm (simplified for now - implement full logic)
+      const apiKey = process.env.SETLISTFM_API_KEY;
+      if (!apiKey) {
+        throw new Error("SETLISTFM_API_KEY not configured");
+      }
+
+      const dateMatch = args.showDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!dateMatch) {
+        throw new Error("Invalid date format");
+      }
+      const [, year, month, day] = dateMatch;
+      const setlistfmDate = `${day}-${month}-${year}`;
+
+      const searchUrl = `https://api.setlist.fm/rest/1.0/search/setlists?artistName=${encodeURIComponent(artist.name)}&cityName=${encodeURIComponent(venue.city)}&date=${setlistfmDate}`;
+      
+      const apiResponse = await fetch(searchUrl, {
+        headers: {
+          'x-api-key': apiKey,
+          'Accept': 'application/json',
+          'User-Agent': 'setlists.live/1.0'
+        }
+      });
+
+      if (!apiResponse.ok) {
+        throw new Error(`Setlist.fm API error: ${apiResponse.status}`);
+      }
+
+      const data = await apiResponse.json();
+      const response = data.setlist?.[0] ? { setlist: data.setlist[0] } : null;
 
       if (response && response.setlist) {
         // Insert setlist and songs
@@ -58,7 +83,7 @@ export const syncActualSetlist = internalAction({
         // No setlist found
         await ctx.runMutation(internal.shows.updateImportStatus, {
           showId: args.showId,
-          status: "no_setlist",
+          status: "failed" as const, // Use failed instead of no_setlist for now
         });
         return null;
       }
@@ -66,15 +91,16 @@ export const syncActualSetlist = internalAction({
       console.error(`Attempt ${attempt} failed for show ${args.showId}:`, error);
       await ctx.runMutation(internal.shows.updateImportStatus, {
         showId: args.showId,
-        status: "failed",
-        error: error instanceof Error ? error.message : "unknown_error",
+        status: "failed" as const,
       });
       if (attempt < maxAttempts) {
         const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
         await new Promise(resolve => setTimeout(resolve, delay));
-        return ctx.runAction(internal.setlistfm.syncActualSetlist, args, attempt + 1);
+        // Retry via scheduler instead of recursion
+        await ctx.scheduler.runAfter(delay, internal.setlistfm.syncActualSetlist, args);
+        return null;
       }
-      throw error;
+      return null;
     }
   },
 });
@@ -84,20 +110,7 @@ export const checkCompletedShows = internalAction({
   returns: v.null(),
   handler: async (ctx) => {
     console.log("🔍 Checking for completed shows needing setlist import...");
-    const completedShows = await ctx.db
-      .query("shows")
-      .filter((q) => 
-        q.and(
-          q.eq(q.field("status"), "completed"),
-          q.or(
-            q.eq(q.field("importStatus"), null),
-            q.eq(q.field("importStatus"), "failed"),
-            q.eq(q.field("importStatus"), "pending")
-          )
-        )
-      )
-      .take(5); // Limit to 5 per run
-
+    const completedShows = await ctx.runQuery(internal.setlistfm.getCompletedShowsNeedingImport, {}); 
     let setlistsSynced = 0;
     for (const show of completedShows) {
       try {
@@ -106,11 +119,14 @@ export const checkCompletedShows = internalAction({
           status: "importing",
         });
 
-        if (show.artist && show.venue) {
+        const artist = await ctx.runQuery(internal.artists.getByIdInternal, { id: show.artistId });
+        const venue = await ctx.runQuery(internal.venues.getByIdInternal, { id: show.venueId });
+        
+        if (artist && venue) {
           const setlistId = await ctx.runAction(internal.setlistfm.syncActualSetlist, {
             showId: show._id,
-            artistName: show.artist.name,
-            venueCity: show.venue.city,
+            artistName: artist.name,
+            venueCity: venue.city,
             showDate: show.date,
           });
 
@@ -242,26 +258,15 @@ export const scanPendingImports = internalAction({
   returns: v.null(),
   handler: async (ctx) => {
     console.log("🔍 Scanning for pending Setlist.fm imports...");
-    const pendingShows = await ctx.db
-      .query("shows")
-      .filter((q) => 
-        q.and(
-          q.eq(q.field("status"), "completed"),
-          q.or(
-            q.eq(q.field("importStatus"), "pending"),
-            q.eq(q.field("importStatus"), null)
-          )
-        )
-      )
-      .take(5); // Limit to 5
+    const pendingShows = await ctx.runQuery(internal.setlistfm.getPendingImports, {});
 
     let successCount = 0;
     for (const show of pendingShows) {
       try {
         await ctx.runMutation(internal.shows.updateImportStatus, { showId: show._id, status: "importing" });
 
-        const artist = await ctx.runQuery(internal.artists.getById, { id: show.artistId });
-        const venue = await ctx.runQuery(internal.venues.getById, { id: show.venueId });
+        const artist = await ctx.runQuery(internal.artists.getByIdInternal, { id: show.artistId });
+        const venue = await ctx.runQuery(internal.venues.getByIdInternal, { id: show.venueId });
 
         if (artist && venue) {
           const setlistId = await ctx.runAction(internal.setlistfm.syncActualSetlist, {
@@ -286,5 +291,37 @@ export const scanPendingImports = internalAction({
     }
 
     console.log(`Import scan complete: ${successCount} successful`);
+    return null;
+  },
+});
+
+export const getCompletedShowsNeedingImport = internalQuery({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("shows")
+      .withIndex("by_status", (q) => q.eq("status", "completed"))
+      .filter((q) => q.or(
+        q.eq(q.field("importStatus"), undefined),
+        q.eq(q.field("importStatus"), "pending"),
+        q.eq(q.field("importStatus"), "failed")
+      ))
+      .take(5);
+  },
+});
+
+export const getPendingImports = internalQuery({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("shows")
+      .withIndex("by_status", (q) => q.eq("status", "completed"))
+      .filter((q) => q.or(
+        q.eq(q.field("importStatus"), "pending"),
+        q.eq(q.field("importStatus"), undefined)
+      ))
+      .take(5);
   },
 });

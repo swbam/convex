@@ -41,6 +41,7 @@ import type * as trending from "../trending.js";
 import type * as users from "../users.js";
 import type * as venues from "../venues.js";
 import type * as votes from "../votes.js";
+import type * as webhooks from "../webhooks.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -79,6 +80,7 @@ declare const fullApi: ApiFromModules<{
   users: typeof users;
   venues: typeof venues;
   votes: typeof votes;
+  webhooks: typeof webhooks;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

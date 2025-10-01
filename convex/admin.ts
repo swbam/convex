@@ -884,7 +884,8 @@ function isNonStudioSong(songTitle: string, albumName: string): boolean {
 }
 
 export const bulkDeleteFlagged = mutation({
-  args: { ids: v.array(v.id("flagged")) },
+  args: { ids: v.array(v.id("contentFlags")) },
+  returns: v.object({ deleted: v.number() }),
   handler: async (ctx, args) => {
     for (const id of args.ids) {
       await ctx.db.delete(id);
@@ -894,11 +895,10 @@ export const bulkDeleteFlagged = mutation({
 });
 
 export const updateUserRole = mutation({
-  args: { userId: v.id("users"), role: v.string() }, // 'admin' or 'user'
+  args: { userId: v.id("users"), role: v.union(v.literal("user"), v.literal("admin"), v.literal("banned")) },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
-    // Assume local role field; for Clerk, use external API or webhook
     await ctx.db.patch(args.userId, { role: args.role });
-    // Clerk update: In production, call Clerk API to set metadata
     console.log(`Updated role for user ${args.userId} to ${args.role}`);
     return { success: true };
   },

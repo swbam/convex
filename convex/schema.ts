@@ -1,7 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
-const applicationTables = {
+export default defineSchema({
   // Custom users table for app-specific data
   users: defineTable({
     authId: v.string(), // Clerk user ID (string)
@@ -37,7 +37,7 @@ const applicationTables = {
     lastTrendingUpdate: v.optional(v.number()), // When trending was calculated
     isActive: v.boolean(),
     lastSynced: v.optional(v.number()),
-    lowerName: v.string(),
+    lowerName: v.optional(v.string()), // Optional for backward compatibility
   })
     .index("by_slug", ["slug"])
     .index("by_trending_rank", ["trendingRank"]) // Fast top-20 query
@@ -80,7 +80,8 @@ const applicationTables = {
     lastSynced: v.optional(v.number()),
     voteCount: v.optional(v.number()), // Total votes on setlists for this show
     setlistCount: v.optional(v.number()), // Number of user-submitted setlists
-    importStatus: v.optional(v.union(v.literal("pending"), v.literal("importing"), v.literal("completed"), v.literal("failed"))), // Setlist.fm import status
+    importStatus: v.optional(v.union(v.literal("pending"), v.literal("importing"), v.literal("completed"), v.literal("failed"), v.literal("no_setlist"))), // Setlist.fm import status
+    error: v.optional(v.string()), // Error message for failed imports
   })
     .index("by_slug", ["slug"])
     .index("by_ticketmaster_id", ["ticketmasterId"])
@@ -89,7 +90,8 @@ const applicationTables = {
     .index("by_status", ["status"])
     .index("by_date", ["date"])
     .index("by_trending_rank", ["trendingRank"]) // Fast trending query
-    .index("by_date_status", ["date", "status"]), // Add for efficient upcoming queries
+    .index("by_date_status", ["date", "status"])
+    .index("by_status_artist", ["status", "artistId"]), // For filtered queries
 
   songs: defineTable({
     title: v.string(),
@@ -306,60 +308,25 @@ const applicationTables = {
     .index("by_user", ["userId"])
     .index("by_artist", ["artistId"])
     .index("by_user_artist", ["userId", "artistId"]),
-};
 
-export default defineSchema({
-  ...applicationTables,
-  artists: defineTable({
-    name: v.string(),
-    slug: v.string(),
-    ticketmasterId: v.optional(v.string()),
-    spotifyId: v.optional(v.string()),
-    genres: v.array(v.string()),
-    images: v.array(v.string()),
-    popularity: v.number(),
-    followers: v.number(),
-    lastSynced: v.number(), // Now required
-    trendingScore: v.number(), // Now required, default 0 in mutations
-    upcomingShowsCount: v.number(), // Now required, default 0
-    isActive: v.boolean(),
-    lowerName: v.string(), // For fuzzy search, ensure always set
-    lastTrendingUpdate: v.number(), // Added
+  // User actions for rate limiting
+  userActions: defineTable({
+    userId: v.id("users"),
+    action: v.string(),
+    timestamp: v.number(),
   })
-    .index("by_slug", ["slug"])
-    .index("by_ticketmaster_id", ["ticketmasterId"])
-    .index("by_lower_name", ["lowerName"])
-    .index("by_trending_rank", { fields: ["trendingRank"] }), // Fixed syntax
+    .index("by_user_time", ["userId", "timestamp"])
+    .index("by_user", ["userId"]),
 
-  shows: defineTable({
-    slug: v.optional(v.string()),
-    artistId: v.id("artists"),
-    venueId: v.id("venues"),
-    date: v.string(),
-    startTime: v.optional(v.string()),
-    status: v.union(v.literal("upcoming"), v.literal("completed"), v.literal("cancelled")),
-    ticketmasterId: v.optional(v.string()),
-    ticketUrl: v.optional(v.string()),
-    priceRange: v.optional(v.string()), // Min-max price
-    setlistfmId: v.optional(v.string()),
-    trendingScore: v.optional(v.number()),
-    trendingRank: v.optional(v.number()), // 1-20 for top trending
-    lastTrendingUpdate: v.optional(v.number()),
-    lastSynced: v.optional(v.number()),
-    voteCount: v.optional(v.number()), // Total votes on setlists for this show
-    setlistCount: v.optional(v.number()), // Number of user-submitted setlists
-    importStatus: v.optional(v.union(v.literal("pending"), v.literal("importing"), v.literal("completed"), v.literal("failed"), v.literal("no_setlist"))), // Added no_setlist
-    error: v.optional(v.string()), // Added for status
+  // Activity feed
+  activity: defineTable({
+    userId: v.id("users"),
+    type: v.string(),
+    description: v.string(),
+    data: v.optional(v.any()),
+    timestamp: v.number(),
+    createdAt: v.number(),
   })
-    .index("by_trending_rank", { fields: ["trendingRank"] }) // Fixed
-    .index("by_date_status", { fields: ["date", "status"] }), // Fixed
-
-  venues: defineTable({
-    name: v.string(),
-    city: v.string(),
-    country: v.string(),
-    state: v.optional(v.string()), // Ensure optional but populate when available
-    postalCode: v.optional(v.string()), // Add for completeness
-  })
-    .index("by_name_city", ["name", "city"]), // Existing or add fuzzy if needed
+    .index("by_user", ["userId"])
+    .index("by_user_time", ["userId", "createdAt"]),
 });

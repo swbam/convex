@@ -170,30 +170,32 @@ export const setUserRoleById = internalMutation({
   },
 });
 
-export const createFromClerk = mutation({
+export const createFromClerk = internalMutation({
   args: { clerkUser: v.any() },
+  returns: v.id("users"),
   handler: async (ctx, args) => {
-    const { id, email_addresses, full_name, image_url, public_metadata } = args.clerkUser;
-    const email = email_addresses[0]?.email_address;
-    const name = full_name || email;
+    const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata } = args.clerkUser;
+    const email = email_addresses?.[0]?.email_address || "";
+    const name = [first_name, last_name].filter(Boolean).join(" ") || email || "User";
     const avatar = image_url;
-    const spotifyId = public_metadata.spotifyId;
+    const spotifyId = unsafe_metadata?.spotifyId;
 
     // Check existing
-    let user = await ctx.db
+    const user = await ctx.db
       .query("users")
-      .withIndex("by_auth_id", { fields: ["authId"] })
-      .filter((q) => q.eq("authId", id))
+      .withIndex("by_auth_id", (q) => q.eq("authId", id))
       .first();
 
+    let userId;
     if (!user) {
       userId = await ctx.db.insert("users", {
         authId: id,
         email,
         name,
+        username: email.split('@')[0] || name.toLowerCase().replace(/\s+/g, ''),
         avatar,
         spotifyId,
-        role: "user", // Default
+        role: "user" as const,
         createdAt: Date.now(),
       });
     } else {
@@ -205,51 +207,48 @@ export const createFromClerk = mutation({
   },
 });
 
-export const updateFromClerk = mutation({
+export const updateFromClerk = internalMutation({
   args: { clerkUser: v.any() },
+  returns: v.null(),
   handler: async (ctx, args) => {
-    const { id, email_addresses, full_name, image_url, public_metadata } = args.clerkUser;
-    const email = email_addresses[0]?.email_address;
-    const name = full_name || email;
+    const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata } = args.clerkUser;
+    const email = email_addresses?.[0]?.email_address;
+    const name = [first_name, last_name].filter(Boolean).join(" ") || email;
     const avatar = image_url;
-    const spotifyId = public_metadata.spotifyId;
+    const spotifyId = unsafe_metadata?.spotifyId;
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_auth_id", { fields: ["authId"] })
-      .filter((q) => q.eq("authId", id))
+      .withIndex("by_auth_id", (q) => q.eq("authId", id))
       .first();
 
     if (user) {
       await ctx.db.patch(user._id, { email, name, avatar, spotifyId });
     }
+    return null;
   },
 });
 
-// For rate-limit in followArtist, fix to use runQuery
-export const followArtist = mutation({
-  args: { artistId: v.id("artists") },
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    const recentFollows = await ctx.runQuery(internal.users.getRecentActions, { userId, action: "follow", timeWindow: 60000 });
-
-    if (recentFollows.length >= 10) throw new Error("Rate limit exceeded");
-
-    await ctx.db.insert("userActions", { userId, action: "follow", timestamp: Date.now() });
-
-    // Existing follow logic...
-  },
-});
-
-// Add getRecentActions query
-export const getRecentActions = query({
+// Add getRecentActions query for rate limiting
+export const getRecentActions = internalQuery({
   args: { userId: v.id("users"), action: v.string(), timeWindow: v.number() },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
+    const threshold = Date.now() - args.timeWindow;
     return await ctx.db
       .query("userActions")
-      .withIndex("by_user_time", { fields: ["userId", "timestamp"] })
-      .filter((q) => q.eq("userId", args.userId) && q.eq("action", args.action) && q.gt("timestamp", Date.now() - args.timeWindow))
+      .withIndex("by_user_time", (q) => q.eq("userId", args.userId).gt("timestamp", threshold))
       .collect();
+  },
+});
+
+export const getUsersWithSpotify = internalQuery({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("users")
+      .filter((q) => q.neq(q.field("spotifyId"), undefined))
+      .take(50);
   },
 });

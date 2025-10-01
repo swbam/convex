@@ -64,11 +64,11 @@ export const triggerFullArtistSync = action({
     images: v.optional(v.array(v.string())),
   },
   returns: v.id("artists"),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<Id<"artists">> => {
     console.log(`🚀 Starting full sync for artist: ${args.artistName}`);
 
     // Phase 1: Create basic artist
-    const artistId = await ctx.runMutation(internal.artists.createFromTicketmaster, {
+    const artistId: Id<"artists"> = await ctx.runMutation(internal.artists.createFromTicketmaster, {
       ticketmasterId: args.ticketmasterId,
       name: args.artistName,
       genres: args.genres || [],
@@ -93,12 +93,9 @@ export const triggerFullArtistSync = action({
       console.warn(`⚠️ Spotify basics sync failed: ${spotifyError}`);
     }
 
-    // Phase 4: Update counts
-    const showCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId });
-    await ctx.db.patch(artistId, { upcomingShowsCount: showCount });
-
-    // Schedule full catalog in background (async)
-    void ctx.scheduler.runAfter(0, internal.spotify.syncArtistCatalog, { artistId, artistName: args.artistName });
+    // Schedule background tasks
+    void ctx.scheduler.runAfter(2000, internal.spotify.syncArtistCatalog, { artistId, artistName: args.artistName });
+    void ctx.scheduler.runAfter(3000, internal.maintenance.updateArtistCounts, { artistId });
 
     return artistId;
   },

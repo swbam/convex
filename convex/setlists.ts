@@ -736,20 +736,22 @@ export const getSetlistWithVotes = query({
   },
 });
 
-export const createFromApi = mutation({
+export const createFromApi = internalMutation({
   args: { 
     showId: v.id("shows"),
-    data: v.object({ 
-      id: v.string(),
-      songs: v.array(v.object({ title: v.string() })),
-    }),
+    data: v.any(),
   },
+  returns: v.id("setlists"),
   handler: async (ctx, args) => {
+    const songs = Array.isArray(args.data.songs) ? args.data.songs : [];
     const setlistId = await ctx.db.insert("setlists", {
       showId: args.showId,
-      setlistfmId: args.data.id,
-      songs: args.data.songs,
-      verified: true, // From API
+      setlistfmId: args.data.id || undefined,
+      songs: songs.map((s: any) => ({ title: s.title || s, album: s.album, duration: s.duration, songId: s.songId })),
+      actualSetlist: songs.map((s: any) => ({ title: s.title || s, setNumber: s.setNumber, encore: s.encore })),
+      verified: true,
+      source: "setlistfm" as const,
+      lastUpdated: Date.now(),
     });
     return setlistId;
   },
