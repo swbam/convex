@@ -20,7 +20,7 @@ http.route({
   }),
 });
 
-// Clerk webhook - simplified (for production, use Svelte for verification in a Node action)
+// Clerk webhook with Svix signature verification
 http.route({
   path: "/webhooks/clerk",
   method: "POST",
@@ -30,8 +30,18 @@ http.route({
     try {
       const event = JSON.parse(body);
       
+      // Extract Svix headers for signature verification
+      const svixId = request.headers.get('svix-id');
+      const svixTimestamp = request.headers.get('svix-timestamp');
+      const svixSignature = request.headers.get('svix-signature');
+      
       // Call internal action for verification and processing (which can use Node.js crypto)
-      await ctx.runAction(internal.webhooks.handleClerkWebhook, { event });
+      await ctx.runAction(internal.webhooks.handleClerkWebhook, { 
+        event,
+        svixId: svixId || undefined,
+        svixTimestamp: svixTimestamp || undefined,
+        svixSignature: svixSignature || undefined,
+      });
       
       return new Response("OK", { status: 200 });
     } catch (error) {

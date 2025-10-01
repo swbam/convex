@@ -12,6 +12,7 @@ import { SearchBar } from "./SearchBar";
 import { FadeIn } from "./animations/FadeIn";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
+import { ArtistCardSkeleton, ShowCardSkeleton } from "./LoadingSkeleton";
 
 interface PublicDashboardProps {
   onArtistClick: (artistKey: Id<"artists"> | string) => void;
@@ -49,9 +50,7 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
     (!filterGenre || artist.genres?.includes(filterGenre))
   );
 
-  if (!dbTrendingShowsResult && !dbTrendingArtistsResult) {
-    return <div className="container mx-auto px-4 py-8 text-center"><Loader2 className="animate-spin h-12 w-12 mx-auto" /></div>;
-  }
+  const isLoading = !dbTrendingShowsResult || !dbTrendingArtistsResult;
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
@@ -63,17 +62,23 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
         </h2>
         <div className="overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4">
           <div className="flex gap-4">
-            {dbTrendingShows?.slice(0, 5).map(show => (
-              <ShowCard 
-                key={show._id} 
-                show={show} 
-                onClick={() => navigateTo(`/shows/${show.slug}`)}
-                compact={true} // Use compact for carousel
-              />
-            ))}
+            {isLoading ? (
+              // Apple-style loading skeletons
+              [...Array(5)].map((_, i) => <ShowCardSkeleton key={i} />)
+            ) : dbTrendingShows.length === 0 ? (
+              <p className="text-gray-400 text-center py-8 w-full">Discovering premium shows...</p>
+            ) : (
+              dbTrendingShows.slice(0, 5).map(show => (
+                <ShowCard 
+                  key={show._id} 
+                  show={show} 
+                  onClick={() => navigateTo(`/shows/${show.slug}`)}
+                  compact={true}
+                />
+              ))
+            )}
           </div>
         </div>
-        {dbTrendingShows?.length === 0 && <p className="text-gray-400 text-center py-8">Discovering top shows...</p>}
       </section>
 
       {/* Filters */}
@@ -108,27 +113,39 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
           Trending Artists
         </h2>
         <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-          {filteredArtists.map(artist => (
-            <ArtistCard 
-              key={artist._id} 
-                  artist={artist}
-              onClick={() => navigateTo(`/artists/${artist.slug}`)}
-                />
-              ))}
+          {isLoading ? (
+            // Apple-style loading skeletons
+            [...Array(6)].map((_, i) => <ArtistCardSkeleton key={i} />)
+          ) : filteredArtists.length === 0 ? (
+            <p className="text-gray-400 text-center py-8 w-full">Loading premium artists...</p>
+          ) : (
+            filteredArtists.map(artist => (
+              <ArtistCard 
+                key={artist._id} 
+                artist={artist}
+                onClick={() => navigateTo(`/artists/${artist.slug}`)}
+              />
+            ))
+          )}
         </div>
       </section>
 
       {/* Masonry Grid Shows */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filteredShows.slice(0, 12).map(show => (
-          <ShowCard 
-            key={show._id} 
-            show={show} 
-            onClick={() => navigateTo(`/shows/${show.slug}`)}
-          />
-        ))}
+        {isLoading ? (
+          [...Array(12)].map((_, i) => <ShowCardSkeleton key={i} />)
+        ) : filteredShows.length === 0 ? (
+          <p className="text-gray-400 text-center py-8 col-span-full">No premium shows available. Try clearing filters.</p>
+        ) : (
+          filteredShows.slice(0, 12).map(show => (
+            <ShowCard 
+              key={show._id} 
+              show={show} 
+              onClick={() => navigateTo(`/shows/${show.slug}`)}
+            />
+          ))
+        )}
       </section>
-      {filteredShows.length === 0 && <p className="text-gray-400 text-center py-8 col-span-full">No shows match your filters. Clear and try again.</p>}
     </div>
   );
 }

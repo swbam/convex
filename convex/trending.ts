@@ -47,97 +47,43 @@ export const getTrendingShows = query({
   }),
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
-    const result = await ctx.db
-      .query("trendingShows")
-      .withIndex("by_rank")
+    
+    // PREMIUM APPROACH: Query from main shows table with trending ranks
+    const shows = await ctx.db
+      .query("shows")
+      .withIndex("by_trending_rank")
       .order("asc")
-      .paginate({ numItems: limit, cursor: null });
+      .filter(q => q.neq(q.field("trendingRank"), undefined))
+      .take(limit * 2);
 
-    // Hydrate page
-    const hydrated = await Promise.all(result.page.map(async (entry) => {
-      let show = entry.showId ? await ctx.db.get(entry.showId) : null;
-      if (!show && entry.ticketmasterId) {
-        show = await ctx.db
-          .query("shows")
-          .withIndex("by_ticketmaster_id", (q) =>
-            q.eq("ticketmasterId", entry.ticketmasterId)
-          )
-          .first();
-      }
-
-      let artist =
-        (show ? await ctx.db.get(show.artistId) : null) ??
-        (entry.artistId ? await ctx.db.get(entry.artistId) : null);
-
-      if (!artist && entry.artistTicketmasterId) {
-        artist = await ctx.db
-          .query("artists")
-          .withIndex("by_ticketmaster_id", (q) =>
-            q.eq("ticketmasterId", entry.artistTicketmasterId!)
-          )
-          .first();
-      }
-
-      const venue =
-        show && show.venueId ? await ctx.db.get(show.venueId) : null;
-
-      const artistName =
-        artist?.name || entry.artistName || "Unknown Artist";
-      const computedSlug =
-        entry.showSlug ||
-        createShowSlug(
-          artistName,
-          entry.venueName,
-          entry.venueCity,
-          entry.date,
-          entry.startTime
-        );
-
-      const baseShow =
-        show ??
-        ({
-          _id: `ticketmaster:${entry.ticketmasterId}`,
-          ticketmasterId: entry.ticketmasterId,
-          date: entry.date,
-          startTime: entry.startTime,
-          status: normalizeShowStatus(entry.status),
-          ticketUrl: entry.ticketUrl,
-          priceRange: entry.priceRange,
-          slug: computedSlug,
-        } as any);
-
-      const resolvedArtist =
-        artist ??
-        ({
-          _id: `ticketmaster:${entry.artistTicketmasterId ?? entry.ticketmasterId}`,
-          ticketmasterId:
-            entry.artistTicketmasterId ?? entry.ticketmasterId,
-          name: artistName,
-          slug: entry.artistSlug || slugify(artistName),
-          images: entry.artistImage ? [entry.artistImage] : [],
-        } as any);
-
-      const resolvedVenue =
-        venue ??
-        ({
-          name: entry.venueName,
-          city: entry.venueCity,
-          country: entry.venueCountry,
-        } as any);
-
+    // Hydrate with full artist + venue data
+    const hydrated = await Promise.all(shows.map(async (show) => {
+      const artist = await ctx.db.get(show.artistId);
+      const venue = await ctx.db.get(show.venueId);
+      
       return {
-        ...baseShow,
-        slug: baseShow.slug || computedSlug,
-        artist: resolvedArtist,
-        venue: resolvedVenue,
-        trendingRank: show?.trendingRank ?? entry.rank,
-        trendingScore: show?.trendingScore,
-        lastTrendingUpdate: show?.lastTrendingUpdate ?? entry.lastUpdated,
-        source: show ? "database" : "ticketmaster",
+        ...show,
+        artist,
+        venue,
       };
     }));
 
-    return { page: hydrated, isDone: result.isDone, continueCursor: result.continueCursor };
+    // ULTRA-PREMIUM FILTERING: Show only REAL artists with quality data
+    const filtered = hydrated.filter(show => {
+      const artist = show.artist;
+      if (!artist) return false;
+      
+      const hasImage = artist.images && artist.images.length > 0;
+      const isUpcoming = show.status === "upcoming";
+      const notUnknown = !artist.name.toLowerCase().includes("unknown");
+      const hasSpotifyData = artist.spotifyId && artist.popularity && artist.popularity > 30;
+      const hasUpcomingShows = (artist.upcomingShowsCount ?? 0) > 0;
+      
+      // Premium filter: Spotify-verified artists with images + popularity
+      return hasImage && isUpcoming && notUnknown && hasSpotifyData && hasUpcomingShows;
+    }).slice(0, limit);
+
+    return { page: filtered, isDone: filtered.length < limit, continueCursor: undefined };
   },
 });
 
@@ -150,57 +96,33 @@ export const getTrendingArtists = query({
   }),
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
-    const result = await ctx.db
-      .query("trendingArtists")
-      .withIndex("by_rank")
+    
+    // PREMIUM APPROACH: Query from main artists table with trending scores
+    const artists = await ctx.db
+      .query("artists")
+      .withIndex("by_trending_rank")
       .order("asc")
-      .paginate({ numItems: limit, cursor: null });
+      .filter(q => q.neq(q.field("trendingRank"), undefined))
+      .take(limit * 2);
 
-    // Enrich page
-    const enriched = await Promise.all(result.page.map(async (entry) => {
-      let artist = entry.artistId ? await ctx.db.get(entry.artistId) : null;
-      if (!artist) {
-        artist = await ctx.db
-          .query("artists")
-          .withIndex("by_ticketmaster_id", (q) =>
-            q.eq("ticketmasterId", entry.ticketmasterId)
-          )
-          .first();
-      }
+    // ULTRA-PREMIUM FILTERING: Only show REAL artists with quality data
+    const filtered = artists.filter(artist => {
+      const hasImage = artist.images && artist.images.length > 0;
+      const hasUpcomingShows = (artist.upcomingShowsCount ?? 0) > 0;
+      const notUnknown = !artist.name.toLowerCase().includes("unknown");
+      const notGeneric = !artist.name.toLowerCase().match(/^(various|tba|tbd|tribute|cover|film|movie)/);
+      const hasSpotifyData = artist.spotifyId && artist.popularity && artist.popularity > 30;
+      const hasRealId = artist._id.startsWith('j5');
+      
+      // Premium filter: Must have Spotify data + image + shows + real name
+      return hasImage && hasUpcomingShows && notUnknown && notGeneric && hasSpotifyData && hasRealId;
+    }).slice(0, limit);
 
-      if (artist) {
-        return {
-          ...artist,
-          images:
-            artist.images && artist.images.length > 0
-              ? artist.images
-              : entry.images,
-          upcomingShowsCount:
-            artist.upcomingShowsCount ?? entry.upcomingEvents,
-          trendingRank: artist.trendingRank ?? entry.rank,
-          lastTrendingUpdate:
-            artist.lastTrendingUpdate ?? entry.lastUpdated,
-        };
-      }
-
-      const name = entry.name || "Unknown Artist";
-
-      return {
-        _id: `ticketmaster:${entry.ticketmasterId}`,
-        ticketmasterId: entry.ticketmasterId,
-        name,
-        slug: entry.slug || slugify(name),
-        genres: entry.genres,
-        images: entry.images,
-        upcomingShowsCount: entry.upcomingEvents,
-        url: entry.url,
-        trendingRank: entry.rank,
-        trendingScore: entry.upcomingEvents,
-        isActive: true,
-      } as any;
-    }));
-
-    return { page: enriched, isDone: result.isDone, continueCursor: result.continueCursor };
+    return { 
+      page: filtered, 
+      isDone: filtered.length < limit, 
+      continueCursor: undefined 
+    };
   },
 });
 

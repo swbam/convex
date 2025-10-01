@@ -102,26 +102,19 @@ export const createAppUser = mutation({
     const emailLower = (identity.email || "").toLowerCase();
     const isAdmin = emailLower === "seth@bambl.ing";
     
-    // CRITICAL: Extract Spotify ID from Clerk OAuth connection
-    const externalAccounts = (identity as any).externalAccounts || [];
-    const spotifyAccount = externalAccounts.find((acc: any) => acc.provider === 'oauth_spotify');
-    const spotifyId = spotifyAccount?.externalAccountId || spotifyAccount?.providerUserId || undefined;
-    
     console.log('🔵 Creating user:', {
       email: identity.email,
       name: identity.name,
       username,
-      hasSpotify: !!spotifyId,
-      spotifyId: spotifyId || 'none',
       isAdmin
     });
     
     // Create app user with Clerk data
+    // Note: Spotify ID will be populated by Clerk webhook when OAuth is connected
     const userId = await ctx.db.insert("users", {
       authId: identity.subject,
       email: identity.email,
       name: identity.name,
-      spotifyId,
       username,
       role: isAdmin ? "admin" : "user",
       preferences: {
@@ -134,8 +127,7 @@ export const createAppUser = mutation({
     console.log('✅ App user created successfully:', {
       userId,
       username,
-      email: identity.email,
-      spotifyId: spotifyId || 'none'
+      email: identity.email
     });
     
     return userId;

@@ -1,26 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { useUser, SignedIn, SignedOut, RedirectToSignIn, SignIn } from '@clerk/clerk-react';
+import { useUser, useSignIn, useClerk } from '@clerk/clerk-react';
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Button } from "../../components/ui/button";
 import { Music as Spotify } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
 import { MagicCard } from '../components/ui/magic-card';
 import { BorderBeam } from '../components/ui/border-beam';
 import { ShimmerButton } from '../components/ui/shimmer-button';
-import { ArrowLeft, Mail, Lock, Eye, EyeOff, Music, Sparkles } from 'lucide-react';
-import { Loader2 } from 'lucide-react';
-import { ExternalProvider } from '@clerk/nextjs/client/external-provider';
+import { ArrowLeft, Mail, Lock, Eye, EyeOff, Music, Sparkles, Loader2 } from 'lucide-react';
+import { FaGoogle } from 'react-icons/fa';
 
 export function SignInPage() {
   const { user, isSignedIn } = useUser();
+  const { signIn, isLoaded, setActive } = useSignIn();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isOAuthLoading, setIsOAuthLoading] = useState(false);
+  const [isSpotifyLoading, setIsSpotifyLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const importSpotifyArtists = useAction(api.spotifyAuth.importUserSpotifyArtistsWithToken);
 
@@ -47,37 +47,53 @@ export function SignInPage() {
   }
 
   const handleSpotifySignIn = async () => {
-    if (!isSignedIn) return; // Ensure user is signed in to authenticate
-    setIsOAuthLoading(true);
+    if (!isLoaded) return;
+    setIsSpotifyLoading(true);
     
     try {
-      await SignIn.authenticateWithRedirect({
+      await signIn.authenticateWithRedirect({
         strategy: 'oauth_spotify',
         redirectUrl: '/sso-callback',
-        redirectUrlComplete: '/profile',
+        redirectUrlComplete: '/',
       });
     } catch (error: any) {
       console.error('Spotify sign in error:', error);
       toast.error('Failed to sign in with Spotify');
-      setIsOAuthLoading(false);
+      setIsSpotifyLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (!isLoaded) return;
+    setIsGoogleLoading(true);
+    
+    try {
+      await signIn.authenticateWithRedirect({
+        strategy: 'oauth_google',
+        redirectUrl: '/sso-callback',
+        redirectUrlComplete: '/',
+      });
+    } catch (error: any) {
+      console.error('Google sign in error:', error);
+      toast.error('Failed to sign in with Google');
+      setIsGoogleLoading(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isSignedIn) return; // Ensure user is signed in to create session
+    if (!isLoaded) return;
 
     setIsSubmitting(true);
     try {
-      const result = await SignIn.create({
+      const result = await signIn.create({
         identifier: email,
         password,
       });
 
       if (result.status === "complete") {
-        // Activate the new session so Convex sees the identity immediately
         if (result.createdSessionId) {
-          // No need to call setActive here, Clerk handles session activation
+          await setActive({ session: result.createdSessionId });
         }
         toast.success("Welcome back!");
         
@@ -200,16 +216,38 @@ export function SignInPage() {
             </div>
           </div>
 
-          {/* Spotify OAuth Button */}
-          <button
-            type="button"
-            onClick={handleSpotifySignIn}
-            disabled={isOAuthLoading || isSubmitting}
-            className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-[#1DB954] hover:bg-[#1ed760] text-white rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Spotify className="h-5 w-5" />
-            <span>{isOAuthLoading ? 'Connecting to Spotify...' : 'Sign in with Spotify'}</span>
-          </button>
+          {/* OAuth Buttons */}
+          <div className="space-y-3">
+            {/* Google OAuth Button */}
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={isGoogleLoading || isSpotifyLoading || isSubmitting}
+              className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-white hover:bg-gray-50 text-gray-900 rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200"
+            >
+              {isGoogleLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <FaGoogle className="h-5 w-5" />
+              )}
+              <span>{isGoogleLoading ? 'Connecting to Google...' : 'Sign in with Google'}</span>
+            </button>
+
+            {/* Spotify OAuth Button */}
+            <button
+              type="button"
+              onClick={handleSpotifySignIn}
+              disabled={isSpotifyLoading || isGoogleLoading || isSubmitting}
+              className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-[#1DB954] hover:bg-[#1ed760] text-white rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSpotifyLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Spotify className="h-5 w-5" />
+              )}
+              <span>{isSpotifyLoading ? 'Connecting to Spotify...' : 'Sign in with Spotify'}</span>
+            </button>
+          </div>
 
             {/* Sign Up Link */}
             <div className="mt-6 text-center">

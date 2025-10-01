@@ -4,9 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { MagicCard } from '../components/ui/magic-card';
 import { BorderBeam } from '../components/ui/border-beam';
 import { ShimmerButton } from '../components/ui/shimmer-button';
-import { ArrowLeft, Mail, Lock, Eye, EyeOff, Music, Sparkles, User, Check } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, Eye, EyeOff, Music, Sparkles, User, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { FaSpotify } from 'react-icons/fa';
+import { FaSpotify, FaGoogle } from 'react-icons/fa';
 
 export function SignUpPage() {
   const { signUp, isLoaded } = useSignUp();
@@ -18,22 +18,40 @@ export function SignUpPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verificationStep, setVerificationStep] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
-  const [isOAuthLoading, setIsOAuthLoading] = useState(false);
+  const [isSpotifyLoading, setIsSpotifyLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const handleSpotifySignUp = async () => {
     if (!isLoaded) return;
-    setIsOAuthLoading(true);
+    setIsSpotifyLoading(true);
     
     try {
       await signUp.authenticateWithRedirect({
         strategy: 'oauth_spotify',
         redirectUrl: '/sso-callback',
-        redirectUrlComplete: '/profile',
+        redirectUrlComplete: '/',
       });
     } catch (error: any) {
       console.error('Spotify sign up error:', error);
       toast.error('Failed to sign up with Spotify');
-      setIsOAuthLoading(false);
+      setIsSpotifyLoading(false);
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    if (!isLoaded) return;
+    setIsGoogleLoading(true);
+    
+    try {
+      await signUp.authenticateWithRedirect({
+        strategy: 'oauth_google',
+        redirectUrl: '/sso-callback',
+        redirectUrlComplete: '/',
+      });
+    } catch (error: any) {
+      console.error('Google sign up error:', error);
+      toast.error('Failed to sign up with Google');
+      setIsGoogleLoading(false);
     }
   };
 
@@ -202,16 +220,38 @@ export function SignUpPage() {
                   </div>
                 </div>
 
-                {/* Spotify OAuth Button */}
-                <button
-                  type="button"
-                  onClick={handleSpotifySignUp}
-                  disabled={isOAuthLoading || isSubmitting}
-                  className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-[#1DB954] hover:bg-[#1ed760] text-white rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FaSpotify className="h-5 w-5" />
-                  <span>{isOAuthLoading ? 'Connecting to Spotify...' : 'Sign up with Spotify'}</span>
-                </button>
+                {/* OAuth Buttons */}
+                <div className="space-y-3">
+                  {/* Google OAuth Button */}
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignUp}
+                    disabled={isGoogleLoading || isSpotifyLoading || isSubmitting}
+                    className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-white hover:bg-gray-50 text-gray-900 rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200"
+                  >
+                    {isGoogleLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <FaGoogle className="h-5 w-5" />
+                    )}
+                    <span>{isGoogleLoading ? 'Connecting to Google...' : 'Sign up with Google'}</span>
+                  </button>
+
+                  {/* Spotify OAuth Button */}
+                  <button
+                    type="button"
+                    onClick={handleSpotifySignUp}
+                    disabled={isSpotifyLoading || isGoogleLoading || isSubmitting}
+                    className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-[#1DB954] hover:bg-[#1ed760] text-white rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSpotifyLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <FaSpotify className="h-5 w-5" />
+                    )}
+                    <span>{isSpotifyLoading ? 'Connecting to Spotify...' : 'Sign up with Spotify'}</span>
+                  </button>
+                </div>
               </>
             ) : (
               <>
