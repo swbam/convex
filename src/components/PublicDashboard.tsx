@@ -115,11 +115,17 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
             >
               <div className="glass-card rounded-2xl p-1 shadow-elevated">
                 <SearchBar 
-                  onArtistClick={(key) => navigateTo(`/artists/${key}`)}
-                  onShowClick={(key) => navigateTo(`/shows/${key}`)}
-                  onVenueClick={(key) => navigateTo(`/venues/${key}`)}
+                  onResultClick={(type, id, slug) => {
+                    if (type === 'artist') {
+                      navigateTo(`/artists/${slug || id}`);
+                    } else if (type === 'show') {
+                      navigateTo(`/shows/${slug || id}`);
+                    } else if (type === 'venue') {
+                      navigateTo(`/venues/${slug || id}`);
+                    }
+                  }}
                 />
-          </div>
+              </div>
             </motion.div>
           </div>
         </div>
@@ -221,14 +227,14 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
   );
 }
 
-// Premium Artist Card - Fully Clickable with Glass Morphism
+// Premium Artist Card - Fully Clickable with Glass Morphism (Mobile Optimized)
 function ArtistCard({ artist, onClick }: {
   artist: any;
   onClick: () => void;
 }) {
   return (
     <motion.div 
-      className="flex-shrink-0 w-64 snap-start cursor-pointer"
+      className="flex-shrink-0 w-48 sm:w-56 md:w-64 snap-start cursor-pointer"
       onClick={onClick}
       whileHover={{ y: -6, transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } }}
       whileTap={{ scale: 0.98 }}
@@ -238,15 +244,15 @@ function ArtistCard({ artist, onClick }: {
         <div className="relative w-full aspect-square overflow-hidden">
           {artist.images?.[0] ? (
             <motion.img 
-                src={artist.images[0]} 
-                alt={artist.name}
+              src={artist.images[0]} 
+              alt={artist.name}
               className="w-full h-full object-cover"
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              />
+            />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center">
-              <span className="text-white/80 font-bold text-4xl">
+              <span className="text-white/80 font-bold text-2xl sm:text-3xl md:text-4xl">
                 {artist.name.slice(0, 2).toUpperCase()}
               </span>
             </div>
@@ -254,21 +260,21 @@ function ArtistCard({ artist, onClick }: {
           {/* Monochrome gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
         </div>
-        
+
         {/* Content */}
-        <div className="p-4 space-y-2">
-          <h3 className="text-white font-bold text-lg leading-tight line-clamp-1 group-hover:shimmer-text transition-all">
-              {artist.name}
-            </h3>
-            <div className="flex items-center justify-between">
-            <p className="text-gray-400 text-sm">
+        <div className="p-3 sm:p-4 space-y-1 sm:space-y-2">
+          <h3 className="text-white font-bold text-sm sm:text-base md:text-lg leading-tight line-clamp-1 group-hover:shimmer-text transition-all">
+            {artist.name}
+          </h3>
+          <div className="flex items-center justify-between">
+            <p className="text-gray-400 text-xs sm:text-sm">
               {artist.upcomingShowsCount || 0} shows
             </p>
-              {artist.genres?.[0] && (
-              <span className="text-xs px-2 py-1 rounded-full bg-white/5 text-white/70 border border-white/10">
-                  {artist.genres[0]}
-                </span>
-              )}
+            {artist.genres?.[0] && (
+              <span className="text-xs px-2 py-0.5 sm:py-1 rounded-full bg-white/5 text-white/70 border border-white/10">
+                {artist.genres[0]}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -276,7 +282,7 @@ function ArtistCard({ artist, onClick }: {
   );
 }
 
-// Premium Show Card - Fully Clickable with Glass Morphism
+// Premium Show Card - Fully Clickable with Glass Morphism (Mobile Optimized)
 function ShowCard({
   show,
   onClick,
@@ -307,7 +313,7 @@ function ShowCard({
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center">
-              <span className="text-white/80 font-bold text-3xl">
+              <span className="text-white/80 font-bold text-xl sm:text-2xl md:text-3xl">
                 {(show.artist?.name || show.artistName).slice(0, 2).toUpperCase()}
               </span>
             </div>
@@ -316,8 +322,8 @@ function ShowCard({
           <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent" />
           
           {/* Date Badge with glass effect */}
-          <div className="absolute top-3 right-3">
-            <div className="glass-card rounded-lg px-3 py-2">
+          <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
+            <div className="glass-card rounded-lg px-2 py-1 sm:px-3 sm:py-2">
               <p className="text-white text-xs font-bold">
                 {showDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </p>
@@ -326,17 +332,17 @@ function ShowCard({
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-2">
-          <h3 className="text-white font-bold text-base leading-tight line-clamp-1 group-hover:shimmer-text transition-all">
+        <div className="p-3 sm:p-4 space-y-1 sm:space-y-2">
+          <h3 className="text-white font-bold text-sm sm:text-base leading-tight line-clamp-1 group-hover:shimmer-text transition-all">
             {show.artist?.name || show.artistName}
           </h3>
           {show.venue && (
-            <div className="space-y-1">
-              <p className="text-gray-400 text-sm flex items-center gap-2">
-                <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+            <div className="space-y-0.5 sm:space-y-1">
+              <p className="text-gray-400 text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2">
+                <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
                 <span className="truncate">{show.venue.name}</span>
               </p>
-              <p className="text-gray-500 text-xs pl-5">
+              <p className="text-gray-500 text-xs pl-4 sm:pl-5">
                 {show.venue.city}{show.venue.state ? `, ${show.venue.state}` : ''}
               </p>
             </div>

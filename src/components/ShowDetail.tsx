@@ -2,7 +2,7 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import React, { useMemo, useState } from "react";
-import { ArrowLeft, MapPin, Users, Music, ChevronUp, Heart, Calendar, ExternalLink, Ticket, Vote, CheckCircle, AlertCircle } from "lucide-react";
+import { ArrowLeft, MapPin, Users, Music, ChevronUp, Heart, Calendar, ExternalLink, Ticket, Vote, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { SEOHead } from "./SEOHead";
 import { AnimatedSubscribeButton } from "./ui/animated-subscribe-button";
@@ -12,10 +12,10 @@ import { ShimmerButton } from "./ui/shimmer-button";
 import { buildTicketmasterAffiliateUrl } from "../utils/ticketmaster";
 import { FadeIn } from "./animations/FadeIn";
 import { Badge } from "./ui/badge";
-import { Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
-import { Vote as VoteIcon } from "lucide-react"; // For icon
+import { Vote as VoteIcon } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface ShowDetailProps {
   showId: Id<"shows">;
@@ -38,6 +38,9 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
   const addSongToSetlist = useMutation(api.setlists.addSongToSetlist);
 
   const [anonymousActions, setAnonymousActions] = useState(0);
+
+  // Loading state
+  const isLoading = !show;
 
   const predictionSetlist = useMemo(() => {
     if (!setlists) return null;
@@ -199,8 +202,45 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
     }
   };
 
+  // Show loading skeleton while data loads
+  if (isLoading) {
+    return (
+      <motion.div 
+        className="px-4 sm:px-6 py-4 sm:py-8 space-y-8"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+      >
+        <div className="glass-card rounded-2xl p-8 space-y-6 relative overflow-hidden">
+          <div className="animate-pulse space-y-6">
+            {/* Header skeleton */}
+            <div className="flex items-center gap-6">
+              <div className="w-40 h-40 bg-white/5 rounded-2xl" />
+              <div className="flex-1 space-y-4">
+                <div className="h-8 bg-white/5 rounded w-3/4" />
+                <div className="h-5 bg-white/5 rounded w-1/2" />
+                <div className="h-5 bg-white/5 rounded w-2/3" />
+              </div>
+            </div>
+            {/* Setlist skeleton */}
+            <div className="space-y-3 mt-8">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="h-12 bg-white/5 rounded" />
+              ))}
+            </div>
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer-sweep" />
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
-    <div className="px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10">
+    <motion.div 
+      className="px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+    >
       <SEOHead
         title={`${show.artist?.name || 'Artist'} @ ${show.venue?.name || 'Venue'} – ${showDate.toLocaleDateString('en-US')} | setlists.live`}
         description={`Details for ${show.artist?.name} at ${show.venue?.name} on ${showDate.toLocaleDateString('en-US')}. View setlists and vote.`}
@@ -209,14 +249,14 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
       />
       
       {/* Enhanced Back Button */}
-              <MagicCard className="inline-block p-0 rounded-xl border-0">
-      <button
-        onClick={onBack}
+      <MagicCard className="inline-block p-0 rounded-xl border-0">
+        <button
+          onClick={onBack}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all duration-300 px-4 py-2 rounded-xl"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Dashboard
-      </button>
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Dashboard
+        </button>
       </MagicCard>
 
       {/* Revamped Show Header with Cover Photo Background */}
@@ -531,52 +571,21 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
               <div className="mt-8 touch-manipulation">
                 {renderSetlistHeader()}
 
-                <Accordion type="single" collapsible className="w-full space-y-0">
-                  <AccordionItem value="full-setlist" className="border-0">
-                    <AccordionTrigger className="py-3 hover:no-underline text-left p-0 border-b border-white/5">
-                      <h4 className="text-lg font-semibold">Full Setlist ({predictionSetlist.songs.length} songs)</h4>
-                    </AccordionTrigger>
-                    <AccordionContent className="p-0 pt-3">
-                      <div className="space-y-3">
-                        {(predictionSetlist.songs || [])
-                          .map((s: any) => (typeof s === 'string' ? s : s?.title))
-                          .filter(Boolean)
-                          .map((songTitle: string, index: number) => (
-                            <div key={`full-setlist-${songTitle}-${index}`} className="py-3 flex justify-between items-center">
-                              <div className="flex-1">
-                                <p className="text-white font-medium text-sm">{songTitle}</p>
-                                {/* Assuming setlist.songs has a 'setNumber' and 'encore' property */}
-                                {/* This part of the original code doesn't have setNumber or encore */}
-                                {/* So, I'm removing it to match the original structure */}
-                              </div>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={(e) => { e.stopPropagation(); handleVote(songTitle); }}
-                                className="h-8 w-8 p-0 text-primary hover:text-primary/80 inline-flex items-center justify-center"
-                              >
-                                <VoteIcon className="h-4 w-4" />
-                                <span className="sr-only">Vote for {songTitle}</span>
-                              </Button>
-                            </div>
-                          ))}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  {/* Optional: Top Songs collapsible */}
-                  <AccordionItem value="top-songs" className="border-0">
-                    <AccordionTrigger className="py-3 hover:no-underline text-left p-0 border-b border-white/5">
-                      <h4 className="text-lg font-semibold">Top Voted Songs</h4>
-                    </AccordionTrigger>
-                    <AccordionContent className="p-0 pt-3">
-                      {/* Render top 5 or similar */}
-                      <div className="space-y-3">
-                        {/* Similar structure without borders */}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+                {/* Setlist shown by default - no accordion */}
+                <div className="space-y-0 mt-6">
+                  {(predictionSetlist.songs || [])
+                    .map((s: any) => (typeof s === 'string' ? s : s?.title))
+                    .filter(Boolean)
+                    .map((songTitle: string, index: number) => (
+                      <FanRequestSongRow
+                        key={`setlist-song-${songTitle}-${index}`}
+                        songTitle={songTitle}
+                        index={index}
+                        predictionSetlistId={predictionSetlist._id}
+                        actualSongTitleSet={actualSongTitleSet}
+                      />
+                    ))}
+                </div>
               </div>
             )}
           </div>
@@ -695,7 +704,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
           </button>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
 

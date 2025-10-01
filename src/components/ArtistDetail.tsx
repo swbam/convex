@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { ArrowLeft, Calendar, MapPin, Users, Music, Plus } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Users, Music, Plus, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { FadeIn } from "./animations/FadeIn";
+import { motion } from "framer-motion";
 
 interface ArtistDetailProps {
   artistId: Id<"artists">;
@@ -30,6 +31,9 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   const [anonymousActions, setAnonymousActions] = useState(0);
   const [addToSetlistModal, setAddToSetlistModal] = useState<{ isOpen: boolean; songTitle: string }>({ isOpen: false, songTitle: "" });
   const followArtist = useMutation(api.artists.followArtist);
+
+  // Loading state
+  const isLoading = !artist;
 
   const handleAnonymousAction = () => {
     if (anonymousActions >= 1) {
@@ -79,16 +83,35 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
     );
   }
 
-  if (artist === undefined) {
-    // Existing loading skeleton
+  if (isLoading) {
+    // Premium loading skeleton
     return (
-      <div className="container mx-auto px-6 py-8">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-muted rounded w-32"></div>
-          <div className="h-64 bg-muted rounded"></div>
-          <div className="h-6 bg-muted rounded w-48"></div>
+      <motion.div 
+        className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-8"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+      >
+        <div className="glass-card rounded-2xl p-8 space-y-6 relative overflow-hidden">
+          <div className="animate-pulse space-y-6">
+            {/* Header skeleton */}
+            <div className="flex items-center gap-6">
+              <div className="w-40 h-40 bg-white/5 rounded-2xl" />
+              <div className="flex-1 space-y-4">
+                <div className="h-10 bg-white/5 rounded w-2/3" />
+                <div className="h-5 bg-white/5 rounded w-1/2" />
+                <div className="h-5 bg-white/5 rounded w-1/3" />
+              </div>
+            </div>
+            {/* Shows skeleton */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-48 bg-white/5 rounded-2xl" />
+              ))}
+            </div>
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer-sweep" />
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -96,7 +119,12 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   const recentShows = shows?.filter(show => show.status === "completed") || [];
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10">
+    <motion.div 
+      className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+    >
       <SEOHead
         title={`${artist.name} – Artist | setlists.live`}
         description={`Explore ${artist.name}'s upcoming shows, catalog and top songs. Vote on setlist predictions.`}
@@ -447,6 +475,6 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         songTitle={addToSetlistModal.songTitle}
         onSignInRequired={onSignInRequired}
       />
-    </div>
+    </motion.div>
   );
 }
