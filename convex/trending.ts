@@ -68,7 +68,7 @@ export const getTrendingShows = query({
       };
     }));
 
-    // ULTRA-PREMIUM FILTERING: Show only REAL artists with quality data
+    // PREMIUM FILTERING: Show quality shows with reasonable criteria
     const filtered = hydrated.filter(show => {
       const artist = show.artist;
       if (!artist) return false;
@@ -76,11 +76,10 @@ export const getTrendingShows = query({
       const hasImage = artist.images && artist.images.length > 0;
       const isUpcoming = show.status === "upcoming";
       const notUnknown = !artist.name.toLowerCase().includes("unknown");
-      const hasSpotifyData = artist.spotifyId && artist.popularity && artist.popularity > 30;
-      const hasUpcomingShows = (artist.upcomingShowsCount ?? 0) > 0;
+      const hasSpotifyData = artist.spotifyId && artist.popularity;
       
-      // Premium filter: Spotify-verified artists with images + popularity
-      return hasImage && isUpcoming && notUnknown && hasSpotifyData && hasUpcomingShows;
+      // Premium filter: Spotify-verified artists with images
+      return hasImage && isUpcoming && notUnknown && hasSpotifyData;
     }).slice(0, limit);
 
     return { page: filtered, isDone: filtered.length < limit, continueCursor: undefined };
@@ -105,17 +104,16 @@ export const getTrendingArtists = query({
       .filter(q => q.neq(q.field("trendingRank"), undefined))
       .take(limit * 2);
 
-    // ULTRA-PREMIUM FILTERING: Only show REAL artists with quality data
+    // PREMIUM FILTERING: Show quality artists with reasonable criteria
     const filtered = artists.filter(artist => {
       const hasImage = artist.images && artist.images.length > 0;
-      const hasUpcomingShows = (artist.upcomingShowsCount ?? 0) > 0;
       const notUnknown = !artist.name.toLowerCase().includes("unknown");
       const notGeneric = !artist.name.toLowerCase().match(/^(various|tba|tbd|tribute|cover|film|movie)/);
-      const hasSpotifyData = artist.spotifyId && artist.popularity && artist.popularity > 30;
-      const hasRealId = artist._id.startsWith('j5');
+      const hasSpotifyData = artist.spotifyId && artist.popularity;
+      const hasRealId = artist._id.startsWith('j');
       
-      // Premium filter: Must have Spotify data + image + shows + real name
-      return hasImage && hasUpcomingShows && notUnknown && notGeneric && hasSpotifyData && hasRealId;
+      // Premium filter: Must have Spotify data + image + real name (shows count optional for display)
+      return hasImage && notUnknown && notGeneric && hasSpotifyData && hasRealId;
     }).slice(0, limit);
 
     return { 
