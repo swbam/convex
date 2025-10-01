@@ -3,7 +3,7 @@ import { useUser, SignedIn, SignedOut, RedirectToSignIn, SignIn } from '@clerk/c
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Button } from "../../components/ui/button";
-import { Spotify } from "lucide-react";
+import { Music as Spotify } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
 import { MagicCard } from '../components/ui/magic-card';

@@ -14,7 +14,7 @@ interface ArtistCardProps {
   showFollowButton?: boolean;
 }
 
-export function ArtistCard({ 
+function ArtistCardComponent({ 
   artist, 
   onClick,
   showFollowButton = true,
@@ -66,6 +66,4 @@ export function ArtistCard({
   );
 }
 
-const ArtistCardMemo = React.memo(ArtistCard);
-
-export { ArtistCardMemo as ArtistCard };
+export const ArtistCard = React.memo(ArtistCardComponent);

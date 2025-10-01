@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Id } from "../../convex/_generated/dataModel";
 import { Calendar, MapPin, Ticket } from "lucide-react";
 import { Button } from "./ui/button";
-import { Card } from "./ui/Card"; // New shared
+import { Card } from "./ui/Card";
 
 interface ShowCardProps {
   show: any;
@@ -12,7 +12,7 @@ interface ShowCardProps {
   compact?: boolean;
 }
 
-export function ShowCard({ 
+function ShowCardComponent({ 
   show, 
   onClick, 
   showArtist = true, 
@@ -29,14 +29,13 @@ export function ShowCard({
 
   const getTime = () => {
     if (!show.startTime) return null;
-    const [time] = show.startTime.split('T')[1].split('+');
+    const [time] = show.startTime.split('T')[1]?.split('+') || [];
     return time ? new Date(`1970-01-01T${time}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : null;
   };
 
   if (compact) {
     return (
       <motion.div
-        // ... motion
         onClick={handleClick}
         className="group cursor-pointer relative overflow-hidden touch-manipulation bg-black rounded-md p-3"
         style={{
@@ -44,27 +43,24 @@ export function ShowCard({
           borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
         }}
       >
-        <Card variant="show" compact>
-          <div className="flex items-center justify-between">
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-semibold text-sm line-clamp-1">{show.artist?.name}</p>
-              <p className="text-gray-400 text-xs">{formatDate(show.date)}</p>
-            </div>
-            {show.venue && (
-              <div className="ml-3 text-right">
-                <p className="text-gray-400 text-xs">{show.venue.name}</p>
-                <p className="text-muted-foreground text-xs">{show.venue.city}</p>
-              </div>
-            )}
+        <div className="flex items-center justify-between">
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-semibold text-sm line-clamp-1">{show.artist?.name}</p>
+            <p className="text-gray-400 text-xs">{formatDate(show.date)}</p>
           </div>
-        </Card>
+          {show.venue && (
+            <div className="ml-3 text-right">
+              <p className="text-gray-400 text-xs">{show.venue.name}</p>
+              <p className="text-muted-foreground text-xs">{show.venue.city}</p>
+            </div>
+          )}
+        </div>
       </motion.div>
     );
   }
 
   return (
     <motion.div
-      // ... motion
       onClick={handleClick}
       className="group cursor-pointer relative overflow-hidden touch-manipulation h-full bg-black min-h-[192px] flex flex-col"
       style={{
@@ -101,3 +97,5 @@ export function ShowCard({
     </motion.div>
   );
 }
+
+export const ShowCard = React.memo(ShowCardComponent);
