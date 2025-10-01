@@ -90,20 +90,14 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
           <div className="max-w-4xl mx-auto text-center space-y-6">
             {/* Headline with stagger animation */}
             <div className="space-y-4">
-              <motion.div 
-                variants={itemVariants}
-                className="flex items-center justify-center gap-2 text-white/60"
-              >
-                <Sparkles className="h-5 w-5" />
-                <span className="text-sm font-semibold uppercase tracking-wider">Live Concert Setlists</span>
-              </motion.div>
+           
               
               <motion.h1 
                 variants={itemVariants}
                 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight gradient-text"
               >
-                Discover Your Next
-                <span className="block mt-2">Unforgettable Show</span>
+                Crowdsourced Concert Setlists
+          
               </motion.h1>
               
               <motion.p 
