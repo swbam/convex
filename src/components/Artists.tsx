@@ -6,7 +6,7 @@ import { ArtistCard } from './ArtistCard';
 import { Search, Music, TrendingUp, Filter, Star, Mic } from 'lucide-react';
 import { MagicCard } from './ui/magic-card';
 import { BorderBeam } from './ui/border-beam';
-import { Card } from "./ui/Card"; // Shared
+import { Card } from "./ui/card"; // Shared
 
 interface ArtistsProps {
   onArtistClick: (artistId: Id<'artists'>, slug?: string) => void;

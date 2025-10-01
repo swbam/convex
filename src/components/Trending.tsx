@@ -5,7 +5,7 @@ import { Id } from '../../convex/_generated/dataModel';
 import { TrendingUp, Music, MapPin, Calendar, Clock, Users, Star } from 'lucide-react';
 import { MagicCard } from './ui/magic-card';
 import { BorderBeam } from './ui/border-beam';
-import { Card } from "./ui/Card"; // Shared
+import { Card } from "./ui/card"; // Shared
 import { Button } from './ui/button'; // Shared
 
 const toSlug = (value: string) =>
@@ -169,13 +169,13 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                         </div>
                       </div>
                     ))
-                  ) : trendingArtists.length === 0 ? (
+                  ) : trendingArtists.page.length === 0 ? (
                     <div className="text-center py-12 text-gray-400">
                       <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No trending artists data available</p>
                     </div>
                   ) : (
-                    trendingArtists.map((artist, index) => {
+                    trendingArtists.page.map((artist: any, index: number) => {
                       const artistKey = artist.ticketmasterId || artist._id || index;
                       const image = Array.isArray(artist.images) && artist.images.length > 0 ? artist.images[0] : undefined;
                       const genres = Array.isArray(artist.genres) ? artist.genres : [];
@@ -194,6 +194,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                           subtitle={`${upcomingCount} shows`}
                           onClick={() => handleArtistClick(artist)}
                           footer={<Button variant="outline" size="sm">View Artist</Button>}
+                          children={null}
                         />
                       );
                     })
@@ -217,13 +218,13 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                         </div>
                       </div>
                     ))
-                  ) : trendingShows.length === 0 ? (
+                  ) : trendingShows.page.length === 0 ? (
                     <div className="text-center py-12 text-gray-400">
                       <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No trending shows data available</p>
                     </div>
                   ) : (
-                    trendingShows.map((show, index) => {
+                    trendingShows.page.map((show: any, index: number) => {
                       const showKey = show.ticketmasterId || show._id || index;
                       const artistName = show.artist?.name || show.artistName || 'Unknown Artist';
                       const artistImage = show.artist?.images?.[0] || show.artistImage;
@@ -248,6 +249,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                           subtitle={`${locationLabel} • ${dateLabel}`}
                           onClick={() => handleShowClick(show)}
                           footer={<Button variant="outline" size="sm">View Show</Button>}
+                          children={null}
                         />
                       );
                     })
@@ -276,20 +278,20 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                       <p>No trending setlists available</p>
                     </div>
                   ) : (
-                    trendingSetlists.map((setlist, index) => (
+                    trendingSetlists.map((setlist: any, index: number) => (
                       <Card
                         key={setlist._id}
-                        variant="setlist"
+                        variant="show"
                         imageSrc={setlist.artist?.images?.[0]}
                         title={setlist.artist?.name}
-                        subtitle={`${setlist.venue?.name} • ${setlist.songs.length} songs`}
+                        subtitle={`${setlist.venue?.name} • ${setlist.songs?.length ?? 0} songs`}
                         onClick={() => {
-                          // Assuming setlist._id is the showId or showKey
-                          const showId = setlist._id;
-                          const showSlug = setlist.slug; // Assuming setlist has a slug
+                          const showId = setlist.show?._id ?? setlist._id;
+                          const showSlug = setlist.show?.slug as string | undefined;
                           onShowClick(showId, showSlug);
                         }}
                         footer={<Button variant="outline" size="sm">View Setlist</Button>}
+                        children={null}
                       />
                     ))
                   )}

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Id } from "../../convex/_generated/dataModel";
 import { Calendar, MapPin, Ticket } from "lucide-react";
 import { Button } from "./ui/button";
-import { Card } from "./ui/Card";
+import { Card } from "./ui/card";
 
 interface ShowCardProps {
   show: any;

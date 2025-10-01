@@ -6,7 +6,7 @@ import { useMutation } from "convex/react";
 import { Button } from "./ui/button";
 import { Heart } from "lucide-react";
 import { toast } from "sonner";
-import { Card } from "./ui/Card"; // New shared
+import { Card } from "./ui/card"; // New shared
 
 interface ArtistCardProps {
   artist: any;
