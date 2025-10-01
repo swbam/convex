@@ -29,9 +29,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
     onError: () => setUsePolling(true) 
   });
 
-  const fallbackActivity = useQuery(usePolling ? api.activity.getUserActivityFeed : () => null, { limit: 50 }, {
-    refetchInterval: 5000,
-  });
+  const fallbackActivity = useQuery(api.activity.getUserActivityFeed, usePolling ? { limit: 50 } : "skip");
 
   const activityFeed = liveActivity || fallbackActivity || [];
 

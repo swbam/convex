@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useNavigate } from "react-router-dom";
-import { Shows, Users, Calendar, Filter, TrendingUp, MapPin, Loader2 } from "lucide-react";
+import { Calendar, Users, Filter, TrendingUp, MapPin, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
@@ -78,23 +78,23 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
 
       {/* Filters */}
       <div className="flex flex-wrap gap-4 mb-8 justify-center">
-        <Select onValueChange={setFilterGenre}>
+        <Select value={filterGenre || undefined} onValueChange={(val) => setFilterGenre(val === "all" ? "" : val)}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Filter by Genre" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Genres</SelectItem>
+            <SelectItem value="all">All Genres</SelectItem>
             <SelectItem value="rock">Rock</SelectItem>
             <SelectItem value="pop">Pop</SelectItem>
             {/* More */}
           </SelectContent>
         </Select>
-        <Select onValueChange={setFilterCity}>
+        <Select value={filterCity || undefined} onValueChange={(val) => setFilterCity(val === "all" ? "" : val)}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Filter by City" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Cities</SelectItem>
+            <SelectItem value="all">All Cities</SelectItem>
             <SelectItem value="new york">New York</SelectItem>
             <SelectItem value="los angeles">Los Angeles</SelectItem>
           </SelectContent>

@@ -8,8 +8,8 @@ export function SEOHead() {
   const params = useParams();
   const { artistSlug, showSlug } = params;
 
-  const artist = useQuery(artistSlug ? api.artists.getBySlug : () => null, artistSlug ? { slug: artistSlug } : "skip");
-  const show = useQuery(showSlug ? api.shows.getBySlug : () => null, showSlug ? { slug: showSlug } : "skip");
+  const artist = useQuery(api.artists.getBySlug, artistSlug ? { slug: artistSlug } : "skip");
+  const show = useQuery(api.shows.getBySlug, showSlug ? { slug: showSlug } : "skip");
 
   useEffect(() => {
     let title = "Setlists Live - Crowd-Curated Concert Setlists";
