@@ -96,6 +96,8 @@ export const getTrendingShows = query({
   },
 });
 
+
+
 export const getTrendingArtists = query({
   args: { limit: v.optional(v.number()) },
   returns: v.object({
