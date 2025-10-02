@@ -12,8 +12,6 @@ export const syncActualSetlist = internalAction({
   },
   returns: v.union(v.string(), v.null()),
   handler: async (ctx, args): Promise<string | null> => {
-    const attempt = 1;
-    const maxAttempts = 3;
     try {
       const show = await ctx.runQuery(internal.shows.getByIdInternal, { id: args.showId });
       if (!show || !show.artistId || !show.venueId) {
@@ -21,7 +19,8 @@ export const syncActualSetlist = internalAction({
           showId: args.showId,
           status: "failed" as const,
         });
-        throw new Error("Missing relations");
+        console.error(`❌ Show ${args.showId} missing relations`);
+        return null;
       }
 
       const [artist, venue] = await Promise.all([
@@ -34,24 +33,29 @@ export const syncActualSetlist = internalAction({
           showId: args.showId,
           status: "failed" as const,
         });
-        throw new Error("Missing artist or venue");
+        console.error(`❌ Show ${args.showId} missing artist or venue`);
+        return null;
       }
 
-      // API call to Setlist.fm (simplified for now - implement full logic)
+      // API call to Setlist.fm
       const apiKey = process.env.SETLISTFM_API_KEY;
       if (!apiKey) {
+        console.error("❌ SETLISTFM_API_KEY not configured");
         throw new Error("SETLISTFM_API_KEY not configured");
       }
 
       const dateMatch = args.showDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
       if (!dateMatch) {
+        console.error(`❌ Invalid date format: ${args.showDate}`);
         throw new Error("Invalid date format");
       }
       const [, year, month, day] = dateMatch;
       const setlistfmDate = `${day}-${month}-${year}`;
 
       const searchUrl = `https://api.setlist.fm/rest/1.0/search/setlists?artistName=${encodeURIComponent(artist.name)}&cityName=${encodeURIComponent(venue.city)}&date=${setlistfmDate}`;
-      
+
+      console.log(`🔍 Searching setlist.fm: ${artist.name} @ ${venue.city} on ${setlistfmDate}`);
+
       const apiResponse = await fetch(searchUrl, {
         headers: {
           'x-api-key': apiKey,
@@ -61,7 +65,9 @@ export const syncActualSetlist = internalAction({
       });
 
       if (!apiResponse.ok) {
-        throw new Error(`Setlist.fm API error: ${apiResponse.status}`);
+        const errorMsg = `Setlist.fm API error: ${apiResponse.status}`;
+        console.error(`❌ ${errorMsg}`);
+        throw new Error(errorMsg);
       }
 
       const data = await apiResponse.json();
@@ -77,29 +83,25 @@ export const syncActualSetlist = internalAction({
           showId: args.showId,
           status: "completed",
         });
-        console.log(`✅ Synced setlist for ${artist.name}`);
+        console.log(`✅ Synced setlist for ${artist.name} (${setlistId})`);
         return setlistId;
       } else {
-        // No setlist found
+        // No setlist found - this is not a failure, just no data available
+        console.log(`ℹ️  No setlist found for ${artist.name} @ ${venue.city}`);
         await ctx.runMutation(internal.shows.updateImportStatus, {
           showId: args.showId,
-          status: "failed" as const, // Use failed instead of no_setlist for now
+          status: "failed" as const,
         });
         return null;
       }
     } catch (error) {
-      console.error(`Attempt ${attempt} failed for show ${args.showId}:`, error);
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      console.error(`❌ Setlist sync failed for show ${args.showId}: ${errorMsg}`);
       await ctx.runMutation(internal.shows.updateImportStatus, {
         showId: args.showId,
         status: "failed" as const,
       });
-      if (attempt < maxAttempts) {
-        const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
-        await new Promise(resolve => setTimeout(resolve, delay));
-        // Retry via scheduler instead of recursion
-        await ctx.scheduler.runAfter(delay, internal.setlistfm.syncActualSetlist, args);
-        return null;
-      }
+      // Let the job queue (syncJobs.ts) handle retries with proper exponential backoff
       return null;
     }
   },
@@ -170,15 +172,15 @@ export const syncSpecificSetlist = internalAction({
   handler: async (ctx, args): Promise<string | null> => {
     const apiKey = process.env.SETLISTFM_API_KEY;
     if (!apiKey) {
-      console.log("Setlist.fm API key not configured");
+      console.error("❌ SETLISTFM_API_KEY not configured");
       return null;
     }
 
     try {
       // Get specific setlist by ID
       const setlistUrl = `https://api.setlist.fm/rest/1.0/setlist/${args.setlistfmId}`;
-      console.log(`Fetching specific setlist: ${setlistUrl}`);
-      
+      console.log(`🔍 Fetching specific setlist: ${args.setlistfmId}`);
+
       const response = await fetch(setlistUrl, {
         headers: {
           'x-api-key': apiKey,
@@ -188,27 +190,36 @@ export const syncSpecificSetlist = internalAction({
       });
 
       if (!response.ok) {
-        console.log(`Setlist.fm API error: ${response.status}`);
-        return null;
+        const errorMsg = `Setlist.fm API error: ${response.status}`;
+        console.error(`❌ ${errorMsg}`);
+        if (response.status === 404) {
+          console.log(`ℹ️  Setlist ${args.setlistfmId} not found`);
+          return null;
+        }
+        if (response.status === 429) {
+          console.error("⚠️  Rate limited by Setlist.fm API");
+          return null;
+        }
+        throw new Error(errorMsg);
       }
 
       const setlist = await response.json();
       const songs: { title: string; setNumber: number; encore: boolean; album?: string; duration?: number }[] = [];
 
-      console.log(`Found setlist for ${setlist.artist?.name} at ${setlist.venue?.name} on ${setlist.eventDate}`);
+      console.log(`✅ Found setlist: ${setlist.artist?.name} @ ${setlist.venue?.name} on ${setlist.eventDate}`);
 
       // Extract songs from sets
       if (setlist.sets && setlist.sets.set) {
         for (const [setIndex, set] of setlist.sets.set.entries()) {
           const isEncore = set.encore === 1 || set.encore === true || set.encore === "true";
           const setNumber = setIndex + 1;
-          
-          console.log(`Processing set ${setNumber} (encore: ${isEncore}) with ${set.song?.length || 0} songs`);
-          
+
+          console.log(`📋 Processing set ${setNumber} (encore: ${isEncore}) with ${set.song?.length || 0} songs`);
+
           if (set.song && Array.isArray(set.song)) {
             for (const song of set.song) {
               if (song.name && song.name.trim() !== '') {
-                songs.push({ 
+                songs.push({
                   title: song.name.trim(),
                   setNumber: setNumber,
                   encore: isEncore,
@@ -222,7 +233,7 @@ export const syncSpecificSetlist = internalAction({
       }
 
       if (songs.length === 0) {
-        console.log(`No songs found in setlist`);
+        console.log(`ℹ️  No songs found in setlist ${args.setlistfmId}`);
         return null;
       }
 
@@ -233,12 +244,13 @@ export const syncSpecificSetlist = internalAction({
         setlistfmId: args.setlistfmId,
         setlistfmData: setlist,
       });
-        
+
       console.log(`✅ Updated setlist with ${songs.length} songs from setlist.fm ID ${args.setlistfmId}`);
       return args.setlistfmId;
 
     } catch (error) {
-      console.error("Setlist.fm sync error:", error);
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      console.error(`❌ Setlist.fm sync error for ${args.setlistfmId}: ${errorMsg}`);
       return null;
     }
   },

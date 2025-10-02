@@ -12,11 +12,11 @@ export function SEOHead() {
   const show = useQuery(api.shows.getBySlug, showSlug ? { slug: showSlug } : "skip");
 
   useEffect(() => {
-    let title = "Setlists Live - Crowd-Curated Concert Setlists";
+    let title = "setlists.live | Crowdsourced Concert Setlists";
     let description = "Vote on setlists and predict songs for upcoming concerts.";
 
     if (artistSlug && artist) {
-      title = `${artist.name} | Setlists Live`;
+      title = `${artist.name} | setlists.live`;
       description = `Upcoming shows and setlists for ${artist.name}. Vote on songs you want to hear.`;
     } else if (showSlug && show) {
       title = `${show.artist?.name} at ${show.venue?.name} | Setlists Live`;

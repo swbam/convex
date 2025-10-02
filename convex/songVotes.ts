@@ -1,6 +1,7 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "./auth";
+import { Id } from "./_generated/dataModel";
 
 // Vote on individual songs within setlists
 export const voteOnSong = mutation({
@@ -8,30 +9,46 @@ export const voteOnSong = mutation({
     setlistId: v.id("setlists"),
     songTitle: v.string(),
     voteType: v.literal("upvote"), // Only upvotes per ProductHunt style
+    anonId: v.optional(v.string()),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    
-    // For anonymous users, we'll use a session-based approach
-    // The frontend should handle the 2-action limit before requiring signup
-    const effectiveUserId = userId || ("anonymous" as any);
+    const authUserId = await getAuthUserId(ctx);
+    let effectiveUserId: Id<"users"> | string;
 
-    // Check if user already voted on this song in this setlist (only for authenticated users)
-    if (userId) {
-      const existingVote = await ctx.db
+    if (!authUserId) {
+      if (!args.anonId) {
+        throw new Error("Anonymous ID required for unauthenticated users");
+      }
+      effectiveUserId = args.anonId;
+    } else {
+      effectiveUserId = authUserId;
+    }
+
+    // Check if user already voted on this song in this setlist
+    const existingVote = await ctx.db
+      .query("songVotes")
+      .withIndex("by_user_setlist_song", (q) =>
+        q.eq("userId", effectiveUserId)
+         .eq("setlistId", args.setlistId)
+         .eq("songTitle", args.songTitle)
+      )
+      .first();
+
+    if (existingVote) {
+      // Remove existing vote (toggle off)
+      await ctx.db.delete(existingVote._id);
+      return null;
+    }
+
+    // For anonymous users, enforce limit of 1 total upvote
+    if (typeof effectiveUserId === "string") {
+      const totalVotes = await ctx.db
         .query("songVotes")
-        .withIndex("by_user_setlist_song", (q) => 
-          q.eq("userId", userId)
-           .eq("setlistId", args.setlistId)
-           .eq("songTitle", args.songTitle)
-        )
-        .first();
+        .withIndex("by_user", (q) => q.eq("userId", effectiveUserId))
+        .collect();
 
-      if (existingVote) {
-        // Remove existing vote (toggle off)
-        await ctx.db.delete(existingVote._id);
-        return null;
+      if (totalVotes.length >= 1) {
+        throw new Error("Anonymous users can only upvote one song total");
       }
     }
 
@@ -45,7 +62,7 @@ export const voteOnSong = mutation({
     });
 
     return null;
-  },
+  }
 });
 
 // Get vote count for a specific song in a setlist

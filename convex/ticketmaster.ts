@@ -109,18 +109,30 @@ export const syncArtistShows = internalAction({
   returns: v.null(),
   handler: async (ctx, args) => {
     const apiKey = process.env.TICKETMASTER_API_KEY;
-    if (!apiKey) return null;
+    if (!apiKey) {
+      console.error("❌ TICKETMASTER_API_KEY not configured");
+      return null;
+    }
 
     const url = `https://app.ticketmaster.com/discovery/v2/events.json?attractionId=${args.ticketmasterId}&size=200&apikey=${apiKey}`;
 
     try {
+      console.log(`🔍 Fetching shows for Ticketmaster ID: ${args.ticketmasterId}`);
       const response = await fetch(url);
-      if (!response.ok) return null;
+
+      if (!response.ok) {
+        const errorMsg = `Ticketmaster API error: ${response.status}`;
+        console.error(`❌ ${errorMsg}`);
+        if (response.status === 429) {
+          console.error("⚠️  Rate limited by Ticketmaster API");
+        }
+        return null;
+      }
 
       const data = await response.json();
       const events = data._embedded?.events || [];
 
-      console.log(`📅 Found ${events.length} shows for artist`);
+      console.log(`📅 Found ${events.length} shows for artist ${args.ticketmasterId}`);
 
       for (const event of events) {
         // Create or get venue
@@ -148,6 +160,7 @@ export const syncArtistShows = internalAction({
             const parsed = parseFloat(String(venue.location.longitude));
             return Number.isFinite(parsed) ? parsed : undefined;
           })() : undefined,
+          postalCode: venue?.postalCode ? String(venue.postalCode) : undefined,
         });
         
         console.log(`✅ Created/found venue: ${venue?.name || 'Unknown'} (ID: ${venueId})`);

@@ -212,7 +212,8 @@ export default defineSchema({
     progressPercentage: v.optional(v.number()),
   })
     .index("by_status", ["status"])
-    .index("by_priority", ["priority"]),
+    .index("by_priority", ["priority"])
+    .index("by_type_and_status", ["type", "status"]), // Optimize getPendingJobs query
 
 // Add cached trending tables back for compatibility
   trendingShows: defineTable({
@@ -261,7 +262,7 @@ export default defineSchema({
 
   // Individual song votes within setlists (ProductHunt style)
   songVotes: defineTable({
-    userId: v.union(v.id("users"), v.literal("anonymous")),
+    userId: v.union(v.id("users"), v.string()),
     setlistId: v.id("setlists"),
     songTitle: v.string(),
     voteType: v.literal("upvote"),
@@ -311,7 +312,7 @@ export default defineSchema({
 
   // User actions for rate limiting
   userActions: defineTable({
-    userId: v.id("users"),
+    userId: v.union(v.id("users"), v.string()),
     action: v.string(),
     timestamp: v.number(),
   })

@@ -9,10 +9,11 @@ export const getPendingJobs = internalQuery({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx) => {
+    // FIXED: Use composite index for better performance
     return await ctx.db
       .query("syncJobs")
-      .withIndex("by_status", (q: any) => q.eq("status", "pending"))
-      .filter((q: any) => q.eq(q.field("type"), "setlist_import"))
+      .withIndex("by_type_and_status", (q: any) =>
+        q.eq("type", "setlist_import").eq("status", "pending"))
       .order("asc")
       .take(5); // Limit for performance
   },

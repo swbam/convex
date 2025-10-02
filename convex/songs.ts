@@ -44,10 +44,10 @@ export const createFromSpotify = internalMutation({
     isRemix: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    // Check if song already exists
+    // CRITICAL FIX: Use index instead of filter for performance
     const existing = await ctx.db
       .query("songs")
-      .filter((q) => q.eq(q.field("spotifyId"), args.spotifyId))
+      .withIndex("by_spotify_id", (q) => q.eq("spotifyId", args.spotifyId))
       .first();
 
     if (existing) {
@@ -70,9 +70,10 @@ export const createFromSpotify = internalMutation({
 export const getBySpotifyIdInternal = internalQuery({
   args: { spotifyId: v.string() },
   handler: async (ctx, args) => {
+    // CRITICAL FIX: Use index instead of filter
     return await ctx.db
       .query("songs")
-      .filter((q) => q.eq(q.field("spotifyId"), args.spotifyId))
+      .withIndex("by_spotify_id", (q) => q.eq("spotifyId", args.spotifyId))
       .first();
   },
 });

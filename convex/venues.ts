@@ -101,10 +101,11 @@ export const createFromTicketmaster = internalMutation({
     capacity: v.optional(v.number()),
     lat: v.optional(v.number()),
     lng: v.optional(v.number()),
+    postalCode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Check by Ticketmaster ID first
     if (args.ticketmasterId) {
-      // Use new index for performance
       const existing = await ctx.db
         .query("venues")
         .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.ticketmasterId))
@@ -115,6 +116,24 @@ export const createFromTicketmaster = internalMutation({
       }
     }
 
+    // CRITICAL FIX: Fallback to name+city to prevent duplicates
+    const existingByLocation = await ctx.db
+      .query("venues")
+      .withIndex("by_name_city", (q) => q.eq("name", args.name).eq("city", args.city))
+      .first();
+
+    if (existingByLocation) {
+      // Update with Ticketmaster ID if we found a match
+      if (args.ticketmasterId && !existingByLocation.ticketmasterId) {
+        await ctx.db.patch(existingByLocation._id, {
+          ticketmasterId: args.ticketmasterId,
+          postalCode: args.postalCode || existingByLocation.postalCode,
+        });
+      }
+      return existingByLocation._id;
+    }
+
+    // Create new venue with all fields including postalCode
     return await ctx.db.insert("venues", {
       name: args.name,
       city: args.city,
@@ -125,6 +144,7 @@ export const createFromTicketmaster = internalMutation({
       lat: args.lat,
       lng: args.lng,
       ticketmasterId: args.ticketmasterId,
+      postalCode: args.postalCode,
     });
   },
 });

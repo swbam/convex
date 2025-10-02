@@ -33,4 +33,4 @@ _generated
 
 # Old directory (exclude from builds)
 old/
-.env
+

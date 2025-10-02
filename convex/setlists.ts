@@ -60,8 +60,34 @@ export const addSongToSetlist = mutation({
       duration: v.optional(v.number()),
       songId: v.optional(v.id("songs")),
     }),
+    anonId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const authUserId = await getAuthUserId(ctx);
+    let effectiveUserId: Id<"users"> | string;
+
+    if (!authUserId) {
+      if (!args.anonId) {
+        throw new Error("Anonymous ID required for unauthenticated users");
+      }
+      effectiveUserId = args.anonId;
+    } else {
+      effectiveUserId = authUserId;
+    }
+
+    // For anonymous users, enforce limit of 1 total song add
+    if (typeof effectiveUserId === "string") {
+      const totalAdds = await ctx.db
+        .query("userActions")
+        .filter((q) => q.eq(q.field("userId"), effectiveUserId))
+        .filter((q) => q.eq(q.field("action"), "add_song"))
+        .collect();
+
+      if (totalAdds.length >= 1) {
+        throw new Error("Anonymous users can only add one song total");
+      }
+    }
+
     // Find the shared Setlist Votes record for this show (explicitly not user-specific)
     const communitySetlist = await ctx.db
       .query("setlists")
@@ -69,6 +95,8 @@ export const addSongToSetlist = mutation({
       .filter((q) => q.eq(q.field("isOfficial"), false))
       .filter((q) => q.eq(q.field("userId"), undefined))
       .first();
+
+    let setlistId: Id<"setlists">;
 
     if (communitySetlist) {
       // Add song if not already present (case insensitive to avoid duplicates)
@@ -83,11 +111,13 @@ export const addSongToSetlist = mutation({
           songs: [...(communitySetlist.songs || []), args.song],
           lastUpdated: Date.now(),
         });
+        setlistId = communitySetlist._id;
+      } else {
+        setlistId = communitySetlist._id;
       }
-      return communitySetlist._id;
     } else {
       // Create new shared setlist for this show
-      return await ctx.db.insert("setlists", {
+      setlistId = await ctx.db.insert("setlists", {
         showId: args.showId,
         userId: undefined, // Shared setlist, not user-specific
         songs: [args.song],
@@ -100,6 +130,17 @@ export const addSongToSetlist = mutation({
         downvotes: 0,
       });
     }
+
+    // Log the action for anonymous users (authenticated don't need limit tracking)
+    if (typeof effectiveUserId === "string") {
+      await ctx.db.insert("userActions", {
+        userId: effectiveUserId,
+        action: "add_song",
+        timestamp: Date.now(),
+      });
+    }
+
+    return setlistId;
   },
 });
 

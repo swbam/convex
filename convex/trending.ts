@@ -66,28 +66,36 @@ export const getTrendingShows = query({
         .take(limit * 2);
     }
 
-    // Hydrate with full artist + venue data
+    // Hydrate with full artist + venue data with null checks
     const hydrated = await Promise.all(shows.map(async (show) => {
-      const artist = await ctx.db.get(show.artistId);
-      const venue = await ctx.db.get(show.venueId);
-      
-      return {
-        ...show,
-        artist,
-        venue,
-      };
+      try {
+        const artist = await ctx.db.get(show.artistId);
+        const venue = await ctx.db.get(show.venueId);
+
+        return {
+          ...show,
+          artist,
+          venue,
+        };
+      } catch (error) {
+        console.error(`❌ Failed to hydrate show ${show._id}:`, error);
+        return null;
+      }
     }));
 
+    // Filter out null results from failed hydrations
+    const validShows = hydrated.filter((show): show is NonNullable<typeof show> => show !== null);
+
     // PREMIUM FILTERING: Show quality shows
-    const filtered = hydrated.filter(show => {
+    const filtered = validShows.filter(show => {
       const artist = show.artist;
       if (!artist) return false;
-      
+
       const hasImage = artist.images && artist.images.length > 0;
       const isUpcoming = show.status === "upcoming";
       const notUnknown = !artist.name.toLowerCase().includes("unknown");
       const hasSpotifyData = artist.spotifyId && artist.popularity;
-      
+
       // Premium filter: Spotify-verified artists with images
       return hasImage && isUpcoming && notUnknown && hasSpotifyData;
     }).slice(0, limit);
@@ -190,16 +198,22 @@ export const replaceTrendingShowsCache = internalMutation({
         .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", show.ticketmasterId))
         .first();
 
-      const linkedArtist = linkedShow
-        ? await ctx.db.get(linkedShow.artistId)
-        : show.artistTicketmasterId
-        ? await ctx.db
-            .query("artists")
-            .withIndex("by_ticketmaster_id", (q) =>
-              q.eq("ticketmasterId", show.artistTicketmasterId!)
-            )
-            .first()
-        : null;
+      // CRITICAL FIX: Add error recovery for missing artists
+      let linkedArtist = null;
+      try {
+        linkedArtist = linkedShow
+          ? await ctx.db.get(linkedShow.artistId)
+          : show.artistTicketmasterId
+          ? await ctx.db
+              .query("artists")
+              .withIndex("by_ticketmaster_id", (q) =>
+                q.eq("ticketmasterId", show.artistTicketmasterId!)
+              )
+              .first()
+          : null;
+      } catch (error) {
+        console.error(`❌ Failed to get artist for trending show ${show.ticketmasterId}:`, error);
+      }
 
       const artistName = linkedArtist?.name || show.artistName || "Unknown Artist";
       const payload = {
@@ -577,44 +591,77 @@ export const updateTrendingArtist = internalMutation({
 });
 
 async function fetchTicketmasterTrendingArtists() {
-  // FIXED: Use attractions API, not events API!
-  const response = await fetch("https://app.ticketmaster.com/discovery/v2/attractions.json?classificationName=music&size=20&apikey=" + process.env.TICKETMASTER_API_KEY);
-  if (!response.ok) {
-    console.error("Failed to fetch trending artists:", response.status);
+  const apiKey = process.env.TICKETMASTER_API_KEY;
+  if (!apiKey) {
+    console.error("❌ TICKETMASTER_API_KEY not configured");
     return { artists: [] };
   }
-  const data = await response.json();
-  const attractions = data._embedded?.attractions || [];
 
-  // Return in expected format with artists array
-  return {
-    artists: attractions.map((attraction: any) => ({
-      id: attraction.id,
-      name: attraction.name,
-      genres: attraction.classifications?.[0]?.genre?.name ? [attraction.classifications[0].genre.name] : [],
-      images: attraction.images?.map((img: any) => img.url) || [],
-      popularity: attraction.upcomingEvents?._total || 0,
-    }))
-  };
+  try {
+    const response = await fetch(`https://app.ticketmaster.com/discovery/v2/attractions.json?classificationName=music&size=20&apikey=${apiKey}`);
+
+    if (!response.ok) {
+      const errorMsg = `Ticketmaster API error: ${response.status}`;
+      console.error(`❌ ${errorMsg}`);
+      if (response.status === 429) {
+        console.error("⚠️  Rate limited by Ticketmaster API");
+      }
+      return { artists: [] };
+    }
+
+    const data = await response.json();
+    const attractions = data._embedded?.attractions || [];
+
+    return {
+      artists: attractions.map((attraction: any) => ({
+        id: attraction.id,
+        name: attraction.name,
+        genres: attraction.classifications?.[0]?.genre?.name ? [attraction.classifications[0].genre.name] : [],
+        images: attraction.images?.map((img: any) => img.url) || [],
+        popularity: attraction.upcomingEvents?._total || 0,
+      }))
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : "Unknown error";
+    console.error(`❌ Failed to fetch trending artists: ${errorMsg}`);
+    return { artists: [] };
+  }
 }
 
 async function fetchTicketmasterTrendingShows() {
-  const response = await fetch("https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=20&sort=date,asc&apikey=" + process.env.TICKETMASTER_API_KEY);
-  if (!response.ok) {
-    console.error("Failed to fetch trending shows:", response.status);
+  const apiKey = process.env.TICKETMASTER_API_KEY;
+  if (!apiKey) {
+    console.error("❌ TICKETMASTER_API_KEY not configured");
     return { shows: [] };
   }
-  const data = await response.json();
-  const events = data._embedded?.events || [];
 
-  // Return in expected format with shows array
-  return {
-    shows: events.map((event: any) => ({
-      id: event.id,
-      name: event.name,
-      date: event.dates?.start?.localDate,
-      venue: event._embedded?.venues?.[0],
-      artist: event._embedded?.attractions?.[0],
-    }))
-  };
+  try {
+    const response = await fetch(`https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=20&sort=date,asc&apikey=${apiKey}`);
+
+    if (!response.ok) {
+      const errorMsg = `Ticketmaster API error: ${response.status}`;
+      console.error(`❌ ${errorMsg}`);
+      if (response.status === 429) {
+        console.error("⚠️  Rate limited by Ticketmaster API");
+      }
+      return { shows: [] };
+    }
+
+    const data = await response.json();
+    const events = data._embedded?.events || [];
+
+    return {
+      shows: events.map((event: any) => ({
+        id: event.id,
+        name: event.name,
+        date: event.dates?.start?.localDate,
+        venue: event._embedded?.venues?.[0],
+        artist: event._embedded?.attractions?.[0],
+      }))
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : "Unknown error";
+    console.error(`❌ Failed to fetch trending shows: ${errorMsg}`);
+    return { shows: [] };
+  }
 }
