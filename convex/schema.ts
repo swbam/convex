@@ -75,6 +75,7 @@ const applicationTables = {
     startTime: v.optional(v.string()),
     status: v.union(v.literal("upcoming"), v.literal("completed"), v.literal("cancelled")),
     ticketmasterId: v.optional(v.string()),
+    setlistfmId: v.optional(v.string()),
     ticketUrl: v.optional(v.string()),
     priceRange: v.optional(v.string()),
     // Engagement & trending fields
@@ -83,6 +84,7 @@ const applicationTables = {
     trendingScore: v.optional(v.number()),
     trendingRank: v.optional(v.number()),
     lastTrendingUpdate: v.optional(v.number()),
+    lastSynced: v.optional(v.number()),
     importStatus: v.optional(v.union(
       v.literal("pending"),
       v.literal("importing"),
@@ -94,6 +96,7 @@ const applicationTables = {
     .index("by_artist", ["artistId"])
     .index("by_venue", ["venueId"])
     .index("by_status", ["status"])
+    .index("by_status_artist", ["status", "artistId"]) 
     .index("by_date", ["date"]) 
     .index("by_ticketmaster_id", ["ticketmasterId"]) 
     .index("by_trending_rank", ["trendingRank"]),
@@ -245,14 +248,28 @@ const applicationTables = {
     .index("by_rank", ["rank"]) 
     .index("by_ticketmaster_id", ["ticketmasterId"]),
 
-  // Track limited anonymous actions to enforce limits
-  userActions: defineTable({
-    userId: v.string(),
-    action: v.union(v.literal("add_song")),
-    timestamp: v.number(),
+  // Moderation: content flags raised by users
+  contentFlags: defineTable({
+    contentType: v.union(v.literal("setlist"), v.literal("vote"), v.literal("comment")),
+    contentId: v.string(),
+    reason: v.string(),
+    reporterId: v.id("users"),
+    createdAt: v.number(),
+    status: v.union(v.literal("pending"), v.literal("reviewed"), v.literal("dismissed")),
+    reviewedBy: v.optional(v.id("users")),
+    reviewedAt: v.optional(v.number()),
   })
-    .index("by_user", ["userId"]) 
-    .index("by_action", ["action"]),
+    .index("by_status", ["status"]),
+
+  // Activity feed items (global/anonymized)
+  activity: defineTable({
+    userId: v.id("users"),
+    type: v.string(),
+    createdAt: v.number(),
+    data: v.optional(v.any()),
+  })
+    .index("by_user", ["userId"]),
+
 
 
   userFollows: defineTable({

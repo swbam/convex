@@ -324,8 +324,8 @@ export const getUserSpotifyArtists = query({
       
       results.push({
         artist,
-        isFollowed: userArtist.isFollowed,
-        isTopArtist: userArtist.isTopArtist,
+        isFollowed: !!userArtist.isFollowed,
+        isTopArtist: !!userArtist.isTopArtist,
         topArtistRank: userArtist.topArtistRank,
         upcomingShowsCount,
       });

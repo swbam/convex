@@ -790,6 +790,7 @@ export const createFromApi = internalMutation({
       setlistfmId: args.data.id || undefined,
       songs: songs.map((s: any) => ({ title: s.title || s, album: s.album, duration: s.duration, songId: s.songId })),
       actualSetlist: songs.map((s: any) => ({ title: s.title || s, setNumber: s.setNumber, encore: s.encore })),
+      isOfficial: true,
       verified: true,
       source: "setlistfm" as const,
       lastUpdated: Date.now(),

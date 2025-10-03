@@ -62,10 +62,9 @@ export const toggleUserBan = mutation({
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.userId);
     if (!user) throw new Error("User not found");
-    
-    const newRole = user.role === "banned" ? "user" : "banned";
+    // Simplify: toggle between admin and user (no banned role in schema)
+    const newRole = user.role === "admin" ? "user" : "admin";
     await ctx.db.patch(args.userId, { role: newRole });
-    
     return { success: true, newRole };
   },
 });
@@ -895,7 +894,7 @@ export const bulkDeleteFlagged = mutation({
 });
 
 export const updateUserRole = mutation({
-  args: { userId: v.id("users"), role: v.union(v.literal("user"), v.literal("admin"), v.literal("banned")) },
+  args: { userId: v.id("users"), role: v.union(v.literal("user"), v.literal("admin")) },
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     await ctx.db.patch(args.userId, { role: args.role });
