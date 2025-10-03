@@ -1,17 +1,12 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
-export default defineSchema({
+const applicationTables = {
   // Custom users table for app-specific data
   users: defineTable({
     authId: v.string(), // Clerk user ID (string)
-    email: v.optional(v.string()),
-    name: v.optional(v.string()),
-    spotifyId: v.optional(v.string()),
-    avatar: v.optional(v.string()),
     username: v.string(),
-    bio: v.optional(v.string()),
-    role: v.union(v.literal("user"), v.literal("admin"), v.literal("banned")),
+    role: v.union(v.literal("user"), v.literal("admin")),
     preferences: v.optional(v.object({
       emailNotifications: v.boolean(),
       favoriteGenres: v.array(v.string()),
@@ -19,8 +14,7 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_auth_id", ["authId"])
-    .index("by_username", ["username"])
-    .index("by_email", ["email"]),
+    .index("by_username", ["username"]),
 
   artists: defineTable({
     slug: v.string(),
@@ -32,19 +26,19 @@ export default defineSchema({
     popularity: v.optional(v.number()),
     followers: v.optional(v.number()),
     trendingScore: v.optional(v.number()),
-    trendingRank: v.optional(v.number()), // 1-20 for top trending
-    upcomingShowsCount: v.optional(v.number()), // Cached count
-    lastTrendingUpdate: v.optional(v.number()), // When trending was calculated
+    trendingRank: v.optional(v.number()),
+    upcomingShowsCount: v.optional(v.number()),
+    lastTrendingUpdate: v.optional(v.number()),
+    lowerName: v.optional(v.string()),
     isActive: v.boolean(),
     lastSynced: v.optional(v.number()),
-    lowerName: v.optional(v.string()), // Optional for backward compatibility
   })
     .index("by_slug", ["slug"])
-    .index("by_trending_rank", ["trendingRank"]) // Fast top-20 query
+    .index("by_name", ["name"]) 
     .index("by_trending_score", ["trendingScore"])
+    .index("by_trending_rank", ["trendingRank"]) 
     .index("by_spotify_id", ["spotifyId"]) 
     .index("by_ticketmaster_id", ["ticketmasterId"]) 
-    .index("by_name", ["name"])
     .index("by_lower_name", ["lowerName"]),
 
   venues: defineTable({
@@ -60,7 +54,7 @@ export default defineSchema({
     postalCode: v.optional(v.string()),
   })
     .index("by_location", ["city", "country"]) 
-    .index("by_ticketmaster_id", ["ticketmasterId"])
+    .index("by_ticketmaster_id", ["ticketmasterId"]) 
     .index("by_name_city", ["name", "city"]),
 
   shows: defineTable({
@@ -72,26 +66,27 @@ export default defineSchema({
     status: v.union(v.literal("upcoming"), v.literal("completed"), v.literal("cancelled")),
     ticketmasterId: v.optional(v.string()),
     ticketUrl: v.optional(v.string()),
-    priceRange: v.optional(v.string()), // Min-max price
-    setlistfmId: v.optional(v.string()),
+    priceRange: v.optional(v.string()),
+    // Engagement & trending fields
+    setlistCount: v.optional(v.number()),
+    voteCount: v.optional(v.number()),
     trendingScore: v.optional(v.number()),
-    trendingRank: v.optional(v.number()), // 1-20 for top trending
+    trendingRank: v.optional(v.number()),
     lastTrendingUpdate: v.optional(v.number()),
-    lastSynced: v.optional(v.number()),
-    voteCount: v.optional(v.number()), // Total votes on setlists for this show
-    setlistCount: v.optional(v.number()), // Number of user-submitted setlists
-    importStatus: v.optional(v.union(v.literal("pending"), v.literal("importing"), v.literal("completed"), v.literal("failed"), v.literal("no_setlist"))), // Setlist.fm import status
-    error: v.optional(v.string()), // Error message for failed imports
+    importStatus: v.optional(v.union(
+      v.literal("pending"),
+      v.literal("importing"),
+      v.literal("completed"),
+      v.literal("failed")
+    )),
   })
     .index("by_slug", ["slug"])
-    .index("by_ticketmaster_id", ["ticketmasterId"])
     .index("by_artist", ["artistId"])
     .index("by_venue", ["venueId"])
     .index("by_status", ["status"])
-    .index("by_date", ["date"])
-    .index("by_trending_rank", ["trendingRank"]) // Fast trending query
-    .index("by_date_status", ["date", "status"])
-    .index("by_status_artist", ["status", "artistId"]), // For filtered queries
+    .index("by_date", ["date"]) 
+    .index("by_ticketmaster_id", ["ticketmasterId"]) 
+    .index("by_trending_rank", ["trendingRank"]),
 
   songs: defineTable({
     title: v.string(),
@@ -122,26 +117,14 @@ export default defineSchema({
       duration: v.optional(v.number()),
       songId: v.optional(v.id("songs")),
     })),
-    // SEPARATE column for actual setlist from setlist.fm - preserves user predictions
-    actualSetlist: v.optional(v.array(v.object({
-      title: v.string(),
-      album: v.optional(v.string()),
-      duration: v.optional(v.number()),
-      songId: v.optional(v.id("songs")),
-      setNumber: v.optional(v.number()), // 1 = main set, 2 = encore, etc.
-      encore: v.optional(v.boolean()),
-    }))),
-    verified: v.boolean(),
-    source: v.union(v.literal("setlistfm"), v.literal("user_submitted")),
-    lastUpdated: v.number(),
-    isOfficial: v.optional(v.boolean()),
+    isOfficial: v.boolean(),
     confidence: v.optional(v.number()),
     upvotes: v.optional(v.number()),
     downvotes: v.optional(v.number()),
     setlistfmId: v.optional(v.string()),
-    setlistfmData: v.optional(v.any()), // Raw setlist.fm JSON for reference
-    accuracy: v.optional(v.number()), // Calculated accuracy vs actual setlist
-    comparedAt: v.optional(v.number()), // When accuracy was calculated
+    verified: v.optional(v.boolean()),
+    source: v.optional(v.union(v.literal("user_submitted"), v.literal("setlistfm"))),
+    lastUpdated: v.optional(v.number()),
   })
     .index("by_show", ["showId"])
     .index("by_user", ["userId"])
@@ -161,6 +144,69 @@ export default defineSchema({
     .index("by_setlist", ["setlistId"])
     .index("by_user", ["userId"])
     .index("by_user_and_setlist", ["userId", "setlistId"]),
+
+  // Individual song upvotes within setlists (supports anonymous by string ID)
+  songVotes: defineTable({
+    userId: v.union(v.id("users"), v.string()),
+    setlistId: v.id("setlists"),
+    songTitle: v.string(),
+    voteType: v.literal("upvote"),
+    createdAt: v.number(),
+  })
+    .index("by_user_setlist_song", ["userId", "setlistId", "songTitle"]) 
+    .index("by_user", ["userId"]) 
+    .index("by_setlist_song", ["setlistId", "songTitle"]) 
+    .index("by_setlist", ["setlistId"]),
+
+  // Cache for external trending artists (Ticketmaster) with simple indexing
+  trendingArtists: defineTable({
+    artistId: v.optional(v.id("artists")),
+    ticketmasterId: v.string(),
+    slug: v.string(),
+    name: v.string(),
+    genres: v.array(v.string()),
+    images: v.array(v.string()),
+    upcomingEvents: v.number(),
+    url: v.optional(v.string()),
+    rank: v.number(),
+    lastUpdated: v.number(),
+  })
+    .index("by_rank", ["rank"]) 
+    .index("by_ticketmaster_id", ["ticketmasterId"]) 
+    .index("by_artist", ["artistId"]),
+
+  // Cache for external trending shows (Ticketmaster) with simple indexing
+  trendingShows: defineTable({
+    showId: v.optional(v.id("shows")),
+    showSlug: v.string(),
+    artistTicketmasterId: v.optional(v.string()),
+    artistId: v.optional(v.id("artists")),
+    artistSlug: v.string(),
+    artistName: v.string(),
+    venueName: v.string(),
+    venueCity: v.string(),
+    venueCountry: v.string(),
+    date: v.string(),
+    startTime: v.optional(v.string()),
+    artistImage: v.optional(v.string()),
+    ticketUrl: v.optional(v.string()),
+    priceRange: v.optional(v.string()),
+    status: v.string(),
+    rank: v.number(),
+    lastUpdated: v.number(),
+    ticketmasterId: v.string(),
+  })
+    .index("by_rank", ["rank"]) 
+    .index("by_ticketmaster_id", ["ticketmasterId"]),
+
+  // Track limited anonymous actions to enforce limits
+  userActions: defineTable({
+    userId: v.string(),
+    action: v.union(v.literal("add_song")),
+    timestamp: v.number(),
+  })
+    .index("by_user", ["userId"]) 
+    .index("by_action", ["action"]),
 
 
   userFollows: defineTable({
@@ -185,9 +231,7 @@ export default defineSchema({
       v.literal("artist_catalog"),
       v.literal("trending_sync"),
       v.literal("active_sync"),
-      v.literal("full_sync"),
-      v.literal("artist_import"),
-      v.literal("setlist_import")
+      v.literal("full_sync")
     ),
     entityId: v.optional(v.string()),
     priority: v.number(),
@@ -212,122 +256,10 @@ export default defineSchema({
     progressPercentage: v.optional(v.number()),
   })
     .index("by_status", ["status"])
-    .index("by_priority", ["priority"])
-    .index("by_type_and_status", ["type", "status"]), // Optimize getPendingJobs query
+    .index("by_priority", ["priority"]) 
+    .index("by_type_and_status", ["type", "status"]),
+};
 
-// Add cached trending tables back for compatibility
-  trendingShows: defineTable({
-    ticketmasterId: v.string(),
-    showId: v.optional(v.id("shows")),
-    showSlug: v.optional(v.string()),
-    artistTicketmasterId: v.optional(v.string()),
-    artistId: v.optional(v.id("artists")),
-    artistSlug: v.optional(v.string()),
-    artistName: v.string(),
-    venueName: v.string(),
-    venueCity: v.string(),
-    venueCountry: v.string(),
-    date: v.string(),
-    startTime: v.optional(v.string()),
-    artistImage: v.optional(v.string()),
-    ticketUrl: v.optional(v.string()),
-    priceRange: v.optional(v.string()),
-    status: v.string(),
-    rank: v.number(),
-    lastUpdated: v.number(),
-  })
-    .index("by_rank", ["rank"])
-    .index("by_last_updated", ["lastUpdated"])
-    .index("by_ticketmaster_id", ["ticketmasterId"])
-    .index("by_show", ["showId"])
-    .index("by_artist", ["artistId"]),
-
-  trendingArtists: defineTable({
-    ticketmasterId: v.string(),
-    artistId: v.optional(v.id("artists")),
-    slug: v.optional(v.string()),
-    name: v.string(),
-    genres: v.array(v.string()),
-    images: v.array(v.string()),
-    upcomingEvents: v.number(),
-    url: v.optional(v.string()),
-    rank: v.number(),
-    lastUpdated: v.number(),
-  })
-    .index("by_rank", ["rank"])
-    .index("by_last_updated", ["lastUpdated"])
-    .index("by_ticketmaster_id", ["ticketmasterId"])
-    .index("by_artist", ["artistId"]),
-
-
-  // Individual song votes within setlists (ProductHunt style)
-  songVotes: defineTable({
-    userId: v.union(v.id("users"), v.string()),
-    setlistId: v.id("setlists"),
-    songTitle: v.string(),
-    voteType: v.literal("upvote"),
-    createdAt: v.number(),
-  })
-    .index("by_user_setlist_song", ["userId", "setlistId", "songTitle"])
-    .index("by_setlist_song", ["setlistId", "songTitle"])
-    .index("by_setlist", ["setlistId"])
-    .index("by_user", ["userId"]),
-
-  // Content flagging for moderation
-  contentFlags: defineTable({
-    reporterId: v.id("users"),
-    contentType: v.union(v.literal("setlist"), v.literal("vote"), v.literal("comment")),
-    contentId: v.string(),
-    reason: v.string(),
-    status: v.union(v.literal("pending"), v.literal("reviewed"), v.literal("dismissed")),
-    createdAt: v.number(),
-    reviewedBy: v.optional(v.id("users")),
-    reviewedAt: v.optional(v.number()),
-  })
-    .index("by_status", ["status"])
-    .index("by_reporter", ["reporterId"]),
-
-  // User achievements for gamification
-  userAchievements: defineTable({
-    userId: v.id("users"),
-    achievementId: v.string(),
-    points: v.number(),
-    unlockedAt: v.number(),
-  }).index("by_user", ["userId"])
-    .index("by_user_and_achievement", ["userId", "achievementId"]),
-
-  // User's Spotify artists (for users who login with Spotify)
-  userSpotifyArtists: defineTable({
-    userId: v.id("users"),
-    artistId: v.id("artists"),
-    isFollowed: v.boolean(), // User follows on Spotify
-    isTopArtist: v.boolean(), // In user's top artists
-    topArtistRank: v.optional(v.number()), // 1-50 ranking in top artists
-    importedAt: v.number(),
-    lastUpdated: v.number(),
-  })
-    .index("by_user", ["userId"])
-    .index("by_artist", ["artistId"])
-    .index("by_user_artist", ["userId", "artistId"]),
-
-  // User actions for rate limiting
-  userActions: defineTable({
-    userId: v.union(v.id("users"), v.string()),
-    action: v.string(),
-    timestamp: v.number(),
-  })
-    .index("by_user_time", ["userId", "timestamp"])
-    .index("by_user", ["userId"]),
-
-  // Activity feed
-  activity: defineTable({
-    userId: v.id("users"),
-    type: v.string(),
-    description: v.string(),
-    data: v.optional(v.any()),
-    timestamp: v.number(),
-    createdAt: v.number(),
-  })
-    .index("by_user", ["userId"])
-    .index("by_user_time", ["userId", "createdAt"]),
+export default defineSchema({
+  ...applicationTables,
 });

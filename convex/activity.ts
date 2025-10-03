@@ -17,8 +17,9 @@ export const getUserActivityFeed = query({
       v.literal(""),
       v.literal("show_attended")
     ),
-    timestamp: v.number(),
-    data: v.any(),
+    createdAt: v.number(),
+    description: v.string(),
+    data: v.optional(v.any()),
     showId: v.optional(v.id("shows")),
     artistId: v.optional(v.id("artists")),
     setlistId: v.optional(v.id("setlists")),
@@ -53,7 +54,8 @@ export const getUserActivityFeed = query({
           activities.push({
             _id: `vote_${vote._id}`,
             type: "song_vote",
-            timestamp: vote.createdAt,
+            createdAt: vote.createdAt,
+            description: `You ${vote.voteType === "upvote" ? "upvoted" : "downvoted"} \"${vote.songTitle}\" for ${artist?.name ?? "Unknown Artist"} at ${venue?.name ?? "Unknown Venue"}.`,
             data: {
               songTitle: vote.songTitle,
               artistName: artist?.name,
@@ -86,7 +88,8 @@ export const getUserActivityFeed = query({
         activities.push({
           _id: `setlist_${setlist._id}`,
           type: "setlist_created",
-          timestamp: setlist.lastUpdated,
+          createdAt: setlist.lastUpdated,
+          description: `You created a setlist for ${artist?.name ?? "Unknown Artist"} at ${venue?.name ?? "Unknown Venue"} (${setlist.songs.length} songs).`,
           data: {
             songsCount: setlist.songs.length,
             artistName: artist?.name,
@@ -116,7 +119,8 @@ export const getUserActivityFeed = query({
           activities.push({
             _id: `follow_${follow._id}`,
             type: "",
-            timestamp: follow.createdAt,
+            createdAt: follow.createdAt,
+            description: `You followed ${artist.name}.`,
             data: {
               artistName: artist.name,
               artistImage: artist.images?.[0],
@@ -129,9 +133,9 @@ export const getUserActivityFeed = query({
       }
     }
     
-    // Sort by timestamp and apply pagination
+    // Sort by createdAt and apply pagination
     return activities
-      .sort((a, b) => b.timestamp - a.timestamp)
+      .sort((a, b) => b.createdAt - a.createdAt)
       .slice(offset, offset + limit);
   },
 });
@@ -397,7 +401,14 @@ export const getGlobalActivityFeed = query({
 // Get trending setlists based on vote activity
 export const getTrendingSetlists = query({
   args: { limit: v.optional(v.number()) },
-  returns: v.array(v.any()), // FIXED: Use v.any() to avoid validation errors with _creationTime
+  returns: v.array(v.object({
+    _id: v.id("setlists"),
+    voteCount: v.number(),
+    show: v.optional(v.any()),
+    artist: v.optional(v.any()),
+    venue: v.optional(v.any()),
+    songs: v.optional(v.array(v.any())),
+  })),
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
     
@@ -419,11 +430,12 @@ export const getTrendingSetlists = query({
         ]);
         
         return {
-          ...setlist,
+          _id: setlist._id,
           voteCount: votes.length,
           show,
           artist,
           venue,
+          songs: setlist.songs,
         };
       })
     );

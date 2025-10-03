@@ -101,24 +101,33 @@ export const getArtistLeaderboard = query({
           .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
           .collect();
         
-        // Get setlists for artist's shows
+        // Prefer aggregated counts from shows to reduce query load
+        // Fallback to on-the-fly counts if aggregates are missing
         let totalSetlists = 0;
         let totalVotes = 0;
-        
-        for (const show of shows) {
-          const setlists = await ctx.db
-            .query("setlists")
-            .withIndex("by_show", (q) => q.eq("showId", show._id))
-            .collect();
-          
-          totalSetlists += setlists.length;
-          
-          for (const setlist of setlists) {
-            const votes = await ctx.db
-              .query("votes")
-              .withIndex("by_setlist", (q) => q.eq("setlistId", setlist._id))
+
+        const showsWithAggregates = shows.filter((s) => typeof s.setlistCount === "number" || typeof s.voteCount === "number");
+        if (showsWithAggregates.length === shows.length && shows.length > 0) {
+          // All shows have aggregates: just sum them
+          totalSetlists = shows.reduce((sum, s) => sum + (s.setlistCount || 0), 0);
+          totalVotes = shows.reduce((sum, s) => sum + (s.voteCount || 0), 0);
+        } else {
+          // Fallback: compute counts
+          for (const show of shows) {
+            const setlists = await ctx.db
+              .query("setlists")
+              .withIndex("by_show", (q) => q.eq("showId", show._id))
               .collect();
-            totalVotes += votes.length;
+
+            totalSetlists += setlists.length;
+
+            for (const setlist of setlists) {
+              const votes = await ctx.db
+                .query("votes")
+                .withIndex("by_setlist", (q) => q.eq("setlistId", setlist._id))
+                .collect();
+              totalVotes += votes.length;
+            }
           }
         }
         

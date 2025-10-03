@@ -570,26 +570,24 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                           <div>
                             <h3 className="text-lg font-bold text-white">Fan Prediction Accuracy</h3>
                             <p className="text-purple-400 text-sm">How well did the community predict?</p>
-                    </div>
-                  </div>
-                  
-                  <div className="text-right">
-                    <div className="text-3xl font-bold text-purple-400">
-                      {(() => {
-                        const total = predictionSetlist.songs.length;
-                        if (total === 0) return '—';
-                        const correct = predictionSetlist.songs.filter((s: any) => {
-                          const songTitle = typeof s === 'string' ? s : s?.title;
-                          if (!songTitle) return false;
-                          return actualSongTitleSet.has(songTitle.toLowerCase().trim());
-                        }).length;
-                        const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
-                        return `${pct}%`;
-                      })()}
-                    </div>
-                    <div className="text-xs text-gray-400">accuracy rate</div>
-                  </div>
-                </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-3xl font-bold text-purple-400">
+                            {(() => {
+                              const total = predictionSetlist.songs.length;
+                              if (total === 0) return '—';
+                              const correct = predictionSetlist.songs.filter((s: any) => {
+                                const songTitle = typeof s === 'string' ? s : s?.title;
+                                if (!songTitle) return false;
+                                return actualSongTitleSet.has(songTitle.toLowerCase().trim());
+                              }).length;
+                              const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+                              return `${pct}%`;
+                            })()}
+                          </div>
+                          <div className="text-xs text-gray-400">accuracy rate</div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -899,7 +897,6 @@ function FanRequestSongRow({
       )}
     </div>
   );
-}
 }
 
 // Actual setlist song row component
