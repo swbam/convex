@@ -86,19 +86,24 @@ export const getTrendingShows = query({
     // Filter out null results from failed hydrations
     const validShows = hydrated.filter((show): show is NonNullable<typeof show> => show !== null);
 
-    // PREMIUM FILTERING: Show quality shows
+    // PRODUCTION FILTER: Balance quality with availability
     const filtered = validShows.filter(show => {
       const artist = show.artist;
-      if (!artist) return false;
+      const venue = show.venue;
+      if (!artist || !venue) return false;
 
-      const hasImage = artist.images && artist.images.length > 0;
       const isUpcoming = show.status === "upcoming";
       const notUnknown = !artist.name.toLowerCase().includes("unknown");
-      const hasSpotifyData = artist.spotifyId && artist.popularity;
+      const hasBasicData = artist.name && artist.name.length > 0 && venue.name;
 
-      // Premium filter: Spotify-verified artists with images
-      return hasImage && isUpcoming && notUnknown && hasSpotifyData;
+      // Relaxed: Require only upcoming status + valid artist/venue names
+      // Images/Spotify are nice-to-have but not required for display
+      return isUpcoming && notUnknown && hasBasicData;
     }).slice(0, limit);
+
+    if (filtered.length < limit / 2) {
+      console.warn(`Trending filtered to ${filtered.length} items—check data population (popularity/images missing). Run syncs.`);
+    }
 
     return { page: filtered, isDone: filtered.length < limit, continueCursor: undefined };
   },
@@ -139,17 +144,20 @@ export const getTrendingArtists = query({
         .slice(0, limit * 2);
     }
 
-    // PREMIUM FILTERING: Show quality artists
+    // PRODUCTION FILTER: Balance quality with availability
     const filtered = artists.filter(artist => {
-      const hasImage = artist.images && artist.images.length > 0;
       const notUnknown = !artist.name.toLowerCase().includes("unknown");
       const notGeneric = !artist.name.toLowerCase().match(/^(various|tba|tbd|tribute|cover|film|movie)/);
-      const hasSpotifyData = artist.spotifyId && artist.popularity;
-      const hasRealId = artist._id.startsWith('j');
+      const hasBasicData = artist.name && artist.name.length > 0;
       
-      // Premium filter: Must have Spotify data + image + real name
-      return hasImage && notUnknown && notGeneric && hasSpotifyData && hasRealId;
+      // Relaxed: Require only name + not unknown/generic
+      // Images/Spotify are nice-to-have but not required for display
+      return hasBasicData && notUnknown && notGeneric;
     }).slice(0, limit);
+
+    if (filtered.length < limit / 2) {
+      console.warn(`Trending filtered to ${filtered.length} items—check data population (popularity/images missing). Run syncs.`);
+    }
 
     return { 
       page: filtered, 

@@ -70,7 +70,9 @@ export const getBySlugOrId = query({
       const artistId = args.key as Id<"artists">;
       const artist = await ctx.db.get(artistId);
       if (artist && 'name' in artist && 'slug' in artist) return artist;
-    } catch {}
+    } catch {
+      // Ignore invalid ID format
+    }
 
     // Existing: By Ticketmaster ID
     const byTicketmaster = await ctx.db
@@ -133,23 +135,40 @@ export const getTrending = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
     
-    // Use the optimized trending system - just query by the pre-calculated trending rank
+    // Primary: Use cached trendingArtists table for fast, complete data
+    const cachedTrending = await ctx.db
+      .query("trendingArtists")
+      .withIndex("by_rank")
+      .order("asc")
+      .take(limit);
+    
+    if (cachedTrending.length > 0) {
+      // Enrich with full artist data from main table
+      const enriched = await Promise.all(
+        cachedTrending.map(async (cached) => {
+          if (!cached.artistId) return null;
+          const artist = await ctx.db.get(cached.artistId);
+          return artist ? { ...cached, ...artist } : cached;
+        })
+      );
+      return enriched.filter(Boolean);
+    }
+    
+    // Fallback: Use main table trendingRank if cache empty
     const trending = await ctx.db
       .query("artists")
       .withIndex("by_trending_rank")
       .filter((q) => q.neq(q.field("trendingRank"), undefined))
       .take(limit);
     
-    // If no trending data, fallback to sorting by popularity
-    if (trending.length === 0) {
-      return await ctx.db
-        .query("artists")
-        .filter((q) => q.eq(q.field("isActive"), true))
-        .order("desc")
-        .take(limit);
-    }
+    if (trending.length > 0) return trending;
     
-    return trending;
+    // Final fallback: Popularity sort
+    return await ctx.db
+      .query("artists")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .order("desc")
+      .take(limit);
   },
 });
 

@@ -21,6 +21,18 @@ export function SignUpPage() {
   const [isSpotifyLoading, setIsSpotifyLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  // Show loading state while Clerk initializes
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-white" />
+          <p className="text-white">Loading authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
   const handleSpotifySignUp = async () => {
     if (!isLoaded || !signUp) {
       console.error('Clerk not loaded or signUp not available');
@@ -129,7 +141,7 @@ export function SignUpPage() {
       } else if (error.message) {
         toast.error(error.message);
       } else {
-        toast.error("Could not create account. Please try again.");
+        toast.error("Could not create account. Please try again or contact support.");
       }
     } finally {
       setIsSubmitting(false);
@@ -140,7 +152,10 @@ export function SignUpPage() {
     e.preventDefault();
     if (!isLoaded || !signUp) {
       console.error('Clerk not loaded or signUp not available');
-      toast.error('Authentication not ready. Please refresh the page.');
+      console.error('Clerk state:', { isLoaded, signUp: !!signUp });
+      toast.error('Authentication not ready. Please refresh the page or check console for details.');
+      // Fallback redirect after delay
+      setTimeout(() => navigate('/'), 3000);
       return;
     }
 
