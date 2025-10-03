@@ -195,10 +195,6 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
         badgeContent = "Failed";
         icon = <AlertCircle className="h-4 w-4" />;
         break;
-      case "no_setlist":
-        badgeContent = "No Setlist";
-        icon = <Music className="h-4 w-4" />;
-        break;
       default:
         badgeContent = "Pending";
     }
@@ -209,7 +205,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
         <Badge variant={show.importStatus === "completed" ? "default" : "secondary"} className="flex items-center gap-1">
           {icon} {badgeContent}
         </Badge>
-        {show.importStatus === "no_setlist" && (
+        {show.status === "completed" && show.importStatus !== "completed" && !hasActualSetlist && (
           <p className="text-sm text-gray-400 mt-2">No setlist available yet - checking...</p>
         )}
         {show.importStatus === "failed" && (
@@ -284,7 +280,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
             <div className="flex-1 min-w-0">
               <p className="text-xs sm:text-sm font-medium text-gray-300 mb-2 uppercase tracking-wider">Concert</p>
               <button
-                onClick={() => onArtistClick(show?.artistId!)}
+                onClick={() => { if (show?.artistId) onArtistClick(show.artistId); }}
                 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white hover:text-primary transition-colors text-left mb-2 leading-tight"
               >
                 {show?.artist?.name}
@@ -335,13 +331,13 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                     const shareUrl = `${window.location.origin}/shows/${show?.slug}?utm_source=setlistvote&utm_medium=share&utm_campaign=${encodeURIComponent(show?.artist?.name || '')}-${encodeURIComponent(show?.slug || '')}`;
                     const shareText = `Vote on the predicted setlist for ${show?.artist?.name || ''}'s show at ${show?.venue?.name || ''} on ${showDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}! Join the community at SetlistVote. ${shareUrl}`;
                     if (navigator.share) {
-                      navigator.share({
+                      void navigator.share({
                         title: `${show?.artist?.name || ''} - Vote on Setlist!`,
                         text: shareText,
                         url: shareUrl,
                       });
                     } else {
-                      navigator.clipboard.writeText(shareText);
+                      void navigator.clipboard.writeText(shareText);
                       toast.success('Link copied to clipboard!');
                     }
                   }}
@@ -876,7 +872,7 @@ function FanRequestSongRow({
       {/* Reddit-style upvote icon + count below - now clickable */}
       {!wasPlayed && (
         <button
-          onClick={handleVote}
+          onClick={() => { void handleVote(); }}
           className={`flex flex-col items-center gap-0.5 text-sm transition-colors ${
             userVoted ? 'text-primary' : 'text-gray-500 hover:text-white'
           }`}

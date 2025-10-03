@@ -162,7 +162,7 @@ export const getByEmailCaseInsensitive = internalQuery({
 
 // Internal: set user role by id
 export const setUserRoleById = internalMutation({
-  args: { userId: v.id("users"), role: v.union(v.literal("user"), v.literal("admin"), v.literal("banned")) },
+  args: { userId: v.id("users"), role: v.union(v.literal("user"), v.literal("admin")) },
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     await ctx.db.patch(args.userId, { role: args.role });
@@ -284,7 +284,8 @@ export const getRecentActions = internalQuery({
     const threshold = Date.now() - args.timeWindow;
     return await ctx.db
       .query("userActions")
-      .withIndex("by_user_time", (q) => q.eq("userId", args.userId).gt("timestamp", threshold))
+      .withIndex("by_user_time", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.gt(q.field("timestamp"), threshold))
       .collect();
   },
 });

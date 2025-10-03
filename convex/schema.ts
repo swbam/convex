@@ -4,16 +4,22 @@ import { v } from "convex/values";
 const applicationTables = {
   // Custom users table for app-specific data
   users: defineTable({
-    authId: v.string(), // Clerk user ID (string)
+    authId: v.string(),
     username: v.string(),
     role: v.union(v.literal("user"), v.literal("admin")),
     preferences: v.optional(v.object({
       emailNotifications: v.boolean(),
       favoriteGenres: v.array(v.string()),
     })),
+    // Optional profile fields used by webhooks and UI
+    email: v.optional(v.string()),
+    name: v.optional(v.string()),
+    avatar: v.optional(v.string()),
+    spotifyId: v.optional(v.string()),
     createdAt: v.number(),
   })
-    .index("by_auth_id", ["authId"])
+    .index("by_auth_id", ["authId"]) 
+    .index("by_email", ["email"])
     .index("by_username", ["username"]),
 
   artists: defineTable({
@@ -32,6 +38,10 @@ const applicationTables = {
     lowerName: v.optional(v.string()),
     isActive: v.boolean(),
     lastSynced: v.optional(v.number()),
+    // Optional per-user flags occasionally patched in legacy code paths
+    isTopArtist: v.optional(v.boolean()),
+    topArtistRank: v.optional(v.number()),
+    isFollowed: v.optional(v.boolean()),
   })
     .index("by_slug", ["slug"])
     .index("by_name", ["name"]) 
@@ -125,6 +135,19 @@ const applicationTables = {
     verified: v.optional(v.boolean()),
     source: v.optional(v.union(v.literal("user_submitted"), v.literal("setlistfm"))),
     lastUpdated: v.optional(v.number()),
+    // Actual setlist fields populated from setlist.fm
+    actualSetlist: v.optional(v.array(v.object({
+      title: v.string(),
+      setNumber: v.number(),
+      encore: v.boolean(),
+      album: v.optional(v.any()),
+      duration: v.optional(v.number()),
+      voteCount: v.optional(v.number()),
+      wasPredicted: v.optional(v.boolean()),
+    }))),
+    setlistfmData: v.optional(v.any()),
+    accuracy: v.optional(v.number()),
+    comparedAt: v.optional(v.number()),
   })
     .index("by_show", ["showId"])
     .index("by_user", ["userId"])
@@ -157,6 +180,29 @@ const applicationTables = {
     .index("by_user", ["userId"]) 
     .index("by_setlist_song", ["setlistId", "songTitle"]) 
     .index("by_setlist", ["setlistId"]),
+
+  // Per-user Spotify artist relationships
+  userSpotifyArtists: defineTable({
+    userId: v.id("users"),
+    artistId: v.id("artists"),
+    isFollowed: v.boolean(),
+    isTopArtist: v.optional(v.boolean()),
+    topArtistRank: v.optional(v.number()),
+    importedAt: v.optional(v.number()),
+    lastUpdated: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"]) 
+    .index("by_user_artist", ["userId", "artistId"]),
+
+  // Lightweight audit/rate limit table for recent actions
+  userActions: defineTable({
+    userId: v.id("users"),
+    action: v.string(),
+    timestamp: v.number(),
+  })
+    .index("by_user", ["userId"]) 
+    .index("by_action", ["action"]) 
+    .index("by_user_time", ["userId", "timestamp"]),
 
   // Cache for external trending artists (Ticketmaster) with simple indexing
   trendingArtists: defineTable({
