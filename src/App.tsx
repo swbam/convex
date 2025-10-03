@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { TestSuite } from "./components/TestSuite";
+import { AuthGuard } from "./components/AuthGuard";
 
 import { MagicCard } from "./components/ui/magic-card";
 
@@ -384,8 +385,9 @@ function App() {
       
       <div className="relative z-10">
         <ErrorBoundary>
-          <ScrollToTop />
-          <AppLayout>
+          <AuthGuard>
+            <ScrollToTop />
+            <AppLayout>
             <AnimatePresence mode="wait">
               <motion.div
                 key={location.pathname}
@@ -398,6 +400,7 @@ function App() {
               </motion.div>
             </AnimatePresence>
           </AppLayout>
+          </AuthGuard>
         </ErrorBoundary>
       </div>
     </div>

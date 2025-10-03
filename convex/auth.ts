@@ -31,7 +31,8 @@ export const loggedInUser = query({
   returns: v.union(
     v.object({
       identity: v.any(), // Clerk identity object
-      appUser: v.optional(v.any()) // User document
+      appUser: v.optional(v.any()), // User document
+      needsSetup: v.optional(v.boolean()) // Flag to trigger user setup in UI
     }),
     v.null()
   ),
@@ -47,9 +48,21 @@ export const loggedInUser = query({
       .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
       .first();
     
+    // If user doesn't exist, flag that setup is needed
+    // The UI should call ensureUserExists mutation to create the user
+    if (!appUser) {
+      console.log('⚠️ App user not found for authenticated identity, flagging for setup');
+      return {
+        identity,
+        appUser: undefined,
+        needsSetup: true
+      };
+    }
+    
     return {
       identity,
-      appUser
+      appUser,
+      needsSetup: false
     };
   },
 });
@@ -130,6 +143,73 @@ export const createAppUser = mutation({
       email: identity.email
     });
     
+    return userId;
+  },
+});
+
+// CRITICAL FIX: Auto-ensure user exists on every query
+// This prevents "not ready" errors when webhook hasn't fired yet
+export const ensureUserExists = mutation({
+  args: {},
+  returns: v.union(v.id("users"), v.null()),
+  handler: async (ctx: MutationCtx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return null;
+    }
+    
+    // Check if user exists
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
+      .first();
+    
+    if (existing) {
+      return existing._id;
+    }
+    
+    // Auto-create if missing (webhook hasn't fired yet)
+    console.log('⚠️ User not found in DB, auto-creating from identity...');
+    
+    // Generate unique username from name/email
+    const baseUsername = (identity.name || identity.email || "user").toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+      .substring(0, 20);
+    
+    let username = baseUsername;
+    let counter = 1;
+    
+    // Ensure username is unique
+    while (true) {
+      const existingUsername = await ctx.db
+        .query("users")
+        .withIndex("by_username", (q) => q.eq("username", username))
+        .first();
+      
+      if (!existingUsername) break;
+      username = `${baseUsername}${counter}`;
+      counter++;
+    }
+    
+    // Check if this user should be an admin
+    const emailLower = (identity.email || "").toLowerCase();
+    const isAdmin = emailLower === "seth@bambl.ing";
+    
+    // Create the user
+    const userId = await ctx.db.insert("users", {
+      authId: identity.subject,
+      email: identity.email,
+      name: identity.name,
+      username,
+      role: isAdmin ? "admin" : "user",
+      preferences: {
+        emailNotifications: true,
+        favoriteGenres: [],
+      },
+      createdAt: Date.now(),
+    });
+    
+    console.log('✅ User auto-created on first access:', { userId, username });
     return userId;
   },
 });
