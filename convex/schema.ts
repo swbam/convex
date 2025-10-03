@@ -199,7 +199,7 @@ const applicationTables = {
 
   // Lightweight audit/rate limit table for recent actions
   userActions: defineTable({
-    userId: v.id("users"),
+    userId: v.union(v.id("users"), v.string()),
     action: v.string(),
     timestamp: v.number(),
   })
@@ -294,7 +294,8 @@ const applicationTables = {
       v.literal("artist_catalog"),
       v.literal("trending_sync"),
       v.literal("active_sync"),
-      v.literal("full_sync")
+      v.literal("full_sync"),
+      v.literal("setlist_import")
     ),
     entityId: v.optional(v.string()),
     priority: v.number(),

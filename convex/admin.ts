@@ -238,7 +238,7 @@ export const getAdminStats = query({
     ]);
     
     // Calculate trending metrics
-    const activeUsers = users.filter(u => u.role !== "banned").length;
+    const activeUsers = users.length;
     const last7Days = Date.now() - (7 * 24 * 60 * 60 * 1000);
     const recentVotes = votes.filter(v => v.createdAt > last7Days).length;
     
@@ -271,7 +271,7 @@ export const getAdminStats = query({
     return {
       totalUsers: users.length,
       activeUsers,
-      bannedUsers: users.filter(u => u.role === "banned").length,
+      bannedUsers: 0,
       totalArtists: artists.length,
       totalShows: shows.length,
       upcomingShows: shows.filter(s => s.status === "upcoming").length,
