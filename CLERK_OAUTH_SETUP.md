@@ -13,15 +13,18 @@ Enable the following providers:
 - ✅ **Email/Password** (Email & Phone)
 
 #### Configure Redirect URIs
-In each OAuth provider settings, add:
+**Clerk handles OAuth redirects automatically.** The Clerk dashboard provides the correct callback URLs for each provider.
 
-**Development:**
-- `http://localhost:5173/sso-callback`
-- `http://localhost:5173/`
+In your Clerk dashboard under each OAuth provider (Google, Spotify):
+1. Click on the provider settings
+2. Copy the **Authorized redirect URI** that Clerk provides
+3. Add this URI to your OAuth provider's console (Google Cloud Console, Spotify Developer Dashboard)
 
-**Production:**
-- `https://yourdomain.com/sso-callback`
-- `https://yourdomain.com/`
+**Example format (Clerk provides these):**
+- Development: `https://your-clerk-subdomain.clerk.accounts.dev/v1/oauth_callback`
+- Production: `https://accounts.yourdomain.com/v1/oauth_callback` (if using production Clerk)
+
+**Do NOT manually create `/sso-callback` routes** - Clerk handles this internally.
 
 #### Set Allowed Origins (CORS)
 Navigate to **Clerk Dashboard → Configure → Domains**
@@ -63,10 +66,10 @@ VITE_CLERK_PUBLISHABLE_KEY=pk_live_...
 - Toast "not ready" only when `!isLoaded || !signUp/signIn`
 - OAuth uses `authenticateWithRedirect({ redirectUrl: '/sso-callback' })`
 
-#### ✅ SSOCallback Handler (SSOCallback.tsx)
-- Calls `handleRedirectCallback()`
-- Redirects to `/` on success
-- Shows error + redirects to `/signin` on failure
+#### ✅ OAuth Flow Handler
+- Code uses `authenticateWithRedirect` with Clerk's internal callback handling
+- Redirects to home on success
+- Shows error and redirects to signin on failure
 
 #### ✅ Convex Auth (convex/auth.config.ts)
 - Domain matches Clerk issuer URL
@@ -85,9 +88,14 @@ VITE_CLERK_PUBLISHABLE_KEY=pk_live_...
 5. Wait for network (slow Clerk CDN load)
 
 #### OAuth Redirect Loop
-**Cause:** Missing `/sso-callback` redirect URI
+**Cause:** Incorrect redirect URI in OAuth provider console (Google/Spotify)
 
-**Fix:** Add exact URI in Clerk dashboard OAuth settings
+**Fix:** 
+1. Go to Clerk dashboard → Configure → Social Connections → [Provider]
+2. Copy the **Authorized redirect URI** Clerk provides
+3. Add this EXACT URI to your OAuth provider's console:
+   - Google: Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client
+   - Spotify: Developer Dashboard → App Settings → Redirect URIs
 
 #### CORS Errors
 **Cause:** Frontend origin not allowlisted
@@ -161,7 +169,7 @@ curl -H "Authorization: Bearer sk_test_..." https://api.clerk.com/v1/instance
 
 - [ ] Clerk publishable key uses `pk_live_...` (not test)
 - [ ] Production domain added to Clerk origins
-- [ ] `/sso-callback` redirect URI includes production URL
+- [ ] Clerk callback URIs added to Google/Spotify consoles
 - [ ] Convex deployment URL points to prod
 - [ ] `.env.production` file committed (without secrets)
 - [ ] Vercel env vars match production keys

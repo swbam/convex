@@ -156,9 +156,10 @@ Most artists in DB lacked complete Spotify sync, causing filter rejection.
 **Clerk Dashboard:**
 - [ ] Enable Google OAuth (Social Connections)
 - [ ] Enable Spotify OAuth (Social Connections)
-- [ ] Add redirect URIs:
-  - Dev: `http://localhost:5173/sso-callback`
-  - Prod: `https://yourdomain.com/sso-callback`
+- [ ] Copy Clerk's provided callback URLs for each provider
+- [ ] Add those EXACT callback URIs to Google Cloud Console and Spotify Developer Dashboard
+  - Format: `https://your-clerk-subdomain.clerk.accounts.dev/v1/oauth_callback`
+  - Clerk provides these - DO NOT create custom `/sso-callback` routes
 - [ ] Add allowed origins:
   - Dev: `http://localhost:5173`
   - Prod: `https://yourdomain.com`
@@ -177,11 +178,11 @@ TICKETMASTER_API_KEY=... # For trending updates
 
 **Convex Deployment:**
 ```bash
-# 1. Login to Convex
+# 1. Login to Convex (if needed)
 npx convex dev
 
-# 2. Deploy functions
-npx convex deploy --prod
+# 2. Deploy functions to production
+npx convex deploy
 
 # 3. Verify crons running
 # Check Convex dashboard → Crons tab
@@ -275,7 +276,7 @@ npx convex deploy --prod
 
 3. **Deploy to Production** (10 min)
    ```bash
-   npx convex deploy --prod
+   npx convex deploy
    npm run build
    vercel deploy --prod
    ```
