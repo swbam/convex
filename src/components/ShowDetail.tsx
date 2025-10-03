@@ -595,39 +595,41 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                   </div>
                 )}
               </div>
-            ) : !predictionSetlist || predictionSetlist.songs.length === 0 ? (
-              // No songs in shared setlist yet
-              <div className="text-center py-12 text-muted-foreground">
-                <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium">No songs in the setlist yet</p>
-                <p className="text-sm mt-1">Use the dropdown above to add the first song!</p>
-              </div>
-            ) : (
+            ) : (!predictionSetlist || predictionSetlist.songs.length === 0) ? (
+  // No songs in shared setlist yet
+  <div className="text-center py-12 text-muted-foreground">
+    <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
+    <p className="text-lg font-medium">No songs in the setlist yet</p>
+    <p className="text-sm mt-1">Use the dropdown above to add the first song!</p>
+  </div>
+) : (
               <div className="mt-8 touch-manipulation">
-                {renderSetlistHeader()}
-  
-                {/* Setlist shown by default - no accordion */}
-                <div className="space-y-0 mt-6">
-                  {(predictionSetlist.songs || [])
-                    .map((s: any) => (typeof s === 'string' ? s : s?.title))
-                    .filter(Boolean)
-                    .map((songTitle: string, index: number) => (
-                      <FanRequestSongRow
-                        key={`setlist-song-${songTitle}-${index}`}
-                        songTitle={songTitle}
-                        index={index}
-                        predictionSetlistId={predictionSetlist._id}
-                        actualSongTitleSet={actualSongTitleSet}
-                        user={user}
-                        voteOnSong={voteOnSong}
-                        handleVoteAction={handleVoteAction}
-                        setShowAuthModal={setShowAuthModal}
-                        anonId={anonId}
-                      />
-                    ))}
+                <div className="flex flex-col">
+                  {renderSetlistHeader()}
+
+                  {/* Setlist shown by default - no accordion */}
+                  <div className="space-y-0 mt-6">
+                    {(predictionSetlist.songs || [])
+                      .map((s: any) => (typeof s === 'string' ? s : s?.title))
+                      .filter(Boolean)
+                      .map((songTitle: string, index: number) => (
+                        <FanRequestSongRow
+                          key={`setlist-song-${songTitle}-${index}`}
+                          songTitle={songTitle}
+                          index={index}
+                          predictionSetlistId={predictionSetlist._id}
+                          actualSongTitleSet={actualSongTitleSet}
+                          user={user}
+                          voteOnSong={voteOnSong}
+                          handleVoteAction={handleVoteAction}
+                          setShowAuthModal={setShowAuthModal}
+                          anonId={anonId}
+                        />
+                      ))}
+                  </div>
                 </div>
               </div>
-            )}
+)}
           </div>
           <BorderBeam size={120} duration={10} className="opacity-20" />
           </MagicCard>
