@@ -40,13 +40,20 @@ export function Shows({ onShowClick }: ShowsProps) {
     );
   }, [allShowsRaw]);
 
-  // Simple city/zip filter
+  // Location filter: support 5-digit ZIP (venue.postalCode) and city/state
   const displayShows = React.useMemo(() => {
-    if (!cityFilter.trim()) return allShows;
-    
+    const term = cityFilter.trim();
+    if (!term) return allShows;
+
+    const isZip = /^\d{5}$/.test(term);
+    if (isZip) {
+      return allShows.filter(show => (show.venue?.postalCode || '').startsWith(term));
+    }
+
+    const lower = term.toLowerCase();
     return allShows.filter(show => 
-      show.venue?.city?.toLowerCase().includes(cityFilter.toLowerCase()) ||
-      show.venue?.state?.toLowerCase().includes(cityFilter.toLowerCase())
+      show.venue?.city?.toLowerCase().includes(lower) ||
+      show.venue?.state?.toLowerCase().includes(lower)
     );
   }, [allShows, cityFilter]);
 

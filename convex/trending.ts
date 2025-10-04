@@ -145,7 +145,11 @@ export const getTrendingArtists = query({
 
       // Sort by popularity descending
       artists = allArtists
-        .filter(a => typeof a.popularity === 'number' && a.popularity > 0)
+        .filter(a => {
+          const hasPopularity = typeof a.popularity === 'number' && a.popularity > 0;
+          const upcoming = typeof a.upcomingShowsCount === 'number' ? a.upcomingShowsCount : 0;
+          return hasPopularity && upcoming > 0; // Require at least one upcoming show
+        })
         .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
         .slice(0, limit * 2);
     }
@@ -155,10 +159,12 @@ export const getTrendingArtists = query({
       const notUnknown = !artist.name.toLowerCase().includes("unknown");
       const notGeneric = !artist.name.toLowerCase().match(/^(various|tba|tbd|tribute|cover|film|movie)/);
       const hasBasicData = artist.name && artist.name.length > 0;
+      const upcoming = typeof artist.upcomingShowsCount === 'number' ? artist.upcomingShowsCount : 0;
       
       // Relaxed: Require only name + not unknown/generic
       // Images/Spotify are nice-to-have but not required for display
-      return hasBasicData && notUnknown && notGeneric;
+      // NEW RULE: Exclude artists with 0 upcoming shows from trending
+      return hasBasicData && notUnknown && notGeneric && upcoming > 0;
     }).slice(0, limit);
 
     if (filtered.length < limit / 2) {
@@ -221,7 +227,7 @@ export const replaceTrendingShowsCache = internalMutation({
           ? await ctx.db
               .query("artists")
               .withIndex("by_ticketmaster_id", (q) =>
-                q.eq("ticketmasterId", show.artistTicketmasterId!)
+                q.eq("ticketmasterId", show.artistTicketmasterId)
               )
               .first()
           : null;

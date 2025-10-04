@@ -263,14 +263,14 @@ export function ShowDetail({
           <Button
             variant="outline"
             size="sm"
-            onClick={() =>
-              triggerSetlistSync({
+            onClick={() => {
+              void triggerSetlistSync({
                 showId: showId,
                 artistName: show.artist?.name || "",
                 venueCity: show.venue?.city || "",
                 showDate: show.date,
-              })
-            }
+              });
+            }}
           >
             Retry Import
           </Button>
@@ -290,24 +290,7 @@ export function ShowDetail({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       >
-        <SEOHead
-          title={`${
-            show?.artist?.name || "Artist"
-          } - ${show?.venue?.name || "Venue"} on ${showDate.toLocaleDateString(
-            "en-US",
-            { month: "long", day: "numeric", year: "numeric" }
-          )} - Vote on Setlist!`}
-          description={`Vote on the predicted setlist for ${
-            show?.artist?.name || "Artist"
-          }'s show at ${show?.venue?.name || "Venue"}, ${
-            show?.venue?.city || ""
-          }, ${show?.venue?.country || ""} on ${showDate.toLocaleDateString(
-            "en-US",
-            { month: "long", day: "numeric", year: "numeric" }
-          )}. Join the community to influence the setlist!`}
-          image={show?.artist?.images?.[0] || ""}
-          url={`${origin}/shows/${show?.slug}`}
-        />
+        <SEOHead />
         {/* Enhanced Back Button */}
         <MagicCard className="inline-block p-0 rounded-xl border-0">
           <button
@@ -507,7 +490,7 @@ export function ShowDetail({
                         </div>
                       )}
                     {(predictionSetlist || hasActualSetlist) && (
-                      <div className="text-lg font-medium text-gray-300">
+                      <div className="text-xl font-medium text-gray-300">
                         {hasActualSetlist
                           ? actualSetlistSongs.length
                           : predictionSetlist?.songs?.length || 0}{" "}
@@ -526,12 +509,12 @@ export function ShowDetail({
 
                 {/* Song Addition Dropdown */}
                 {!hasActualSetlist && isUpcoming && songs && songs.length > 0 && (
-                  <div className="mb-6 p-4 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl backdrop-blur-sm">
+                  <div className="mb-6 p-4 bg-white/5 border border-white/10 rounded-xl backdrop-blur-sm">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-lg font-semibold text-white">
+                      <h3 className="text-xl font-semibold text-white">
                         Add Songs to Setlist
                       </h3>
-                      <div className="text-sm text-gray-300">
+                      <div className="text-base text-gray-300">
                         {(songs || [])
                           .filter(Boolean)
                           .filter((s) => s && !s.isLive && !s.isRemix)
@@ -554,7 +537,7 @@ export function ShowDetail({
                           e.target.value = "";
                         }
                       }}
-                      className="w-full px-4 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-base sm:text-lg text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300 cursor-pointer"
+                      className="w-full px-4 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-lg sm:text-xl text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300 cursor-pointer"
                     >
                       <option
                         value=""
@@ -581,7 +564,7 @@ export function ShowDetail({
                           <option
                             key={song!._id}
                             value={song!.title}
-                            className="bg-background text-foreground text-base sm:text-lg py-2"
+                            className="bg-background text-foreground text-lg sm:text-xl py-2"
                           >
                             {song!.title}{" "}
                             {song!.album ? `• ${song!.album}` : ""}
@@ -589,7 +572,7 @@ export function ShowDetail({
                         ))}
                     </select>
 
-                    <div className="mt-3 text-sm text-gray-300 font-medium">
+                    <div className="mt-3 text-base text-gray-300 font-medium">
                       <ChevronUp className="inline h-4 w-4 mr-1" />
                       Songs are added instantly - no save button needed
                     </div>
@@ -632,7 +615,7 @@ export function ShowDetail({
                           <div className="text-2xl font-bold text-white">
                             {actualSetlistSongs.length}
                           </div>
-                          <div className="text-xs text-gray-400">
+                          <div className="text-sm text-gray-400">
                             songs played
                           </div>
                         </div>
@@ -1100,20 +1083,20 @@ function FanRequestSongRow({
             </svg>
           </div>
         ) : (
-          <span className="text-xs text-gray-500 w-5 text-center font-medium">
+          <span className="text-base text-gray-500 w-5 text-center font-medium">
             {index + 1}
           </span>
         )}
 
         <div className="flex-1 min-w-0">
           <h3
-            className={`font-medium text-sm ${
+            className={`font-medium text-lg sm:text-xl ${
               wasPlayed ? "text-white" : "text-gray-300"
             } truncate`}
           >
             {songTitle}
           </h3>
-          {wasPlayed && <p className="text-xs text-green-400">Played</p>}
+          {wasPlayed && <p className="text-sm text-green-400">Played</p>}
         </div>
       </div>
 
@@ -1123,7 +1106,7 @@ function FanRequestSongRow({
           onClick={() => {
             void handleVote();
           }}
-          className={`flex flex-col items-center gap-0.5 text-sm transition-colors ${
+          className={`flex flex-col items-center gap-0.5 text-base transition-colors ${
             userVoted ? "text-primary" : "text-gray-500 hover:text-white"
           }`}
         >
@@ -1131,7 +1114,7 @@ function FanRequestSongRow({
             className={`h-4 w-4 ${userVoted ? "fill-current" : ""}`}
           />
           <span
-            className={`font-semibold text-xs ${
+            className={`font-semibold text-sm ${
               userVoted ? "text-primary" : "text-gray-400"
             }`}
           >
@@ -1186,7 +1169,7 @@ function ActualSetlistSongRow({
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <span
-          className={`text-sm font-semibold w-6 text-center ${
+          className={`text-lg font-semibold w-6 text-center ${
             wasRequested ? "text-green-400" : "text-gray-500"
           }`}
         >
@@ -1194,11 +1177,11 @@ function ActualSetlistSongRow({
         </span>
 
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-sm sm:text-base text-white truncate">
+          <h3 className="font-medium text-lg sm:text-xl text-white truncate">
             {song.title}
           </h3>
           {song.album && (
-            <p className="text-xs text-gray-400 truncate">{song.album}</p>
+            <p className="text-sm text-gray-400 truncate">{song.album}</p>
           )}
         </div>
       </div>
@@ -1206,7 +1189,7 @@ function ActualSetlistSongRow({
       {/* Clean badges - upvote display only, no click for past shows */}
       <div className="flex items-center gap-2">
         {song.encore && (
-          <span className="bg-yellow-500/10 text-yellow-400 text-xs font-medium px-2 py-0.5 rounded-full">
+          <span className="bg-yellow-500/10 text-yellow-400 text-sm font-medium px-2 py-0.5 rounded-full">
             Encore
           </span>
         )}

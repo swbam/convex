@@ -125,12 +125,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
     >
-      <SEOHead
-        title={`${artist.name} – Artist | setlists.live`}
-        description={`Explore ${artist.name}'s upcoming shows, catalog and top songs. Vote on setlist predictions.`}
-        image={artist.images?.[0]}
-        url={typeof window !== 'undefined' ? window.location.href : undefined}
-      />
+      <SEOHead />
       {/* Enhanced Back Button */}
       <MagicCard className="inline-block p-0 rounded-xl border-0">
         <button
@@ -208,7 +203,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
           {/* Upcoming Shows - Main Content */}
         <div className="lg:col-span-2">
-          <MagicCard className="p-0 rounded-2xl border-0 bg-black" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
+          <MagicCard className="p-0 rounded-2xl border-0 bg-black border-t border-b border-white/10">
             <div className="p-4 sm:p-6">
               <Tabs defaultValue="upcoming" className="w-full">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -218,9 +213,19 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                     </div>
                     <h2 className="text-2xl sm:text-3xl font-bold text-white">Shows</h2>
                   </div>
-                  <TabsList className="grid w-full sm:w-[200px] grid-cols-2 shrink-0">
-                    <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-                    <TabsTrigger value="past">Past</TabsTrigger>
+                  <TabsList className="w-full bg-white/5 rounded-xl p-1 border border-white/10">
+                    <TabsTrigger
+                      value="upcoming"
+                      className="flex-1 justify-center rounded-lg text-gray-400 data-[state=active]:bg-white/10 data-[state=active]:text-white"
+                    >
+                      Upcoming
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="past"
+                      className="flex-1 justify-center rounded-lg text-gray-400 data-[state=active]:bg-white/10 data-[state=active]:text-white"
+                    >
+                      Past
+                    </TabsTrigger>
                   </TabsList>
                 </div>
                 
@@ -367,7 +372,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
 
         {/* Top Songs - Right Sidebar */}
         <div className="space-y-4 sm:space-y-6">
-          <MagicCard className="p-0 rounded-2xl border-0 bg-black" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
+          <MagicCard className="p-0 rounded-2xl border-0 bg-black border-t border-b border-white/10">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center">

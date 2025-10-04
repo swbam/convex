@@ -135,26 +135,26 @@ export function UserProfilePage() {
           <MagicCard className="p-0 rounded-2xl border-0 bg-black">
             <div className="p-4 sm:p-6">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className={`grid w-full ${hasSpotify ? 'grid-cols-5' : 'grid-cols-4'} bg-white/5 rounded-lg p-1`}>
-                  <TabsTrigger value="general" className="data-[state=active]:bg-white/10">
+                <TabsList className={`grid w-full ${hasSpotify ? 'grid-cols-5' : 'grid-cols-4'} bg-white/5 rounded-lg p-1 gap-2`}>
+                  <TabsTrigger value="general" className="w-full justify-center data-[state=active]:bg-white/10">
                     <User className="h-4 w-4 mr-2" />
                     <span className="hidden sm:inline">General</span>
                   </TabsTrigger>
                   {hasSpotify && (
-                    <TabsTrigger value="spotify" className="data-[state=active]:bg-white/10">
+                    <TabsTrigger value="spotify" className="w-full justify-center data-[state=active]:bg-white/10">
                       <Music className="h-4 w-4 mr-2" />
                       <span className="hidden sm:inline">My Artists</span>
                     </TabsTrigger>
                   )}
-                  <TabsTrigger value="security" className="data-[state=active]:bg-white/10">
+                  <TabsTrigger value="security" className="w-full justify-center data-[state=active]:bg-white/10">
                     <Shield className="h-4 w-4 mr-2" />
                     <span className="hidden sm:inline">Security</span>
                   </TabsTrigger>
-                  <TabsTrigger value="notifications" className="data-[state=active]:bg-white/10">
+                  <TabsTrigger value="notifications" className="w-full justify-center data-[state=active]:bg-white/10">
                     <Bell className="h-4 w-4 mr-2" />
                     <span className="hidden sm:inline">Alerts</span>
                   </TabsTrigger>
-                  <TabsTrigger value="activity" className="data-[state=active]:bg-white/10 lg:hidden">
+                  <TabsTrigger value="activity" className="w-full justify-center data-[state=active]:bg-white/10 lg:hidden">
                     <Activity className="h-4 w-4 mr-2" />
                     <span className="hidden sm:inline">Activity</span>
                   </TabsTrigger>

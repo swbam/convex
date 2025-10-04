@@ -181,12 +181,12 @@ export function AdminDashboard() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="stats">Stats</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="flagged">Flagged</TabsTrigger>
-          <TabsTrigger value="syncs">Syncs</TabsTrigger>
-          <TabsTrigger value="logs">Logs</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5 gap-2">
+          <TabsTrigger value="stats" className="w-full justify-center">Stats</TabsTrigger>
+          <TabsTrigger value="users" className="w-full justify-center">Users</TabsTrigger>
+          <TabsTrigger value="flagged" className="w-full justify-center">Flagged</TabsTrigger>
+          <TabsTrigger value="syncs" className="w-full justify-center">Syncs</TabsTrigger>
+          <TabsTrigger value="logs" className="w-full justify-center">Logs</TabsTrigger>
         </TabsList>
 
         <TabsContent value="stats" className="space-y-6">

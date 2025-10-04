@@ -155,7 +155,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
 
               {activeTab === 'artists' && (
                 // Artists Tab
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {!trendingArtists ? (
                     // Loading state
                     [...Array(10)].map((_, i) => (
@@ -204,7 +204,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
 
               {activeTab === 'shows' && (
                 // Shows Tab
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {!trendingShows ? (
                     // Loading state
                     [...Array(10)].map((_, i) => (
@@ -259,7 +259,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
               
               {activeTab === 'setlists' && (
                 // Setlists Tab
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {!trendingSetlists ? (
                     [...Array(10)].map((_, i) => (
                       <div key={i} className="animate-pulse">
