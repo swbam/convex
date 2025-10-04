@@ -349,17 +349,7 @@ export function ShowDetail({ showId, onBack, onArtistClick, onSignInRequired }: 
                   Share
                 </button>
                 <button
-                  onClick={() => {
-                    const shareUrl = `${window.location.origin}/shows/${show?.slug}?utm_source=setlistvote&utm_medium=facebook&utm_campaign=${encodeURIComponent(show?.artist?.name || '')}-${encodeURIComponent(show?.slug || '')}`;
-                    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank');
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12S0 5.446 0 12s5.373 12 12 12 12-5.373 12-12  -5.373-12-12-12zM9.579 16.305l.943-.943 4.483 4.485-4.483-4.485-.943.943m5.712-13.321c3.505 0 6.361 2.611 6.846 6.031l-1.408.368a4.846 4.846 0 00-1.438-6.399 4.846 4.846 0 00-6.398 1.438l-.369 1.408c3.42.895 6.031 3.505 6.031 6.846 0 2.112-1.065 4.043-2.84 5.179L15 15l-4.485-4.485 4.485 4.485-1.408 1.408a4.846 4.846 0 001.438-6.398l-1.408-.369a4.846 4.846 0 00-1.438 6.398z"/>
-                  </svg>
-                  Facebook
-                </button>
+            
               </div>
             </div>
           </div>
