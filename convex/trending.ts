@@ -389,7 +389,7 @@ export const updateArtistTrending = internalMutation({
       
       return {
         artist: a,
-        score: Math.max(0, baseScore), // Ensure score is never negative
+        score: Math.max(1, baseScore), // FIXED: Minimum score 1 to ensure ranks set
       };
     });
 
@@ -399,7 +399,7 @@ export const updateArtistTrending = internalMutation({
     for (let i = 0; i < scored.length; i += 1) {
       const { artist, score } = scored[i];
       await ctx.db.patch(artist._id, {
-        trendingScore: Number.isFinite(score) ? score : 0, // Ensure no NaN values
+        trendingScore: Number.isFinite(score) ? score : 1, // FIXED: Minimum score 1
         trendingRank: i < TOP_N ? i + 1 : undefined,
         lastTrendingUpdate: Date.now(),
       });
