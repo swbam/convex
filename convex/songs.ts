@@ -107,21 +107,25 @@ export const cleanupOrphanedSongs = internalMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    // Get all songs
-    const songs = await ctx.db.query("songs").collect();
+    // FIXED: Paginate to avoid 32K doc limit
+    const songs = await ctx.db.query("songs").take(100); // Process 100 at a time
     
+    let deletedCount = 0;
     for (const song of songs) {
-      // Check if song has any artist relationships
+      // FIXED: Use index instead of filter for performance
       const artistSong = await ctx.db
         .query("artistSongs")
-        .filter((q) => q.eq(q.field("songId"), song._id))
+        .withIndex("by_song", (q) => q.eq("songId", song._id))
         .first();
       
       // If no artist relationship exists, delete the song
       if (!artistSong) {
         await ctx.db.delete(song._id);
+        deletedCount++;
       }
     }
+    
+    console.log(`🧹 Cleaned up ${deletedCount} orphaned songs`);
     return null;
   },
 });

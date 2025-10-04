@@ -519,7 +519,10 @@ export const createInternal = internalMutation({
       popularity: args.popularity,
       followers: args.followers,
       isActive: true,
-      trendingScore: 1,
+      trendingScore: 0, // FIXED: Initialize to 0
+      trendingRank: 0, // FIXED: Initialize to 0 for trending queries to work
+      upcomingShowsCount: 0, // Initialize upcoming shows count
+      lastTrendingUpdate: Date.now(), // Initialize trending update timestamp
       lowerName,
       lastSynced: Date.now(), // CRITICAL: Always set sync timestamp
     });
@@ -697,6 +700,7 @@ export const create = internalMutation({
       lastSynced: args.lastSynced ?? Date.now(),
       isActive: true,
       trendingScore: 0,
+      trendingRank: 0, // FIXED: Initialize to 0 for trending queries
       upcomingShowsCount: 0,
       lastTrendingUpdate: Date.now(),
       lowerName,

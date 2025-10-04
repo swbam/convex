@@ -47,22 +47,25 @@ export const getTrendingShows = query({
   }),
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
-    
-    // Try trending ranked shows first
+
+    // Try trending ranked shows first (rank > 0 means it's been calculated)
     let shows = await ctx.db
       .query("shows")
       .withIndex("by_trending_rank")
       .order("asc")
-      .filter(q => q.neq(q.field("trendingRank"), undefined))
+      .filter(q => q.and(
+        q.neq(q.field("trendingRank"), undefined),
+        q.gt(q.field("trendingRank"), 0) // Only ranked shows
+      ))
       .take(limit * 2);
 
     // FALLBACK: If no trending ranks, get upcoming shows by date
     if (shows.length === 0) {
-      console.log("⚠️ No trending ranks found for shows, falling back to date sort");
+      console.log("⚠️ No trending ranks found for shows, falling back to upcoming by date");
       shows = await ctx.db
         .query("shows")
         .withIndex("by_status", (q) => q.eq("status", "upcoming"))
-        .order("desc")
+        .order("asc") // FIXED: asc for chronological order
         .take(limit * 2);
     }
 
@@ -120,26 +123,29 @@ export const getTrendingArtists = query({
   }),
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
-    
-    // Try trending ranked artists first
+
+    // Try trending ranked artists first (rank > 0 means it's been calculated)
     let artists = await ctx.db
       .query("artists")
       .withIndex("by_trending_rank")
       .order("asc")
-      .filter(q => q.neq(q.field("trendingRank"), undefined))
+      .filter(q => q.and(
+        q.neq(q.field("trendingRank"), undefined),
+        q.gt(q.field("trendingRank"), 0) // Only ranked artists
+      ))
       .take(limit * 2);
 
     // FALLBACK: If no trending ranks exist yet, get by popularity
     if (artists.length === 0) {
-      console.log("⚠️ No trending ranks found, falling back to popularity sort");
+      console.log("⚠️ No trending ranks found for artists, falling back to popularity sort");
       const allArtists = await ctx.db
         .query("artists")
         .filter(q => q.eq(q.field("isActive"), true))
-        .collect();
-      
+        .take(200); // FIXED: Use take instead of collect for performance
+
       // Sort by popularity descending
       artists = allArtists
-        .filter(a => a.popularity !== undefined)
+        .filter(a => typeof a.popularity === 'number' && a.popularity > 0)
         .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
         .slice(0, limit * 2);
     }

@@ -46,9 +46,21 @@ export function SignInPage() {
     return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /> Importing Spotify...</div>;
   }
 
+  // Show loading state while Clerk initializes
+  if (!isLoaded || !signIn) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-white" />
+          <p className="text-white">Loading authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
   const handleSpotifySignIn = async () => {
-    if (!isLoaded || !signIn) {
-      console.error('Clerk not loaded or signIn not available');
+    if (!signIn) {
+      console.error('SignIn not available');
       toast.error('Authentication not ready. Please refresh the page.');
       return;
     }
@@ -77,8 +89,8 @@ export function SignInPage() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (!isLoaded || !signIn) {
-      console.error('Clerk not loaded or signIn not available');
+    if (!signIn) {
+      console.error('SignIn not available');
       toast.error('Authentication not ready. Please refresh the page.');
       return;
     }
@@ -108,8 +120,8 @@ export function SignInPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded || !signIn) {
-      console.error('Clerk not loaded or signIn not available');
+    if (!signIn) {
+      console.error('SignIn not available');
       toast.error('Authentication not ready. Please refresh the page.');
       return;
     }

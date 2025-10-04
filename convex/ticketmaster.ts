@@ -222,9 +222,9 @@ export const syncArtistShows = internalAction({
       });
       console.log(`✅ Updated show count for artist: ${upcomingShows} upcoming shows`);
       
-      // Kick a trending refresh after syncing shows
+      // FIXED: Await scheduler call to prevent dangling promise warning
       try {
-        void ctx.scheduler.runAfter(0, internal.trending.updateShowTrending, {});
+        await ctx.scheduler.runAfter(0, internal.trending.updateShowTrending, {});
       } catch (e) {
         console.log('⚠️ Failed to schedule trending refresh after sync', e);
       }

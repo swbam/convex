@@ -22,7 +22,7 @@ export function SignUpPage() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   // Show loading state while Clerk initializes
-  if (!isLoaded) {
+  if (!isLoaded || !signUp) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4">
         <div className="text-center">
@@ -34,8 +34,8 @@ export function SignUpPage() {
   }
 
   const handleSpotifySignUp = async () => {
-    if (!isLoaded || !signUp) {
-      console.error('Clerk not loaded or signUp not available');
+    if (!signUp) {
+      console.error('SignUp not available');
       toast.error('Authentication not ready. Please refresh the page.');
       return;
     }
@@ -64,8 +64,8 @@ export function SignUpPage() {
   };
 
   const handleGoogleSignUp = async () => {
-    if (!isLoaded || !signUp) {
-      console.error('Clerk not loaded or signUp not available');
+    if (!signUp) {
+      console.error('SignUp not available');
       toast.error('Authentication not ready. Please refresh the page.');
       return;
     }
@@ -95,8 +95,8 @@ export function SignUpPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded || !signUp) {
-      console.error('Clerk not loaded or signUp not available');
+    if (!signUp) {
+      console.error('SignUp not available');
       toast.error('Authentication not ready. Please refresh the page.');
       return;
     }
@@ -150,8 +150,8 @@ export function SignUpPage() {
 
   const handleVerification = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded || !signUp) {
-      console.error('Clerk not loaded or signUp not available');
+    if (!signUp) {
+      console.error('SignUp not available');
       console.error('Clerk state:', { isLoaded, signUp: !!signUp });
       toast.error('Authentication not ready. Please refresh the page or check console for details.');
       // Fallback redirect after delay

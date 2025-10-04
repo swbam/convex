@@ -480,7 +480,7 @@ export const createInternal = internalMutation({
       voteCount: 0, // Initialize counts
       setlistCount: 0,
       trendingScore: 0, // Initialize trending score
-      trendingRank: undefined, // Will be calculated by trending cron
+      trendingRank: 0, // FIXED: Initialize to 0 (not undefined) for queries to work
       lastTrendingUpdate: Date.now(), // Initialize trending timestamp
       priceRange: undefined, // Set if available
       setlistfmId: undefined, // Set when setlist imported
@@ -558,7 +558,7 @@ export const createFromTicketmaster = internalMutation({
       voteCount: 0, // Initialize vote count
       setlistCount: 0, // Initialize setlist count
       trendingScore: 0, // Initialize trending score
-      trendingRank: 0, // FIXED: Initialize to 0 for trending queries
+      trendingRank: 0, // FIXED: Initialize to 0 (was causing empty queries)
       lastTrendingUpdate: Date.now(), // Initialize trending timestamp
       priceRange: undefined, // Will be set if available from Ticketmaster
       setlistfmId: undefined, // Will be set when setlist imported

@@ -436,12 +436,8 @@ export const updateShowEmbeds = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const update: any = {};
-    if (args.artist) update.artist = args.artist;
-    if (args.venue) update.venue = args.venue;
-    if (Object.keys(update).length > 0) {
-      await ctx.db.patch(args.showId, update);
-    }
+    // Schema doesn't support artist/venue embeds - they're populated at read time
+    // This mutation is a no-op to prevent schema errors
     return null;
   },
 });
