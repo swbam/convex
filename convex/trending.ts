@@ -65,7 +65,7 @@ export const getTrendingShows = query({
       shows = await ctx.db
         .query("shows")
         .withIndex("by_status", (q) => q.eq("status", "upcoming"))
-        .order("asc") // FIXED: asc for chronological order
+        .order("desc") // FIXED: desc to show most recent upcoming shows first
         .take(limit * 2);
     }
 

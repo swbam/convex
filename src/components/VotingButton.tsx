@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { ThumbsUp, ThumbsDown } from "lucide-react";
+import { ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { useDebounce } from "../lib/utils";
 
@@ -12,25 +12,23 @@ interface VotingButtonProps {
 }
 
 export function VotingButton({ setlistId, onSignInRequired }: VotingButtonProps) {
-  const [localVotes, setLocalVotes] = useState(0); // Optimistic update
   const [isVoting, setIsVoting] = useState(false);
   const user = useQuery(api.auth.loggedInUser);
   const userVote = useQuery(api.setlists.getUserVote, { setlistId });
   const submitVote = useMutation(api.setlists.submitVote);
+  const voteData = useQuery(api.setlists.getSetlistVotes, { setlistId });
 
-  const debouncedVote = useDebounce(async (voteType: "up" | "down") => {
+  const debouncedVote = useDebounce(async () => {
     if (!user) {
       onSignInRequired?.();
       return;
     }
 
     setIsVoting(true);
-    setLocalVotes(prev => prev + 1); // Optimistic
     try {
-      await submitVote({ setlistId, voteType: voteType === "up" ? "accurate" : "inaccurate" });
-      toast.success(voteType === "up" ? "Upvoted setlist" : "Downvoted setlist");
+      await submitVote({ setlistId, voteType: "accurate" });
+      toast.success("Upvoted setlist");
     } catch (error) {
-      setLocalVotes(0); // Revert
       toast.error("Failed to vote");
       console.error("Vote failed:", error);
     } finally {
@@ -38,37 +36,30 @@ export function VotingButton({ setlistId, onSignInRequired }: VotingButtonProps)
     }
   }, 500);
 
-  const handleVote = async (voteType: "up" | "down") => {
-    debouncedVote(voteType);
+  const handleVote = async () => {
+    debouncedVote();
   };
 
+  const voteCount = voteData?.accurate || 0;
+  const hasVoted = userVote === "accurate";
+
   return (
-    <div className="flex items-center gap-2">
-      <button
-        onClick={() => handleVote("up")}
-        disabled={isVoting}
-        className={`p-2 rounded-full transition-colors ${
-          userVote === "accurate"
-            ? "bg-muted/20 text-foreground"
-            : "hover:bg-accent text-muted-foreground"
-        }`}
-        title="Upvote this setlist"
-      >
-        <ThumbsUp className="h-4 w-4" />
-      </button>
-      
-      <button
-        onClick={() => handleVote("down")}
-        disabled={isVoting}
-        className={`p-2 rounded-full transition-colors ${
-          userVote === "inaccurate"
-            ? "bg-muted/20 text-foreground"
-            : "hover:bg-accent text-muted-foreground"
-        }`}
-        title="Downvote this setlist"
-      >
-        <ThumbsDown className="h-4 w-4" />
-      </button>
-    </div>
+    <button
+      onClick={handleVote}
+      disabled={isVoting}
+      className={`flex flex-col items-center gap-0.5 transition-all duration-200 ${
+        hasVoted 
+          ? "text-primary" 
+          : "text-gray-400 hover:text-white"
+      }`}
+      title="Upvote this setlist"
+    >
+      <ChevronUp 
+        className={`h-5 w-5 ${hasVoted ? "fill-current" : ""}`} 
+      />
+      <span className={`font-semibold text-sm ${hasVoted ? "text-primary" : "text-gray-400"}`}>
+        {voteCount}
+      </span>
+    </button>
   );
 }
