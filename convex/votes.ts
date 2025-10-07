@@ -39,6 +39,17 @@ export const submitVote = mutation({
         songVotes: args.songVotes,
         createdAt: Date.now(),
       });
+      
+      // CRITICAL FIX: Update show voteCount when new vote is created
+      const setlist = await ctx.db.get(args.setlistId);
+      if (setlist && setlist.showId) {
+        const show = await ctx.db.get(setlist.showId);
+        if (show) {
+          await ctx.db.patch(setlist.showId, {
+            voteCount: (show.voteCount || 0) + 1,
+          });
+        }
+      }
     }
 
     return { success: true };
@@ -47,6 +58,21 @@ export const submitVote = mutation({
 
 export const getUserVote = query({
   args: { setlistId: v.id("setlists") },
+  returns: v.union(
+    v.object({
+      _id: v.id("votes"),
+      _creationTime: v.number(),
+      userId: v.id("users"),
+      setlistId: v.id("setlists"),
+      voteType: v.union(v.literal("accurate"), v.literal("inaccurate")),
+      songVotes: v.optional(v.array(v.object({
+        songName: v.string(),
+        vote: v.union(v.literal("correct"), v.literal("incorrect"), v.literal("missing")),
+      }))),
+      createdAt: v.number(),
+    }),
+    v.null()
+  ),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
@@ -60,6 +86,13 @@ export const getUserVote = query({
 
 export const getSetlistVotes = query({
   args: { setlistId: v.id("setlists") },
+  returns: v.object({
+    total: v.number(),
+    accurate: v.number(),
+    inaccurate: v.number(),
+    accuracy: v.number(),
+    votes: v.array(v.any()),
+  }),
   handler: async (ctx, args) => {
     const votes = await ctx.db
       .query("votes")
@@ -81,6 +114,14 @@ export const getSetlistVotes = query({
 
 export const getVotesSummary = query({
   args: { setlistId: v.id("setlists") },
+  returns: v.object({
+    overall: v.object({
+      total: v.number(),
+      accurate: v.number(),
+      accuracy: v.number(),
+    }),
+    songLevel: v.any(),
+  }),
   handler: async (ctx, args) => {
     const votes = await ctx.db
       .query("votes")

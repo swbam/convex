@@ -14,7 +14,7 @@ export const getUserActivityFeed = query({
     type: v.union(
       v.literal("song_vote"),
       v.literal("setlist_created"),
-      v.literal(""),
+      v.literal("artist_followed"),
       v.literal("show_attended")
     ),
     createdAt: v.number(),
@@ -118,7 +118,7 @@ export const getUserActivityFeed = query({
         if (artist) {
           activities.push({
             _id: `follow_${follow._id}`,
-            type: "",
+            type: "artist_followed",
             createdAt: follow.createdAt,
             description: `You followed ${artist.name}.`,
             data: {

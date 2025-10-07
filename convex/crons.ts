@@ -20,6 +20,15 @@ crons.interval("setlistfm-scan", { minutes: 30 }, internal.setlistfm.scanPending
 // Engagement counts sync: Every hour (sufficient for vote/setlist count accuracy)
 crons.interval("sync-engagement-counts", { hours: 1 }, internal.trending.updateEngagementCounts, {});
 
+// Artist show counts update: Every 2 hours (keeps artist stats current)
+crons.interval("update-artist-show-counts", { hours: 2 }, internal.trending.updateArtistShowCounts, {});
+
+// Artist trending scores: Every 4 hours (balanced between freshness and API limits)
+crons.interval("update-artist-trending", { hours: 4 }, internal.trending.updateArtistTrending, {});
+
+// Show trending scores: Every 4 hours (balanced between freshness and API limits)
+crons.interval("update-show-trending", { hours: 4 }, internal.trending.updateShowTrending, {});
+
 // Auto-transition show statuses: Every 2 hours (sufficient for status transitions)
 crons.interval("auto-transition-shows", { hours: 2 }, internal.shows.autoTransitionStatuses, {});
 
