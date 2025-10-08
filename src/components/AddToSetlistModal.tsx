@@ -30,7 +30,19 @@ export function AddToSetlistModal({
   const upcomingShows = shows?.filter(show => show.status === "upcoming") || [];
 
   const handleAddToShow = async (showId: Id<"shows">) => {
-    if (!user) {
+    // Generate or get anonymous user ID from localStorage
+    let anonId = localStorage.getItem('anonUserId');
+    if (!anonId && !user) {
+      anonId = `anon_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem('anonUserId', anonId);
+    }
+
+    // Check if anonymous user has already added a song
+    const hasAddedBefore = localStorage.getItem('hasAddedSong') === 'true';
+    
+    // FIXED: Only show sign-in modal AFTER user has tried adding 1 song
+    if (!user && hasAddedBefore) {
+      toast.info("Sign in to add more songs to your predictions");
       onSignInRequired();
       return;
     }
@@ -42,13 +54,25 @@ export function AddToSetlistModal({
         song: {
           title: songTitle,
         },
+        anonId: !user && anonId ? anonId : undefined,
       });
+
+      // Mark that anonymous user has added their first song
+      if (!user) {
+        localStorage.setItem('hasAddedSong', 'true');
+      }
 
       toast.success(`Added "${songTitle}" to your setlist prediction`);
       onClose();
-    } catch (error) {
-      toast.error("Failed to add song to setlist");
-      console.error("Add to setlist failed:", error);
+    } catch (error: any) {
+      // Handle backend limit error gracefully
+      if (error?.message?.includes("Anonymous users can only add one song")) {
+        toast.info("Sign in to add more songs to your predictions");
+        onSignInRequired();
+      } else {
+        toast.error("Failed to add song to setlist");
+        console.error("Add to setlist failed:", error);
+      }
     } finally {
       setIsAdding(false);
     }

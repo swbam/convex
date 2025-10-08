@@ -19,18 +19,46 @@ export function VotingButton({ setlistId, onSignInRequired }: VotingButtonProps)
   const voteData = useQuery(api.setlists.getSetlistVotes, { setlistId });
 
   const debouncedVote = useDebounce(async () => {
-    if (!user) {
+    // Generate or get anonymous user ID from localStorage
+    let anonId = localStorage.getItem('anonUserId');
+    if (!anonId && !user) {
+      anonId = `anon_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem('anonUserId', anonId);
+    }
+
+    // Check if anonymous user has already voted
+    const hasVotedBefore = localStorage.getItem('hasVoted') === 'true';
+    
+    // FIXED: Only show sign-in modal AFTER user has tried voting once
+    if (!user && hasVotedBefore) {
+      toast.info("Sign in to vote on more setlists");
       onSignInRequired?.();
       return;
     }
 
     setIsVoting(true);
     try {
-      await submitVote({ setlistId, voteType: "accurate" });
+      await submitVote({ 
+        setlistId, 
+        voteType: "accurate",
+        anonId: !user && anonId ? anonId : undefined,
+      });
+      
+      // Mark that anonymous user has voted once
+      if (!user) {
+        localStorage.setItem('hasVoted', 'true');
+      }
+      
       toast.success("Upvoted setlist");
-    } catch (error) {
-      toast.error("Failed to vote");
-      console.error("Vote failed:", error);
+    } catch (error: any) {
+      // Handle backend limit error gracefully
+      if (error?.message?.includes("Anonymous users can only vote once")) {
+        toast.info("Sign in to vote on more setlists");
+        onSignInRequired?.();
+      } else {
+        toast.error("Failed to vote");
+        console.error("Vote failed:", error);
+      }
     } finally {
       setIsVoting(false);
     }

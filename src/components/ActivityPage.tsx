@@ -62,7 +62,13 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
   }, [activityFeed, filter]);
 
   const totalVotes = activityFeed.filter((a: any) => a.type === 'song_vote').length || 0;
-  const accuracy = voteAccuracy ? `${Math.round(voteAccuracy * 100)}%` : 'N/A';
+  
+  // FIXED: Add null/undefined checks for voteAccuracy with fallback to activityStats
+  const accuracy = voteAccuracy !== null && voteAccuracy !== undefined 
+    ? `${Math.round(voteAccuracy * 100)}%` 
+    : activityStats?.accuracy 
+    ? `${activityStats.accuracy}%` 
+    : 'N/A';
 
   // CRITICAL FIX: Proper user state detection
   // user === undefined means still loading from Convex
@@ -281,9 +287,17 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
               Recent Predictions
             </h2>
             <div className="space-y-4">
-              {recentPredictions && recentPredictions.length > 0 ? (
+              {recentPredictions === undefined ? (
+                // Loading state
+                <div className="space-y-3">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="animate-pulse bg-white/5 rounded-lg p-4 h-16" />
+                  ))}
+                </div>
+              ) : recentPredictions && recentPredictions.length > 0 ? (
+                // Has predictions
                 recentPredictions.map((pred: any) => (
-                  <div key={pred._id} className="p-4 bg-white/5 rounded-lg">
+                  <div key={pred._id} className="p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
                     <p className="text-white font-medium">
                       {pred.show?.artist?.name || 'Unknown Artist'} - {Array.isArray(pred.predictedSongs) ? pred.predictedSongs.join(', ') : 'No songs'}
                     </p>
@@ -291,10 +305,15 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-gray-400">
-                  <p>No predictions yet</p>
-                  <Button variant="outline" size="sm" className="mt-2" onClick={() => void navigate('/shows')}>
-                    Make a Prediction
+                // Empty state with better CTA
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Star className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <p className="text-white font-medium mb-2">No Predictions Yet</p>
+                  <p className="text-gray-400 text-sm mb-4">Start predicting setlists to see them here</p>
+                  <Button onClick={() => void navigate('/shows')} className="bg-primary/20 hover:bg-primary/30">
+                    Browse Upcoming Shows
                   </Button>
                 </div>
               )}
