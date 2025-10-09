@@ -20,14 +20,56 @@ export function SignUpPage() {
   const [verificationCode, setVerificationCode] = useState('');
   const [isSpotifyLoading, setIsSpotifyLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
-  // Show loading state while Clerk initializes
+  // CRITICAL FIX: Add timeout for auth loading to prevent infinite loading
+  React.useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!isLoaded || !signUp) {
+        console.error('❌ Clerk failed to load after 10 seconds');
+        setAuthError("Authentication service failed to load. Please check your internet connection.");
+      }
+    }, 10000); // 10 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [isLoaded, signUp]);
+
+  // Show loading state while Clerk initializes with error handling
   if (!isLoaded || !signUp) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-white" />
-          <p className="text-white">Loading authentication...</p>
+        <div className="text-center max-w-md">
+          {authError ? (
+            <>
+              <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-white mb-2">Authentication Error</h2>
+              <p className="text-gray-400 mb-6">{authError}</p>
+              <div className="space-y-3">
+                <button
+                  onClick={() => window.location.reload()}
+                  className="w-full px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-all duration-200 border border-white/20"
+                >
+                  Retry
+                </button>
+                <button
+                  onClick={() => navigate('/')}
+                  className="w-full px-6 py-3 bg-transparent hover:bg-white/5 text-gray-400 hover:text-white rounded-xl font-medium transition-all duration-200"
+                >
+                  Go Back Home
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-white" />
+              <p className="text-white mb-2">Loading authentication...</p>
+              <p className="text-gray-400 text-sm">This should only take a moment</p>
+            </>
+          )}
         </div>
       </div>
     );
