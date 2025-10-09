@@ -16,11 +16,14 @@ const applicationTables = {
     name: v.optional(v.string()),
     avatar: v.optional(v.string()),
     spotifyId: v.optional(v.string()),
+    googleId: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index("by_auth_id", ["authId"]) 
     .index("by_email", ["email"])
-    .index("by_username", ["username"]),
+    .index("by_username", ["username"]) 
+    .index("by_spotify_id", ["spotifyId"]) 
+    .index("by_google_id", ["googleId"]),
 
   artists: defineTable({
     slug: v.string(),
@@ -322,6 +325,14 @@ const applicationTables = {
     .index("by_status", ["status"])
     .index("by_priority", ["priority"]) 
     .index("by_type_and_status", ["type", "status"]),
+  
+  // Simple lock table to prevent overlapping maintenance runs
+  maintenanceLocks: defineTable({
+    name: v.string(),
+    isRunning: v.boolean(),
+    updatedAt: v.number(),
+  })
+    .index("by_name", ["name"]),
 };
 
 export default defineSchema({

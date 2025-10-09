@@ -155,7 +155,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
 
               {activeTab === 'artists' && (
                 // Artists Tab
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-3">
                   {!trendingArtists ? (
                     // Loading state
                     [...Array(10)].map((_, i) => (
@@ -169,13 +169,13 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                         </div>
                       </div>
                     ))
-                  ) : trendingArtists.page.length === 0 ? (
+                  ) : (!Array.isArray(trendingArtists.page) || trendingArtists.page.length === 0) ? (
                     <div className="text-center py-12 text-gray-400">
                       <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No trending artists data available</p>
                     </div>
                   ) : (
-                    trendingArtists.page.map((artist: any, index: number) => {
+                    (trendingArtists.page ?? []).map((artist: any, index: number) => {
                       const artistKey = artist.ticketmasterId || artist._id || index;
                       const image = Array.isArray(artist.images) && artist.images.length > 0 ? artist.images[0] : undefined;
                       const genres = Array.isArray(artist.genres) ? artist.genres : [];
@@ -204,7 +204,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
 
               {activeTab === 'shows' && (
                 // Shows Tab
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-3">
                   {!trendingShows ? (
                     // Loading state
                     [...Array(10)].map((_, i) => (
@@ -218,13 +218,13 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                         </div>
                       </div>
                     ))
-                  ) : trendingShows.page.length === 0 ? (
+                  ) : (!Array.isArray(trendingShows.page) || trendingShows.page.length === 0) ? (
                     <div className="text-center py-12 text-gray-400">
                       <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No trending shows data available</p>
                     </div>
                   ) : (
-                    trendingShows.page.map((show: any, index: number) => {
+                    (trendingShows.page ?? []).map((show: any, index: number) => {
                       const showKey = show.ticketmasterId || show._id || index;
                       const artistName = show.artist?.name || show.artistName || 'Unknown Artist';
                       const artistImage = show.artist?.images?.[0] || show.artistImage;
@@ -259,7 +259,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
               
               {activeTab === 'setlists' && (
                 // Setlists Tab
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-3">
                   {!trendingSetlists ? (
                     [...Array(10)].map((_, i) => (
                       <div key={i} className="animate-pulse">
@@ -272,13 +272,13 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                         </div>
                       </div>
                     ))
-                  ) : trendingSetlists.length === 0 ? (
+                  ) : (!Array.isArray(trendingSetlists) || trendingSetlists.length === 0) ? (
                     <div className="text-center py-12 text-gray-400">
                       <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No trending setlists available</p>
                     </div>
                   ) : (
-                    trendingSetlists.map((setlist: any, index: number) => (
+                    (trendingSetlists ?? []).map((setlist: any, index: number) => (
                       <Card
                         key={setlist._id}
                         variant="show"

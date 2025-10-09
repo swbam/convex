@@ -256,7 +256,7 @@ export const syncArtistCatalog = internalAction({
 
       let songsImported = 0;
 
-      // CRITICAL FIX: Allow remastered albums (they contain original songs!)
+      // FIXED: More intelligent album filtering - keep ALL studio albums and singles
       const studioAlbums = (albums as any[])
         .filter(album => {
           // Skip compilations and appears_on
@@ -265,20 +265,29 @@ export const syncArtistCatalog = internalAction({
           
           const albumName = album.name.toLowerCase();
           
-          // ONLY exclude these specific types (much more permissive):
+          // ONLY exclude clear non-studio types:
           const exclude = [
-            // Live albums
-            'live',
-            // True compilations (not studio albums)
-            'greatest hits', 'best of', 'collection',
+            // Live albums (must have "live" as standalone word or in parentheses)
+            ' live ', '(live)', '[live]', 'live at', 'live from',
+            // True compilations (not studio albums with "collection" in subtitle)
+            'greatest hits', 'best of',
             // Soundtracks
             'soundtrack',
+            // Karaoke/Instrumental compilations
+            'karaoke', 'instrumental album',
           ];
           
-          // Don't filter out "remastered" - those contain original songs!
-          const matchedExclude = exclude.find(k => albumName.includes(k));
+          // More precise matching - avoid false positives
+          const matchedExclude = exclude.find(k => {
+            if (k.startsWith(' ') && k.endsWith(' ')) {
+              // Word boundary check for " live "
+              return albumName.includes(k);
+            }
+            return albumName.includes(k);
+          });
+          
           if (matchedExclude) {
-            console.log(`❌ Filtered album: ${album.name} (contains: ${matchedExclude})`);
+            console.log(`❌ Filtered album: ${album.name} (matched: ${matchedExclude})`);
             return false;
           }
           
@@ -286,7 +295,7 @@ export const syncArtistCatalog = internalAction({
           return true;
         })
         .sort((a, b) => {
-          // Sort by release date (oldest first = original albums)
+          // Sort by release date (oldest first = prefer original versions)
           return new Date(a.release_date).getTime() - new Date(b.release_date).getTime();
         });
       

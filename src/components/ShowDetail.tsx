@@ -509,7 +509,7 @@ export function ShowDetail({
 
                 {/* Song Addition Dropdown */}
                 {!hasActualSetlist && isUpcoming && songs && songs.length > 0 && (
-                  <div className="mb-6 p-4 bg-white/5 border border-white/10 rounded-xl backdrop-blur-sm">
+                  <div className="mb-6 p-4 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl backdrop-blur-sm">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-xl font-semibold text-white">
                         Add Songs to Setlist
@@ -1083,14 +1083,14 @@ function FanRequestSongRow({
             </svg>
           </div>
         ) : (
-          <span className="text-base text-gray-500 w-5 text-center font-medium">
+          <span className="text-sm text-gray-500 w-5 text-center font-medium">
             {index + 1}
           </span>
         )}
 
         <div className="flex-1 min-w-0">
           <h3
-            className={`font-medium text-lg sm:text-xl ${
+            className={`font-medium text-base ${
               wasPlayed ? "text-white" : "text-gray-300"
             } truncate`}
           >
@@ -1169,7 +1169,7 @@ function ActualSetlistSongRow({
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <span
-          className={`text-lg font-semibold w-6 text-center ${
+          className={`text-base font-semibold w-6 text-center ${
             wasRequested ? "text-green-400" : "text-gray-500"
           }`}
         >
@@ -1177,7 +1177,7 @@ function ActualSetlistSongRow({
         </span>
 
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-lg sm:text-xl text-white truncate">
+          <h3 className="font-medium text-base sm:text-lg text-white truncate">
             {song.title}
           </h3>
           {song.album && (

@@ -22,8 +22,9 @@ export const loggedInUser = query({
   args: {},
   returns: v.union(
     v.object({
-      identity: v.any(), // Clerk identity object
-      appUser: v.optional(v.any()) // User document
+      identity: v.any(),
+      appUser: v.optional(v.any()),
+      needsSetup: v.boolean(),
     }),
     v.null()
   ),
@@ -32,16 +33,16 @@ export const loggedInUser = query({
     if (!identity) {
       return null;
     }
-    
-    // Check if app user exists
+
     const appUser = await ctx.db
       .query("users")
       .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
       .first();
-    
+
     return {
       identity,
-      appUser
+      appUser,
+      needsSetup: !appUser,
     };
   },
 });
@@ -66,6 +67,35 @@ export const createAppUser = mutation({
     }
     
     // Create app user
+    return await ctx.db.insert("users", {
+      authId: identity.subject,
+      username: identity.name || identity.email || "Anonymous",
+      role: "user",
+      preferences: {
+        emailNotifications: true,
+        favoriteGenres: [],
+      },
+      createdAt: Date.now(),
+    });
+  },
+});
+
+export const ensureUserExists = mutation({
+  args: {},
+  returns: v.id("users"),
+  handler: async (ctx: MutationCtx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Must be logged in");
+    }
+
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
+      .first();
+
+    if (existing) return existing._id;
+    
     return await ctx.db.insert("users", {
       authId: identity.subject,
       username: identity.name || identity.email || "Anonymous",

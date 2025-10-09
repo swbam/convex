@@ -213,19 +213,9 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                     </div>
                     <h2 className="text-2xl sm:text-3xl font-bold text-white">Shows</h2>
                   </div>
-                  <TabsList className="w-full bg-white/5 rounded-xl p-1 border border-white/10">
-                    <TabsTrigger
-                      value="upcoming"
-                      className="flex-1 justify-center rounded-lg text-gray-400 data-[state=active]:bg-white/10 data-[state=active]:text-white"
-                    >
-                      Upcoming
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="past"
-                      className="flex-1 justify-center rounded-lg text-gray-400 data-[state=active]:bg-white/10 data-[state=active]:text-white"
-                    >
-                      Past
-                    </TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-2 gap-2">
+                    <TabsTrigger value="upcoming" className="w-full justify-center">Upcoming</TabsTrigger>
+                    <TabsTrigger value="past" className="w-full justify-center">Past</TabsTrigger>
                   </TabsList>
                 </div>
                 

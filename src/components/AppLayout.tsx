@@ -336,10 +336,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         {/* Main Content Area with Enhanced Background */}
         <main className="flex-1 overflow-y-auto bg-transparent flex flex-col min-w-0">
           <div className="flex-1 min-w-0 relative">
-            <PageContainer 
-              variant={location.pathname === '/' || location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists') ? 'wide' : 'narrow'}
-              className={location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists') ? 'pt-2 md:pt-3 lg:pt-4' : ''}
-            >
+            <PageContainer variant={location.pathname === '/' || location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists') ? 'wide' : 'narrow'}>
               <SyncProgress />
               {location.pathname === '/' ? (
                 <PublicDashboard 

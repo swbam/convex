@@ -8,6 +8,15 @@ export const syncTrendingData = internalAction({
   returns: v.null(),
   handler: async (ctx) => {
     console.log("📈 Updating trending scores...");
+
+    // Acquire lock to prevent overlapping runs
+    const lockName = "trending";
+    const STALE_MS = 60 * 60 * 1000; // 60 minutes
+    const acquired = await ctx.runMutation(internal.maintenance.acquireLock, { name: lockName, staleMs: STALE_MS });
+    if (!acquired) {
+      console.warn("⏳ Trending sync already running, skipping this invocation");
+      return null;
+    }
     
     try {
       // Step 1: Update artist show counts (cached)
@@ -21,6 +30,28 @@ export const syncTrendingData = internalAction({
       // Step 3: Update show trending scores and ranks
       await ctx.runMutation(internal.trending.updateShowTrending, {});
       console.log("✅ Updated show trending ranks");
+
+      // Step 4: Refresh cached trending collections so UI has rich fallback
+      try {
+        const artistsTop = await ctx.runQuery(internal.trending.getTopRankedArtists, { limit: 50 });
+        await ctx.runMutation(internal.trending.replaceTrendingArtistsCache, {
+          fetchedAt: Date.now(),
+          artists: artistsTop
+            .filter((a: any) => typeof a.ticketmasterId === "string" && a.ticketmasterId.length > 0)
+            .map((a: any, i: number) => ({
+              name: a.name || "Unknown Artist",
+              genres: Array.isArray(a.genres) ? a.genres : [],
+              images: Array.isArray(a.images) ? a.images : [],
+              upcomingEvents: typeof a.upcomingShowsCount === "number" ? a.upcomingShowsCount : 0,
+              ticketmasterId: a.ticketmasterId,
+              rank: i + 1,
+            })),
+        });
+      } catch (e) {
+        console.warn("⚠️ Failed to refresh trending artists cache from DB", e);
+      }
+
+      // We rely on getTrendingShows reading directly from main tables; show cache refresh optional.
       
       const fetchedAt = Date.now();
       let ticketmasterArtists: Array<any> = [];
@@ -82,8 +113,47 @@ export const syncTrendingData = internalAction({
       console.log("✅ Trending data sync completed");
     } catch (error) {
       console.error("❌ Trending sync failed:", error);
+    } finally {
+      await ctx.runMutation(internal.maintenance.releaseLock, { name: lockName });
     }
     
+    return null;
+  },
+});
+
+// Internal helpers for maintenance lock
+export const acquireLock = internalMutation({
+  args: { name: v.string(), staleMs: v.number() },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const existing = await ctx.db
+      .query("maintenanceLocks")
+      .withIndex("by_name", (q) => q.eq("name", args.name))
+      .first();
+    if (!existing) {
+      await ctx.db.insert("maintenanceLocks", { name: args.name, isRunning: true, updatedAt: now });
+      return true;
+    }
+    if (existing.isRunning && (now - existing.updatedAt) < args.staleMs) {
+      return false;
+    }
+    await ctx.db.patch(existing._id, { isRunning: true, updatedAt: now });
+    return true;
+  },
+});
+
+export const releaseLock = internalMutation({
+  args: { name: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const lock = await ctx.db
+      .query("maintenanceLocks")
+      .withIndex("by_name", (q) => q.eq("name", args.name))
+      .first();
+    if (lock) {
+      await ctx.db.patch(lock._id, { isRunning: false, updatedAt: Date.now() });
+    }
     return null;
   },
 });

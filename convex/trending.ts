@@ -1,4 +1,4 @@
-import { query, internalMutation, internalAction } from "./_generated/server";
+import { query, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { internal } from "./_generated/api";
@@ -65,7 +65,7 @@ export const getTrendingShows = query({
       shows = await ctx.db
         .query("shows")
         .withIndex("by_status", (q) => q.eq("status", "upcoming"))
-        .order("desc") // FIXED: desc to show most recent upcoming shows first
+        .order("asc") // FIXED: asc for chronological order
         .take(limit * 2);
     }
 
@@ -145,11 +145,7 @@ export const getTrendingArtists = query({
 
       // Sort by popularity descending
       artists = allArtists
-        .filter(a => {
-          const hasPopularity = typeof a.popularity === 'number' && a.popularity > 0;
-          const upcoming = typeof a.upcomingShowsCount === 'number' ? a.upcomingShowsCount : 0;
-          return hasPopularity && upcoming > 0; // Require at least one upcoming show
-        })
+        .filter(a => typeof a.popularity === 'number' && a.popularity > 0)
         .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
         .slice(0, limit * 2);
     }
@@ -159,12 +155,10 @@ export const getTrendingArtists = query({
       const notUnknown = !artist.name.toLowerCase().includes("unknown");
       const notGeneric = !artist.name.toLowerCase().match(/^(various|tba|tbd|tribute|cover|film|movie)/);
       const hasBasicData = artist.name && artist.name.length > 0;
-      const upcoming = typeof artist.upcomingShowsCount === 'number' ? artist.upcomingShowsCount : 0;
       
       // Relaxed: Require only name + not unknown/generic
       // Images/Spotify are nice-to-have but not required for display
-      // NEW RULE: Exclude artists with 0 upcoming shows from trending
-      return hasBasicData && notUnknown && notGeneric && upcoming > 0;
+      return hasBasicData && notUnknown && notGeneric;
     }).slice(0, limit);
 
     if (filtered.length < limit / 2) {
@@ -227,7 +221,7 @@ export const replaceTrendingShowsCache = internalMutation({
           ? await ctx.db
               .query("artists")
               .withIndex("by_ticketmaster_id", (q) =>
-                q.eq("ticketmasterId", show.artistTicketmasterId)
+                q.eq("ticketmasterId", show.artistTicketmasterId!)
               )
               .first()
           : null;
@@ -406,7 +400,7 @@ export const updateArtistTrending = internalMutation({
       const { artist, score } = scored[i];
       await ctx.db.patch(artist._id, {
         trendingScore: Number.isFinite(score) ? score : 1, // FIXED: Minimum score 1
-        trendingRank: i < TOP_N ? i + 1 : undefined,
+        trendingRank: i < TOP_N ? i + 1 : 0,
         lastTrendingUpdate: Date.now(),
       });
     }
@@ -448,11 +442,40 @@ export const updateShowTrending = internalMutation({
       const { show } = parsed[i];
       await ctx.db.patch(show._id, {
         trendingScore: Number.isFinite(parsed[i].score) ? parsed[i].score : 0,
-        trendingRank: i < TOP_N ? i + 1 : undefined,
+        trendingRank: i < TOP_N ? i + 1 : 0,
         lastTrendingUpdate: Date.now(),
       });
     }
     return null;
+  },
+});
+
+// Internal queries to fetch top-ranked artists and shows for cache refresh
+export const getTopRankedArtists = internalQuery({
+  args: { limit: v.optional(v.number()) },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 50;
+    const rows = await ctx.db
+      .query("artists")
+      .withIndex("by_trending_rank")
+      .order("asc")
+      .take(limit * 2);
+    return rows.filter((a: any) => typeof a.trendingRank === "number" && a.trendingRank > 0).slice(0, limit);
+  },
+});
+
+export const getTopRankedShows = internalQuery({
+  args: { limit: v.optional(v.number()) },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 50;
+    const rows = await ctx.db
+      .query("shows")
+      .withIndex("by_trending_rank")
+      .order("asc")
+      .take(limit * 2);
+    return rows.filter((s: any) => typeof s.trendingRank === "number" && s.trendingRank > 0).slice(0, limit);
   },
 });
 
