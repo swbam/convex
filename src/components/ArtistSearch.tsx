@@ -6,7 +6,7 @@ import { Loader2, Search } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 
 interface ArtistSearchProps {
   onArtistClick: (artistId: Id<"artists">, slug?: string) => void;
