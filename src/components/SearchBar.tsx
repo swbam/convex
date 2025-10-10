@@ -148,32 +148,30 @@ export function SearchBar({
   })
 
   const handleResultClick = async (result: SearchResult) => {
-    // If this is a Ticketmaster result (no slug), kick off sync but navigate immediately
+    // If this is a Ticketmaster result (no slug), kick off sync and navigate by ID
     if (result.type === 'artist' && !result.slug) {
-      const slug = result.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      
       try {
-        // First trigger the sync to create the artist and get the real ID
+        // Trigger the sync to create the artist and get the real Convex ID
         const artistId = await triggerFullArtistSync({
           ticketmasterId: result.id,
           artistName: result.title,
           genres: result.subtitle ? result.subtitle.split(', ').filter(Boolean) : undefined,
           images: result.image ? [result.image] : undefined,
         });
-        
+
         console.log(`✅ Artist ${result.title} created with ID: ${artistId}`);
-        
-        // Navigate with the real artist ID
-        onResultClick(result.type, artistId, slug);
+
+        // Navigate using the canonical ID; the app will canonicalize to slug when available
+        onResultClick(result.type, artistId);
         setIsOpen(false);
         setQuery('');
-        
+
         toast.success(`Importing ${result.title} data...`);
       } catch (error) {
         console.error('Failed to trigger artist sync:', error);
         toast.error('Failed to import artist data');
       }
-      
+
       return;
     } else {
       onResultClick(result.type, result.id as any, result.slug)

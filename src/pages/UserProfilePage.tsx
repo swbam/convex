@@ -34,10 +34,11 @@ export function UserProfilePage() {
     }
   }, [hasSpotify, activeTab]);
   
-  // Redirect if not signed in
+  // Redirect if not signed in (client-side guard)
   if (!isSignedIn) {
-    navigate('/signin');
-    return null;
+    return (
+      <RedirectToSignIn signInUrl="/signin" />
+    );
   }
   
   const handleArtistClick = (artistId: Id<'artists'>, slug?: string) => {
