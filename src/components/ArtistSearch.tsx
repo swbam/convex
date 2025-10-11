@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, useAction } from "convex/react";
+import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Loader2, Search } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 
 interface ArtistSearchProps {
   onArtistClick: (artistId: Id<"artists">, slug?: string) => void;
@@ -16,9 +16,9 @@ export function ArtistSearch({ onArtistClick }: ArtistSearchProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [isSyncing, setIsSyncing] = useState<Record<string, boolean>>({}); // Per artist loading
-  const searchResults = useQuery(api.ticketmaster.searchArtists, { query: searchTerm || "skip" });
+  const [results, setResults] = useState<any[]>([]);
+  const searchArtists = useAction(api.ticketmaster.searchArtists);
   const triggerSync = useAction(api.ticketmaster.triggerFullArtistSync);
-  const getArtist = useQuery(api.artists.getBySlugOrId, { key: "" }); // For polling
 
   const handleArtistSelect = async (artist: any) => {
     const artistKey = artist.ticketmasterId || artist._id;
@@ -33,21 +33,9 @@ export function ArtistSearch({ onArtistClick }: ArtistSearchProps) {
         images: artist.images,
       });
 
-      // Poll for sync completion
-      const startTime = Date.now();
-      const pollInterval = setInterval(async () => {
-        const polledArtist = await getArtist({ key: artistId }); // Use ID as key
-        if (polledArtist && polledArtist.upcomingShowsCount > 0) {
-          clearInterval(pollInterval);
-          setIsSyncing(prev => ({ ...prev, [artistKey]: false }));
-          onArtistClick(artistId, polledArtist.slug);
-        } else if (Date.now() - startTime > 10000) { // 10s timeout
-          clearInterval(pollInterval);
-          setIsSyncing(prev => ({ ...prev, [artistKey]: false }));
-          toast.warning("Sync taking longer than expected. Continuing...");
-          onArtistClick(artistId);
-        }
-      }, 1000);
+      // Navigate immediately using ID; app will canonicalize to slug when available
+      onArtistClick(artistId);
+      toast.success(`Importing ${artist.name} data...`);
 
     } catch (error) {
       setIsSyncing(prev => ({ ...prev, [artistKey]: false }));
@@ -58,17 +46,14 @@ export function ArtistSearch({ onArtistClick }: ArtistSearchProps) {
   const handleSearch = async (query: string) => {
     setSearchTerm(query);
     if (!query.trim()) {
-      // setResults([]); // This state is no longer used
+      setResults([]);
       return;
     }
 
     setIsSearching(true);
     try {
-      // For now, filter trending artists by name
-      // const filtered = trendingArtists?.filter(artist => 
-      //   artist.name.toLowerCase().includes(query.toLowerCase())
-      // ) || [];
-      // setResults(filtered); // This state is no longer used
+      const tmResults = await searchArtists({ query, limit: 10 });
+      setResults(tmResults || []);
     } catch (error) {
       console.error("Search failed:", error);
     } finally {
@@ -76,7 +61,7 @@ export function ArtistSearch({ onArtistClick }: ArtistSearchProps) {
     }
   };
 
-  const displayArtists = searchTerm ? searchResults || [] : [];
+  const displayArtists = searchTerm ? results || [] : [];
 
   return (
     <div className="container mx-auto px-4 py-8">
