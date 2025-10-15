@@ -902,3 +902,121 @@ export const updateUserRole = mutation({
     return { success: true };
   },
 });
+
+// ===== SYSTEM LOGS =====
+
+export const getSystemLogs = query({
+  args: { 
+    limit: v.optional(v.number()),
+    type: v.optional(v.string()),
+  },
+  returns: v.array(v.object({
+    _id: v.id("userActions"),
+    userId: v.union(v.id("users"), v.string()),
+    action: v.string(),
+    timestamp: v.number(),
+    username: v.optional(v.string()),
+  })),
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    
+    const limit = args.limit || 100;
+    
+    // Get recent user actions
+    let query = ctx.db.query("userActions").order("desc");
+    
+    if (args.type) {
+      query = query.filter((q) => q.eq(q.field("action"), args.type));
+    }
+    
+    const actions = await query.take(limit);
+    
+    // Enrich with user data
+    const enriched = await Promise.all(
+      actions.map(async (action) => {
+        let username = "Unknown";
+        
+        if (typeof action.userId === "string") {
+          username = "Anonymous";
+        } else {
+          const user = await ctx.db.get(action.userId);
+          username = user?.username || user?.email || "Unknown";
+        }
+        
+        return {
+          ...action,
+          username,
+        };
+      })
+    );
+    
+    return enriched;
+  },
+});
+
+export const getRecentActivity = query({
+  args: { limit: v.optional(v.number()) },
+  returns: v.array(v.object({
+    type: v.string(),
+    description: v.string(),
+    timestamp: v.number(),
+    user: v.optional(v.string()),
+  })),
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    
+    const limit = args.limit || 50;
+    
+    // Get recent votes, setlists, and user actions
+    const [recentVotes, recentSetlists, recentUsers] = await Promise.all([
+      ctx.db.query("votes").order("desc").take(20),
+      ctx.db.query("setlists").order("desc").take(20),
+      ctx.db.query("users").order("desc").take(20),
+    ]);
+    
+    const activities = [];
+    
+    // Process votes
+    for (const vote of recentVotes) {
+      const voteUser = await ctx.db.get(vote.userId);
+      const setlist = await ctx.db.get(vote.setlistId);
+      
+      activities.push({
+        type: "vote",
+        description: `${voteUser?.username || "User"} voted ${vote.voteType} on a setlist`,
+        timestamp: vote.createdAt,
+        user: voteUser?.username || voteUser?.email,
+      });
+    }
+    
+    // Process setlists
+    for (const setlist of recentSetlists) {
+      if (setlist.userId) {
+        const setlistUser = await ctx.db.get(setlist.userId);
+        const show = await ctx.db.get(setlist.showId);
+        
+        activities.push({
+          type: "setlist",
+          description: `${setlistUser?.username || "User"} created a setlist${show ? ` for show` : ""}`,
+          timestamp: setlist._creationTime,
+          user: setlistUser?.username || setlistUser?.email,
+        });
+      }
+    }
+    
+    // Process new users
+    for (const newUser of recentUsers) {
+      activities.push({
+        type: "user",
+        description: `New user registered: ${newUser.username || newUser.email}`,
+        timestamp: newUser.createdAt,
+        user: newUser.username || newUser.email,
+      });
+    }
+    
+    // Sort by timestamp and limit
+    return activities
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, limit);
+  },
+});

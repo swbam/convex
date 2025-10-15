@@ -10,7 +10,7 @@ import { ShimmerButton } from "./ui/shimmer-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
-import { TrendingUp, Users, Music, Calendar, Flag, Database, Mic, CheckCircle, AlertCircle, Loader2, Shield, Lock, Search, Trash2, RefreshCw, UserCheck } from "lucide-react";
+import { Activity, TrendingUp, Users, Music, Calendar, Flag, Database, Mic, CheckCircle, AlertCircle, Loader2, Shield, Lock, Search, Trash2, RefreshCw, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
@@ -46,18 +46,18 @@ export function AdminDashboard() {
   const pendingFlags = useMemo(() => (flagged || []).filter(f => f.status === "pending"), [flagged]);
 
   const [tab, setTab] = useState('stats');
-  const [selectedFlagged, setSelectedFlagged] = useState<Set<Id<'flagged'>>>(new Set());
+  const [selectedFlagged, setSelectedFlagged] = useState<Set<Id<'contentFlags'>>>(new Set());
   const [userSearch, setUserSearch] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<Set<Id<'users'>>>(new Set());
 
   // Filtered flagged
   const filteredFlagged = useMemo(() => 
-    flagged?.filter(f => f.content.includes(userSearch)) || []
+    flagged?.filter(f => f.reason.toLowerCase().includes(userSearch.toLowerCase())) || []
   , [flagged, userSearch]);
 
   // Filtered users
   const filteredUsers = useMemo(() => 
-    users?.filter(u => u.email.includes(userSearch)) || []
+    users?.filter(u => u.email?.toLowerCase().includes(userSearch.toLowerCase())) || []
   , [users, userSearch]);
 
   const handleSyncTrending = async () => {
@@ -335,10 +335,11 @@ export function AdminDashboard() {
                 />
                 <div className="flex-1">
                   <p className="text-white">Flag: {flag.reason}</p>
-                  <p className="text-gray-400 text-sm">User: {flag.userId}, Date: {new Date(flag.createdAt).toLocaleString()}</p>
+                  <p className="text-gray-400 text-sm">Reporter: {flag.reporterId}, Date: {new Date(flag.createdAt).toLocaleString()}</p>
+                  <p className="text-gray-400 text-sm">Content: {flag.contentType} - {flag.contentId}</p>
                 </div>
-                <Button size="sm" onClick={() => verifySetlist({ id: flag._id, approved: true })}>Approve</Button>
-                <Button size="sm" variant="destructive" onClick={() => verifySetlist({ id: flag._id, approved: false })}>Reject</Button>
+                <Button size="sm" onClick={() => toast.info("Flag review coming soon")}>Review</Button>
+                <Button size="sm" variant="destructive" onClick={() => toast.info("Flag deletion coming soon")}>Delete</Button>
               </div>
             ))}
           </div>
@@ -452,9 +453,67 @@ export function AdminDashboard() {
           </div>
         </TabsContent>
 
-        <TabsContent value="logs" className="space-y-4">
-          {/* Add logs query if needed */}
-          <div>Recent logs here...</div>
+        <TabsContent value="logs" className="space-y-6">
+          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                  <Activity className="h-4 w-4 text-blue-400" />
+                </div>
+                <h2 className="text-xl font-semibold text-white">Recent Activity</h2>
+              </div>
+
+              {(() => {
+                const recentActivity = useQuery(api.admin.getRecentActivity, { limit: 50 });
+                
+                if (!recentActivity) {
+                  return (
+                    <div className="space-y-3">
+                      {[...Array(10)].map((_, i) => (
+                        <div key={i} className="animate-pulse bg-white/5 rounded-lg p-4 h-16" />
+                      ))}
+                    </div>
+                  );
+                }
+                
+                if (recentActivity.length === 0) {
+                  return (
+                    <div className="text-center py-12">
+                      <Activity className="h-12 w-12 mx-auto mb-4 text-gray-500" />
+                      <p className="text-gray-400">No recent activity</p>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div className="space-y-2">
+                    {recentActivity.map((activity: any, idx: number) => (
+                      <div key={idx} className="flex items-start gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                        <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                          {activity.type === 'vote' && <TrendingUp className="h-4 w-4 text-green-400" />}
+                          {activity.type === 'setlist' && <Music className="h-4 w-4 text-blue-400" />}
+                          {activity.type === 'user' && <UserCheck className="h-4 w-4 text-purple-400" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-sm">{activity.description}</p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {new Date(activity.timestamp).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit'
+                            })}
+                            {activity.user && ` • ${activity.user}`}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+            <BorderBeam size={80} duration={8} className="opacity-20" />
+          </MagicCard>
         </TabsContent>
       </Tabs>
     </div>
@@ -476,5 +535,3 @@ function StatCard({ icon, label, value }: {
     </div>
   );
 }
-
-

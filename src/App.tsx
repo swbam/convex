@@ -39,24 +39,10 @@ function App() {
 
 
 
-  const createAppUser = useMutation(api.auth.createAppUser);
   const user = useQuery(api.auth.loggedInUser);
 
-  // Auto-create app user when authenticated
-  useEffect(() => {
-    console.log('🔍 User state:', { 
-      hasUser: !!user, 
-      hasAppUser: !!user?.appUser,
-      identity: user?.identity 
-    });
-    
-    if (user && user.identity && !user.appUser) {
-      console.log('🔵 Calling createAppUser...');
-      createAppUser()
-        .then(id => console.log('✅ User created:', id))
-        .catch(err => console.error('❌ User creation failed:', err));
-    }
-  }, [user, createAppUser]);
+  // Note: User creation is now handled by AuthGuard component
+  // This prevents duplicate creation attempts and race conditions
 
   // Extract slug from URL safely
   const getSlugFromPath = (path: string, prefix: string) => {
@@ -179,12 +165,22 @@ function App() {
     }
   };
 
-  const handleArtistClick = (artistId: Id<"artists">, slug?: string) => {
-    handleViewChange("artist", artistId, slug);
+  const handleArtistClick = (artistKey: string | Id<"artists">, slug?: string) => {
+    // If artistKey is a string slug, we'll navigate with it directly
+    // If it's an Id, we use it as before
+    const artistId = typeof artistKey === 'string' && artistKey.startsWith('k') 
+      ? artistKey as Id<"artists">
+      : artistKey as Id<"artists">;
+    handleViewChange("artist", artistId, slug || (typeof artistKey === 'string' && !artistKey.startsWith('k') ? artistKey : undefined));
   };
 
-  const handleShowClick = (showId: Id<"shows">, slug?: string) => {
-    handleViewChange("show", showId, slug);
+  const handleShowClick = (showKey: string | Id<"shows">, slug?: string) => {
+    // If showKey is a string slug, we'll navigate with it directly
+    // If it's an Id, we use it as before
+    const showId = typeof showKey === 'string' && showKey.startsWith('k')
+      ? showKey as Id<"shows">
+      : showKey as Id<"shows">;
+    handleViewChange("show", showId, slug || (typeof showKey === 'string' && !showKey.startsWith('k') ? showKey : undefined));
   };
 
   const handleSignInRequired = () => {
@@ -195,12 +191,12 @@ function App() {
   // Page transition variants
   const pageVariants = {
     initial: { opacity: 0, y: 20 },
-    enter: { 
+    animate: { 
       opacity: 1, 
       y: 0,
       transition: {
         duration: 0.4,
-        ease: [0.16, 1, 0.3, 1]
+        ease: [0.16, 1, 0.3, 1] as any
       }
     },
     exit: { 
@@ -384,7 +380,27 @@ function App() {
       <div className="fixed inset-0 bg-gradient-to-br from-black via-gray-950 to-black" />
       
       <div className="relative z-10">
-        <ErrorBoundary>
+        <ErrorBoundary
+          fallback={
+            <div className="min-h-screen bg-black flex items-center justify-center p-4">
+              <div className="text-center max-w-md">
+                <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-bold text-white mb-2">Something went wrong</h2>
+                <p className="text-gray-400 mb-6">We encountered an unexpected error. Please try refreshing the page.</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-all duration-200 border border-white/20"
+                >
+                  Refresh Page
+                </button>
+              </div>
+            </div>
+          }
+        >
           <AuthGuard>
             <ScrollToTop />
             <AppLayout>
@@ -393,7 +409,7 @@ function App() {
                 key={location.pathname}
                 variants={pageVariants}
                 initial="initial"
-                animate="enter"
+                animate="animate"
                 exit="exit"
               >
                 {renderMainContent()}

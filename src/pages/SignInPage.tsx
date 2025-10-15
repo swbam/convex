@@ -37,23 +37,9 @@ export function SignInPage() {
     return () => clearTimeout(timeout);
   }, [isLoaded, signIn]);
 
-  useEffect(() => {
-    if (isSignedIn && user?.publicMetadata?.spotifyId) {
-      // Post-sign-in import if Spotify connected
-      setIsImporting(true);
-      const spotifyData = {
-        followedArtists: [], // Fetch from Clerk metadata or localStorage/callback params
-        topArtists: [], // Similar
-        // Assume data from OAuth callback or user metadata
-      };
-      importSpotifyArtists(spotifyData)
-        .then((result) => {
-          toast.success(result.message);
-        })
-        .catch((e) => toast.error("Spotify import failed"))
-        .finally(() => setIsImporting(false));
-    }
-  }, [isSignedIn, user]);
+  // CRITICAL FIX: Removed automatic Spotify import on sign-in
+  // Spotify data import is now handled by SSOCallback page after OAuth completion
+  // This prevents the bug where empty arrays were being imported
 
   if (isImporting) {
     return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /> Importing Spotify...</div>;
