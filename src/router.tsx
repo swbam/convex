@@ -5,6 +5,8 @@ import { SignInPage } from './pages/SignInPage';
 import { SignUpPage } from './pages/SignUpPage';
 import { UserProfilePage } from './pages/UserProfilePage';
 import { SSOCallback } from './pages/SSOCallback';
+import { PrivacyPage } from './pages/PrivacyPage';
+import { TermsPage } from './pages/TermsPage';
 import { AdminTest } from './components/AdminTest';
 import { ArtistNotFound } from './components/ArtistNotFound'; // New component
 import { ShowNotFound } from './components/ShowNotFound'; // Assume similar for shows
@@ -79,6 +81,14 @@ export const router = createBrowserRouter([
   {
     path: '/search',
     element: <App />,
+  },
+  {
+    path: '/privacy',
+    element: <PrivacyPage />,
+  },
+  {
+    path: '/terms',
+    element: <TermsPage />,
   },
   {
     path: '*',

@@ -17,7 +17,7 @@ export function SSOCallback() {
   const navigate = useNavigate();
   const [error, setError] = React.useState<string | null>(null);
   const [isImportingSpotify, setIsImportingSpotify] = React.useState(false);
-  const importSpotifyArtists = useAction(api.spotifyAuth.importUserSpotifyArtistsWithToken);
+  const completeSpotifyImport = useAction(api.spotifyOAuth.completeSpotifyImport);
 
   useEffect(() => {
     async function handleCallback() {
@@ -43,33 +43,53 @@ export function SSOCallback() {
               
               if (spotifyAccount) {
                 console.log('🎵 Spotify account detected, fetching data...');
+                console.log('Spotify account details:', spotifyAccount);
                 setIsImportingSpotify(true);
                 
-                // Fetch Spotify data using the OAuth token
-                const token = spotifyAccount.approvedScopes?.length ? 
-                  (spotifyAccount as any).verification?.externalVerificationRedirectURL : null;
+                // Extract access token from Clerk's Spotify account
+                // Clerk stores the OAuth token in the verification object
+                const accessToken = (spotifyAccount as any).verification?.externalVerificationToken || 
+                                   (spotifyAccount as any).accessToken ||
+                                   null;
                 
-                // Fetch followed artists and top artists from Spotify API
+                if (!accessToken) {
+                  console.error('❌ No access token found in Spotify account');
+                  console.log('Available properties:', Object.keys(spotifyAccount));
+                  toast.warning('Spotify connected but token not available', {
+                    description: 'You can manually sync from your profile later.',
+                  });
+                  navigate('/');
+                  return;
+                }
+                
+                console.log('✅ Found Spotify access token, fetching artist data...');
+                
                 try {
-                  // Note: In production, you'd use the actual access token from Clerk
-                  // For now, we'll create a placeholder implementation
-                  // The actual Spotify API calls would happen in a Convex action
-                  
-                  const result = await importSpotifyArtists({
-                    followedArtists: [], // Will be populated by Convex action
-                    topArtists: [], // Will be populated by Convex action
+                  // Use the new Spotify OAuth action to fetch and import real data
+                  const result = await completeSpotifyImport({
+                    accessToken: accessToken,
                   });
                   
                   console.log('✅ Spotify import result:', result);
-                  toast.success('Welcome! Your Spotify artists are being imported.', {
-                    description: 'This may take a moment...',
-                  });
+                  
+                  if (result.imported > 0 || result.correlated > 0) {
+                    toast.success('Spotify artists imported successfully!', {
+                      description: `Imported ${result.imported} new artists, found ${result.correlated} existing artists.`,
+                      duration: 5000,
+                    });
+                  } else {
+                    toast.info('Spotify connected', {
+                      description: 'No new artists to import at this time.',
+                    });
+                  }
                 } catch (importError) {
                   console.error('❌ Failed to import Spotify artists:', importError);
                   toast.error('Failed to import Spotify artists', {
                     description: 'You can manually sync later from your profile.',
                   });
                 }
+              } else {
+                console.log('No Spotify account found, proceeding with normal login');
               }
             }
           } catch (err) {
@@ -78,7 +98,7 @@ export function SSOCallback() {
           
           // Redirect to home regardless of Spotify import status
           navigate('/');
-        }, 1000);
+        }, 1500); // Slightly longer delay to ensure Clerk has fully updated
         
       } catch (err: any) {
         console.error('OAuth callback error:', err);
@@ -92,7 +112,7 @@ export function SSOCallback() {
     }
 
     void handleCallback();
-  }, [handleRedirectCallback, user, navigate, importSpotifyArtists]);
+  }, [handleRedirectCallback, user, navigate, completeSpotifyImport]);
 
   if (error) {
     return (

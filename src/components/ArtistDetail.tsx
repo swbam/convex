@@ -137,56 +137,58 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         </button>
       </MagicCard>
 
-      {/* Revamped Header with Cover Photo Background */}
-      <div className="relative overflow-hidden rounded-2xl">
-        {/* Background Cover Image */}
+      {/* Apple-Level Header Design - Full Width Background */}
+      <div className="relative overflow-hidden rounded-xl sm:rounded-2xl -mx-4 sm:mx-0">
+        {/* Full-Width Background Cover Image */}
         {artist.images?.[0] && (
           <div className="absolute inset-0 z-0">
             <img
               src={artist.images[0]}
               alt=""
-              className="w-full h-full object-cover opacity-30 blur-sm scale-110"
+              className="w-full h-full object-cover opacity-20 blur-md scale-105"
             />
-            {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-black" />
+            {/* Sophisticated Gradient Overlay - Apple Style */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/85 to-black" />
           </div>
         )}
         
-        {/* Content */}
-        <div className="relative z-10 p-6 sm:p-8 lg:p-10">
-          <div className="flex items-end gap-4 sm:gap-6">
-            {/* Large Profile Image */}
+        {/* Content - Compact on Mobile, Spacious on Desktop */}
+        <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
+            {/* Profile Image - Smaller on Mobile */}
             {artist.images?.[0] && (
               <div className="flex-shrink-0">
                 <img
                   src={artist.images[0]}
                   alt={artist.name}
-                  className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 rounded-2xl object-cover shadow-2xl border-4 border-black/50"
+                  className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10"
                 />
               </div>
             )}
             
-            {/* Artist Info */}
-            <div className="flex-1 min-w-0 pb-2">
-              <p className="text-xs sm:text-sm font-medium text-gray-300 mb-2 uppercase tracking-wider">Artist</p>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-3 leading-tight">
+            {/* Artist Info - Optimized for Mobile */}
+            <div className="flex-1 min-w-0 w-full sm:pb-2">
+              <p className="text-xs font-semibold text-white/60 mb-1 sm:mb-2 uppercase tracking-widest">Artist</p>
+              <h1 className="text-2xl sm:text-3xl lg:text-5xl xl:text-6xl font-bold text-white mb-2 sm:mb-3 leading-tight tracking-tight">
                 {artist.name}
               </h1>
-              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-300">
+              
+              {/* Stats Row - Compact on Mobile */}
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-white/80">
                 {artist.followers && (
                   <div className="flex items-center gap-1.5">
-                    <Users className="h-4 w-4" />
-                    <span className="font-medium">{(artist.followers / 1000000).toFixed(1)}M followers</span>
+                    <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="font-medium">{(artist.followers / 1000000).toFixed(1)}M</span>
                   </div>
                 )}
                 <div className="flex items-center gap-1.5">
-                  <Calendar className="h-4 w-4" />
-                  <span className="font-medium">{upcomingShows.length} upcoming {upcomingShows.length === 1 ? 'show' : 'shows'}</span>
+                  <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="font-medium">{upcomingShows.length} {upcomingShows.length === 1 ? 'show' : 'shows'}</span>
                 </div>
                 {artist.genres && artist.genres.length > 0 && (
                   <div className="hidden sm:flex items-center gap-2">
-                    {artist.genres.slice(0, 2).map((genre, idx) => (
-                      <span key={idx} className="px-2 py-1 bg-white/10 rounded-full text-xs font-medium">
+                    {artist.genres.slice(0, 2).map((genre: any, idx: number) => (
+                      <span key={idx} className="px-2.5 py-1 bg-white/10 backdrop-blur-sm rounded-full text-xs font-medium">
                         {genre}
                       </span>
                     ))}

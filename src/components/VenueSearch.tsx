@@ -1,16 +1,16 @@
 import { useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
-import { MapPin, Search, Navigation, Users, Calendar, Loader2 } from "lucide-react";
+import { MapPin, Search, Loader2, Music } from "lucide-react";
 
 export function VenueSearch() {
   const [zipCode, setZipCode] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [radius, setRadius] = useState(40); // Default 40 miles
+  const [shows, setShows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
-  const venues = useQuery(api.venues.search, zipCode.length === 5 ? { query: zipCode, limit: 50 } : "skip");
+  const searchShowsByZipCode = useAction(api.ticketmaster.searchShowsByZipCode);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,15 +21,24 @@ export function VenueSearch() {
 
     setLoading(true);
     try {
-      // Use the venues from the query instead of undefined searchVenues function
-      if (venues) {
-        setResults(venues);
-        if (venues.length === 0) {
-          toast.info("No venues found within 40 miles of this zip code");
-        }
+      console.log(`🔍 Searching for shows near ${zipCode} within ${radius} miles...`);
+      
+      const results = await searchShowsByZipCode({
+        zipCode,
+        radius,
+        limit: 50,
+      });
+      
+      console.log(`✅ Found ${results.length} shows`);
+      setShows(results);
+      
+      if (results.length === 0) {
+        toast.info(`No upcoming shows found within ${radius} miles of ${zipCode}`);
+      } else {
+        toast.success(`Found ${results.length} upcoming shows near you!`);
       }
     } catch (error) {
-      toast.error("Failed to search venues");
+      toast.error("Failed to search shows");
       console.error(error);
     } finally {
       setLoading(false);
@@ -65,14 +74,14 @@ export function VenueSearch() {
           </button>
         </form>
 
-        {results.length > 0 && (
+        {shows.length > 0 && (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold">
-              {results.length} venues found within 40 miles
+            <h2 className="text-xl font-semibold text-white">
+              {shows.length} upcoming shows found within {radius} miles
             </h2>
             <div className="space-y-3">
-              {results.map((venue) => (
-                <VenueCard key={venue._id} venue={venue} />
+              {shows.map((show) => (
+                <ShowCard key={show.ticketmasterId} show={show} />
               ))}
             </div>
           </div>
@@ -82,27 +91,72 @@ export function VenueSearch() {
   );
 }
 
-function VenueCard({ venue }: { venue: any }) {
+function ShowCard({ show }: { show: any }) {
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
   return (
-    <div className="rounded-lg border bg-card p-4 hover:bg-accent transition-colors">
-      <div className="flex justify-between items-start">
-        <div className="flex-1">
-          <h3 className="font-semibold text-lg">{venue.name}</h3>
-          <div className="flex items-center gap-1 text-muted-foreground mt-1">
-            <MapPin className="h-4 w-4" />
-            <span>{venue.city}, {venue.country}</span>
+    <div className="rounded-xl border border-white/10 bg-black/50 p-4 hover:bg-white/5 transition-all duration-200 cursor-pointer">
+      <div className="flex gap-4">
+        {/* Artist Image */}
+        {show.artistImage && (
+          <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
+            <img 
+              src={show.artistImage} 
+              alt={show.artistName}
+              className="w-full h-full object-cover"
+            />
           </div>
-          {venue.capacity && (
-            <p className="text-sm text-muted-foreground mt-1">
-              Capacity: {venue.capacity.toLocaleString()}
-            </p>
-          )}
-        </div>
-        <div className="text-right">
-          <div className="text-sm font-medium text-primary">
-            {venue.distance ? venue.distance.toFixed(1) : '0'} miles
+        )}
+        
+        {/* Show Info */}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-white text-lg truncate mb-1">
+            {show.artistName}
+          </h3>
+          
+          <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+            <MapPin className="h-4 w-4 flex-shrink-0" />
+            <span className="truncate">
+              {show.venueName} • {show.venueCity}{show.venueState ? `, ${show.venueState}` : ''}
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-4 text-sm">
+            <span className="text-gray-300">
+              {formatDate(show.date)}
+              {show.startTime && ` • ${show.startTime}`}
+            </span>
+            
+            {show.priceRange && (
+              <span className="text-primary font-medium">
+                {show.priceRange}
+              </span>
+            )}
           </div>
         </div>
+        
+        {/* Ticket Link */}
+        {show.ticketUrl && (
+          <div className="flex items-center">
+            <a
+              href={show.ticketUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="px-4 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg text-sm font-medium transition-colors"
+            >
+              Tickets
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

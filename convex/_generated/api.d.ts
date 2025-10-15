@@ -34,6 +34,7 @@ import type * as songVotes from "../songVotes.js";
 import type * as songs from "../songs.js";
 import type * as spotify from "../spotify.js";
 import type * as spotifyAuth from "../spotifyAuth.js";
+import type * as spotifyOAuth from "../spotifyOAuth.js";
 import type * as syncJobs from "../syncJobs.js";
 import type * as syncStatus from "../syncStatus.js";
 import type * as ticketmaster from "../ticketmaster.js";
@@ -74,6 +75,7 @@ declare const fullApi: ApiFromModules<{
   songs: typeof songs;
   spotify: typeof spotify;
   spotifyAuth: typeof spotifyAuth;
+  spotifyOAuth: typeof spotifyOAuth;
   syncJobs: typeof syncJobs;
   syncStatus: typeof syncStatus;
   ticketmaster: typeof ticketmaster;

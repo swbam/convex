@@ -333,31 +333,45 @@ export const getTrendingShows = action({
         if (event.dates?.status?.code === 'cancelled') return false;
         if (event.dates?.status?.code === 'postponed') return false;
         
-        // Include major venues
+        // Include major concert venues (exclude theaters for plays)
         const isMajorVenue = venueName.includes('stadium') || 
                             venueName.includes('arena') || 
                             venueName.includes('center') ||
                             venueName.includes('amphitheatre') ||
                             venueName.includes('amphitheater') ||
-                            venueName.includes('theater') ||
-                            venueName.includes('theatre') ||
                             venueName.includes('hall') ||
                             venueName.includes('sphere') ||
-                            venueName.includes('bowl');
+                            venueName.includes('bowl') ||
+                            venueName.includes('pavilion') ||
+                            venueName.includes('club');
         
-        // CRITICAL: Exclude tribute/cover bands, film screenings, orchestras playing movie scores
-        const isTribute = artistName.includes('tribute') || 
-                         artistName.includes('experience') ||
-                         artistName.includes('cover') ||
-                         artistName.includes('film with') ||
-                         artistName.includes('- film') ||
-                         artistName.includes('orchestra') ||
-                         artistName.includes('symphony');
+        // CRITICAL: Exclude non-concert events
+        const isNonConcert = artistName.includes('tribute') || 
+                            artistName.includes('experience') ||
+                            artistName.includes('cover') ||
+                            artistName.includes('film with') ||
+                            artistName.includes('- film') ||
+                            artistName.includes('orchestra') ||
+                            artistName.includes('symphony') ||
+                            artistName.includes('ballet') ||
+                            artistName.includes('opera') ||
+                            artistName.includes('broadway') ||
+                            artistName.includes('musical') ||
+                            artistName.includes('cirque') ||
+                            artistName.includes('comedy') ||
+                            venueName.includes('playhouse') ||
+                            venueName.includes('opera house');
+        
+        // Check if it's actually a music concert (not theater/play)
+        const eventName = event.name?.toLowerCase() || '';
+        const isPlay = eventName.includes('play') || 
+                      eventName.includes('musical') ||
+                      eventName.includes('broadway');
         
         // Exclude very niche/small genres
         const hasGoodImage = event._embedded?.attractions?.[0]?.images?.length > 0;
         
-        return isMajorVenue && !isTribute && hasGoodImage;
+        return isMajorVenue && !isNonConcert && !isPlay && hasGoodImage;
       });
       
       console.log(`🎯 Filtered to ${majorEvents.length} major venue events`);
@@ -460,6 +474,114 @@ export const getTrendingArtists = action({
       }));
     } catch (error) {
       console.error("Failed to get trending artists:", error);
+      return [];
+    }
+  },
+});
+
+// Search shows by zip code with radius (for venue search page)
+export const searchShowsByZipCode = action({
+  args: {
+    zipCode: v.string(),
+    radius: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(v.object({
+    ticketmasterId: v.string(),
+    artistTicketmasterId: v.optional(v.string()),
+    artistName: v.string(),
+    artistImage: v.optional(v.string()),
+    venueName: v.string(),
+    venueCity: v.string(),
+    venueState: v.optional(v.string()),
+    date: v.string(),
+    startTime: v.optional(v.string()),
+    ticketUrl: v.optional(v.string()),
+    priceRange: v.optional(v.string()),
+  })),
+  handler: async (ctx, args) => {
+    const apiKey = process.env.TICKETMASTER_API_KEY;
+    if (!apiKey) {
+      console.error("TICKETMASTER_API_KEY not set");
+      return [];
+    }
+
+    const radius = args.radius || 40; // Default 40 miles
+    const limit = args.limit || 50;
+    
+    // Get upcoming shows within radius of zip code
+    const now = new Date();
+    const startDate = now.toISOString().split('T')[0];
+    const futureDate = new Date(now.getTime() + (180 * 24 * 60 * 60 * 1000)); // Next 6 months
+    const endDate = futureDate.toISOString().split('T')[0];
+    
+    const url = `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&postalCode=${args.zipCode}&radius=${radius}&unit=miles&startDateTime=${startDate}T00:00:00Z&endDateTime=${endDate}T23:59:59Z&size=${limit}&sort=date,asc&apikey=${apiKey}`;
+
+    try {
+      console.log(`🔍 Searching shows near ${args.zipCode} within ${radius} miles...`);
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        console.error("Ticketmaster API error:", response.status);
+        return [];
+      }
+
+      const data = await response.json();
+      const events = data._embedded?.events || [];
+      
+      console.log(`✅ Found ${events.length} shows near ${args.zipCode}`);
+      
+      // Filter to only real concerts (no plays, theater, etc.)
+      const concerts = events.filter((event: any) => {
+        const venueName = event._embedded?.venues?.[0]?.name?.toLowerCase() || '';
+        const artistName = event._embedded?.attractions?.[0]?.name?.toLowerCase() || '';
+        const eventName = event.name?.toLowerCase() || '';
+        
+        // Exclude non-concert events
+        const isNonConcert = artistName.includes('tribute') || 
+                            artistName.includes('orchestra') ||
+                            artistName.includes('symphony') ||
+                            artistName.includes('ballet') ||
+                            artistName.includes('opera') ||
+                            artistName.includes('broadway') ||
+                            artistName.includes('musical') ||
+                            artistName.includes('comedy') ||
+                            eventName.includes('play') ||
+                            eventName.includes('musical') ||
+                            venueName.includes('playhouse') ||
+                            venueName.includes('opera house');
+        
+        return !isNonConcert && event._embedded?.attractions?.[0]?.images?.length > 0;
+      });
+      
+      console.log(`🎯 Filtered to ${concerts.length} concerts`);
+      
+      return concerts.map((event: any) => ({
+        ticketmasterId: String(event.id || ''),
+        artistTicketmasterId: String(event._embedded?.attractions?.[0]?.id || ''),
+        artistName: String(event._embedded?.attractions?.[0]?.name || 'Unknown Artist'),
+        artistImage: (() => {
+          const images = event._embedded?.attractions?.[0]?.images || [];
+          const bestImage = images
+            .filter((img: any) => img.url && img.width && img.height)
+            .sort((a: any, b: any) => {
+              const aRatio = Math.abs((a.width / a.height) - (16/9));
+              const bRatio = Math.abs((b.width / b.height) - (16/9));
+              if (Math.abs(aRatio - bRatio) > 0.1) return aRatio - bRatio;
+              return b.width - a.width;
+            })[0];
+          return bestImage?.url ? String(bestImage.url) : undefined;
+        })(),
+        venueName: String(event._embedded?.venues?.[0]?.name || 'Unknown Venue'),
+        venueCity: String(event._embedded?.venues?.[0]?.city?.name || ''),
+        venueState: event._embedded?.venues?.[0]?.state?.stateCode ? String(event._embedded.venues[0].state.stateCode) : undefined,
+        date: String(event.dates?.start?.localDate || ''),
+        startTime: event.dates?.start?.localTime ? String(event.dates.start.localTime) : undefined,
+        ticketUrl: event.url ? String(event.url) : undefined,
+        priceRange: event.priceRanges?.[0] ? `$${event.priceRanges[0].min}-${event.priceRanges[0].max}` : undefined,
+      }));
+    } catch (error) {
+      console.error("Failed to search shows by zip code:", error);
       return [];
     }
   },
