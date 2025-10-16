@@ -108,19 +108,45 @@ export const completeSpotifyImport = action({
     imported: v.number(),
     correlated: v.number(),
   }),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{
+    success: boolean;
+    message: string;
+    imported: number;
+    correlated: number;
+  }> => {
     console.log("🎵 Starting complete Spotify import...");
 
     try {
       // Fetch Spotify data
-      const spotifyData = await ctx.runAction(internal.spotifyOAuth.fetchUserSpotifyData, {
+      const spotifyData: {
+        followedArtists: Array<{
+          id: string;
+          name: string;
+          genres: string[];
+          images: Array<{ url: string }>;
+          followers: { total: number };
+          popularity: number;
+        }>;
+        topArtists: Array<{
+          id: string;
+          name: string;
+          genres: string[];
+          images: Array<{ url: string }>;
+          followers: { total: number };
+          popularity: number;
+        }>;
+      } = await ctx.runAction(api.spotifyOAuth.fetchUserSpotifyData, {
         accessToken: args.accessToken,
       });
 
       console.log(`📊 Fetched ${spotifyData.followedArtists.length} followed and ${spotifyData.topArtists.length} top artists`);
 
       // Import to database
-      const result = await ctx.runAction(api.spotifyAuth.importUserSpotifyArtistsWithToken, spotifyData);
+      const result: {
+        imported: number;
+        correlated: number;
+        message: string;
+      } = await ctx.runAction(api.spotifyAuth.importUserSpotifyArtistsWithToken, spotifyData);
 
       console.log(`✅ Import complete: ${result.imported} imported, ${result.correlated} correlated`);
 

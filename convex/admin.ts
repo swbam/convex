@@ -940,7 +940,11 @@ export const getSystemLogs = query({
           username = "Anonymous";
         } else {
           const user = await ctx.db.get(action.userId);
-          username = user?.username || user?.email || "Unknown";
+          if (user && "_tableName" in user && user._tableName === "users") {
+            username = (user as any).username || (user as any).email || "Unknown";
+          } else {
+            username = "Unknown";
+          }
         }
         
         return {
