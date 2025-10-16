@@ -155,26 +155,26 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
           
           <motion.div variants={containerVariants} className="relative">
             {/* Horizontal Scroll Container */}
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory -mx-2 px-2">
+            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory -mx-2 px-2 md:-mx-4 md:px-4">
               {isLoading ? (
                 [...Array(6)].map((_, i) => <ArtistCardSkeleton key={i} />)
               ) : dbTrendingArtists.length === 0 ? (
-                <div className="w-full flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-full flex flex-col items-center justify-center py-16 text-center min-h-[300px]">
                   <Music className="h-16 w-16 text-gray-800 mb-4" />
-                  <p className="text-gray-500 text-lg">No artists available</p>
-                  <p className="text-gray-600 text-sm mt-2">Check back soon</p>
+                  <p className="text-gray-500 text-lg">No trending artists yet</p>
+                  <p className="text-gray-600 text-sm mt-2">Artists will appear here once data is synced</p>
                 </div>
               ) : (
                 dbTrendingArtists.map((artist, index) => (
                   <motion.div key={artist._id} variants={cardVariants} custom={index}>
                     <ArtistCard 
-                  artist={artist}
+                      artist={artist}
                       onClick={() => navigateTo(`/artists/${artist.slug}`)}
                     />
                   </motion.div>
-              ))
-            )}
-          </div>
+                ))
+              )}
+            </div>
           </motion.div>
         </motion.section>
 
