@@ -124,50 +124,44 @@ export const getTrendingArtists = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
 
-    // Try trending ranked artists first (rank > 0 means it's been calculated)
-    let artists = await ctx.db
+    // Query artists by trending rank (ascending = rank 1, 2, 3...)
+    const trending = await ctx.db
       .query("artists")
       .withIndex("by_trending_rank")
       .order("asc")
-      .filter(q => q.and(
-        q.neq(q.field("trendingRank"), undefined),
-        q.gt(q.field("trendingRank"), 0) // Only ranked artists
-      ))
       .take(limit * 2);
-
-    // FALLBACK: If no trending ranks exist yet, get by popularity
-    if (artists.length === 0) {
-      console.log("⚠️ No trending ranks found for artists, falling back to popularity sort");
-      const allArtists = await ctx.db
-        .query("artists")
-        .filter(q => q.eq(q.field("isActive"), true))
-        .take(200); // FIXED: Use take instead of collect for performance
-
-      // Sort by popularity descending
-      artists = allArtists
-        .filter(a => typeof a.popularity === 'number' && a.popularity > 0)
-        .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
-        .slice(0, limit * 2);
+    
+    // Filter for artists with valid ranks
+    const withRanks = trending.filter(artist => 
+      artist.trendingRank && 
+      artist.trendingRank > 0 &&
+      artist.isActive !== false
+    );
+    
+    if (withRanks.length > 0) {
+      console.log(`✅ getTrendingArtists returning ${withRanks.length} artists`);
+      return { 
+        page: withRanks.slice(0, limit), 
+        isDone: withRanks.length < limit, 
+        continueCursor: undefined 
+      };
     }
-
-    // PRODUCTION FILTER: Balance quality with availability
-    const filtered = artists.filter(artist => {
-      const notUnknown = !artist.name.toLowerCase().includes("unknown");
-      const notGeneric = !artist.name.toLowerCase().match(/^(various|tba|tbd|tribute|cover|film|movie)/);
-      const hasBasicData = artist.name && artist.name.length > 0;
-      
-      // Relaxed: Require only name + not unknown/generic
-      // Images/Spotify are nice-to-have but not required for display
-      return hasBasicData && notUnknown && notGeneric;
-    }).slice(0, limit);
-
-    if (filtered.length < limit / 2) {
-      console.warn(`Trending filtered to ${filtered.length} items—check data population (popularity/images missing). Run syncs.`);
-    }
-
+    
+    // Fallback: Get by popularity if no trending ranks
+    console.log("⚠️ No trending ranks found, falling back to popularity");
+    const allActive = await ctx.db
+      .query("artists")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .take(200);
+    
+    const byPopularity = allActive
+      .filter(a => a.popularity && a.popularity > 0)
+      .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+      .slice(0, limit);
+    
     return { 
-      page: filtered, 
-      isDone: filtered.length < limit, 
+      page: byPopularity, 
+      isDone: byPopularity.length < limit, 
       continueCursor: undefined 
     };
   },

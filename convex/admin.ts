@@ -229,58 +229,84 @@ export const getAdminStats = query({
   returns: v.any(),
   handler: async (ctx) => {
     await requireAdmin(ctx); // Admin access required
-    const [users, artists, shows, setlists, votes] = await Promise.all([
-      ctx.db.query("users").collect(),
-      ctx.db.query("artists").collect(),
-      ctx.db.query("shows").collect(),
-      ctx.db.query("setlists").collect(),
-      ctx.db.query("votes").collect(),
-    ]);
     
-    // Calculate trending metrics
-    const activeUsers = users.length;
-    const last7Days = Date.now() - (7 * 24 * 60 * 60 * 1000);
-    const recentVotes = votes.filter(v => v.createdAt > last7Days).length;
-    
-    // Top voted setlists
-    const setlistVoteCounts = new Map<Id<"setlists">, number>();
-    votes.forEach(vote => {
-      const count = setlistVoteCounts.get(vote.setlistId) || 0;
-      setlistVoteCounts.set(vote.setlistId, count + 1);
-    });
-    
-    const topSetlists = Array.from(setlistVoteCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(async ([setlistId, voteCount]) => {
-        const setlist = await ctx.db.get(setlistId);
-        if (!setlist) return null;
-        
-        const show = await ctx.db.get(setlist.showId);
-        const artist = show ? await ctx.db.get(show.artistId) : null;
-        
-        return {
-          setlistId,
-          voteCount,
-          showName: show && artist ? `${artist.name} - ${show.date}` : "Unknown",
-        };
+    try {
+      const [users, artists, shows, setlists, votes] = await Promise.all([
+        ctx.db.query("users").collect(),
+        ctx.db.query("artists").collect(),
+        ctx.db.query("shows").collect(),
+        ctx.db.query("setlists").collect(),
+        ctx.db.query("votes").collect(),
+      ]);
+      
+      // Calculate trending metrics with safe fallbacks
+      const activeUsers = users.length;
+      const last7Days = Date.now() - (7 * 24 * 60 * 60 * 1000);
+      const recentVotes = votes.filter(v => v.createdAt && v.createdAt > last7Days).length;
+      
+      // Top voted setlists with error handling
+      const setlistVoteCounts = new Map<Id<"setlists">, number>();
+      votes.forEach(vote => {
+        if (vote.setlistId) {
+          const count = setlistVoteCounts.get(vote.setlistId) || 0;
+          setlistVoteCounts.set(vote.setlistId, count + 1);
+        }
       });
-    
-    const topSetlistsResolved = (await Promise.all(topSetlists)).filter(Boolean);
-    
-    return {
-      totalUsers: users.length,
-      activeUsers,
-      bannedUsers: 0,
-      totalArtists: artists.length,
-      totalShows: shows.length,
-      upcomingShows: shows.filter(s => s.status === "upcoming").length,
-      totalSetlists: setlists.length,
-      officialSetlists: setlists.filter(s => s.isOfficial).length,
-      totalVotes: votes.length,
-      recentVotes,
-      topSetlists: topSetlistsResolved,
-    };
+      
+      const topSetlists = Array.from(setlistVoteCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(async ([setlistId, voteCount]) => {
+          try {
+            const setlist = await ctx.db.get(setlistId);
+            if (!setlist) return null;
+            
+            const show = setlist.showId ? await ctx.db.get(setlist.showId) : null;
+            const artist = show && show.artistId ? await ctx.db.get(show.artistId) : null;
+            
+            return {
+              setlistId,
+              voteCount,
+              showName: show && artist ? `${artist.name} - ${show.date}` : "Unknown",
+            };
+          } catch (error) {
+            console.error(`Error processing setlist ${setlistId}:`, error);
+            return null;
+          }
+        });
+      
+      const topSetlistsResolved = (await Promise.all(topSetlists)).filter(Boolean);
+      
+      return {
+        totalUsers: users.length,
+        activeUsers,
+        bannedUsers: 0,
+        totalArtists: artists.length,
+        totalShows: shows.length,
+        upcomingShows: shows.filter(s => s.status === "upcoming").length,
+        totalSetlists: setlists.length,
+        officialSetlists: setlists.filter(s => s.isOfficial === true).length,
+        totalVotes: votes.length,
+        recentVotes,
+        topSetlists: topSetlistsResolved,
+      };
+    } catch (error) {
+      console.error("Error in getAdminStats:", error);
+      // Return safe defaults if query fails
+      return {
+        totalUsers: 0,
+        activeUsers: 0,
+        bannedUsers: 0,
+        totalArtists: 0,
+        totalShows: 0,
+        upcomingShows: 0,
+        totalSetlists: 0,
+        officialSetlists: 0,
+        totalVotes: 0,
+        recentVotes: 0,
+        topSetlists: [],
+      };
+    }
   },
 });
 
@@ -754,6 +780,74 @@ export const importTrendingFromTicketmaster = action({
 
     try {
       console.log("🎤 Importing trending artists from Ticketmaster...");
+      
+      // Fetch trending artists from Ticketmaster API
+      const trendingArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 50 });
+      
+      if (!trendingArtists || trendingArtists.length === 0) {
+        return {
+          success: false,
+          message: "No trending artists data retrieved from Ticketmaster API",
+          artistsImported: 0,
+        };
+      }
+
+      let imported = 0;
+      
+      // Import artists that don't exist yet
+      for (const artist of trendingArtists) {
+        try {
+          const existing = await ctx.runQuery(internal.artists.getByTicketmasterIdInternal, { 
+            ticketmasterId: artist.ticketmasterId 
+          });
+          
+          if (!existing && artist.ticketmasterId && artist.name) {
+            console.log(`📥 Importing new artist: ${artist.name}`);
+            await ctx.runAction(api.ticketmaster.triggerFullArtistSync, {
+              ticketmasterId: artist.ticketmasterId,
+              artistName: artist.name,
+              genres: artist.genres || [],
+              images: artist.images || [],
+            });
+            imported++;
+          }
+        } catch (error) {
+          console.error(`Failed to import artist ${artist.name}:`, error);
+        }
+      }
+      
+      // After importing, trigger trending sync
+      if (imported > 0) {
+        await ctx.runAction(internal.maintenance.syncTrendingData, {});
+      }
+      
+      return {
+        success: true,
+        message: `Successfully imported ${imported} new artists and updated trending rankings`,
+        artistsImported: imported,
+      };
+    } catch (error) {
+      console.error("❌ Failed to import from Ticketmaster:", error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error occurred",
+        artistsImported: 0,
+      };
+    }
+  },
+});
+
+// Test version of import without auth for development
+export const testImportTrendingFromTicketmaster = action({
+  args: {},
+  returns: v.object({
+    success: v.boolean(),
+    message: v.string(),
+    artistsImported: v.number(),
+  }),
+  handler: async (ctx) => {
+    try {
+      console.log("🎤 [TEST] Importing trending artists from Ticketmaster...");
       
       // Fetch trending artists from Ticketmaster API
       const trendingArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 50 });

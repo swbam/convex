@@ -191,8 +191,8 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
                 <TrendingUp className="h-6 w-6 text-white/80" />
               </div>
           <div>
-                <h2 className="text-2xl md:text-3xl font-bold text-white">Hottest Shows</h2>
-                <p className="text-sm text-gray-500">Top upcoming concerts near you</p>
+                <h2 className="text-2xl md:text-3xl font-bold text-white">Top Shows</h2>
+                <p className="text-sm text-gray-500">Most popular upcoming concerts</p>
               </div>
             </div>
           </motion.div>
