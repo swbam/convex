@@ -171,9 +171,9 @@ export function SignInPage() {
         }
         toast.success("Welcome back!");
         
-        console.log('✅ Sign in successful, redirecting to activity...');
-        // Redirect to activity page for authenticated users
-        navigate('/activity');
+        console.log('✅ Sign in successful, redirecting to home...');
+        // FIXED: Redirect to home (/) - AppLayout will show appropriate dashboard
+        navigate('/');
       } else {
         console.warn('Sign in incomplete:', result.status);
         toast.error("Sign in incomplete. Please check your email for verification.");

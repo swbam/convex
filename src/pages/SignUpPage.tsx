@@ -160,9 +160,9 @@ export function SignUpPage() {
         }
         toast.success("Account created successfully!");
         
-        console.log('✅ Sign up successful, redirecting to activity...');
-        // Redirect to activity page for new users
-        setTimeout(() => navigate('/activity'), 500);
+        console.log('✅ Sign up successful, redirecting to home...');
+        // FIXED: Redirect to home (/) - AuthGuard will handle user creation
+        navigate('/');
       } else {
         console.log('Sign up requires verification');
         await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
@@ -195,9 +195,9 @@ export function SignUpPage() {
     if (!signUp) {
       console.error('SignUp not available');
       console.error('Clerk state:', { isLoaded, signUp: !!signUp });
-      toast.error('Authentication not ready. Please refresh the page or check console for details.');
-      // Fallback redirect after delay
-      setTimeout(() => navigate('/activity'), 3000);
+      toast.error('Authentication not ready. Please refresh the page.');
+      // FIXED: Immediate redirect to home
+      navigate('/');
       return;
     }
 
@@ -216,8 +216,9 @@ export function SignUpPage() {
           await setActive({ session: result.createdSessionId });
         }
         toast.success("Email verified! Welcome to setlists.live!");
-        console.log('✅ Email verified, redirecting to activity...');
-        setTimeout(() => navigate('/activity'), 500);
+        console.log('✅ Email verified, redirecting to home...');
+        // FIXED: Redirect to home (/)
+        navigate('/');
       } else {
         console.warn('Verification incomplete:', result.status);
         toast.error("Invalid verification code. Please try again.");

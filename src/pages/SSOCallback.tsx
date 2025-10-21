@@ -99,9 +99,9 @@ export function SSOCallback() {
             console.error('Error checking for Spotify account:', err);
           }
           
-          // Redirect to activity page after Spotify processing
-          navigate('/activity');
-        }, 1000); // Short delay to ensure state updates
+          // FIXED: Redirect to home (/) after OAuth processing
+          navigate('/');
+        }, 1000); // Short delay to ensure Clerk state updates
         
       } catch (err: any) {
         console.error('OAuth callback error:', err);
