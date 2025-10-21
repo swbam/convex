@@ -340,7 +340,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <PageContainer variant={location.pathname === '/' || location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists') ? 'wide' : 'narrow'}>
               <SyncProgress />
               {location.pathname === '/' ? (
-                isSignedIn && user ? (
+                isSignedIn ? (
                   <UserDashboard 
                     onArtistClick={(artistId) => {
                       void navigate(`/artists/${artistId}`)
