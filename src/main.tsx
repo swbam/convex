@@ -1,6 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { ClerkProvider, useAuth } from "@clerk/clerk-react";
+import { ClerkProvider, useAuth as useClerkAuth } from "@clerk/clerk-react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexReactClient } from "convex/react";
 import { RouterProvider } from "react-router-dom";
@@ -29,6 +29,21 @@ if (!convexUrl || !publishableKey) {
 } else {
   try {
     const convex = new ConvexReactClient(convexUrl);
+    
+    // CRITICAL FIX: Custom useAuth that requests JWT with template name "setlistslive"
+    const useAuth = () => {
+      const auth = useClerkAuth();
+      return React.useMemo(
+        () => ({
+          ...auth,
+          getToken: async (args?: any) => {
+            // Request JWT with our custom template name "setlistslive"
+            return await auth.getToken({ ...args, template: "setlistslive" });
+          },
+        }),
+        [auth]
+      );
+    };
 
     createRoot(rootElement).render(
       <React.StrictMode>
