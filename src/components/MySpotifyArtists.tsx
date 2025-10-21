@@ -14,17 +14,26 @@ interface MySpotifyArtistsProps {
 
 export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
   const [showAll, setShowAll] = useState(false);
-  const myArtists = useQuery(api.spotifyAuth.getUserSpotifyArtists, { limit: 20, onlyWithShows: false }); // Always false
+  // ENHANCED: Get ALL Spotify artists (both followed AND top listened-to) with shows
+  const myArtists = useQuery(api.spotifyAuth.getUserSpotifyArtists, { 
+    limit: 50, 
+    onlyWithShows: !showAll // Show only artists with upcoming shows unless "Show all" is toggled
+  });
   const syncShows = useAction(api.ticketmaster.searchAndSyncArtistShows);
 
-  // Sort: top first, then by rank
+  // Sort: top artists first (by rank), then followed artists, then by show count
   const sortedArtists = myArtists?.sort((a, b) => {
+    // Top artists always first, sorted by rank
     if (a.isTopArtist && !b.isTopArtist) return -1;
     if (!a.isTopArtist && b.isTopArtist) return 1;
-    return (a.topArtistRank || 999) - (b.topArtistRank || 999);
+    if (a.isTopArtist && b.isTopArtist) {
+      return (a.topArtistRank || 999) - (b.topArtistRank || 999);
+    }
+    // Then by upcoming shows count
+    return (b.upcomingShowsCount || 0) - (a.upcomingShowsCount || 0);
   }) || [];
 
-  const filteredArtists = showAll ? sortedArtists : sortedArtists.filter(a => a.upcomingShowsCount > 0);
+  const filteredArtists = sortedArtists;
 
   const handleSyncShows = async (artistId: Id<"artists">, name: string) => {
     try {
@@ -58,19 +67,29 @@ export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
             </div>
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-white">My Artists on Tour</h2>
-              <p className="text-sm text-gray-400">From your Spotify account ({sortedArtists.length} artists)</p>
+              <p className="text-sm text-gray-400">
+                Your most listened-to artists with upcoming shows ({filteredArtists.length} artists)
+              </p>
             </div>
           </div>
           {/* Toggle */}
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-gray-400">Show all</span>
+            <span className="text-gray-400">Show all artists</span>
             <Switch checked={showAll} onCheckedChange={setShowAll} />
           </div>
         </div>
 
         <div className="space-y-0">
           {filteredArtists.length === 0 ? (
-            <p className="text-gray-400 text-center py-8">No artists with upcoming shows {showAll ? '(connect more in Spotify)' : ''}</p>
+            <div className="text-center py-8">
+              <Music className="h-12 w-12 mx-auto mb-3 text-gray-500" />
+              <p className="text-gray-400 mb-2">
+                {showAll ? "No artists found in your Spotify" : "None of your Spotify artists have upcoming shows"}
+              </p>
+              <p className="text-gray-500 text-xs">
+                {showAll ? "Try connecting your Spotify again" : "Toggle 'Show all' to see all your artists"}
+              </p>
+            </div>
           ) : (
             filteredArtists.map((item) => (
               <div
@@ -82,15 +101,34 @@ export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
                 }}
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <img 
-                    src={item.artist.images?.[0]} 
-                    alt={item.artist.name}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
+                  <div className="relative">
+                    <img 
+                      src={item.artist.images?.[0]} 
+                      alt={item.artist.name}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                    {/* Badge for top artists */}
+                    {item.isTopArtist && item.topArtistRank && item.topArtistRank <= 5 && (
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-black">
+                        {item.topArtistRank}
+                      </div>
+                    )}
+                  </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-white font-medium text-sm truncate">{item.artist.name}</p>
-                    {item.isTopArtist && <p className="text-green-400 text-xs">Top Artist #{item.topArtistRank}</p>}
-                    <p className="text-gray-400 text-xs">{item.upcomingShowsCount} shows</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-white font-medium text-sm truncate">{item.artist.name}</p>
+                      {item.isFollowed && (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">Followed</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {item.isTopArtist && (
+                        <p className="text-green-400 text-xs">Top #{item.topArtistRank}</p>
+                      )}
+                      <p className="text-gray-400 text-xs">
+                        {item.upcomingShowsCount} {item.upcomingShowsCount === 1 ? 'show' : 'shows'}
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <Button 
@@ -98,6 +136,7 @@ export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
                   size="sm" 
                   onClick={(e) => { e.stopPropagation(); handleSyncShows(item.artist._id, item.artist.name); }}
                   className="mr-2"
+                  title="Refresh shows"
                 >
                   <RefreshCw className="h-4 w-4" />
                 </Button>
