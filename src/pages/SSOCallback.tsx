@@ -47,18 +47,21 @@ export function SSOCallback() {
                 setIsImportingSpotify(true);
                 
                 // Extract access token from Clerk's Spotify account
-                // Clerk stores the OAuth token in the verification object
-                const accessToken = (spotifyAccount as any).verification?.externalVerificationToken || 
-                                   (spotifyAccount as any).accessToken ||
+                // Clerk stores OAuth tokens in different locations depending on the provider
+                const accessToken = (spotifyAccount as any).accessToken ||
+                                   (spotifyAccount as any).verification?.externalVerificationToken ||
+                                   (spotifyAccount as any).token ||
                                    null;
                 
                 if (!accessToken) {
                   console.error('❌ No access token found in Spotify account');
                   console.log('Available properties:', Object.keys(spotifyAccount));
+                  console.log('Full spotify account object:', spotifyAccount);
                   toast.warning('Spotify connected but token not available', {
                     description: 'You can manually sync from your profile later.',
                   });
-                  navigate('/');
+                  // Continue to activity page even without token - user can sync manually
+                  navigate('/activity');
                   return;
                 }
                 
@@ -96,9 +99,8 @@ export function SSOCallback() {
             console.error('Error checking for Spotify account:', err);
           }
           
-          // FIXED: Redirect to home after Spotify processing
-          // AuthGuard + AppLayout will handle showing appropriate dashboard
-          navigate('/');
+          // Redirect to activity page after Spotify processing
+          navigate('/activity');
         }, 1000); // Short delay to ensure state updates
         
       } catch (err: any) {

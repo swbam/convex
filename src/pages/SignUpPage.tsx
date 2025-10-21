@@ -89,7 +89,7 @@ export function SignUpPage() {
       await signUp.authenticateWithRedirect({
         strategy: 'oauth_spotify',
         redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectUrlComplete: `${window.location.origin}/`,
+        redirectUrlComplete: `${window.location.origin}/activity`,
       });
     } catch (error: any) {
       console.error('❌ Spotify sign up error:', error);
@@ -160,9 +160,9 @@ export function SignUpPage() {
         }
         toast.success("Account created successfully!");
         
-        console.log('✅ Sign up successful, redirecting...');
-        // Redirect to home - let App.tsx handle user creation
-        setTimeout(() => navigate('/'), 500);
+        console.log('✅ Sign up successful, redirecting to activity...');
+        // Redirect to activity page for new users
+        setTimeout(() => navigate('/activity'), 500);
       } else {
         console.log('Sign up requires verification');
         await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
@@ -197,7 +197,7 @@ export function SignUpPage() {
       console.error('Clerk state:', { isLoaded, signUp: !!signUp });
       toast.error('Authentication not ready. Please refresh the page or check console for details.');
       // Fallback redirect after delay
-      setTimeout(() => navigate('/'), 3000);
+      setTimeout(() => navigate('/activity'), 3000);
       return;
     }
 
@@ -216,8 +216,8 @@ export function SignUpPage() {
           await setActive({ session: result.createdSessionId });
         }
         toast.success("Email verified! Welcome to setlists.live!");
-        console.log('✅ Email verified, redirecting...');
-        setTimeout(() => navigate('/'), 500);
+        console.log('✅ Email verified, redirecting to activity...');
+        setTimeout(() => navigate('/activity'), 500);
       } else {
         console.warn('Verification incomplete:', result.status);
         toast.error("Invalid verification code. Please try again.");

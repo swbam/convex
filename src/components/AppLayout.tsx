@@ -6,6 +6,7 @@ import { api } from '../../convex/_generated/api'
 import { SearchBar } from './SearchBar'
 import { SyncProgress } from './SyncProgress'
 import { PublicDashboard } from './PublicDashboard'
+import { UserDashboard } from './UserDashboard'
 import { Toaster } from './ui/sonner'
 import { SignOutButton } from '../SignOutButton'
 import { MagicCard } from './ui/magic-card'
@@ -15,7 +16,7 @@ import { MobileBottomNav } from './MobileBottomNav'
 import { PageContainer } from './PageContainer'
 import { Button } from './ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from './ui/dropdown-menu'
-import { Home, Mic, Menu, X, User, Settings, Shield, LogOut, LogIn, Calendar, Activity } from 'lucide-react'
+import { Home, Mic, Menu, X, User, Settings, Shield, LogIn, Calendar, Activity } from 'lucide-react'
 
 interface AppLayoutProps {
   children?: React.ReactNode
@@ -339,18 +340,29 @@ export function AppLayout({ children }: AppLayoutProps) {
             <PageContainer variant={location.pathname === '/' || location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists') ? 'wide' : 'narrow'}>
               <SyncProgress />
               {location.pathname === '/' ? (
-                <PublicDashboard 
-                  onArtistClick={(artistId) => {
-                    void navigate(`/artists/${artistId}`)
-                  }}
-                  onShowClick={(showId) => {
-                    void navigate(`/shows/${showId}`)
-                  }}
-                  onSignInRequired={() => {
-                    void navigate('/signin')
-                  }}
-                  navigate={(path: string) => { void navigate(path) }}
-                />
+                isSignedIn && user ? (
+                  <UserDashboard 
+                    onArtistClick={(artistId) => {
+                      void navigate(`/artists/${artistId}`)
+                    }}
+                    onShowClick={(showId) => {
+                      void navigate(`/shows/${showId}`)
+                    }}
+                  />
+                ) : (
+                  <PublicDashboard 
+                    onArtistClick={(artistId) => {
+                      void navigate(`/artists/${artistId}`)
+                    }}
+                    onShowClick={(showId) => {
+                      void navigate(`/shows/${showId}`)
+                    }}
+                    onSignInRequired={() => {
+                      void navigate('/signin')
+                    }}
+                    navigate={(path: string) => { void navigate(path) }}
+                  />
+                )
               ) : (
                 children
               )}

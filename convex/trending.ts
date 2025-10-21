@@ -48,24 +48,26 @@ export const getTrendingShows = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
 
-    // Try trending ranked shows first (rank > 0 means it's been calculated)
+    // Get upcoming shows and filter by trending rank
     let shows = await ctx.db
       .query("shows")
-      .withIndex("by_trending_rank")
-      .order("asc")
-      .filter(q => q.and(
-        q.neq(q.field("trendingRank"), undefined),
-        q.gt(q.field("trendingRank"), 0) // Only ranked shows
-      ))
+      .withIndex("by_status", (q) => q.eq("status", "upcoming"))
+      .order("asc") // Chronological order
       .take(limit * 2);
 
-    // FALLBACK: If no trending ranks, get upcoming shows by date
+    // Filter for shows with valid trending ranks
+    shows = shows.filter(show => 
+      show.trendingRank && 
+      typeof show.trendingRank === "number" && 
+      show.trendingRank > 0
+    );
+
     if (shows.length === 0) {
       console.log("⚠️ No trending ranks found for shows, falling back to upcoming by date");
       shows = await ctx.db
         .query("shows")
         .withIndex("by_status", (q) => q.eq("status", "upcoming"))
-        .order("asc") // FIXED: asc for chronological order
+        .order("asc")
         .take(limit * 2);
     }
 

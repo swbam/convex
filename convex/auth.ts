@@ -96,9 +96,16 @@ export const ensureUserExists = mutation({
 
     if (existing) return existing._id;
     
+    // Extract email and name from Clerk identity
+    const email = identity.email || "";
+    const name = identity.name || identity.email || "User";
+    const username = email.split('@')[0] || name.toLowerCase().replace(/\s+/g, '');
+    
     return await ctx.db.insert("users", {
       authId: identity.subject,
-      username: identity.name || identity.email || "Anonymous",
+      email,
+      name,
+      username,
       role: "user",
       preferences: {
         emailNotifications: true,

@@ -253,7 +253,51 @@ export const updateFromClerk = internalMutation({
 });
 
 // FIXED: Alias for createFromClerk (which already does upsert logic)
-export const upsertFromClerk = createFromClerk;
+export const upsertFromClerk = internalMutation({
+  args: { clerkUser: v.any() },
+  returns: v.id("users"),
+  handler: async (ctx, args) => {
+    const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata, external_accounts } = args.clerkUser;
+    const email = email_addresses?.[0]?.email_address || "";
+    const name = [first_name, last_name].filter(Boolean).join(" ") || email || "User";
+    const avatar = image_url;
+    const spotifyAccount = external_accounts?.find((acc: any) => acc.provider === 'oauth_spotify');
+    const spotifyId = spotifyAccount?.provider_user_id || unsafe_metadata?.spotifyId;
+
+    // Check if user already exists
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_auth_id", (q) => q.eq("authId", id))
+      .first();
+
+    if (existing) {
+      // Update existing user
+      await ctx.db.patch(existing._id, {
+        email,
+        name,
+        avatar,
+        spotifyId,
+      });
+      return existing._id;
+    } else {
+      // Create new user
+      return await ctx.db.insert("users", {
+        authId: id,
+        email,
+        name,
+        avatar,
+        spotifyId,
+        username: email.split('@')[0] || name.toLowerCase().replace(/\s+/g, ''),
+        role: "user",
+        preferences: {
+          emailNotifications: true,
+          favoriteGenres: [],
+        },
+        createdAt: Date.now(),
+      });
+    }
+  },
+});
 
 // FIXED: Add deleteFromClerk mutation for Clerk webhooks
 export const deleteFromClerk = internalMutation({
@@ -298,5 +342,32 @@ export const getUsersWithSpotify = internalQuery({
       .query("users")
       .filter((q) => q.neq(q.field("spotifyId"), undefined))
       .take(50);
+  },
+});
+
+// Manual user creation for bootstrap/admin setup
+export const createManualUser = internalMutation({
+  args: { 
+    email: v.string(),
+    name: v.string(),
+    role: v.union(v.literal("user"), v.literal("admin"))
+  },
+  returns: v.id("users"),
+  handler: async (ctx, args) => {
+    // Generate a fake authId for manual users
+    const authId = `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    return await ctx.db.insert("users", {
+      authId,
+      email: args.email,
+      name: args.name,
+      username: args.email.split('@')[0],
+      role: args.role,
+      preferences: {
+        emailNotifications: true,
+        favoriteGenres: [],
+      },
+      createdAt: Date.now(),
+    });
   },
 });

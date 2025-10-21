@@ -1,4 +1,4 @@
-import { action, mutation, query, internalAction, internalMutation, QueryCtx, MutationCtx } from "./_generated/server";
+import { action, mutation, query, internalAction, internalMutation, internalQuery, QueryCtx, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
@@ -108,6 +108,30 @@ export const ensureAdminByEmailInternal = internalMutation({
       return { success: true, updated: true };
     }
     return { success: true, updated: false };
+  },
+});
+
+// Internal: Get admin stats without auth (for testing)
+export const getAdminStatsInternal = internalQuery({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx: QueryCtx) => {
+    const users = await ctx.db.query("users").collect();
+    const artists = await ctx.db.query("artists").collect();
+    const shows = await ctx.db.query("shows").collect();
+    const setlists = await ctx.db.query("setlists").collect();
+    const votes = await ctx.db.query("votes").collect();
+    
+    return {
+      totalUsers: users.length,
+      totalArtists: artists.length,
+      totalShows: shows.length,
+      totalSetlists: setlists.length,
+      totalVotes: votes.length,
+      adminUsers: users.filter((u: any) => u.role === "admin").length,
+      activeArtists: artists.filter((a: any) => a.isActive).length,
+      upcomingShows: shows.filter((s: any) => s.status === "upcoming").length,
+    };
   },
 });
 

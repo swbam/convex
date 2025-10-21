@@ -41,8 +41,8 @@ export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
         <Music className="h-12 w-12 mx-auto mb-4 text-gray-400" />
         <h3 className="text-lg font-semibold mb-2">Connect Your Spotify</h3>
         <p className="text-gray-400 mb-4">Import your followed artists to see their upcoming shows</p>
-        <Button asChild>
-          <a href="/signin?spotify=true">Connect Spotify</a>
+        <Button onClick={() => window.location.href = '/spotify-connect'}>
+          Connect Spotify
         </Button>
       </MagicCard>
     );

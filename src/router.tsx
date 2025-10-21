@@ -5,6 +5,7 @@ import { SignInPage } from './pages/SignInPage';
 import { SignUpPage } from './pages/SignUpPage';
 import { UserProfilePage } from './pages/UserProfilePage';
 import { SSOCallback } from './pages/SSOCallback';
+import { SpotifyConnectPage } from './pages/SpotifyConnectPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { TermsPage } from './pages/TermsPage';
 import { AdminTest } from './components/AdminTest';
@@ -37,6 +38,10 @@ export const router = createBrowserRouter([
   {
     path: '/profile',
     element: <UserProfilePage />,
+  },
+  {
+    path: '/spotify-connect',
+    element: <SpotifyConnectPage />,
   },
   {
     path: '/activity',
