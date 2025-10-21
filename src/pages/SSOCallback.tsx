@@ -96,9 +96,10 @@ export function SSOCallback() {
             console.error('Error checking for Spotify account:', err);
           }
           
-          // Redirect to home regardless of Spotify import status
+          // FIXED: Redirect to home after Spotify processing
+          // AuthGuard + AppLayout will handle showing appropriate dashboard
           navigate('/');
-        }, 1500); // Slightly longer delay to ensure Clerk has fully updated
+        }, 1000); // Short delay to ensure state updates
         
       } catch (err: any) {
         console.error('OAuth callback error:', err);

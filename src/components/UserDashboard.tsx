@@ -25,29 +25,29 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
   const userVotes = useQuery(api.songVotes.getUserVotes, { limit: 5 });
   const voteAccuracy = useQuery(api.activity.getVoteAccuracy, appUser?.appUser?._id ? { userId: appUser.appUser._id } : "skip");
 
-  // CRITICAL FIX: Proper user state detection
-  // appUser === undefined means still loading from Convex
-  // appUser === null means definitely not signed in
-  // appUser === {identity: {...}, appUser?: {...}} means signed in
+  // CRITICAL FIX: Proper tri-state user detection  
+  // appUser === undefined → Still loading from Convex (show loading)
+  // appUser === null → Definitely not signed in (show sign-in prompt)
+  // appUser === {...} with identity → Signed in (proceed, even if appUser.appUser is undefined)
   
   if (appUser === undefined) {
     // Still loading user data from Convex
     return (
       <div className="container mx-auto px-4 py-8 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+        <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
         <p className="text-gray-400">Loading your dashboard...</p>
       </div>
     );
   }
 
   if (appUser === null || !user) {
-    // User is definitely not signed in (Convex returned null, not an object)
+    // Definitely NOT signed in (Convex query returned null)
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <User className="h-8 w-8 text-primary" />
         </div>
-        <h1 className="text-2xl font-bold text-white mb-2">Welcome to SetlistVote</h1>
+        <h1 className="text-2xl font-bold text-white mb-2">Welcome to setlists.live</h1>
         <p className="text-gray-400 mb-6 max-w-md mx-auto">Sign in to track your votes, predictions, and setlist activity</p>
         <Button onClick={() => void navigate('/signin')} className="bg-primary hover:bg-primary/90 text-primary-foreground">
           Get Started
@@ -56,8 +56,9 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
     );
   }
 
-  // At this point, user is an object with at least {identity: ...}
-  // User IS signed in (even if appUser hasn't been created yet)
+  // At this point: appUser is an object (signed in via Clerk)
+  // appUser.appUser might be undefined if still being created (AuthGuard handles this)
+  // Show dashboard regardless - safe to access user data
 
   const daysActive = appUser?.appUser ? Math.floor((Date.now() - appUser.appUser.createdAt) / (1000 * 60 * 60 * 24)) : 0;
   const showsVotedOn = userVotes ? new Set(userVotes.map(v => v.setlistId)).size : 0;

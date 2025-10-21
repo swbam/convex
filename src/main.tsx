@@ -33,13 +33,8 @@ if (!convexUrl || !publishableKey) {
     createRoot(rootElement).render(
       <React.StrictMode>
         <ClerkProvider 
-          publishableKey={publishableKey} 
-          afterSignOutUrl="/" 
-          signInUrl="/signin"
-          signInFallbackRedirectUrl="/"
-          signUpFallbackRedirectUrl="/"
-          signInForceRedirectUrl="/"
-          signUpForceRedirectUrl="/"
+          publishableKey={publishableKey}
+          afterSignOutUrl="/"
         >
           <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
             <RouterProvider router={router} />

@@ -8,36 +8,49 @@ import { MagicCard } from '../components/ui/magic-card';
 import { BorderBeam } from '../components/ui/border-beam';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { ArrowLeft, User, Settings, Activity, Vote, Shield, Bell, Star, Music, RefreshCw, Calendar } from 'lucide-react';
+import { ArrowLeft, User, Settings, Activity, Vote, Shield, Bell, Star, Music, RefreshCw, Calendar, Loader2 } from 'lucide-react';
 import { useSpotifyAuth } from '../hooks/useSpotifyAuth';
 import { ArtistCard } from '../components/ArtistCard';
+import { AppLayout } from '../components/AppLayout';
 
 export function UserProfilePage() {
   const navigate = useNavigate();
-  const { user, isSignedIn } = useUser();
+  const { user, isSignedIn, isLoaded } = useUser();
   const appUser = useQuery(api.auth.loggedInUser);
   const userVotes = useQuery(api.songVotes.getUserVotes, 
-    appUser?.appUser ? { limit: 10 } : 'skip'
+    appUser?.appUser?._id ? { limit: 10 } : 'skip'
   );
   const spotifyArtists = useQuery(api.spotifyAuth.getUserSpotifyArtists, 
-    appUser?.appUser ? { limit: 50, onlyWithShows: true } : 'skip'
+    appUser?.appUser?._id ? { limit: 50, onlyWithShows: true } : 'skip'
   );
   const { hasSpotify, isImporting, refreshSpotifyArtists } = useSpotifyAuth();
-  // CRITICAL: Default to 'spotify' tab if user has Spotify, otherwise 'general'
-  const defaultTab = hasSpotify ? 'spotify' : 'general';
-  const [activeTab, setActiveTab] = useState(defaultTab);
+  const [activeTab, setActiveTab] = useState('general');
   
-  // Update activeTab when hasSpotify changes
+  // Update default tab when hasSpotify changes
   React.useEffect(() => {
     if (hasSpotify && activeTab === 'general') {
       setActiveTab('spotify');
     }
-  }, [hasSpotify, activeTab]);
+  }, [hasSpotify]);
   
-  // Redirect if not signed in (client-side guard)
+  // Show loading while Clerk initializes
+  if (!isLoaded) {
+    return (
+      <AppLayout>
+        <div className="container mx-auto px-4 py-8 text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </AppLayout>
+    );
+  }
+  
+  // Redirect if not signed in
   if (!isSignedIn) {
     return (
-      <RedirectToSignIn signInUrl="/signin" />
+      <AppLayout>
+        <RedirectToSignIn signInUrl="/signin" />
+      </AppLayout>
     );
   }
   
@@ -99,12 +112,8 @@ export function UserProfilePage() {
   };
 
   return (
-    <>
-      <SignedOut>
-        <RedirectToSignIn signInUrl="/signin" />
-      </SignedOut>
-      <SignedIn>
-        <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 relative z-10">
+    <AppLayout>
+      <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 relative z-10">
       {/* Header */}
       <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 bg-black">
         <div className="relative z-10 p-4 sm:p-6">
@@ -136,28 +145,28 @@ export function UserProfilePage() {
           <MagicCard className="p-0 rounded-2xl border-0 bg-black">
             <div className="p-4 sm:p-6">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className={`grid w-full ${hasSpotify ? 'grid-cols-5' : 'grid-cols-4'} bg-white/5 rounded-lg p-1 gap-2`}>
-                  <TabsTrigger value="general" className="w-full justify-center data-[state=active]:bg-white/10">
+                <TabsList className="flex flex-wrap w-full bg-white/5 rounded-lg p-1 gap-2 h-auto">
+                  <TabsTrigger value="general" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-white/10 py-2.5">
                     <User className="h-4 w-4 mr-2" />
-                    <span className="hidden sm:inline">General</span>
+                    <span className="text-sm">General</span>
                   </TabsTrigger>
                   {hasSpotify && (
-                    <TabsTrigger value="spotify" className="w-full justify-center data-[state=active]:bg-white/10">
+                    <TabsTrigger value="spotify" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-white/10 py-2.5">
                       <Music className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">My Artists</span>
+                      <span className="text-sm">My Artists</span>
                     </TabsTrigger>
                   )}
-                  <TabsTrigger value="security" className="w-full justify-center data-[state=active]:bg-white/10">
+                  <TabsTrigger value="security" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-white/10 py-2.5">
                     <Shield className="h-4 w-4 mr-2" />
-                    <span className="hidden sm:inline">Security</span>
+                    <span className="text-sm">Security</span>
                   </TabsTrigger>
-                  <TabsTrigger value="notifications" className="w-full justify-center data-[state=active]:bg-white/10">
+                  <TabsTrigger value="notifications" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-white/10 py-2.5">
                     <Bell className="h-4 w-4 mr-2" />
-                    <span className="hidden sm:inline">Alerts</span>
+                    <span className="text-sm">Alerts</span>
                   </TabsTrigger>
-                  <TabsTrigger value="activity" className="w-full justify-center data-[state=active]:bg-white/10 lg:hidden">
+                  <TabsTrigger value="activity" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-white/10 py-2.5 lg:hidden">
                     <Activity className="h-4 w-4 mr-2" />
-                    <span className="hidden sm:inline">Activity</span>
+                    <span className="text-sm">Activity</span>
                   </TabsTrigger>
                 </TabsList>
                 
@@ -369,7 +378,6 @@ export function UserProfilePage() {
         </div>
       </div>
     </div>
-      </SignedIn>
-    </>
+    </AppLayout>
   );
 }

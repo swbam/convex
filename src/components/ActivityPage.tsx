@@ -1,18 +1,17 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from 'convex/react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../convex/_generated/api';
-import { Id } from '../../convex/_generated/dataModel';
 import { MagicCard } from './ui/magic-card';
 import { BorderBeam } from './ui/border-beam';
 import { Button } from './ui/button';
-import { Activity, Calendar, Clock, Music, Star, TrendingUp, Vote, ArrowLeft } from 'lucide-react';
+import { Activity, Clock, Music, Star, TrendingUp, Vote, ArrowLeft } from 'lucide-react';
 import { FadeIn } from './animations/FadeIn';
 import { Loader2 } from 'lucide-react';
 
 interface ActivityPageProps {
-  onArtistClick: (artistId: Id<"artists">, slug?: string) => void;
-  onShowClick: (showId: Id<"shows">, slug?: string) => void;
+  onArtistClick?: (artistId: any, slug?: string) => void;
+  onShowClick?: (showId: any, slug?: string) => void;
 }
 
 export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) {
@@ -20,22 +19,15 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
   const user = useQuery(api.auth.loggedInUser);
   const userId = user?.appUser?._id;
 
-  // Polling for updates
-  const [usePolling, setUsePolling] = useState(false);
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setUsePolling(true);
-    }, 30000); // Poll every 30s
-    return () => clearInterval(interval);
-  }, []);
-
-  const activityFeed = useQuery(
+  // FIXED: Always fetch activity feed (not conditional on polling)
+  const activityFeedRaw = useQuery(
     api.activity.getUserActivityFeed, 
-    usePolling ? { limit: 50 } : "skip"
-  ) || [];
+    userId ? { limit: 50 } : "skip"
+  );
+  const activityFeed = activityFeedRaw || [];
 
-  // Enhanced stats: accuracy and recent predictions - unconditional calls with skip
-  const activityStats = useQuery(api.activity.getUserActivityStats);
+  // Enhanced stats: accuracy and recent predictions
+  const activityStats = useQuery(api.activity.getUserActivityStats, userId ? {} : "skip");
   const voteAccuracy = useQuery(api.activity.getVoteAccuracy, userId ? { userId } : "skip");
   const recentPredictions = useQuery(api.activity.getRecentPredictions, userId ? { userId, limit: 5 } : "skip");
 
@@ -59,46 +51,42 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
     });
 
     return groups;
-  }, [activityFeed, filter]);
+  }, [filter, activityFeed]);
 
-  const totalVotes = activityFeed.filter((a: any) => a.type === 'song_vote').length || 0;
-  
-  // FIXED: Add null/undefined checks for voteAccuracy with fallback to activityStats
-  const accuracy = voteAccuracy !== null && voteAccuracy !== undefined 
-    ? `${Math.round(voteAccuracy * 100)}%` 
-    : activityStats?.accuracy 
-    ? `${activityStats.accuracy}%` 
-    : 'N/A';
-
-  // CRITICAL FIX: Proper user state detection
-  // user === undefined means still loading from Convex
-  // user === null means definitely not signed in
-  // user === {identity: {...}, appUser?: {...}} means signed in
+  // CRITICAL FIX: Proper tri-state user detection
+  // user === undefined → Still loading from Convex (show loading)
+  // user === null → Definitely not signed in (show sign-in prompt)  
+  // user === {...} with identity → Signed in (proceed, even if appUser is being created)
   
   if (user === undefined) {
     // Still loading user data from Convex
     return (
       <div className="container mx-auto px-4 py-8 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+        <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
         <p className="text-gray-400">Loading your activity...</p>
       </div>
     );
   }
 
-  if (user === null || !userId) {
-    // User is definitely not signed in (Convex returned null, not an object)
+  if (user === null) {
+    // Definitely NOT signed in (Convex query returned null)
     return (
       <div className="container mx-auto px-4 py-8 text-center">
-        <p className="text-gray-400">Please sign in to view your activity</p>
-        <Button onClick={() => void navigate('/signin')} className="mt-4">
-          Sign In
+        <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Activity className="h-8 w-8 text-primary" />
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-2">Activity Feed</h2>
+        <p className="text-gray-400 mb-6">Sign in to track your voting history and predictions</p>
+        <Button onClick={() => void navigate('/signin')} className="bg-primary hover:bg-primary/90">
+          Sign In to View Activity
         </Button>
       </div>
     );
   }
 
-  // At this point, user is an object with at least {identity: ...}
-  // User IS signed in (even if appUser hasn't been created yet)
+  // At this point: user is an object (signed in via Clerk)
+  // userId might be undefined if appUser hasn't been created yet (AuthGuard handles this)
+  // Show activity feed regardless - it will just be empty for new users
 
   return (
     <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 relative z-10">

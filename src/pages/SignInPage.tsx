@@ -100,7 +100,7 @@ export function SignInPage() {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_spotify',
         redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectUrlComplete: `${window.location.origin}/`,
+        redirectUrlComplete: `${window.location.origin}/`, // After OAuth, go to home
       });
     } catch (error: any) {
       console.error('❌ Spotify sign in error:', error);
@@ -130,7 +130,7 @@ export function SignInPage() {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',
         redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectUrlComplete: `${window.location.origin}/`,
+        redirectUrlComplete: `${window.location.origin}/`, // After OAuth, go to home
       });
     } catch (error: any) {
       console.error('❌ Google sign in error:', error);
@@ -171,9 +171,10 @@ export function SignInPage() {
         }
         toast.success("Welcome back!");
         
-        console.log('✅ Sign in successful, redirecting...');
-        // Redirect to home - let App.tsx handle user creation and routing
-        setTimeout(() => navigate('/'), 500);
+        console.log('✅ Sign in successful, redirecting to home...');
+        // FIXED: Always redirect to home (/) - AuthGuard will handle user setup
+        // The AppLayout will show appropriate dashboard based on user data
+        navigate('/');
       } else {
         console.warn('Sign in incomplete:', result.status);
         toast.error("Sign in incomplete. Please check your email for verification.");

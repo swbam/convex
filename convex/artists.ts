@@ -288,16 +288,16 @@ export const createFromTicketmaster = internalMutation({
       await ctx.db.patch(existing._id, {
         genres: args.genres || existing.genres || [],
         images: args.images || existing.images || [],
+        ticketmasterId: args.ticketmasterId, // CRITICAL: Update TM ID
         lastSynced: Date.now(),
         popularity: existing.popularity || 0,
         followers: existing.followers || 0,
         upcomingShowsCount: existing.upcomingShowsCount || 0,
         trendingScore: existing.trendingScore || 0,
-        trendingRank: existing.trendingRank || 0, // FIXED: Ensure trendingRank exists
+        trendingRank: existing.trendingRank || 0,
       });
-      // Sync post-merge via scheduler (async, non-blocking)
-      void ctx.scheduler.runAfter(0, internal.ticketmaster.syncArtistShows, { artistId: existing._id, ticketmasterId: args.ticketmasterId });
-      void ctx.scheduler.runAfter(1000, internal.spotify.enrichArtistBasics, { artistId: existing._id, artistName: args.name });
+      // CRITICAL FIX: Don't schedule shows sync here - it's handled by triggerFullArtistSync
+      // The caller (triggerFullArtistSync) will sync shows synchronously after this returns
       return existing._id;
     }
 
@@ -327,16 +327,14 @@ export const createFromTicketmaster = internalMutation({
       followers: 0,
       lastSynced: Date.now(),
       trendingScore: 0,
-      trendingRank: 0, // FIXED: Initialize trendingRank for trending queries
+      trendingRank: 0,
       upcomingShowsCount: 0,
       lastTrendingUpdate: Date.now(),
       lowerName,
     });
 
-    // Post-create sync via scheduler
-    void ctx.scheduler.runAfter(0, internal.ticketmaster.syncArtistShows, { artistId, ticketmasterId: args.ticketmasterId });
-    void ctx.scheduler.runAfter(1000, internal.spotify.enrichArtistBasics, { artistId, artistName: args.name });
-
+    // CRITICAL FIX: Don't schedule sync here - caller handles it synchronously
+    // The caller (triggerFullArtistSync) will sync shows and Spotify data after this returns
     return artistId;
   },
 });

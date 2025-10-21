@@ -209,8 +209,13 @@ function App() {
   const renderMainContent = () => {
     switch (currentView) {
       case "artist":
-        // ENHANCED: Show loading state while query is pending
+        // CRITICAL FIX: Proper artist loading states
+        // artistBySlug === undefined → Query still pending (show loading skeleton)
+        // artistBySlug === null → Artist not found in DB (show not found message)
+        // artistBySlug === {...} → Artist found (show ArtistDetail)
+        
         if (location.pathname.startsWith('/artists/') && artistBySlug === undefined) {
+          // Query is still loading
           const artistSlug = getSlugFromPath(location.pathname, '/artists/');
           const artistName = artistSlug ? artistSlug.split('-').map(word => 
             word.charAt(0).toUpperCase() + word.slice(1)
@@ -230,15 +235,16 @@ function App() {
                   </div>
                   <div className="text-center py-4">
                     <p className="text-lg text-white mb-2">Loading {artistName}...</p>
-                    <p className="text-sm text-gray-400">Importing artist data and shows</p>
+                    <p className="text-sm text-gray-400">Fetching artist details</p>
                   </div>
                 </div>
               </MagicCard>
             </div>
           );
         }
-        // ENHANCED: Show import status if artist doesn't exist yet (reactive query will update when ready)
-        if (location.pathname.startsWith('/artists/') && artistBySlug === null && !selectedArtistId) {
+        
+        if (location.pathname.startsWith('/artists/') && artistBySlug === null) {
+          // Artist not found - show helpful message
           const artistSlug = getSlugFromPath(location.pathname, '/artists/');
           const artistName = artistSlug ? artistSlug.split('-').map(word => 
             word.charAt(0).toUpperCase() + word.slice(1)
@@ -248,26 +254,33 @@ function App() {
             <div className="container mx-auto px-4 sm:px-6 py-8">
               <MagicCard className="p-6 rounded-2xl border-0 bg-black">
                 <div className="text-center space-y-4">
-                  <div className="w-20 h-20 mx-auto bg-primary/20 rounded-full flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                  <div className="w-20 h-20 mx-auto bg-red-500/20 rounded-full flex items-center justify-center">
+                    <Music className="h-10 w-10 text-red-400" />
                   </div>
-                  <h2 className="text-2xl font-bold text-white">Setting up {artistName}</h2>
-                  <p className="text-gray-400">Importing shows, venues, and song catalog...</p>
-                  <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                    <span>The page will update automatically when ready</span>
+                  <h2 className="text-2xl font-bold text-white">Artist Not Found</h2>
+                  <p className="text-gray-400">We couldn't find {artistName} in our database.</p>
+                  <p className="text-sm text-gray-500">Try searching for the artist from the homepage.</p>
+                  <div className="flex gap-3 justify-center mt-6">
+                    <button
+                      onClick={() => navigate('/')}
+                      className="px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl transition-all"
+                    >
+                      Back to Home
+                    </button>
+                    <button
+                      onClick={() => navigate('/artists')}
+                      className="px-6 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all"
+                    >
+                      Browse Artists
+                    </button>
                   </div>
-                  <button
-                    onClick={() => navigate('/')}
-                    className="mt-6 px-6 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all"
-                  >
-                    Back to Home
-                  </button>
                 </div>
               </MagicCard>
             </div>
           );
         }
+        
+        // Artist found - render detail page
         return selectedArtistId ? (
           <ArtistDetail
             artistId={selectedArtistId}
@@ -275,11 +288,7 @@ function App() {
             onShowClick={handleShowClick}
             onSignInRequired={handleSignInRequired}
           />
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">No artist selected</p>
-          </div>
-        );
+        ) : null;
       case "show":
         // Show loading state while query is pending
         if (location.pathname.startsWith('/shows/') && showBySlugOrId === undefined) {
