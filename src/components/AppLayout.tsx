@@ -23,7 +23,7 @@ interface AppLayoutProps {
 }
 
 const navigationItems = [
-  { name: 'Dashboard', href: '/', icon: Home },
+  { name: 'Home', href: '/', icon: Home },
   { name: 'Artists', href: '/artists', icon: Mic },
   { name: 'Shows', href: '/shows', icon: Calendar },
 ]
@@ -119,6 +119,40 @@ export function AppLayout({ children }: AppLayoutProps) {
                 </MagicCard>
               )
             })}
+            
+            {/* Dashboard link - only for signed-in users */}
+            {isSignedIn && (
+              <MagicCard
+                className={`relative overflow-hidden rounded-xl transition-all duration-200 ${
+                  location.pathname === '/' && isSignedIn ? 'bg-primary/10 border-primary/20' : 'hover:bg-accent/50'
+                }`}
+                gradientSize={0}
+                gradientColor="#000000"
+                gradientOpacity={0}
+              >
+                <button
+                  onClick={() => {
+                     void navigate('/')
+                     setSidebarOpen(false)
+                   }}
+                  className={`
+                    w-full flex items-center px-4 py-3.5 text-responsive-base font-medium transition-all group touch-target
+                    ${location.pathname === '/' && isSignedIn
+                      ? 'text-primary' 
+                      : 'text-muted-foreground hover:text-foreground'
+                    }
+                  `}
+                >
+                  <User className={`mr-3 h-5 w-5 transition-colors ${
+                    location.pathname === '/' && isSignedIn ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                  }`} />
+                  <span className="font-medium">My Dashboard</span>
+                  {location.pathname === '/' && isSignedIn && (
+                    <div className="ml-auto w-2 h-2 rounded-full bg-primary animate-pulse" />
+                  )}
+                </button>
+              </MagicCard>
+            )}
             
             {/* Profile and Admin Links - Mobile */}
             {isSignedIn && (
@@ -247,6 +281,9 @@ export function AppLayout({ children }: AppLayoutProps) {
 
               <nav className="hidden md:flex items-center gap-1 lg:gap-2">
                 <button onClick={()=>void navigate('/')} className={`px-3 lg:px-4 py-2 rounded-md text-responsive-sm font-medium transition-all ${location.pathname==='/'?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Home</button>
+                {isSignedIn && (
+                  <button onClick={()=>void navigate('/')} className={`px-3 lg:px-4 py-2 rounded-md text-responsive-sm font-medium transition-all ${location.pathname==='/' && isSignedIn?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Dashboard</button>
+                )}
                 <button onClick={()=>void navigate('/artists')} className={`px-3 lg:px-4 py-2 rounded-md text-responsive-sm font-medium transition-all ${location.pathname.startsWith('/artists')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Artists</button>
                 <button onClick={()=>void navigate('/shows')} className={`px-3 lg:px-4 py-2 rounded-md text-responsive-sm font-medium transition-all ${location.pathname.startsWith('/shows')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Shows</button>
                 <button onClick={()=>void navigate('/trending')} className={`px-3 lg:px-4 py-2 rounded-md text-responsive-sm font-medium transition-all ${location.pathname.startsWith('/trending')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Trending</button>
