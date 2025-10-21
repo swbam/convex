@@ -208,16 +208,22 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
           <MagicCard className="p-0 rounded-2xl border-0 bg-black border-t border-b border-white/10">
             <div className="p-4 sm:p-6">
               <Tabs defaultValue="upcoming" className="w-full">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div className="space-y-4 mb-6">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
                       <Calendar className="h-5 w-5 text-white" />
                     </div>
                     <h2 className="text-2xl sm:text-3xl font-bold text-white">Shows</h2>
                   </div>
-                  <TabsList className="grid w-full grid-cols-2 gap-2">
-                    <TabsTrigger value="upcoming" className="w-full justify-center">Upcoming</TabsTrigger>
-                    <TabsTrigger value="past" className="w-full justify-center">Past</TabsTrigger>
+                  <TabsList className="flex w-full bg-white/5 rounded-lg p-1 gap-2 h-auto max-w-md">
+                    <TabsTrigger value="upcoming" className="flex-1 justify-center data-[state=active]:bg-white/10 py-2.5">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      <span>Upcoming</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="past" className="flex-1 justify-center data-[state=active]:bg-white/10 py-2.5">
+                      <Music className="h-4 w-4 mr-2" />
+                      <span>Past</span>
+                    </TabsTrigger>
                   </TabsList>
                 </div>
                 
