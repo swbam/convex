@@ -46,12 +46,8 @@ export function SSOCallback() {
                 console.log('Spotify account details:', spotifyAccount);
                 setIsImportingSpotify(true);
                 
-                // Extract access token from Clerk's Spotify account
-                // Clerk stores OAuth tokens in different locations depending on the provider
-                const accessToken = (spotifyAccount as any).accessToken ||
-                                   (spotifyAccount as any).verification?.externalVerificationToken ||
-                                   (spotifyAccount as any).token ||
-                                   null;
+                // Get access token using Clerk's getToken method with Spotify template
+                const accessToken = await user.getToken({ template: 'spotify' });
                 
                 if (!accessToken) {
                   console.error('❌ No access token found in Spotify account');
@@ -60,8 +56,8 @@ export function SSOCallback() {
                   toast.warning('Spotify connected but token not available', {
                     description: 'You can manually sync from your profile later.',
                   });
-                  // Continue to activity page even without token - user can sync manually
-                  navigate('/activity');
+                  // Continue to home page even without token - user can sync manually
+                  navigate('/');
                   return;
                 }
                 

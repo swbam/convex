@@ -40,6 +40,23 @@ export const voteOnSong = mutation({
       return null;
     }
 
+    // Validate - one vote per user per song
+    if (typeof effectiveUserId === "string" && effectiveUserId.startsWith("user_")) {
+      // For authenticated users, check for any existing vote on this song
+      const userVote = await ctx.db
+        .query("songVotes")
+        .withIndex("by_user_setlist_song", (q) =>
+          q.eq("userId", effectiveUserId)
+           .eq("setlistId", args.setlistId)
+           .eq("songTitle", args.songTitle)
+        )
+        .first();
+
+      if (userVote) {
+        throw new Error("Already voted on this song");
+      }
+    }
+
     // For anonymous users, enforce limit of 1 total upvote
     if (typeof effectiveUserId === "string") {
       const totalVotes = await ctx.db
