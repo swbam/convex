@@ -37,8 +37,8 @@ if (!convexUrl || !publishableKey) {
         () => ({
           ...auth,
           getToken: async (args?: any) => {
-            // Request JWT with our custom template name "setlistslive"
-            return await auth.getToken({ ...args, template: "setlistslive" });
+            // Request JWT with default template name "convex"
+            return await auth.getToken({ ...args, template: "convex" });
           },
         }),
         [auth]
