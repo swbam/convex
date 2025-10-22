@@ -371,3 +371,47 @@ export const createManualUser = internalMutation({
     });
   },
 });
+
+// Public function to sync current user from Clerk
+export const syncCurrentUser = mutation({
+  args: {},
+  returns: v.id("users"),
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Must be logged in");
+    }
+
+    // Check if user already exists
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
+      .first();
+
+    if (existing) {
+      console.log('✅ User already exists:', existing._id);
+      return existing._id;
+    }
+
+    // Create new user from Clerk identity
+    const email = identity.email || "";
+    const name = identity.name || identity.email || "User";
+    const username = email.split('@')[0] || name.toLowerCase().replace(/\s+/g, '');
+
+    const userId = await ctx.db.insert("users", {
+      authId: identity.subject,
+      email,
+      name,
+      username,
+      role: "user",
+      preferences: {
+        emailNotifications: true,
+        favoriteGenres: [],
+      },
+      createdAt: Date.now(),
+    });
+
+    console.log('✅ User created from Clerk identity:', userId);
+    return userId;
+  },
+});
