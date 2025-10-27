@@ -338,10 +338,15 @@ export const getUsersWithSpotify = internalQuery({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx) => {
-    return await ctx.db
-      .query("users")
-      .filter((q) => q.neq(q.field("spotifyId"), undefined))
-      .take(50);
+    const tokenRecords = await ctx.db.query("spotifyTokens").collect();
+    if (tokenRecords.length === 0) {
+      return [];
+    }
+
+    const uniqueUserIds = Array.from(new Set(tokenRecords.map((token) => token.userId)));
+    const users = await Promise.all(uniqueUserIds.map((id) => ctx.db.get(id)));
+
+    return users.filter((user): user is NonNullable<(typeof users)[number]> => user !== null);
   },
 });
 

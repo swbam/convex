@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { ChevronUp } from "lucide-react";
+import { motion } from 'framer-motion';
 import { toast } from "sonner";
 import { useDebounce } from "../lib/utils";
 
@@ -55,22 +56,24 @@ export function VotingButton({ setlistId, onSignInRequired }: VotingButtonProps)
   const hasVoted = userVote === "accurate";
 
   return (
-    <button
+    <motion.button
+      whileTap={{ scale: 0.98 }}
+      whileHover={{ scale: 1.05 }}
       onClick={handleVote}
       disabled={isVoting}
-      className={`flex flex-col items-center gap-0.5 transition-all duration-200 ${
+      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 border ${
         hasVoted 
-          ? "text-primary" 
-          : "text-gray-400 hover:text-white"
+          ? "bg-primary/20 text-primary border-primary/30" 
+          : "bg-white/5 text-gray-300 hover:bg-white/10 border-white/10"
       }`}
       title="Upvote this setlist"
     >
       <ChevronUp 
-        className={`h-5 w-5 ${hasVoted ? "fill-current" : ""}`} 
+        className={`h-4 w-4 ${hasVoted ? "fill-current" : ""}`} 
       />
-      <span className={`font-semibold text-sm ${hasVoted ? "text-primary" : "text-gray-400"}`}>
+      <span className={`font-semibold text-sm ${hasVoted ? "text-primary" : "text-gray-300"}`}>
         {voteCount}
       </span>
-    </button>
+    </motion.button>
   );
 }

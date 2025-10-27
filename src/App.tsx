@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 import { motion, AnimatePresence } from "framer-motion";
+import { Music } from "lucide-react";
 
 
 import { ArtistDetail } from "./components/ArtistDetail";
@@ -143,44 +144,59 @@ function App() {
     }
   }, [location.pathname, artistBySlug, showBySlugOrId]);
 
-  const handleViewChange = (view: string, id?: Id<"artists"> | Id<"shows">, slug?: string) => {
-    if (view === "artist" && id) {
-      setSelectedArtistId(id as Id<"artists">);
+  const handleViewChange = (
+    view: View,
+    id?: Id<"artists"> | Id<"shows"> | null,
+    slug?: string
+  ) => {
+    if (view === "artist") {
+      setSelectedArtistId((id as Id<"artists">) ?? null);
       setSelectedShowId(null);
-      // CRITICAL: Prefer slug for SEO and refresh resilience - fall back to ID if slug not available
-      const urlParam = slug || id;
-      void navigate(`/artists/${urlParam}`);
-    } else if (view === "show" && id) {
-      setSelectedShowId(id as Id<"shows">);
-      setSelectedArtistId(null);
-      // CRITICAL: Prefer slug for SEO and refresh resilience - fall back to ID
-      const urlParam = slug || id;
-      void navigate(`/shows/${urlParam}`);
-    } else if (view === "signin") {
-      void navigate('/signin');
-    } else {
-      setSelectedArtistId(null);
-      setSelectedShowId(null);
-      void navigate(`/${view === 'home' ? '' : view}`);
+      const urlParam = slug ?? (typeof id === "string" ? id : undefined);
+      if (urlParam) {
+        void navigate(`/artists/${urlParam}`);
+      }
+      return;
     }
+
+    if (view === "show") {
+      setSelectedShowId((id as Id<"shows">) ?? null);
+      setSelectedArtistId(null);
+      const urlParam = slug ?? (typeof id === "string" ? id : undefined);
+      if (urlParam) {
+        void navigate(`/shows/${urlParam}`);
+      }
+      return;
+    }
+
+    if (view === "signin") {
+      void navigate('/signin');
+      return;
+    }
+    
+    setSelectedArtistId(null);
+    setSelectedShowId(null);
+    void navigate(`/${view === 'home' ? '' : view}`);
   };
 
   const handleArtistClick = (artistKey: string | Id<"artists">, slug?: string) => {
-    // If artistKey is a string slug, we'll navigate with it directly
-    // If it's an Id, we use it as before
-    const artistId = typeof artistKey === 'string' && artistKey.startsWith('k') 
-      ? artistKey as Id<"artists">
-      : artistKey as Id<"artists">;
-    handleViewChange("artist", artistId, slug || (typeof artistKey === 'string' && !artistKey.startsWith('k') ? artistKey : undefined));
+    const artistId = typeof artistKey === 'string' && artistKey.startsWith('k')
+      ? (artistKey as Id<"artists">)
+      : typeof artistKey !== 'string'
+        ? artistKey
+        : undefined;
+    const preferredSlug = slug ?? (typeof artistKey === 'string' && !artistKey.startsWith('k') ? artistKey : undefined);
+    handleViewChange("artist", artistId ?? null, preferredSlug);
   };
 
   const handleShowClick = (showKey: string | Id<"shows">, slug?: string) => {
-    // If showKey is a string slug, we'll navigate with it directly
-    // If it's an Id, we use it as before
     const showId = typeof showKey === 'string' && showKey.startsWith('k')
-      ? showKey as Id<"shows">
-      : showKey as Id<"shows">;
-    handleViewChange("show", showId, slug || (typeof showKey === 'string' && !showKey.startsWith('k') ? showKey : undefined));
+      ? (showKey as Id<"shows">)
+      : typeof showKey !== 'string'
+        ? showKey
+        : undefined;
+    const preferredSlug = slug ?? (typeof showKey === 'string' && !showKey.startsWith('k') ? showKey : undefined);
+    handleViewChange("show", showId ?? null, preferredSlug);
   };
 
   const handleSignInRequired = () => {

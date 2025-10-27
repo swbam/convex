@@ -303,7 +303,7 @@ export function ShowDetail({
         </MagicCard>
 
         {/* Apple-Level Header Design - Full Width Background */}
-        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl -mx-4 sm:mx-0">
+        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl -mx-4 sm:mx-0 shadow-apple">
           {/* Full-Width Background Cover Image */}
           {show?.artist?.images?.[0] && (
             <div className="absolute inset-0 z-0">

@@ -84,6 +84,15 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
     );
   }
 
+  if (user.needsSetup) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+        <p className="text-gray-400">Setting up your account...</p>
+      </div>
+    );
+  }
+
   // At this point: user is an object (signed in via Clerk)
   // userId might be undefined if appUser hasn't been created yet (AuthGuard handles this)
   // Show activity feed regardless - it will just be empty for new users

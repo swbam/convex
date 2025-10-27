@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useClerk, useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
-import { useAction } from 'convex/react';
+import { useAction, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { MagicCard } from '../components/ui/magic-card';
 import { Music, Loader2 } from 'lucide-react';
@@ -18,6 +18,7 @@ export function SSOCallback() {
   const [error, setError] = React.useState<string | null>(null);
   const [isImportingSpotify, setIsImportingSpotify] = React.useState(false);
   const completeSpotifyImport = useAction(api.spotifyOAuth.completeSpotifyImport);
+  const storeSpotifyTokens = useMutation(api.spotifyAuth.storeSpotifyTokens);
 
   useEffect(() => {
     async function handleCallback() {
@@ -59,6 +60,52 @@ export function SSOCallback() {
                   // Continue to home page even without token - user can sync manually
                   navigate('/');
                   return;
+                }
+
+                try {
+                  const spotifyExternal = spotifyAccount as unknown as Record<string, any>;
+                  const rawRefreshToken =
+                    spotifyExternal?.refresh_token ??
+                    spotifyExternal?.token?.refreshToken ??
+                    spotifyExternal?.token?.refresh_token ??
+                    null;
+                  const scope =
+                    spotifyExternal?.scope ?? spotifyExternal?.token?.scope ?? undefined;
+                  const tokenType =
+                    spotifyExternal?.token_type ??
+                    spotifyExternal?.token?.tokenType ??
+                    'Bearer';
+                  const expiresInValue =
+                    typeof spotifyExternal?.expires_in === 'number'
+                      ? spotifyExternal.expires_in
+                      : typeof spotifyExternal?.token?.expiresIn === 'number'
+                        ? spotifyExternal.token.expiresIn
+                        : 3600;
+                  const expiresAt = Date.now() + Math.max(expiresInValue, 300) * 1000;
+
+                  if (spotifyAccount.providerUserId) {
+                    await storeSpotifyTokens({
+                      spotifyId: spotifyAccount.providerUserId,
+                      accessToken,
+                      refreshToken: rawRefreshToken ?? undefined,
+                      expiresAt,
+                      scope,
+                      tokenType,
+                    });
+                  } else if ((spotifyAccount as any).provider_user_id) {
+                    await storeSpotifyTokens({
+                      spotifyId: (spotifyAccount as any).provider_user_id,
+                      accessToken,
+                      refreshToken: rawRefreshToken ?? undefined,
+                      expiresAt,
+                      scope,
+                      tokenType,
+                    });
+                  } else {
+                    console.warn('⚠️ Unable to determine Spotify provider ID for token storage.');
+                  }
+                } catch (tokenError) {
+                  console.error('❌ Failed to store Spotify tokens:', tokenError);
                 }
                 
                 console.log('✅ Found Spotify access token, fetching artist data...');

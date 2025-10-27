@@ -16,7 +16,7 @@
     "check:env": "node scripts/check-env.js",
     "post-deploy": "sh scripts/post-deploy.sh",
     "sync:trending": "npx convex run maintenance:triggerTrendingSync",
-    "deploy:backend": "npx convex deploy --yes",
+    "deploy:backend": "SENTRY_DSN=\"\" npx convex deploy --yes",
     "deploy:frontend": "vercel --prod --yes",
     "all": "npm run deploy:backend && npm run deploy:frontend && npm run sync:trending",
     "all:full": "npm run lint && npm run test:run && npm run build && npm run deploy:backend && npm run deploy:frontend && npm run sync:trending",

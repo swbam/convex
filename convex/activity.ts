@@ -39,69 +39,102 @@ export const getUserActivityFeed = query({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .take(limit);
-    
-    for (const vote of votes) {
-      // Get setlist details
-      const setlist = await ctx.db.get(vote.setlistId);
+
+    const setlistIds = Array.from(new Set(votes.map((vote) => vote.setlistId)));
+    const voteSetlists = setlistIds.length > 0
+      ? await Promise.all(setlistIds.map((id) => ctx.db.get(id)))
+      : [];
+    const setlistMap = new Map(setlistIds.map((id, idx) => [id, voteSetlists[idx] ?? null]));
+
+    const showIdsFromVotes = new Set<Id<"shows">>();
+    for (const setlist of setlistMap.values()) {
       if (setlist) {
-        const show = await ctx.db.get(setlist.showId);
-        if (show) {
-          const [artist, venue] = await Promise.all([
-            ctx.db.get(show.artistId),
-            ctx.db.get(show.venueId)
-          ]);
-          
-          activities.push({
-            _id: `vote_${vote._id}`,
-            type: "song_vote",
-            createdAt: vote.createdAt,
-            description: `You ${vote.voteType === "upvote" ? "upvoted" : "downvoted"} \"${vote.songTitle}\" for ${artist?.name ?? "Unknown Artist"} at ${venue?.name ?? "Unknown Venue"}.`,
-            data: {
-              songTitle: vote.songTitle,
-              artistName: artist?.name,
-              venueName: venue?.name,
-              showDate: show.date,
-            },
-            showId: show._id,
-            artistId: show.artistId,
-            setlistId: vote.setlistId,
-          });
-        }
+        showIdsFromVotes.add(setlist.showId);
       }
     }
-    
+
     // Get user's created setlists
-    const setlists = await ctx.db
+    const userSetlists = await ctx.db
       .query("setlists")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .take(10);
-    
-    for (const setlist of setlists) {
-      const show = await ctx.db.get(setlist.showId);
+
+    for (const setlist of userSetlists) {
+      setlistMap.set(setlist._id, setlist);
+      showIdsFromVotes.add(setlist.showId);
+    }
+
+    const showIds = Array.from(showIdsFromVotes);
+    const shows = showIds.length > 0
+      ? await Promise.all(showIds.map((id) => ctx.db.get(id)))
+      : [];
+    const showMap = new Map(showIds.map((id, idx) => [id, shows[idx] ?? null]));
+
+    const artistIds = new Set<Id<"artists">>();
+    const venueIds = new Set<Id<"venues">>();
+    for (const show of showMap.values()) {
       if (show) {
-        const [artist, venue] = await Promise.all([
-          ctx.db.get(show.artistId),
-          ctx.db.get(show.venueId)
-        ]);
-        
-        activities.push({
-          _id: `setlist_${setlist._id}`,
-          type: "setlist_created",
-          createdAt: setlist.lastUpdated,
-          description: `You created a setlist for ${artist?.name ?? "Unknown Artist"} at ${venue?.name ?? "Unknown Venue"} (${setlist.songs.length} songs).`,
-          data: {
-            songsCount: setlist.songs.length,
-            artistName: artist?.name,
-            venueName: venue?.name,
-            showDate: show.date,
-            isVerified: setlist.verified,
-          },
-          showId: show._id,
-          artistId: show.artistId,
-          setlistId: setlist._id,
-        });
+        artistIds.add(show.artistId);
+        venueIds.add(show.venueId);
       }
+    }
+
+    const artistIdList = Array.from(artistIds);
+    const venueIdList = Array.from(venueIds);
+    const artists = artistIdList.length > 0
+      ? await Promise.all(artistIdList.map((id) => ctx.db.get(id)))
+      : [];
+    const venues = venueIdList.length > 0
+      ? await Promise.all(venueIdList.map((id) => ctx.db.get(id)))
+      : [];
+    const artistMap = new Map(artistIdList.map((id, idx) => [id, artists[idx] ?? null]));
+    const venueMap = new Map(venueIdList.map((id, idx) => [id, venues[idx] ?? null]));
+
+    for (const vote of votes) {
+      const setlist = setlistMap.get(vote.setlistId) ?? null;
+      const show = setlist ? showMap.get(setlist.showId) ?? null : null;
+      const artist = show ? artistMap.get(show.artistId) ?? null : null;
+      const venue = show ? venueMap.get(show.venueId) ?? null : null;
+
+      activities.push({
+        _id: `vote_${vote._id}`,
+        type: "song_vote",
+        createdAt: vote.createdAt,
+        description: `You ${vote.voteType === "upvote" ? "upvoted" : "downvoted"} "${vote.songTitle}" for ${artist?.name ?? "Unknown Artist"} at ${venue?.name ?? "Unknown Venue"}.`,
+        data: {
+          songTitle: vote.songTitle,
+          artistName: artist?.name,
+          venueName: venue?.name,
+          showDate: show?.date,
+        },
+        showId: show?._id,
+        artistId: show?.artistId,
+        setlistId: vote.setlistId,
+      });
+    }
+
+    for (const setlist of userSetlists) {
+      const show = showMap.get(setlist.showId) ?? null;
+      const artist = show ? artistMap.get(show.artistId) ?? null : null;
+      const venue = show ? venueMap.get(show.venueId) ?? null : null;
+
+      activities.push({
+        _id: `setlist_${setlist._id}`,
+        type: "setlist_created",
+        createdAt: setlist.lastUpdated ?? setlist._creationTime,
+        description: `You created a setlist for ${artist?.name ?? "Unknown Artist"} at ${venue?.name ?? "Unknown Venue"} (${setlist.songs.length} songs).`,
+        data: {
+          songsCount: setlist.songs.length,
+          artistName: artist?.name,
+          venueName: venue?.name,
+          showDate: show?.date,
+          isVerified: setlist.verified,
+        },
+        showId: show?._id,
+        artistId: show?.artistId,
+        setlistId: setlist._id,
+      });
     }
     
     // Get user follows (only for Spotify users)
@@ -114,22 +147,28 @@ export const getUserActivityFeed = query({
         .take(10);
       
       for (const follow of follows) {
-        const artist = await ctx.db.get(follow.artistId);
-        if (artist) {
-          activities.push({
-            _id: `follow_${follow._id}`,
-            type: "artist_followed",
-            createdAt: follow.createdAt,
-            description: `You followed ${artist.name}.`,
-            data: {
-              artistName: artist.name,
-              artistImage: artist.images?.[0],
-              genres: artist.genres,
-              isSpotifyArtist: !!(artist.spotifyId),
-            },
-            artistId: follow.artistId,
-          });
+        let followedArtist = artistMap.get(follow.artistId) ?? null;
+        if (!followedArtist) {
+          followedArtist = await ctx.db.get(follow.artistId);
+          if (followedArtist) {
+            artistMap.set(follow.artistId, followedArtist);
+          }
         }
+        if (!followedArtist) continue;
+
+        activities.push({
+          _id: `follow_${follow._id}`,
+          type: "artist_followed",
+          createdAt: follow.createdAt,
+          description: `You followed ${followedArtist.name}.`,
+          data: {
+            artistName: followedArtist.name,
+            artistImage: followedArtist.images?.[0],
+            genres: followedArtist.genres,
+            isSpotifyArtist: !!followedArtist.spotifyId,
+          },
+          artistId: follow.artistId,
+        });
       }
     }
     

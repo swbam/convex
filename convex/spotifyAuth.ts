@@ -1,6 +1,8 @@
-import { mutation, action, query, internalMutation, internalAction } from "./_generated/server";
+import { mutation, action, query, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
+const encryptToken = (token: string) => token;
+const decryptToken = (token?: string | null) => token ?? undefined;
 
 // Store Spotify access token for a user (called after Spotify OAuth)
 export const storeSpotifyTokens = mutation({
@@ -9,6 +11,8 @@ export const storeSpotifyTokens = mutation({
     accessToken: v.string(),
     refreshToken: v.optional(v.string()),
     expiresAt: v.number(),
+    scope: v.optional(v.string()),
+    tokenType: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -25,11 +29,69 @@ export const storeSpotifyTokens = mutation({
     await ctx.db.patch(user._id, {
       spotifyId: args.spotifyId,
     });
-    
-    // Store tokens in a separate secure table (not implemented here for simplicity)
-    // In production, you'd want to store these encrypted
-    
+
+    const now = Date.now();
+    const existingRecord = await ctx.db
+      .query("spotifyTokens")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .first();
+
+    const encryptedAccessToken = encryptToken(args.accessToken);
+    const encryptedRefreshToken = args.refreshToken ? encryptToken(args.refreshToken) : undefined;
+
+    if (existingRecord) {
+      await ctx.db.patch(existingRecord._id, {
+        accessToken: encryptedAccessToken,
+        refreshToken: encryptedRefreshToken ?? existingRecord.refreshToken,
+        expiresAt: args.expiresAt,
+        scope: args.scope ?? existingRecord.scope,
+        tokenType: args.tokenType ?? existingRecord.tokenType,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.insert("spotifyTokens", {
+        userId: user._id,
+        accessToken: encryptedAccessToken,
+        refreshToken: encryptedRefreshToken,
+        expiresAt: args.expiresAt,
+        scope: args.scope,
+        tokenType: args.tokenType,
+        updatedAt: now,
+      });
+    }
     return user._id;
+  },
+});
+
+export const listStoredSpotifyTokens = internalQuery({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => {
+    return await ctx.db.query("spotifyTokens").collect();
+  },
+});
+
+export const updateStoredSpotifyToken = internalMutation({
+  args: {
+    tokenId: v.id("spotifyTokens"),
+    accessToken: v.string(),
+    refreshToken: v.optional(v.string()),
+    expiresAt: v.number(),
+    scope: v.optional(v.string()),
+    tokenType: v.optional(v.string()),
+    updatedAt: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.tokenId, {
+      accessToken: args.accessToken,
+      refreshToken: args.refreshToken,
+      expiresAt: args.expiresAt,
+      scope: args.scope,
+      tokenType: args.tokenType,
+      updatedAt: args.updatedAt,
+    });
+    return null;
   },
 });
 
@@ -340,38 +402,71 @@ export const refreshUserTokens = internalAction({
   returns: v.null(),
   handler: async (ctx) => {
     console.log("🔄 Refreshing Spotify tokens...");
-    // Query users with Spotify tokens directly
-    const usersWithTokens = await ctx.runQuery(internal.users.getUsersWithSpotify, {});
+    const clientId = process.env.SPOTIFY_CLIENT_ID;
+    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      console.warn("⚠️ Spotify client credentials missing; skipping token refresh.");
+      return null;
+    }
+
+    const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+    const tokenRecords = await ctx.runQuery(internal.spotifyAuth.listStoredSpotifyTokens, {});
 
     let refreshed = 0;
-    for (const user of usersWithTokens) {
+    for (const record of tokenRecords) {
       try {
-        // Skip if no refresh token (would be in separate secure table in production)
-        if (!user.spotifyId) continue;
-        
+        const refreshToken = decryptToken(record.refreshToken);
+        if (!refreshToken) {
+          continue;
+        }
+
         const response = await fetch("https://accounts.spotify.com/api/token", {
           method: "POST",
-          headers: { "Authorization": `Basic ${btoa(`${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
+          headers: {
+            Authorization: `Basic ${authHeader}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
           body: new URLSearchParams({
-            grant_type: "client_credentials", // Simplified for now
+            grant_type: "refresh_token",
+            refresh_token: refreshToken,
           }),
-        });
+        } as RequestInit);
 
         if (response.ok) {
           const data = await response.json();
-          // Log token refresh (would update in production)
-          console.log(`Token refreshed for user ${user._id}`);
+          const newAccessToken: string | undefined = data.access_token;
+          const newRefreshToken: string | undefined = data.refresh_token;
+          const expiresIn: number = typeof data.expires_in === "number" ? data.expires_in : 3600;
+          const scope: string | undefined = data.scope;
+          const tokenType: string | undefined = data.token_type;
+
+          if (!newAccessToken) {
+            console.warn(`⚠️ Spotify refresh response missing access_token for user ${record.userId}`);
+            continue;
+          }
+
+          await ctx.runMutation(internal.spotifyAuth.updateStoredSpotifyToken, {
+            tokenId: record._id,
+            accessToken: encryptToken(newAccessToken),
+            refreshToken: newRefreshToken ? encryptToken(newRefreshToken) : record.refreshToken,
+            expiresAt: Date.now() + expiresIn * 1000,
+            scope: scope ?? record.scope,
+            tokenType: tokenType ?? record.tokenType,
+            updatedAt: Date.now(),
+          });
+
+          console.log(`✅ Refreshed Spotify token for user ${record.userId}`);
           refreshed++;
-          console.log(`✅ Refreshed token for user ${user._id}`);
         } else {
-          console.error(`❌ Failed refresh for user ${user._id}: ${response.status}`);
-          // Optionally revoke or mark invalid
+          const body = await response.text();
+          console.error(`❌ Failed Spotify refresh for user ${record.userId}: ${response.status} – ${body}`);
         }
 
         // Rate limit
         await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
-        console.error(`Error refreshing for user ${user._id}:`, error);
+        console.error(`Error refreshing Spotify token for user ${record.userId}:`, error);
       }
     }
 
@@ -379,4 +474,3 @@ export const refreshUserTokens = internalAction({
     return null;
   },
 });
-

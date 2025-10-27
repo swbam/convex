@@ -18,6 +18,7 @@ const applicationTables = {
     spotifyId: v.optional(v.string()),
     googleId: v.optional(v.string()),
     createdAt: v.number(),
+    bio: v.optional(v.string()),
   })
     .index("by_auth_id", ["authId"]) 
     .index("by_email", ["email"])
@@ -333,6 +334,17 @@ const applicationTables = {
     updatedAt: v.number(),
   })
     .index("by_name", ["name"]),
+
+  spotifyTokens: defineTable({
+    userId: v.id("users"),
+    accessToken: v.string(),
+    refreshToken: v.optional(v.string()),
+    expiresAt: v.number(),
+    scope: v.optional(v.string()),
+    tokenType: v.optional(v.string()),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"]),
 };
 
 export default defineSchema({

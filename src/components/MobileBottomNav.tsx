@@ -1,20 +1,14 @@
 import React from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, Mic, Calendar, TrendingUp, User } from 'lucide-react'
+import { Home, Mic, Calendar, TrendingUp, Activity as ActivityIcon, User } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
 
 interface TabItem {
   to: string
   label: string
   icon: React.ComponentType<{ className?: string }>
+  requiresAuth?: boolean
 }
-
-const items: TabItem[] = [
-  { to: '/', label: 'Home', icon: Home },
-  { to: '/artists', label: 'Artists', icon: Mic },
-  { to: '/shows', label: 'Shows', icon: Calendar },
-  { to: '/trending', label: 'Trending', icon: TrendingUp },
-]
 
 interface MobileBottomNavProps {
   onMenuClick?: () => void
@@ -24,20 +18,37 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { isSignedIn } = useUser()
+
+  const navItems = React.useMemo<TabItem[]>(() => {
+    const base: TabItem[] = [
+      { to: '/', label: 'Home', icon: Home },
+      { to: '/artists', label: 'Artists', icon: Mic },
+      { to: '/shows', label: 'Shows', icon: Calendar },
+      { to: '/trending', label: 'Trending', icon: TrendingUp },
+    ]
+
+    if (isSignedIn) {
+      base.push({ to: '/activity', label: 'Activity', icon: ActivityIcon, requiresAuth: true })
+    }
+
+    return base
+  }, [isSignedIn])
+
+  const totalColumns = navItems.length + 1;
+  const gridColumnsClass = totalColumns === 6 ? 'grid-cols-6' : 'grid-cols-5';
   
   return (
     <nav
       className="fixed bottom-0 inset-x-0 z-40 bg-background/95 backdrop-blur-xl border-t border-white/10 md:hidden safe-area-bottom"
     >
-      <ul className="grid grid-cols-5 relative">
-        {items.map((item, index) => {
+      <ul className={`grid ${gridColumnsClass} relative`}>
+        {navItems.map((item) => {
           const isActive = pathname === item.to || 
             (item.to !== '/' && pathname.startsWith(item.to))
           const Icon = item.icon
           
-          // Handle profile navigation based on auth state
           const handleClick = () => {
-            if (item.to === '/profile' && !isSignedIn) {
+            if (item.requiresAuth && !isSignedIn) {
               navigate('/signin')
             } else {
               navigate(item.to)
@@ -69,7 +80,7 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
                   ].join(' ')} />
                   
                   {/* Example notification badge - can be made dynamic */}
-                  {item.to === '/profile' && isSignedIn && (
+                  {item.to === '/activity' && isSignedIn && (
                     <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
                   )}
                 </div>
@@ -115,5 +126,3 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
     </nav>
   )
 }
-
-

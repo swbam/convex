@@ -138,7 +138,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
       </MagicCard>
 
       {/* Apple-Level Header Design - Full Width Background */}
-      <div className="relative overflow-hidden rounded-xl sm:rounded-2xl -mx-4 sm:mx-0">
+      <div className="relative overflow-hidden rounded-xl sm:rounded-2xl -mx-4 sm:mx-0 shadow-apple">
         {/* Full-Width Background Cover Image */}
         {artist.images?.[0] && (
           <div className="absolute inset-0 z-0">
@@ -148,7 +148,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
               className="w-full h-full object-cover opacity-20 blur-md scale-105"
             />
             {/* Sophisticated Gradient Overlay - Apple Style */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/85 to-black" />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/85 to-black" />
           </div>
         )}
         

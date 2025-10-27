@@ -272,7 +272,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Enhanced Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 w-full">
         {/* Desktop top navigation */}
-        <div className="sticky top-0 z-40 border-b border-white/10 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 safe-area-top">
+        <div className="sticky top-0 z-40 border-b border-white/10 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 safe-area-top shadow-apple">
           <header className="px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 h-14 md:h-16 flex items-center relative z-40">
             <div className="mx-auto w-full max-w-page-full flex items-center gap-2 sm:gap-3 md:gap-4">
               <button onClick={(e)=>{e.preventDefault(); void navigate('/')}} className="flex items-center touch-target flex-shrink-0">
