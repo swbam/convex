@@ -22,6 +22,7 @@
 - ✅ **Eliminate N+1 activity queries** – `convex/activity.ts:30-160` now batches `ctx.db.get` calls and reuses hydrated maps.
 - ✅ **Add schema support for `bio`** – Added the optional `bio` field in `convex/schema.ts:6-26`.
 - ✅ **Use indexed scans for Spotify users** – `convex/users.ts:337-349` now derives Spotify-enabled users from the token table instead of scanning the entire collection.
+- ✅ **Trending queries return curated results** – `convex/trending.ts:20-200` now prioritizes the trending caches, hydrates artists/shows, and deduplicates multi-night runs so the homepage surfaces unique acts.
 - **Harden manual admin tools** – `createManualUser` fabricates `authId` values; ensure downstream auth logic cannot collide with real Clerk subjects and limit the helper to ops-only contexts (convex/users.ts:348-360).
 - **Review `getVoteAccuracy` heuristics** – The metric only increments totals when `actualSetlist` exists and treats every upvote as “correct” (convex/activity.ts:450-472). Define a clearer spec (e.g., compare predicted vs. actual sequence) and cache results to avoid rehydration per request.
 

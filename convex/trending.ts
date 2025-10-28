@@ -48,6 +48,82 @@ export const getTrendingShows = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
 
+    // Primary source: curated trending cache
+    const cached = await ctx.db
+      .query("trendingShows")
+      .withIndex("by_rank")
+      .order("asc")
+      .take(limit * 3);
+
+    if (cached.length > 0) {
+      const hydrated = await Promise.all(
+        cached.map(async (row) => {
+          if (row.showId) {
+            const showDoc = await ctx.db.get(row.showId);
+            if (showDoc) {
+              const [artist, venue] = await Promise.all([
+                ctx.db.get(showDoc.artistId),
+                ctx.db.get(showDoc.venueId),
+              ]);
+              if (artist && venue) {
+                return {
+                  ...showDoc,
+                  artist,
+                  venue,
+                  cachedTrending: row,
+                };
+              }
+            }
+          }
+          return {
+            _id: row._id,
+            slug: row.showSlug,
+            date: row.date,
+            startTime: row.startTime,
+            status: row.status,
+            ticketmasterId: row.ticketmasterId,
+            artist: {
+              name: row.artistName,
+              slug: row.artistSlug,
+              ticketmasterId: row.artistTicketmasterId,
+            },
+            venue: {
+              name: row.venueName,
+              city: row.venueCity,
+              country: row.venueCountry,
+            },
+            cachedTrending: row,
+          };
+        })
+      );
+
+      const seenArtist = new Set<string>();
+      const unique: any[] = [];
+      for (const show of hydrated) {
+        const showAny = show as any;
+        const rawArtist = showAny.artist;
+        const artistId = showAny.artistId;
+        const cachedTrending = showAny.cachedTrending;
+        const artistKey =
+          (rawArtist && (rawArtist.slug || rawArtist.ticketmasterId)) ??
+          artistId ??
+          cachedTrending?.artistTicketmasterId ??
+          showAny._id;
+        const key = String(artistKey);
+        if (!seenArtist.has(key)) {
+          seenArtist.add(key);
+          unique.push(show);
+        }
+        if (unique.length >= limit) break;
+      }
+
+      return {
+        page: unique,
+        isDone: unique.length < limit,
+        continueCursor: undefined,
+      };
+    }
+
     // Get upcoming shows and filter by trending rank
     let shows = await ctx.db
       .query("shows")
@@ -91,8 +167,18 @@ export const getTrendingShows = query({
     // Filter out null results from failed hydrations
     const validShows = hydrated.filter((show): show is NonNullable<typeof show> => show !== null);
 
+    // Sort by trending rank then by date for stability
+    validShows.sort((a, b) => {
+      const ra = typeof a.trendingRank === 'number' && a.trendingRank > 0 ? a.trendingRank : 999999;
+      const rb = typeof b.trendingRank === 'number' && b.trendingRank > 0 ? b.trendingRank : 999999;
+      if (ra !== rb) return ra - rb;
+      const da = new Date(a.date).getTime();
+      const db = new Date(b.date).getTime();
+      return da - db;
+    });
+
     // PRODUCTION FILTER: Balance quality with availability
-    const filtered = validShows.filter(show => {
+    const eligible = validShows.filter(show => {
       const artist = show.artist;
       const venue = show.venue;
       if (!artist || !venue) return false;
@@ -104,7 +190,28 @@ export const getTrendingShows = query({
       // Relaxed: Require only upcoming status + valid artist/venue names
       // Images/Spotify are nice-to-have but not required for display
       return isUpcoming && notUnknown && hasBasicData;
-    }).slice(0, limit);
+    });
+
+    // DEDUPE: only one show per artist on homepage
+    const seenArtists = new Set<string>();
+    const deduped: typeof eligible = [];
+    for (const show of eligible) {
+      const showAny = show as any;
+      const rawArtist = showAny.artist;
+      const artistId = showAny.artistId;
+      const artistKey =
+        (rawArtist && (rawArtist._id || rawArtist.slug || rawArtist.ticketmasterId)) ??
+        artistId ??
+        showAny._id;
+      const key = String(artistKey);
+      if (!seenArtists.has(key)) {
+        seenArtists.add(key);
+        deduped.push(show);
+      }
+      if (deduped.length >= limit) break;
+    }
+
+    const filtered = deduped.slice(0, limit);
 
     if (filtered.length < limit / 2) {
       console.warn(`Trending filtered to ${filtered.length} items—check data population (popularity/images missing). Run syncs.`);
@@ -126,45 +233,104 @@ export const getTrendingArtists = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
 
-    // Query artists by trending rank (ascending = rank 1, 2, 3...)
-    const trending = await ctx.db
+    // Primary source: cached trending artists populated by maintenance syncs.
+    const cached = await ctx.db
+      .query("trendingArtists")
+      .withIndex("by_rank")
+      .order("asc")
+      .take(limit * 3);
+
+    if (cached.length > 0) {
+      const hydrated = await Promise.all(
+        cached.map(async (row) => {
+          if (row.artistId) {
+            const artistDoc = await ctx.db.get(row.artistId);
+            if (artistDoc) {
+              return {
+                ...artistDoc,
+                trendingRank: artistDoc.trendingRank ?? row.rank,
+                cachedTrending: row,
+              };
+            }
+          }
+
+          return {
+            _id: row._id,
+            name: row.name,
+            slug: row.slug,
+            images: row.images,
+            genres: row.genres,
+            upcomingShowsCount: row.upcomingEvents,
+            ticketmasterId: row.ticketmasterId,
+            trendingRank: row.rank,
+            cachedTrending: row,
+          };
+        })
+      );
+
+      const unique = Array.from(
+        hydrated.reduce((map, artist) => {
+          const key =
+            typeof artist.slug === "string" && artist.slug.length > 0
+              ? artist.slug
+              : artist.ticketmasterId ?? artist._id;
+          if (!map.has(key)) {
+            map.set(key, artist);
+          }
+          return map;
+        }, new Map<string, any>())
+      ).slice(0, limit);
+
+      return {
+        page: unique,
+        isDone: unique.length < limit,
+        continueCursor: undefined,
+      };
+    }
+
+    // Fallback to artists ordered by trendingRank.
+    const rankedArtists = await ctx.db
       .query("artists")
       .withIndex("by_trending_rank")
       .order("asc")
-      .take(limit * 2);
-    
-    // Filter for artists with valid ranks
-    const withRanks = trending.filter(artist => 
-      artist.trendingRank && 
-      artist.trendingRank > 0 &&
-      artist.isActive !== false
+      .take(limit * 3);
+
+    const filteredRanked = rankedArtists.filter(
+      (artist) => artist.isActive !== false
     );
-    
-    if (withRanks.length > 0) {
-      console.log(`✅ getTrendingArtists returning ${withRanks.length} artists`);
-      return { 
-        page: withRanks.slice(0, limit), 
-        isDone: withRanks.length < limit, 
-        continueCursor: undefined 
+
+    if (filteredRanked.length > 0) {
+      return {
+        page: filteredRanked.slice(0, limit),
+        isDone: filteredRanked.length < limit,
+        continueCursor: undefined,
       };
     }
-    
-    // Fallback: Get by popularity if no trending ranks
-    console.log("⚠️ No trending ranks found, falling back to popularity");
-    const allActive = await ctx.db
+
+    // Final fallback: score active artists by upcoming show count and popularity.
+    const activeArtists = await ctx.db
       .query("artists")
-      .filter(q => q.eq(q.field("isActive"), true))
+      .filter((q) => q.eq(q.field("isActive"), true))
       .take(200);
-    
-    const byPopularity = allActive
-      .filter(a => a.popularity && a.popularity > 0)
-      .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+
+    const scored = activeArtists
+      .map((artist) => ({
+        artist,
+        score:
+          (typeof artist.upcomingShowsCount === "number"
+            ? artist.upcomingShowsCount
+            : 0) *
+            10 +
+          (typeof artist.popularity === "number" ? artist.popularity : 0),
+      }))
+      .sort((a, b) => b.score - a.score)
+      .map((entry) => entry.artist)
       .slice(0, limit);
-    
-    return { 
-      page: byPopularity, 
-      isDone: byPopularity.length < limit, 
-      continueCursor: undefined 
+
+    return {
+      page: scored,
+      isDone: scored.length < limit,
+      continueCursor: undefined,
     };
   },
 });
