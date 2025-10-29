@@ -165,14 +165,18 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
                   <p className="text-gray-600 text-sm mt-2">Artists will appear here once data is synced</p>
                 </div>
               ) : (
-                dbTrendingArtists.map((artist, index) => (
-                  <motion.div key={artist._id} variants={cardVariants} custom={index}>
-                    <ArtistCard 
-                      artist={artist}
-                      onClick={() => navigateTo(`/artists/${artist.slug}`)}
-                    />
-                  </motion.div>
-                ))
+                dbTrendingArtists.map((artist: any, index: number) => {
+                  const key = artist._id || artist.ticketmasterId || artist.slug || artist.name || index;
+                  const targetSlug = artist.slug || artist._id || artist.ticketmasterId || (artist.name ? artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '');
+                  return (
+                    <motion.div key={key} variants={cardVariants} custom={index}>
+                      <ArtistCard 
+                        artist={artist}
+                        onClick={() => navigateTo(`/artists/${targetSlug}`)}
+                      />
+                    </motion.div>
+                  );
+                })
               )}
             </div>
           </motion.div>
@@ -253,7 +257,7 @@ function ArtistCard({ artist, onClick }: {
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center">
               <span className="text-white/80 font-bold text-2xl sm:text-3xl md:text-4xl">
-                {artist.name.slice(0, 2).toUpperCase()}
+                {(typeof artist?.name === 'string' && artist.name.length > 0 ? artist.name : '??').slice(0, 2).toUpperCase()}
               </span>
             </div>
           )}
@@ -314,7 +318,7 @@ function ShowCard({
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center">
               <span className="text-white/80 font-bold text-xl sm:text-2xl md:text-3xl">
-                {(show.artist?.name || show.artistName).slice(0, 2).toUpperCase()}
+                {((show?.artist?.name || show?.artistName || '??') as string).slice(0, 2).toUpperCase()}
               </span>
             </div>
           )}

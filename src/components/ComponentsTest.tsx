@@ -159,7 +159,7 @@ export function ComponentsTest() {
             <div key={artist._id} className="p-4 border rounded-lg">
               <div className="font-medium">{artist.name}</div>
               <div className="text-sm text-muted-foreground">
-                {artist.genres?.slice(0, 2).join(", ")}
+                {(artist.genres?.slice(0, 2) || []).join(", ")}
               </div>
               <div className="text-xs text-muted-foreground mt-1">
                 Trending Score: {artist.trendingScore}

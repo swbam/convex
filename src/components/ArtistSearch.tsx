@@ -150,7 +150,7 @@ function ArtistCard({ artist, onClick }: { artist: any; onClick: () => void }) {
         <h3 className="font-semibold text-lg">{artist.name}</h3>
         {artist.genres && artist.genres.length > 0 && (
           <p className="text-muted-foreground text-sm">
-            {artist.genres.slice(0, 2).join(", ")}
+            {(artist.genres || []).slice(0, 2).join(", ")}
           </p>
         )}
         <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">

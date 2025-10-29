@@ -154,7 +154,7 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
                     )}
                     {result.genres && (
                       <p className="text-sm text-muted-foreground">
-                        {result.genres.slice(0, 2).join(", ")}
+                        {(result.genres || []).slice(0, 2).join(", ")}
                       </p>
                     )}
                   </div>
@@ -216,7 +216,7 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
                     <div className="font-medium">{artist.name}</div>
                     {artist.genres && artist.genres.length > 0 && (
                       <div className="text-sm text-muted-foreground">
-                        {artist.genres.slice(0, 2).join(", ")}
+                        {(artist.genres || []).slice(0, 2).join(", ")}
                       </div>
                     )}
                   </div>

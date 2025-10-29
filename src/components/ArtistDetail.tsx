@@ -185,9 +185,9 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                   <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   <span className="font-medium">{upcomingShows.length} {upcomingShows.length === 1 ? 'show' : 'shows'}</span>
                 </div>
-                {artist.genres && artist.genres.length > 0 && (
+                {(artist.genres && artist.genres.length > 0) && (
                   <div className="hidden sm:flex items-center gap-2">
-                    {artist.genres.slice(0, 2).map((genre: any, idx: number) => (
+                    {(artist.genres || []).slice(0, 2).map((genre: any, idx: number) => (
                       <span key={idx} className="px-2.5 py-1 bg-white/10 backdrop-blur-sm rounded-full text-xs font-medium">
                         {genre}
                       </span>

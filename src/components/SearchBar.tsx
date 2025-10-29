@@ -100,7 +100,7 @@ export function SearchBar({
           type: 'artist' as const,
           id: artist.ticketmasterId,
           title: artist.name,
-          subtitle: artist.genres?.slice(0, 2).join(', '),
+          subtitle: (artist.genres?.slice(0, 2) || []).join(', '),
           image: artist.images?.[0],
           metadata: artist.upcomingEvents ? `${artist.upcomingEvents} upcoming shows` : undefined,
           slug: undefined // Ticketmaster results don't have slugs
@@ -115,7 +115,7 @@ export function SearchBar({
             type: 'artist' as const,
             id: artist._id,
             title: artist.name,
-            subtitle: artist.genres?.slice(0, 2).join(', '),
+            subtitle: (artist.genres?.slice(0, 2) || []).join(', '),
             image: artist.images?.[0],
             metadata: artist.followers ? `${artist.followers.toLocaleString()} followers` : undefined,
             slug: artist.slug
