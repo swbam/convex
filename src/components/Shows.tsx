@@ -48,13 +48,32 @@ export function Shows({ onShowClick }: ShowsProps) {
     );
   }, [allShowsRaw]);
 
-  // Simple city/zip filter
+  // Simple city/zip filter with artist-level deduplication for browsing
   const displayShows = React.useMemo(() => {
-    if (!cityFilter.trim()) return allShows;
+    let filtered = allShows;
     
-    return allShows.filter(show => 
-      show.venue?.city?.toLowerCase().includes(cityFilter.toLowerCase()) ||
-      show.venue?.state?.toLowerCase().includes(cityFilter.toLowerCase())
+    if (cityFilter.trim()) {
+      filtered = allShows.filter(show => 
+        show.venue?.city?.toLowerCase().includes(cityFilter.toLowerCase()) ||
+        show.venue?.state?.toLowerCase().includes(cityFilter.toLowerCase())
+      );
+    }
+    
+    // Deduplicate to show ONE show per artist (earliest upcoming)
+    const artistShowMap = new Map<string, any>();
+    filtered.forEach(show => {
+      const artistKey = show.artist?._id || show.artist?.name || '';
+      if (!artistKey) return;
+      
+      // Keep the earliest show for each artist
+      const existing = artistShowMap.get(artistKey);
+      if (!existing || new Date(show.date).getTime() < new Date(existing.date).getTime()) {
+        artistShowMap.set(artistKey, show);
+      }
+    });
+    
+    return Array.from(artistShowMap.values()).sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
   }, [allShows, cityFilter]);
 
