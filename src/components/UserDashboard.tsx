@@ -22,7 +22,7 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
   const navigate = useNavigate();
   const { user } = useUser();
   const appUser = useQuery(api.auth.loggedInUser);
-  const userVotes = useQuery(api.songVotes.getUserVotes, { limit: 5 });
+  const userVotes = useQuery(api.songVotes.getUserVotes, appUser?.appUser?._id ? { limit: 5 } : "skip");
   const voteAccuracy = useQuery(api.activity.getVoteAccuracy, appUser?.appUser?._id ? { userId: appUser.appUser._id } : "skip");
 
   // CRITICAL FIX: Proper tri-state user detection  
