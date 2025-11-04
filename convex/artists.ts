@@ -531,9 +531,13 @@ export const createInternal = internalMutation({
 
 
 export const getAllInternal = internalQuery({
-  args: {},
-  handler: async (ctx) => {
-    return await ctx.db.query("artists").collect();
+  args: {
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 1000;
+    return await ctx.db.query("artists").take(limit);
   },
 });
 
