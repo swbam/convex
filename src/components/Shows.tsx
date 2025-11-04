@@ -17,9 +17,10 @@ export function Shows({ onShowClick }: ShowsProps) {
   const [page, setPage] = useState(1);
   const pageSize = 18;
 
-  // Fetch all shows - simplified
-  const allShowsRaw = useQuery(api.shows.getAll, { limit: 500 });
-  const isLoading = allShowsRaw === undefined;
+  // Fetch top shows from API-imported trending cache (not engagement-based)
+  const trendingShowsResult = useQuery(api.trending.getTrendingShows, { limit: 200 });
+  const allShowsRaw = React.useMemo(() => Array.isArray(trendingShowsResult?.page) ? trendingShowsResult!.page : [], [trendingShowsResult]);
+  const isLoading = trendingShowsResult === undefined;
   
   const allShows = React.useMemo(() => {
     // Deduplicate shows by Convex document id (or slug fallback)

@@ -98,10 +98,13 @@ export const getTrendingShows = query({
             startTime: row.startTime,
             status: row.status,
             ticketmasterId: row.ticketmasterId,
+            // expose image directly for clients
+            artistImage: row.artistImage,
             artist: {
               name: row.artistName,
               slug: row.artistSlug,
               ticketmasterId: row.artistTicketmasterId,
+              images: row.artistImage ? [row.artistImage] : [],
             },
             venue: {
               name: row.venueName,
@@ -137,35 +140,32 @@ export const getTrendingShows = query({
         limit
       );
 
+      // final cleanup to avoid Unknown entries and non-upcoming items
+      const cleaned = artistScoped.filter((s: any) => {
+        const name = s?.artist?.name || s?.cachedTrending?.artistName || "";
+        const venue = s?.venue?.name || s?.cachedTrending?.venueName || "";
+        const status = s?.status || s?.cachedTrending?.status;
+        return (
+          typeof name === "string" && name.length > 0 &&
+          !name.toLowerCase().includes("unknown") &&
+          typeof venue === "string" && venue.length > 0 &&
+          status === "upcoming"
+        );
+      });
+
       return {
-        page: artistScoped.slice(0, limit),
-        isDone: artistScoped.length < limit,
+        page: cleaned.slice(0, limit),
+        isDone: cleaned.length < limit,
         continueCursor: undefined,
       };
     }
 
-    // Get upcoming shows and filter by trending rank
-    let shows = await ctx.db
+    // Fallback: derive from upcoming shows (no engagement-based ranking)
+    const shows = await ctx.db
       .query("shows")
       .withIndex("by_status", (q) => q.eq("status", "upcoming"))
-      .order("asc") // Chronological order
-      .take(limit * 2);
-
-    // Filter for shows with valid trending ranks
-    shows = shows.filter(show => 
-      show.trendingRank && 
-      typeof show.trendingRank === "number" && 
-      show.trendingRank > 0
-    );
-
-    if (shows.length === 0) {
-      console.log("⚠️ No trending ranks found for shows, falling back to upcoming by date");
-      shows = await ctx.db
-        .query("shows")
-        .withIndex("by_status", (q) => q.eq("status", "upcoming"))
-        .order("asc")
-        .take(limit * 2);
-    }
+      .order("asc")
+      .take(limit * 3);
 
     // Hydrate with full artist + venue data with null checks
     const hydrated = await Promise.all(shows.map(async (show) => {
@@ -187,15 +187,8 @@ export const getTrendingShows = query({
     // Filter out null results from failed hydrations
     const validShows = hydrated.filter((show): show is NonNullable<typeof show> => show !== null);
 
-    // Sort by trending rank then by date for stability
-    validShows.sort((a, b) => {
-      const ra = typeof a.trendingRank === 'number' && a.trendingRank > 0 ? a.trendingRank : 999999;
-      const rb = typeof b.trendingRank === 'number' && b.trendingRank > 0 ? b.trendingRank : 999999;
-      if (ra !== rb) return ra - rb;
-      const da = new Date(a.date).getTime();
-      const db = new Date(b.date).getTime();
-      return da - db;
-    });
+    // Sort purely by date ascending (next upcoming first)
+    validShows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     // PRODUCTION FILTER: Balance quality with availability
     const eligible = validShows.filter(show => {
@@ -207,8 +200,7 @@ export const getTrendingShows = query({
       const notUnknown = !artist.name.toLowerCase().includes("unknown");
       const hasBasicData = artist.name && artist.name.length > 0 && venue.name;
 
-      // Relaxed: Require only upcoming status + valid artist/venue names
-      // Images/Spotify are nice-to-have but not required for display
+      // Require upcoming + valid names; image not required but preferred
       return isUpcoming && notUnknown && hasBasicData;
     });
 

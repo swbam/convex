@@ -17,9 +17,10 @@ export function Artists({ onArtistClick }: ArtistsProps) {
   const [page, setPage] = useState(1);
   const pageSize = 18;
 
-  // Use canonical artists collection - simplified
-  const allArtistsRaw = useQuery(api.artists.getAll, { limit: 200 });
-  const isLoading = allArtistsRaw === undefined;
+  // Use API-imported trending artists (from Ticketmaster cache)
+  const trendingArtistsResult = useQuery(api.trending.getTrendingArtists, { limit: 200 });
+  const allArtistsRaw = React.useMemo(() => Array.isArray(trendingArtistsResult?.page) ? trendingArtistsResult!.page : [], [trendingArtistsResult]);
+  const isLoading = trendingArtistsResult === undefined;
   
   const allArtists = React.useMemo(() => {
     // Filter out invalid artists and deduplicate

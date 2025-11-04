@@ -311,9 +311,11 @@ function ShowCard({
       <div className="glass-card glass-card-hover rounded-2xl overflow-hidden card-lift shadow-elevated shadow-elevated-hover">
         {/* Show Image */}
         <div className="relative w-full aspect-[4/3] overflow-hidden">
-          {(show.artist?.images?.[0] || show.artistImage) ? (
+          {(() => {
+            const imgSrc = show?.artist?.images?.[0] || show?.artistImage || show?.cachedTrending?.artistImage;
+            return imgSrc ? (
             <motion.img
-              src={show.artist?.images?.[0] || show.artistImage}
+              src={imgSrc}
               alt={show.artist?.name || show.artistName}
               className="w-full h-full object-cover"
               whileHover={{ scale: 1.05 }}
@@ -325,7 +327,7 @@ function ShowCard({
                 {((show?.artist?.name || show?.artistName || '??') as string).slice(0, 2).toUpperCase()}
               </span>
             </div>
-          )}
+          );})()}
           {/* Monochrome gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent" />
           
