@@ -151,23 +151,19 @@ export const getSetlistSongVotes = query({
 // Get all user votes for dashboard
 export const getUserVotes = query({
   args: { limit: v.optional(v.number()) },
-  returns: v.array(v.object({
-    _id: v.id("songVotes"),
-    setlistId: v.id("setlists"),
-    songTitle: v.string(),
-    voteType: v.string(),
-    createdAt: v.number(),
-  })),
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
 
     const limit = args.limit || 50;
 
-    return await ctx.db
+    const votes = await ctx.db
       .query("songVotes")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .take(limit);
+      
+    return votes;
   },
 });
