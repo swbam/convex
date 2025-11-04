@@ -1,3 +1,5 @@
+"use node";
+
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 import { mutation, action, query, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
