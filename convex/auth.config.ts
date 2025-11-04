@@ -1,9 +1,10 @@
+const clerkIssuerUrl = process.env.CLERK_ISSUER_URL!;
+
 export default {
   providers: [
     {
-      domain: "https://clerk.setlists.live",
+      domain: clerkIssuerUrl,
       applicationID: "convex",
-      jwksUrl: "https://clerk.setlists.live/.well-known/jwks.json",
     },
   ],
 };
