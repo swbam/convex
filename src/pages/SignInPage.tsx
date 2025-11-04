@@ -100,7 +100,7 @@ export function SignInPage() {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_spotify',
         redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectUrlComplete: `${window.location.origin}/activity`, // After OAuth, go to activity
+        redirectUrlComplete: `${window.location.origin}/`, // Redirect through the dashboard
       });
     } catch (error: any) {
       console.error('❌ Spotify sign in error:', error);

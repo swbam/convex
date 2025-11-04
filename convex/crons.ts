@@ -38,5 +38,12 @@ crons.interval("populate-missing-fields", { hours: 1 }, internal.maintenance.pop
 // Spotify token refresh: Every 12 hours (tokens valid for 1 hour, but refresh only needed twice daily)
 crons.interval("spotify-refresh", { hours: 12 }, internal.spotifyAuth.refreshUserTokens, {});
 
-export default crons;
+// Ensure prediction setlists are always seeded for active shows
+crons.interval(
+  "refresh-auto-setlists",
+  { hours: 6 },
+  internal.setlists.refreshMissingAutoSetlists,
+  { limit: 60 }
+);
 
+export default crons;

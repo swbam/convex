@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { Id } from "../../convex/_generated/dataModel";
 import { Calendar, MapPin, Ticket } from "lucide-react";
 import { Button } from "./ui/button";
-import { motion } from 'framer-motion';
 
 interface ShowCardProps {
   show: any;
@@ -29,8 +28,11 @@ function ShowCardComponent({
 
   const getTime = () => {
     if (!show.startTime) return null;
-    const [time] = show.startTime.split('T')[1]?.split('+') || [];
-    return time ? new Date(`1970-01-01T${time}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : null;
+    const [hours, minutes] = show.startTime.split(':');
+    if (!hours || !minutes) return null;
+    const date = new Date();
+    date.setHours(Number(hours), Number(minutes), 0, 0);
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   };
 
   if (compact) {

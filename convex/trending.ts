@@ -35,6 +35,22 @@ const normalizeShowStatus = (status?: string) => {
   return "upcoming";
 };
 
+const toKey = (value: string | null | undefined) =>
+  typeof value === "string" && value.trim().length > 0 ? value.trim().toLowerCase() : undefined;
+
+const dedupeByKey = <T>(items: T[], keyFn: (item: T) => string | null | undefined, limit?: number) => {
+  const seen = new Set<string>();
+  const result: T[] = [];
+  for (const item of items) {
+    const key = toKey(keyFn(item));
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(item);
+    if (typeof limit === "number" && result.length >= limit) break;
+  }
+  return result;
+};
+
 // Backward-compatibility shim for older clients expecting `trending`.
 // Prefers cached Ticketmaster data while falling back to Convex tables when empty.
 
@@ -97,29 +113,33 @@ export const getTrendingShows = query({
         })
       );
 
-      const seenArtist = new Set<string>();
-      const unique: any[] = [];
-      for (const show of hydrated) {
-        const showAny = show as any;
-        const rawArtist = showAny.artist;
-        const artistId = showAny.artistId;
-        const cachedTrending = showAny.cachedTrending;
-        const artistKey =
-          (rawArtist && (rawArtist.slug || rawArtist.ticketmasterId)) ??
-          artistId ??
-          cachedTrending?.artistTicketmasterId ??
-          showAny._id;
-        const key = String(artistKey);
-        if (!seenArtist.has(key)) {
-          seenArtist.add(key);
-          unique.push(show);
-        }
-        if (unique.length >= limit) break;
-      }
+      const uniqueShows = dedupeByKey(
+        hydrated,
+        (show: any) =>
+          show?.slug ||
+          show?.ticketmasterId ||
+          show?.cachedTrending?.showSlug ||
+          show?.cachedTrending?.ticketmasterId ||
+          `${show?.artist?.name ?? show?.cachedTrending?.artistName ?? "unknown"}::${show?.venue?.name ?? show?.cachedTrending?.venueName ?? "unknown"}::${show?.date ?? show?.cachedTrending?.date ?? "unknown"}`,
+        limit * 2
+      );
+
+      const artistScoped = dedupeByKey(
+        uniqueShows,
+        (show: any) =>
+          show?.artist?._id ||
+          show?.artist?.slug ||
+          show?.cachedTrending?.artistSlug ||
+          show?.cachedTrending?.artistTicketmasterId ||
+          show?.artist?.ticketmasterId ||
+          show?.artist?.name ||
+          show?.cachedTrending?.artistName,
+        limit
+      );
 
       return {
-        page: unique,
-        isDone: unique.length < limit,
+        page: artistScoped.slice(0, limit),
+        isDone: artistScoped.length < limit,
         continueCursor: undefined,
       };
     }
@@ -193,31 +213,30 @@ export const getTrendingShows = query({
     });
 
     // DEDUPE: only one show per artist on homepage
-    const seenArtists = new Set<string>();
-    const deduped: typeof eligible = [];
-    for (const show of eligible) {
-      const showAny = show as any;
-      const rawArtist = showAny.artist;
-      const artistId = showAny.artistId;
-      const artistKey =
-        (rawArtist && (rawArtist._id || rawArtist.slug || rawArtist.ticketmasterId)) ??
-        artistId ??
-        showAny._id;
-      const key = String(artistKey);
-      if (!seenArtists.has(key)) {
-        seenArtists.add(key);
-        deduped.push(show);
-      }
-      if (deduped.length >= limit) break;
-    }
+    const deduped = dedupeByKey(
+      eligible,
+      (show: any) =>
+        show?.slug ||
+        show?.ticketmasterId ||
+        `${show?.artist?.name ?? "unknown"}::${show?.venue?.name ?? "unknown"}::${show?.date}`,
+      limit * 2
+    );
 
-    const filtered = deduped.slice(0, limit);
+    const filtered = dedupeByKey(
+      deduped,
+      (show: any) =>
+        show?.artist?._id ||
+        show?.artist?.slug ||
+        show?.artist?.ticketmasterId ||
+        show?.artist?.name,
+      limit
+    );
 
     if (filtered.length < limit / 2) {
       console.warn(`Trending filtered to ${filtered.length} items—check data population (popularity/images missing). Run syncs.`);
     }
 
-    return { page: filtered, isDone: filtered.length < limit, continueCursor: undefined };
+    return { page: filtered.slice(0, limit), isDone: filtered.length < limit, continueCursor: undefined };
   },
 });
 
@@ -268,18 +287,17 @@ export const getTrendingArtists = query({
         })
       );
 
-      const unique = Array.from(
-        hydrated.reduce((map, artist) => {
-          const key =
-            typeof artist.slug === "string" && artist.slug.length > 0
-              ? artist.slug
-              : artist.ticketmasterId ?? artist._id;
-          if (!map.has(key)) {
-            map.set(key, artist);
-          }
-          return map;
-        }, new Map<string, any>())
-      ).slice(0, limit);
+      const unique = dedupeByKey(
+        hydrated,
+        (artist: any) =>
+          artist?.slug ||
+          artist?.ticketmasterId ||
+          artist?.cachedTrending?.slug ||
+          artist?.cachedTrending?.ticketmasterId ||
+          artist?._id ||
+          artist?.name,
+        limit
+      );
 
       return {
         page: unique,

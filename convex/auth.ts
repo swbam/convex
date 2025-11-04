@@ -2,6 +2,38 @@ import { query, mutation, QueryCtx, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
+const USERNAME_MAX_ATTEMPTS = 20;
+
+const sanitizeUsername = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 24);
+
+const extractString = (value: unknown) =>
+  typeof value === "string" && value.trim().length > 0 ? value : undefined;
+
+async function generateUniqueUsername(ctx: MutationCtx, seed: string | null | undefined) {
+  const base = sanitizeUsername(seed ?? "");
+  const fallbackBase = base.length > 0 ? base : "user";
+
+  for (let attempt = 0; attempt < USERNAME_MAX_ATTEMPTS; attempt++) {
+    const suffix = attempt === 0 ? "" : `-${attempt + 1}`;
+    const candidate = `${fallbackBase}${suffix}`;
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_username", (q) => q.eq("username", candidate))
+      .first();
+    if (!existing) {
+      return candidate;
+    }
+  }
+
+  return `${fallbackBase}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 // Helper function to get authenticated user ID from app users table
 export const getAuthUserId = async (ctx: QueryCtx): Promise<Id<"users"> | null> => {
   const identity = await ctx.auth.getUserIdentity();
@@ -66,10 +98,17 @@ export const createAppUser = mutation({
       return existingAppUser._id;
     }
     
+    const usernameSeed =
+      extractString(identity.username) ??
+      extractString(identity.name) ??
+      extractString(identity.givenName) ??
+      (extractString(identity.email) ? extractString(identity.email)!.split("@")[0] : null);
+    const username = await generateUniqueUsername(ctx, usernameSeed || extractString(identity.subject) || "user");
+
     // Create app user
     return await ctx.db.insert("users", {
       authId: identity.subject,
-      username: identity.name || identity.email || "Anonymous",
+      username,
       role: "user",
       preferences: {
         emailNotifications: true,
@@ -97,9 +136,14 @@ export const ensureUserExists = mutation({
     if (existing) return existing._id;
     
     // Extract email and name from Clerk identity
-    const email = identity.email || "";
-    const name = identity.name || identity.email || "User";
-    const username = email.split('@')[0] || name.toLowerCase().replace(/\s+/g, '');
+    const email = extractString(identity.email) || "";
+    const name = extractString(identity.name) || email || "User";
+    const usernameSeed =
+      extractString(identity.username) ??
+      extractString(identity.name) ??
+      extractString(identity.givenName) ??
+      (email ? email.split("@")[0] : null);
+    const username = await generateUniqueUsername(ctx, usernameSeed || name);
     
     return await ctx.db.insert("users", {
       authId: identity.subject,

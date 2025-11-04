@@ -468,10 +468,6 @@ export const autoGenerateSetlist = internalMutation({
       .withIndex("by_show", (q) => q.eq("showId", args.showId))
       .first();
 
-    if (existingSetlist) {
-      return existingSetlist._id; // Don't create duplicate
-    }
-
     // Get all songs for this artist
     const artistSongs = await ctx.db
       .query("artistSongs")
@@ -505,15 +501,23 @@ export const autoGenerateSetlist = internalMutation({
     const songsToChooseFrom = [...studioSongs];
     const numSongs = Math.min(5, songsToChooseFrom.length);
 
+    if (existingSetlist && Array.isArray(existingSetlist.songs) && existingSetlist.songs.length >= numSongs) {
+      return existingSetlist._id;
+    }
+
     for (let i = 0; i < numSongs; i++) {
       // Weighted random selection - higher popularity songs have better chance
       const totalPopularity = songsToChooseFrom.reduce((sum, song) => sum + (song.popularity || 1), 0);
-      let randomValue = Math.random() * totalPopularity;
-      
+
+      // SAFEGUARD: if total popularity somehow collapses to 0, fall back to uniform random
+      const randomValueSeed = totalPopularity > 0 ? Math.random() * totalPopularity : Math.random() * songsToChooseFrom.length;
+
+      let running = randomValueSeed;
       let selectedIndex = 0;
       for (let j = 0; j < songsToChooseFrom.length; j++) {
-        randomValue -= (songsToChooseFrom[j].popularity || 1);
-        if (randomValue <= 0) {
+        const weight = Math.max(1, songsToChooseFrom[j].popularity || 0);
+        running -= totalPopularity > 0 ? weight : 1;
+        if (running <= 0) {
           selectedIndex = j;
           break;
         }
@@ -529,7 +533,21 @@ export const autoGenerateSetlist = internalMutation({
       songsToChooseFrom.splice(selectedIndex, 1); // Remove to avoid duplicates
     }
 
-    // Create the auto-generated setlist
+    // Create or update the auto-generated setlist
+    if (existingSetlist) {
+      await ctx.db.patch(existingSetlist._id, {
+        songs: selectedSongs,
+        lastUpdated: Date.now(),
+        source: existingSetlist.source ?? "user_submitted",
+        isOfficial: existingSetlist.isOfficial ?? false,
+        confidence: existingSetlist.confidence ?? 0.3,
+        upvotes: existingSetlist.upvotes ?? 0,
+        downvotes: existingSetlist.downvotes ?? 0,
+      });
+      console.log(`Refreshed auto-generated setlist for show ${args.showId} with ${selectedSongs.length} songs`);
+      return existingSetlist._id;
+    }
+
     const setlistId = await ctx.db.insert("setlists", {
       showId: args.showId,
       userId: undefined, // System-generated

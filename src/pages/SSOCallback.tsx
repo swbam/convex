@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useClerk, useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { useAction, useMutation } from 'convex/react';
@@ -12,15 +12,23 @@ import { toast } from 'sonner';
  * Handles OAuth redirects from Clerk (Spotify, Google, etc.)
  */
 export function SSOCallback() {
-  const { handleRedirectCallback } = useClerk();
+  const { handleRedirectCallback, clerk } = useClerk();
   const { user } = useUser();
   const navigate = useNavigate();
   const [error, setError] = React.useState<string | null>(null);
   const [isImportingSpotify, setIsImportingSpotify] = React.useState(false);
   const completeSpotifyImport = useAction(api.spotifyOAuth.completeSpotifyImport);
   const storeSpotifyTokens = useMutation(api.spotifyAuth.storeSpotifyTokens);
+  const spotifyImportTimeout = useRef<number | null>(null);
+  const hasHandledCallback = useRef(false);
 
   useEffect(() => {
+    if (hasHandledCallback.current) {
+      return;
+    }
+
+    hasHandledCallback.current = true;
+
     async function handleCallback() {
       try {
         console.log('🔄 Handling OAuth callback...');
@@ -30,15 +38,20 @@ export function SSOCallback() {
           afterSignInUrl: '/',
           afterSignUpUrl: '/',
         });
+
+        // Ensure Clerk has the latest session data before inspecting accounts
+        await clerk.load();
         
         console.log('✅ OAuth callback handled successfully');
         
         // Check if this was a Spotify OAuth flow
         // We'll check user metadata after a short delay to ensure Clerk has updated
-        setTimeout(async () => {
+        spotifyImportTimeout.current = window.setTimeout(async () => {
           try {
-            if (user?.externalAccounts) {
-              const spotifyAccount = user.externalAccounts.find(
+            const latestUser = clerk.user ?? user ?? undefined;
+
+            if (latestUser?.externalAccounts) {
+              const spotifyAccount = latestUser.externalAccounts.find(
                 (account) => account.provider === 'spotify'
               );
               
@@ -48,7 +61,7 @@ export function SSOCallback() {
                 setIsImportingSpotify(true);
                 
                 // Get access token using Clerk's getToken method with Spotify template
-                const accessToken = await user.getToken({ template: 'spotify' });
+                const accessToken = await latestUser.getToken({ template: 'spotify' });
                 
                 if (!accessToken) {
                   console.error('❌ No access token found in Spotify account');
@@ -158,7 +171,14 @@ export function SSOCallback() {
     }
 
     void handleCallback();
-  }, [handleRedirectCallback, user, navigate, completeSpotifyImport]);
+
+    return () => {
+      if (spotifyImportTimeout.current !== null) {
+        window.clearTimeout(spotifyImportTimeout.current);
+        spotifyImportTimeout.current = null;
+      }
+    };
+  }, [handleRedirectCallback, clerk, user, navigate, completeSpotifyImport, storeSpotifyTokens]);
 
   if (error) {
     return (

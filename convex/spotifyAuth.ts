@@ -1,8 +1,53 @@
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 import { mutation, action, query, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
-const encryptToken = (token: string) => token;
-const decryptToken = (token?: string | null) => token ?? undefined;
+
+const ENCRYPTION_SECRET = process.env.SPOTIFY_TOKEN_ENC_KEY;
+
+const getEncryptionKey = () => {
+  if (!ENCRYPTION_SECRET) {
+    throw new Error("Missing SPOTIFY_TOKEN_ENC_KEY environment variable for token encryption");
+  }
+  return createHash("sha256").update(ENCRYPTION_SECRET).digest();
+};
+
+const encryptToken = (token: string) => {
+  const key = getEncryptionKey();
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const encrypted = Buffer.concat([cipher.update(token, "utf8"), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return `${iv.toString("base64")}:${authTag.toString("base64")}:${encrypted.toString("base64")}`;
+};
+
+const decryptToken = (token?: string | null) => {
+  if (!token) return undefined;
+  try {
+    if (!ENCRYPTION_SECRET) {
+      console.warn("SPOTIFY_TOKEN_ENC_KEY is not set; returning stored token as-is.");
+      return token;
+    }
+
+    const [ivB64, authTagB64, payloadB64] = token.split(":");
+    if (!ivB64 || !authTagB64 || !payloadB64) {
+      return undefined;
+    }
+
+    const key = getEncryptionKey();
+    const iv = Buffer.from(ivB64, "base64");
+    const authTag = Buffer.from(authTagB64, "base64");
+    const payload = Buffer.from(payloadB64, "base64");
+
+    const decipher = createDecipheriv("aes-256-gcm", key, iv);
+    decipher.setAuthTag(authTag);
+    const decrypted = Buffer.concat([decipher.update(payload), decipher.final()]);
+    return decrypted.toString("utf8");
+  } catch (error) {
+    console.error("Failed to decrypt Spotify token:", error);
+    return undefined;
+  }
+};
 
 // Store Spotify access token for a user (called after Spotify OAuth)
 export const storeSpotifyTokens = mutation({

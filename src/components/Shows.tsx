@@ -22,21 +22,26 @@ export function Shows({ onShowClick }: ShowsProps) {
   const isLoading = allShowsRaw === undefined;
   
   const allShows = React.useMemo(() => {
-    // Deduplicate shows by unique key and filter out invalid data
+    // Deduplicate shows by Convex document id (or slug fallback)
     const showsMap = new Map<string, any>();
-    (allShowsRaw || []).forEach(show => {
-      // Only include shows with proper artist names
-      if (show.artist?.name && show.artist.name.trim() !== '' && show.artist.name !== 'Unknown Artist') {
-        const key = `${show.artist.name}-${show.venue?.name}-${show.date}-${show.startTime || ''}`;
-        if (!showsMap.has(key)) {
-          showsMap.set(key, show);
-        }
+    (allShowsRaw || []).forEach((show) => {
+      if (!show?.artist?.name || show.artist.name.trim() === '' || show.artist.name === 'Unknown Artist') {
+        return;
+      }
+
+      const key =
+        (typeof show._id === 'string' && show._id.length > 0 && show._id) ||
+        (typeof show.slug === 'string' && show.slug.length > 0 && show.slug) ||
+        `${show.artist.name}-${show.venue?.name ?? ''}-${show.date}-${show.startTime ?? ''}`;
+
+      if (!showsMap.has(key)) {
+        showsMap.set(key, show);
       }
     });
     
     // Sort by date (newest first)
-    return Array.from(showsMap.values()).sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
+    return Array.from(showsMap.values()).sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
   }, [allShowsRaw]);
 
