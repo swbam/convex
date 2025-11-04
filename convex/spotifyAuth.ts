@@ -1,7 +1,7 @@
 "use node";
 
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
-import { mutation, action, query, internalMutation, internalAction, internalQuery } from "./_generated/server";
+import { action, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 
@@ -51,8 +51,8 @@ const decryptToken = (token?: string | null) => {
   }
 };
 
-// Store Spotify access token for a user (called after Spotify OAuth)
-export const storeSpotifyTokens = mutation({
+// Store Spotify access token for a user (Node.js action for encryption)
+export const storeSpotifyTokens = action({
   args: {
     spotifyId: v.string(),
     accessToken: v.string(),
@@ -61,33 +61,31 @@ export const storeSpotifyTokens = mutation({
     scope: v.optional(v.string()),
     tokenType: v.optional(v.string()),
   },
+  returns: v.id("users"),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    // Update user with Spotify ID
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
-      .first();
+    const user: any = await ctx.runQuery(api.auth.loggedInUser, {});
+    if (!user?.appUser) throw new Error("User not found");
     
-    if (!user) throw new Error("User not found");
-    
-    await ctx.db.patch(user._id, {
+    await ctx.runMutation(internal.spotifyAuthQueries.setUserSpotifyId, {
+      userId: user.appUser._id,
       spotifyId: args.spotifyId,
     });
-
-    const now = Date.now();
-    const existingRecord = await ctx.db
-      .query("spotifyTokens")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .first();
 
     const encryptedAccessToken = encryptToken(args.accessToken);
     const encryptedRefreshToken = args.refreshToken ? encryptToken(args.refreshToken) : undefined;
 
+    const now = Date.now();
+    const existingRecord = await ctx.runQuery(internal.spotifyAuthQueries.getStoredSpotifyToken, {
+      userId: user.appUser._id,
+    });
+
     if (existingRecord) {
-      await ctx.db.patch(existingRecord._id, {
+      await ctx.runMutation(internal.spotifyAuthQueries.updateStoredSpotifyToken, {
+        tokenId: existingRecord._id,
+        userId: user.appUser._id,
         accessToken: encryptedAccessToken,
         refreshToken: encryptedRefreshToken ?? existingRecord.refreshToken,
         expiresAt: args.expiresAt,
@@ -96,8 +94,8 @@ export const storeSpotifyTokens = mutation({
         updatedAt: now,
       });
     } else {
-      await ctx.db.insert("spotifyTokens", {
-        userId: user._id,
+      await ctx.runMutation(internal.spotifyAuthQueries.insertStoredSpotifyToken, {
+        userId: user.appUser._id,
         accessToken: encryptedAccessToken,
         refreshToken: encryptedRefreshToken,
         expiresAt: args.expiresAt,
@@ -106,41 +104,11 @@ export const storeSpotifyTokens = mutation({
         updatedAt: now,
       });
     }
-    return user._id;
+
+    return user.appUser._id;
   },
 });
 
-export const listStoredSpotifyTokens = internalQuery({
-  args: {},
-  returns: v.array(v.any()),
-  handler: async (ctx) => {
-    return await ctx.db.query("spotifyTokens").collect();
-  },
-});
-
-export const updateStoredSpotifyToken = internalMutation({
-  args: {
-    tokenId: v.id("spotifyTokens"),
-    accessToken: v.string(),
-    refreshToken: v.optional(v.string()),
-    expiresAt: v.number(),
-    scope: v.optional(v.string()),
-    tokenType: v.optional(v.string()),
-    updatedAt: v.number(),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    await ctx.db.patch(args.tokenId, {
-      accessToken: args.accessToken,
-      refreshToken: args.refreshToken,
-      expiresAt: args.expiresAt,
-      scope: args.scope,
-      tokenType: args.tokenType,
-      updatedAt: args.updatedAt,
-    });
-    return null;
-  },
-});
 
 // Import user's Spotify artists with data from frontend
 export const importUserSpotifyArtistsWithToken = action({
@@ -295,7 +263,7 @@ export const importUserSpotifyArtistsWithToken = action({
           
           // Track this artist for the user
           if (artistId) {
-            await ctx.runMutation(internal.spotifyAuth.trackUserArtist, {
+            await ctx.runMutation(internal.spotifyAuthQueries.trackUserArtist, {
               userId: user.appUser._id,
               artistId,
               isFollowed: spotifyArtist.isFollowed,
@@ -324,126 +292,6 @@ export const importUserSpotifyArtistsWithToken = action({
   },
 });
 
-// Track user's Spotify artist relationship
-export const trackUserArtist = internalMutation({
-  args: {
-    userId: v.id("users"),
-    artistId: v.id("artists"),
-    isFollowed: v.boolean(),
-    isTopArtist: v.boolean(),
-    topArtistRank: v.optional(v.number()),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    // Check if relationship already exists
-    const existing = await ctx.db
-      .query("userSpotifyArtists")
-      .withIndex("by_user_artist", (q) => 
-        q.eq("userId", args.userId).eq("artistId", args.artistId)
-      )
-      .first();
-    
-    if (existing) {
-      // Update existing relationship
-      await ctx.db.patch(existing._id, {
-        isFollowed: args.isFollowed,
-        isTopArtist: args.isTopArtist,
-        topArtistRank: args.topArtistRank,
-        lastUpdated: Date.now(),
-      });
-    } else {
-      // Create new relationship
-      await ctx.db.insert("userSpotifyArtists", {
-        userId: args.userId,
-        artistId: args.artistId,
-        isFollowed: args.isFollowed,
-        isTopArtist: args.isTopArtist,
-        topArtistRank: args.topArtistRank,
-        importedAt: Date.now(),
-        lastUpdated: Date.now(),
-      });
-    }
-    
-    console.log(`✅ Tracked artist ${args.artistId} for user ${args.userId}`);
-    return null;
-  },
-});
-
-// Get user's Spotify artists with upcoming shows
-export const getUserSpotifyArtists = query({
-  args: { 
-    limit: v.optional(v.number()),
-    onlyWithShows: v.optional(v.boolean()),
-  },
-  returns: v.array(v.object({
-    artist: v.any(),
-    isFollowed: v.boolean(),
-    isTopArtist: v.boolean(),
-    topArtistRank: v.optional(v.number()),
-    upcomingShowsCount: v.number(),
-  })),
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
-    
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
-      .first();
-    
-    if (!user || !user.spotifyId) return [];
-    
-    const limit = args.limit || 50;
-    const onlyWithShows = args.onlyWithShows ?? true;
-    
-    // Get user's Spotify artists
-    const userArtists = await ctx.db
-      .query("userSpotifyArtists")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .collect();
-    
-    // Sort by priority: top artists first, then by rank
-    const sortedUserArtists = userArtists.sort((a, b) => {
-      if (a.isTopArtist && !b.isTopArtist) return -1;
-      if (!a.isTopArtist && b.isTopArtist) return 1;
-      if (a.isTopArtist && b.isTopArtist) {
-        return (a.topArtistRank || 999) - (b.topArtistRank || 999);
-      }
-      return 0;
-    });
-    
-    // Fetch artist details with upcoming shows
-    const results = [];
-    
-    for (const userArtist of sortedUserArtists.slice(0, limit)) {
-      const artist = await ctx.db.get(userArtist.artistId);
-      if (!artist) continue;
-      
-      // Count upcoming shows
-      const upcomingShows = await ctx.db
-        .query("shows")
-        .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
-        .filter((q) => q.eq(q.field("status"), "upcoming"))
-        .collect();
-      
-      const upcomingShowsCount = upcomingShows.length;
-      
-      // Skip if no shows and onlyWithShows is true
-      if (onlyWithShows && upcomingShowsCount === 0) continue;
-      
-      results.push({
-        artist,
-        isFollowed: !!userArtist.isFollowed,
-        isTopArtist: !!userArtist.isTopArtist,
-        topArtistRank: userArtist.topArtistRank,
-        upcomingShowsCount,
-      });
-    }
-    
-    return results;
-  },
-});
-
 export const refreshUserTokens = internalAction({
   args: {},
   returns: v.null(),
@@ -458,7 +306,7 @@ export const refreshUserTokens = internalAction({
     }
 
     const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-    const tokenRecords = await ctx.runQuery(internal.spotifyAuth.listStoredSpotifyTokens, {});
+    const tokenRecords = await ctx.runQuery(internal.spotifyAuthQueries.listStoredSpotifyTokens, {});
 
     let refreshed = 0;
     for (const record of tokenRecords) {
@@ -493,8 +341,9 @@ export const refreshUserTokens = internalAction({
             continue;
           }
 
-          await ctx.runMutation(internal.spotifyAuth.updateStoredSpotifyToken, {
+          await ctx.runMutation(internal.spotifyAuthQueries.updateStoredSpotifyToken, {
             tokenId: record._id,
+            userId: record.userId,
             accessToken: encryptToken(newAccessToken),
             refreshToken: newRefreshToken ? encryptToken(newRefreshToken) : record.refreshToken,
             expiresAt: Date.now() + expiresIn * 1000,

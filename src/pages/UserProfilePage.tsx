@@ -20,7 +20,7 @@ export function UserProfilePage() {
   const userVotes = useQuery(api.songVotes.getUserVotes, 
     appUser?.appUser?._id ? { limit: 10 } : 'skip'
   );
-  const spotifyArtists = useQuery(api.spotifyAuth.getUserSpotifyArtists, 
+  const spotifyArtists = useQuery(api.spotifyAuthQueries.getUserSpotifyArtists, 
     appUser?.appUser?._id ? { limit: 50, onlyWithShows: true } : 'skip'
   );
   const { hasSpotify, isImporting, refreshSpotifyArtists } = useSpotifyAuth();

@@ -15,7 +15,7 @@ interface MySpotifyArtistsProps {
 export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
   const [showAll, setShowAll] = useState(false);
   // ENHANCED: Get ALL Spotify artists (both followed AND top listened-to) with shows
-  const myArtists = useQuery(api.spotifyAuth.getUserSpotifyArtists, { 
+  const myArtists = useQuery(api.spotifyAuthQueries.getUserSpotifyArtists, { 
     limit: 50, 
     onlyWithShows: !showAll // Show only artists with upcoming shows unless "Show all" is toggled
   });

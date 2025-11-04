@@ -18,7 +18,7 @@ export function SSOCallback() {
   const [error, setError] = React.useState<string | null>(null);
   const [isImportingSpotify, setIsImportingSpotify] = React.useState(false);
   const completeSpotifyImport = useAction(api.spotifyOAuth.completeSpotifyImport);
-  const storeSpotifyTokens = useMutation(api.spotifyAuth.storeSpotifyTokens);
+  const storeSpotifyTokens = useAction(api.spotifyAuth.storeSpotifyTokens);
   const spotifyImportTimeout = useRef<number | null>(null);
   const hasHandledCallback = useRef(false);
 

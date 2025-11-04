@@ -40,3 +40,16 @@ export const getByArtistAndSong = internalQuery({
       .first();
   },
 });
+
+export const getByArtist = internalQuery({
+  args: {
+    artistId: v.id("artists"),
+  },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("artistSongs")
+      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
+      .collect();
+  },
+});
