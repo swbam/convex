@@ -69,7 +69,19 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // CRITICAL FIX: Don't block the UI while creating app user
-  // Let the app render normally, user creation happens in background
-  return <>{children}</>;
+  // Don't block the UI while creating app user. Render a lightweight inline banner if setup is in progress.
+  const showSetupBanner = Boolean(
+    (user && user.needsSetup) || isCreatingUser
+  );
+
+  return (
+    <>
+      {showSetupBanner && (
+        <div className="fixed top-3 right-3 z-[100] rounded-xl border border-white/10 bg-black/70 backdrop-blur-md px-3 py-2 text-xs text-gray-300 shadow-lg">
+          Setting up your account...
+        </div>
+      )}
+      {children}
+    </>
+  );
 }

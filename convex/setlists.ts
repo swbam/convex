@@ -1,7 +1,8 @@
-import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { getAuthUserId } from "./auth";
+import { internal } from "./_generated/api";
 
 export const create = mutation({
   args: {
@@ -602,32 +603,6 @@ export const updateWithActualSetlist = internalMutation({
       }
     }
 
-    const canonicalActualSongs = args.actualSetlist.map((song) => {
-      const normalizedTitle = song.title.toLowerCase().trim();
-      const predictedMatch = predictedSongLookup.get(normalizedTitle);
-      const predictedAlbum = typeof predictedMatch === "string" ? undefined : predictedMatch?.album;
-      const predictedDuration = typeof predictedMatch === "string" ? undefined : predictedMatch?.duration;
-      const predictedSongId = typeof predictedMatch === "string" ? undefined : predictedMatch?.songId;
-
-      return {
-        title: song.title,
-        album:
-          typeof song.album === "string"
-            ? song.album
-            : typeof predictedAlbum === "string"
-            ? predictedAlbum
-            : undefined,
-        duration:
-          typeof song.duration === "number"
-            ? song.duration
-            : typeof predictedDuration === "number"
-            ? predictedDuration
-            : undefined,
-        songId: predictedSongId,
-      };
-    });
-
-
     const calculateAccuracy = (predictedSongs: any[]) => {
       if (!predictedSongs || predictedSongs.length === 0) {
         return 0;
@@ -792,6 +767,60 @@ export const getSetlistWithVotes = query({
       setlistfmData: officialSetlist.setlistfmData,
       hasActualSetlist: true,
     };
+  },
+});
+
+export const refreshMissingAutoSetlists = internalMutation({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  returns: v.object({
+    processed: v.number(),
+    generated: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 60;
+    const upcomingShows = await ctx.db
+      .query("shows")
+      .withIndex("by_status", (q) => q.eq("status", "upcoming"))
+      .take(limit);
+
+    let processed = 0;
+    let generated = 0;
+
+    for (const show of upcomingShows) {
+      processed += 1;
+
+      // Skip shows without artist reference
+      if (!show.artistId) {
+        continue;
+      }
+
+      const existingSetlist = await ctx.db
+        .query("setlists")
+        .withIndex("by_show", (q) => q.eq("showId", show._id))
+        .first();
+
+      if (existingSetlist) {
+        continue;
+      }
+
+      try {
+        await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+          showId: show._id,
+          artistId: show.artistId,
+        });
+        generated += 1;
+      } catch (error) {
+        console.error("Failed to auto-generate setlist", {
+          showId: show._id,
+          artistId: show.artistId,
+          error,
+        });
+      }
+    }
+
+    return { processed, generated };
   },
 });
 

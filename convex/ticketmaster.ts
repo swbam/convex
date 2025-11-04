@@ -75,14 +75,25 @@ export const triggerFullArtistSync = action({
       images: args.images || [],
     });
 
-    // Phase 2: Sync shows SYNCHRONOUSLY
+    // Phase 2: Import Spotify catalog FIRST so songs exist before shows are created
+    console.log(`🎧 Importing Spotify catalog for ${args.artistName} before creating shows...`);
+    try {
+      await ctx.runAction(internal.spotify.syncArtistCatalog, {
+        artistId,
+        artistName: args.artistName,
+      });
+    } catch (catalogError) {
+      console.warn(`⚠️ Spotify catalog sync failed (will continue): ${catalogError}`);
+    }
+
+    // Phase 3: Sync shows SYNCHRONOUSLY (auto-generate setlists can now use catalog)
     console.log(`📅 Syncing shows for ${args.artistName}...`);
     await ctx.runAction(internal.ticketmaster.syncArtistShows, {
       artistId,
       ticketmasterId: args.ticketmasterId,
     });
 
-    // Phase 3: Enrich with Spotify basics SYNCHRONOUSLY
+    // Phase 4: Enrich with Spotify basics SYNCHRONOUSLY
     console.log(`🎵 Enriching with Spotify basics for ${args.artistName}...`);
     try {
       await ctx.runAction(internal.spotify.enrichArtistBasics, {
@@ -93,8 +104,7 @@ export const triggerFullArtistSync = action({
       console.warn(`⚠️ Spotify basics sync failed: ${spotifyError}`);
     }
 
-    // Schedule background tasks
-    void ctx.scheduler.runAfter(2000, internal.spotify.syncArtistCatalog, { artistId, artistName: args.artistName });
+    // Schedule background tasks (lightweight follow-ups)
     void ctx.scheduler.runAfter(3000, internal.maintenance.updateArtistCounts, { artistId });
 
     return artistId;

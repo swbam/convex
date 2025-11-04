@@ -22,11 +22,15 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
   const dbTrendingShowsResult = useQuery(api.trending.getTrendingShows, { limit: 20 });
   const dbTrendingArtistsResult = useQuery(api.trending.getTrendingArtists, { limit: 20 });
   
-  // Extract page arrays from paginated results
-  const dbTrendingShows = dbTrendingShowsResult?.page || [];
-  const dbTrendingArtists = dbTrendingArtistsResult?.page || [];
+  // Extract page arrays from paginated results with robust guards
+  const dbTrendingShows = Array.isArray(dbTrendingShowsResult?.page)
+    ? dbTrendingShowsResult!.page
+    : [];
+  const dbTrendingArtists = Array.isArray(dbTrendingArtistsResult?.page)
+    ? dbTrendingArtistsResult!.page
+    : [];
 
-  const isLoading = !dbTrendingShowsResult || !dbTrendingArtistsResult;
+  const isLoading = dbTrendingShowsResult === undefined || dbTrendingArtistsResult === undefined;
 
   // Animation variants for stagger effect
   const heroVariants = {

@@ -590,6 +590,25 @@ export const triggerSetlistSyncManual = action({
   },
 });
 
+// Cleanup orphaned shows (admin-only)
+export const cleanupOrphanedShows = action({
+  args: {},
+  returns: v.object({ success: v.boolean(), message: v.string() }),
+  handler: async (ctx) => {
+    const user = await ctx.runQuery(api.auth.loggedInUser);
+    if (!user?.appUser || user.appUser.role !== "admin") {
+      throw new Error("Admin access required");
+    }
+
+    try {
+      await ctx.runMutation(internal.shows.cleanupOrphanedShows, {});
+      return { success: true, message: "Orphaned shows cleanup invoked" };
+    } catch (error) {
+      return { success: false, message: error instanceof Error ? error.message : "Unknown error" };
+    }
+  },
+});
+
 // ===== SONG DATABASE CLEANUP =====
 
 export const cleanupNonStudioSongs = action({

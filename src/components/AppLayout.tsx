@@ -299,11 +299,11 @@ export function AppLayout({ children }: AppLayoutProps) {
               <div className="hidden lg:block w-full max-w-md xl:max-w-lg relative z-[60]">
                 <SearchBar onResultClick={(type: string, id: string, slug?: string) => {
                   if (type === 'artist') {
-                    // Prefer Convex IDs if present; fall back to slug
-                    const urlParam = id.startsWith('k') ? id : (slug || id);
+                    // Prefer SEO slug when available; fallback to id
+                    const urlParam = slug || id;
                     void navigate(`/artists/${urlParam}`)
                   } else if (type === 'show') {
-                    const urlParam = id.startsWith('k') ? id : (slug || id);
+                    const urlParam = slug || id;
                     void navigate(`/shows/${urlParam}`)
                   }
                 }} />

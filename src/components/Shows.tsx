@@ -29,10 +29,13 @@ export function Shows({ onShowClick }: ShowsProps) {
         return;
       }
 
-      const key =
-        (typeof show._id === 'string' && show._id.length > 0 && show._id) ||
-        (typeof show.slug === 'string' && show.slug.length > 0 && show.slug) ||
-        `${show.artist.name}-${show.venue?.name ?? ''}-${show.date}-${show.startTime ?? ''}`;
+      // Deduplicate using a stable composite key rather than document id/slug
+      const key = [
+        (show.artist?._id || (show as any).artistId || ''),
+        (show.venue?._id || (show as any).venueId || ''),
+        show.date || '',
+        show.startTime || ''
+      ].join('::');
 
       if (!showsMap.has(key)) {
         showsMap.set(key, show);
