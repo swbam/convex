@@ -463,10 +463,12 @@ export const autoGenerateSetlist = internalMutation({
     artistId: v.id("artists"),
   },
   handler: async (ctx, args) => {
-    // Check if a setlist already exists for this show
+    // Check if a shared community setlist already exists for this show (not user-specific, not official)
     const existingSetlist = await ctx.db
       .query("setlists")
       .withIndex("by_show", (q) => q.eq("showId", args.showId))
+      .filter((q) => q.eq(q.field("isOfficial"), false))
+      .filter((q) => q.eq(q.field("userId"), undefined))
       .first();
 
     // Get all songs for this artist
@@ -534,7 +536,7 @@ export const autoGenerateSetlist = internalMutation({
       songsToChooseFrom.splice(selectedIndex, 1); // Remove to avoid duplicates
     }
 
-    // Create or update the auto-generated setlist
+    // Create or update the auto-generated community setlist
     if (existingSetlist) {
       await ctx.db.patch(existingSetlist._id, {
         songs: selectedSongs,
