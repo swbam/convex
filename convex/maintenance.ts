@@ -168,18 +168,6 @@ export const triggerTrendingSync = action({
   },
 });
 
-// One-off backfill to seed auto-generated setlists for upcoming shows (public action for CLI)
-export const backfillMissingSetlists = action({
-  args: { limit: v.optional(v.number()) },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const limit = args.limit ?? 100;
-    const result = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, { limit });
-    console.log(`Backfill complete: processed=${result.processed}, generated=${result.generated}`);
-    return null;
-  },
-});
-
 // Fix missing artist data (unchanged)
 export const fixMissingArtistData = internalAction({
   args: {},
@@ -517,7 +505,7 @@ export const updateShowEmbeds = internalMutation({
     venue: v.optional(v.any()),
   },
   returns: v.null(),
-  handler: async (ctx, args) => {
+  handler: async (_ctx, _args) => {
     // Schema doesn't support artist/venue embeds - they're populated at read time
     // This mutation is a no-op to prevent schema errors
     return null;
