@@ -198,11 +198,10 @@ export const getTrendingShows = query({
       if (!artist || !venue) return false;
 
       const isUpcoming = show.status === "upcoming";
-      const notUnknown = !artist.name.toLowerCase().includes("unknown");
       const hasBasicData = artist.name && artist.name.length > 0 && venue.name;
 
-      // Require upcoming + valid names; image not required but preferred
-      return isUpcoming && notUnknown && hasBasicData;
+      // Relaxed filter: require upcoming + basic data, allow unknown names for fallback
+      return isUpcoming && hasBasicData;
     });
 
     // DEDUPE: only one show per artist on homepage
@@ -330,13 +329,8 @@ export const getTrendingArtists = query({
       const popularity = a?.popularity ?? 0;
       const followers = a?.followers ?? 0;
       const upcoming = a?.upcomingShowsCount ?? 0;
-      return upcoming > 0 || popularity > 30 || followers > 50_000 || isMassiveArtist({
-        artistName: a.name,
-        artistPopularity: a.popularity,
-        artistFollowers: a.followers,
-        upcomingEvents: a.upcomingShowsCount,
-        genres: a.genres,
-      });
+      // Relaxed filter: show more artists in fallback
+      return upcoming > 0 || popularity > 0 || followers > 0 || a.name.toLowerCase() !== 'unknown';
     });
 
     if (massiveRanked.length > 0) {
