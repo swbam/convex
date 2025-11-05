@@ -292,14 +292,20 @@ export const getTrendingArtists = query({
         limit * 3
       );
 
-      // Filter to only "massive" artists for homepage
-      const massive = unique.filter((a: any) => isMassiveArtist({
-        artistName: a.name,
-        artistPopularity: a.popularity,
-        artistFollowers: a.followers,
-        upcomingEvents: a.upcomingShowsCount || a.upcomingEvents,
-        genres: a.genres,
-      }));
+      // Relaxed filter: allow artists with any upcoming events or reasonable popularity/followers
+      const massive = unique.filter((a: any) => {
+        const popularity = a?.popularity ?? 0;
+        const followers = a?.followers ?? 0;
+        const upcoming = a?.upcomingShowsCount ?? a?.upcomingEvents ?? 0;
+        // Keep if any of these basic signals indicate relevance
+        return upcoming > 0 || popularity > 30 || followers > 50_000 || isMassiveArtist({
+          artistName: a.name,
+          artistPopularity: a.popularity,
+          artistFollowers: a.followers,
+          upcomingEvents: a.upcomingShowsCount || a.upcomingEvents,
+          genres: a.genres,
+        });
+      });
 
       return {
         page: massive.slice(0, limit),
@@ -320,13 +326,18 @@ export const getTrendingArtists = query({
     );
 
     // Apply massive filter to fallback results too
-    const massiveRanked = filteredRanked.filter((a: any) => isMassiveArtist({
-      artistName: a.name,
-      artistPopularity: a.popularity,
-      artistFollowers: a.followers,
-      upcomingEvents: a.upcomingShowsCount,
-      genres: a.genres,
-    }));
+    const massiveRanked = filteredRanked.filter((a: any) => {
+      const popularity = a?.popularity ?? 0;
+      const followers = a?.followers ?? 0;
+      const upcoming = a?.upcomingShowsCount ?? 0;
+      return upcoming > 0 || popularity > 30 || followers > 50_000 || isMassiveArtist({
+        artistName: a.name,
+        artistPopularity: a.popularity,
+        artistFollowers: a.followers,
+        upcomingEvents: a.upcomingShowsCount,
+        genres: a.genres,
+      });
+    });
 
     if (massiveRanked.length > 0) {
       return {

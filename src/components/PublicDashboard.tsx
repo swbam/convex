@@ -23,14 +23,18 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
   const dbTrendingArtistsResult = useQuery(api.trending.getTrendingArtists, { limit: 20 });
   
   // Extract page arrays from paginated results with robust guards
-  const dbTrendingShows = Array.isArray(dbTrendingShowsResult?.page)
-    ? dbTrendingShowsResult!.page
-    : [];
-  const dbTrendingArtists = Array.isArray(dbTrendingArtistsResult?.page)
-    ? dbTrendingArtistsResult!.page
-    : [];
+  const dbTrendingShows = React.useMemo(() => {
+    if (dbTrendingShowsResult === undefined) return undefined; // loading
+    if (dbTrendingShowsResult === null) return [];
+    return Array.isArray(dbTrendingShowsResult.page) ? dbTrendingShowsResult.page : [];
+  }, [dbTrendingShowsResult]);
+  const dbTrendingArtists = React.useMemo(() => {
+    if (dbTrendingArtistsResult === undefined) return undefined; // loading
+    if (dbTrendingArtistsResult === null) return [];
+    return Array.isArray(dbTrendingArtistsResult.page) ? dbTrendingArtistsResult.page : [];
+  }, [dbTrendingArtistsResult]);
 
-  const isLoading = dbTrendingShowsResult === undefined || dbTrendingArtistsResult === undefined;
+  const isLoading = dbTrendingShows === undefined || dbTrendingArtists === undefined;
 
   // Animation variants for stagger effect
   const heroVariants = {
@@ -162,20 +166,23 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
             <div className="grid grid-cols-2 gap-3 md:flex md:gap-4 md:overflow-x-auto pb-4 scrollbar-hide md:snap-x md:snap-mandatory -mx-2 px-2 md:-mx-4 md:px-4">
               {isLoading ? (
                 [...Array(6)].map((_, i) => <ArtistCardSkeleton key={i} />)
-              ) : dbTrendingArtists.length === 0 ? (
+              ) : (dbTrendingArtists as any[])?.length === 0 ? (
                 <div className="col-span-2 w-full flex flex-col items-center justify-center py-16 text-center min-h-[300px]">
                   <Music className="h-16 w-16 text-gray-800 mb-4" />
                   <p className="text-gray-500 text-lg">No trending artists yet</p>
                   <p className="text-gray-600 text-sm mt-2">Artists will appear here once data is synced</p>
                 </div>
               ) : (
-                dbTrendingArtists.map((artist: any, index: number) => {
+                (dbTrendingArtists as any[]).map((artist: any, index: number) => {
                   const key = artist._id || artist.ticketmasterId || artist.slug || artist.name || index;
                   const targetSlug = artist.slug 
                     || artist?.cachedTrending?.slug 
+                    || (typeof artist.name === 'string' && artist.name.length > 0 
+                        ? artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+                        : null)
                     || artist._id 
-                    || artist.ticketmasterId 
-                    || (artist.name ? artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '');
+                    || artist.ticketmasterId;
+                  if (!targetSlug) return null;
                   return (
                     <motion.div key={key} variants={cardVariants} custom={index} className="w-full md:w-auto">
                       <ArtistCard 
@@ -184,7 +191,7 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
                       />
                     </motion.div>
                   );
-                })
+                }).filter(Boolean as any)
               )}
             </div>
           </motion.div>
@@ -216,25 +223,27 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
           >
             {isLoading ? (
               [...Array(8)].map((_, i) => <ShowCardSkeleton key={i} />)
-            ) : dbTrendingShows.length === 0 ? (
+            ) : (dbTrendingShows as any[])?.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
                 <Music className="h-16 w-16 text-gray-800 mb-4" />
                 <p className="text-gray-500 text-lg">No shows available</p>
                 <p className="text-gray-600 text-sm mt-2">Check back soon</p>
               </div>
             ) : (
-              dbTrendingShows.slice(0, 12).map((show, index) => (
-                <motion.div key={show._id} variants={cardVariants} custom={index}>
-                  <ShowCard 
-                    show={show} 
-                    onClick={() => {
-                      const s = show as any;
-                      const slug = s.slug || s?.cachedTrending?.showSlug || s.ticketmasterId;
-                      navigateTo(`/shows/${slug}`);
-                    }}
-                  />
-                </motion.div>
-              ))
+              (dbTrendingShows as any[]).slice(0, 12).map((show: any, index: number) => {
+                const slug = show?.slug || show?.cachedTrending?.showSlug || show?.ticketmasterId || show?._id;
+                if (!slug) return null;
+                return (
+                  <motion.div key={show._id || index} variants={cardVariants} custom={index}>
+                    <ShowCard 
+                      show={show} 
+                      onClick={() => {
+                        navigateTo(`/shows/${slug}`);
+                      }}
+                    />
+                  </motion.div>
+                );
+              }).filter(Boolean as any)
             )}
           </motion.div>
         </motion.section>

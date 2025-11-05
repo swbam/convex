@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useClerk, useSignUp } from '@clerk/clerk-react';
+import { useClerk, useSignUp, useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { MagicCard } from '../components/ui/magic-card';
 import { BorderBeam } from '../components/ui/border-beam';
@@ -11,6 +11,7 @@ import { FaSpotify, FaGoogle } from 'react-icons/fa';
 export function SignUpPage() {
   const { signUp, isLoaded } = useSignUp();
   const { setActive } = useClerk();
+  const { isSignedIn, isLoaded: isUserLoaded } = useUser();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,6 +34,13 @@ export function SignUpPage() {
 
     return () => clearTimeout(timeout);
   }, [isLoaded, signUp]);
+
+  // Redirect to dashboard if already signed in
+  React.useEffect(() => {
+    if (isUserLoaded && isSignedIn) {
+      navigate('/', { replace: true });
+    }
+  }, [isUserLoaded, isSignedIn, navigate]);
 
   // Show loading state while Clerk initializes with error handling
   if (!isLoaded || !signUp) {

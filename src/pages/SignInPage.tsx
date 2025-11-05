@@ -12,7 +12,7 @@ import { ArrowLeft, Mail, Lock, Eye, EyeOff, Music, Sparkles, Loader2 } from 'lu
 import { FaGoogle } from 'react-icons/fa';
 
 export function SignInPage() {
-  const { user, isSignedIn } = useUser();
+  const { user, isSignedIn, isLoaded: isUserLoaded } = useUser();
   const { signIn, isLoaded, setActive } = useSignIn();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -40,6 +40,13 @@ export function SignInPage() {
   // CRITICAL FIX: Removed automatic Spotify import on sign-in
   // Spotify data import is now handled by SSOCallback page after OAuth completion
   // This prevents the bug where empty arrays were being imported
+
+  // Redirect to dashboard if already signed in
+  useEffect(() => {
+    if (isUserLoaded && isSignedIn) {
+      navigate('/', { replace: true });
+    }
+  }, [isUserLoaded, isSignedIn, navigate]);
 
   if (isImporting) {
     return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /> Importing Spotify...</div>;

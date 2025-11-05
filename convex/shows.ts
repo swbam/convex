@@ -489,6 +489,26 @@ export const createInternal = internalMutation({
     });
     
     console.log(`✅ Created internal show ${showId} with slug: ${slug}`);
+    // Auto-generate initial setlist for the new show
+    try {
+      const setlistId = await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+        showId,
+        artistId: args.artistId,
+      });
+      if (!setlistId) {
+        console.warn(`⚠️ No setlist generated for show ${showId}; scheduling retry`);
+        void ctx.scheduler.runAfter(30_000, internal.setlists.autoGenerateSetlist, {
+          showId,
+          artistId: args.artistId,
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Failed to auto-generate setlist for show ${showId}:`, error);
+      void ctx.scheduler.runAfter(30_000, internal.setlists.autoGenerateSetlist, {
+        showId,
+        artistId: args.artistId,
+      });
+    }
     return showId;
   },
 });
@@ -567,11 +587,26 @@ export const createFromTicketmaster = internalMutation({
     
     console.log(`✅ Created show ${showId} with slug: ${slug}`);
 
-    // Auto-generate initial setlist for the new show
-    await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
-      showId,
-      artistId: args.artistId,
-    });
+    // Auto-generate initial setlist for the new show with retry if songs not yet imported
+    try {
+      const setlistId = await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+        showId,
+        artistId: args.artistId,
+      });
+      if (!setlistId) {
+        console.warn(`⚠️ No setlist generated for show ${showId}; scheduling retry`);
+        void ctx.scheduler.runAfter(30_000, internal.setlists.autoGenerateSetlist, {
+          showId,
+          artistId: args.artistId,
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Failed to auto-generate setlist for show ${showId}:`, error);
+      void ctx.scheduler.runAfter(30_000, internal.setlists.autoGenerateSetlist, {
+        showId,
+        artistId: args.artistId,
+      });
+    }
 
     return showId;
   },

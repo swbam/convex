@@ -54,9 +54,11 @@ export function Shows({ onShowClick }: ShowsProps) {
     let filtered = allShows;
     
     if (cityFilter.trim()) {
+      const q = cityFilter.toLowerCase();
       filtered = allShows.filter(show => 
-        show.venue?.city?.toLowerCase().includes(cityFilter.toLowerCase()) ||
-        show.venue?.state?.toLowerCase().includes(cityFilter.toLowerCase())
+        show.venue?.city?.toLowerCase().includes(q) ||
+        show.venue?.state?.toLowerCase().includes(q) ||
+        show.venue?.postalCode?.toLowerCase().includes(q)
       );
     }
     
@@ -73,8 +75,9 @@ export function Shows({ onShowClick }: ShowsProps) {
       }
     });
     
+    // Sort by soonest upcoming
     return Array.from(artistShowMap.values()).sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
   }, [allShows, cityFilter]);
 
