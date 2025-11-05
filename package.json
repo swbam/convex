@@ -16,7 +16,7 @@
     "check:env": "node scripts/check-env.js",
     "post-deploy": "sh scripts/post-deploy.sh",
     "sync:trending": "npx convex run maintenance:triggerTrendingSync",
-    "seed:setlists": "npx convex run setlists:refreshMissingAutoSetlists '{\"limit\":100}'",
+    "seed:setlists": "npx convex run maintenance:backfillMissingSetlists '{\"limit\":100}'",
     "deploy:backend": "SENTRY_DSN=\"\" npx convex deploy --yes",
     "deploy:frontend": "vercel --prod --yes",
     "all": "npm run deploy:backend && npm run deploy:frontend && npm run sync:trending && npm run seed:setlists",

@@ -168,6 +168,18 @@ export const triggerTrendingSync = action({
   },
 });
 
+// One-off backfill to seed auto-generated setlists for upcoming shows
+export const backfillMissingSetlists = internalAction({
+  args: { limit: v.optional(v.number()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 100;
+    const result = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, { limit });
+    console.log(`Backfill complete: processed=${result.processed}, generated=${result.generated}`);
+    return null;
+  },
+});
+
 // Fix missing artist data (unchanged)
 export const fixMissingArtistData = internalAction({
   args: {},
