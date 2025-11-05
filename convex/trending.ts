@@ -215,7 +215,7 @@ export const getTrendingShows = query({
       limit * 2
     );
 
-    const filtered = dedupeByKey(
+    let filtered = dedupeByKey(
       deduped,
       (show: any) =>
         show?.artist?._id ||
@@ -225,11 +225,24 @@ export const getTrendingShows = query({
       limit
     );
 
-    if (filtered.length < limit / 2) {
-      console.warn(`Trending filtered to ${filtered.length} items—check data population (popularity/images missing). Run syncs.`);
+    // If we still don't have enough items, relax filters further by simply using deduped list.
+    if (filtered.length < limit) {
+      const needed = limit - filtered.length;
+      const fillers = deduped.filter((s) => !filtered.includes(s)).slice(0, needed);
+      filtered = [...filtered, ...fillers];
     }
 
-    return { page: filtered.slice(0, limit), isDone: filtered.length < limit, continueCursor: undefined };
+    if (filtered.length < limit / 2) {
+      console.warn(
+        `Trending shows provider returned only ${filtered.length} items – data may be incomplete, consider running maintenance syncs.`
+      );
+    }
+
+    return {
+      page: filtered.slice(0, limit),
+      isDone: filtered.length < limit,
+      continueCursor: undefined,
+    };
   },
 });
 
@@ -326,18 +339,30 @@ export const getTrendingArtists = query({
     );
 
     // Apply massive filter to fallback results too
-    const massiveRanked = filteredRanked.filter((a: any) => {
+    let massiveRanked = filteredRanked.filter((a: any) => {
       const popularity = a?.popularity ?? 0;
       const followers = a?.followers ?? 0;
       const upcoming = a?.upcomingShowsCount ?? 0;
-      return upcoming > 0 || popularity > 30 || followers > 50_000 || isMassiveArtist({
-        artistName: a.name,
-        artistPopularity: a.popularity,
-        artistFollowers: a.followers,
-        upcomingEvents: a.upcomingShowsCount,
-        genres: a.genres,
-      });
+      return (
+        upcoming > 0 ||
+        popularity > 30 ||
+        followers > 50_000 ||
+        isMassiveArtist({
+          artistName: a.name,
+          artistPopularity: a.popularity,
+          artistFollowers: a.followers,
+          upcomingEvents: a.upcomingShowsCount,
+          genres: a.genres,
+        })
+      );
     });
+
+    // If we still don't have enough, relax the massive filter slightly by taking any filteredRanked
+    if (massiveRanked.length < limit) {
+      const needed = limit - massiveRanked.length;
+      const fillers = filteredRanked.filter((a) => !massiveRanked.includes(a)).slice(0, needed);
+      massiveRanked = [...massiveRanked, ...fillers];
+    }
 
     if (massiveRanked.length > 0) {
       return {
@@ -347,7 +372,7 @@ export const getTrendingArtists = query({
       };
     }
 
-    // Final fallback: active artists scored by upcoming + popularity, with massive filter
+    // Final fallback: active artists scored by upcoming + popularity (no massive filter)
     const activeArtists = await ctx.db
       .query("artists")
       .filter((q) => q.eq(q.field("isActive"), true))
