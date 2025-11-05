@@ -168,8 +168,8 @@ export const triggerTrendingSync = action({
   },
 });
 
-// One-off backfill to seed auto-generated setlists for upcoming shows
-export const backfillMissingSetlists = internalAction({
+// One-off backfill to seed auto-generated setlists for upcoming shows (public action for CLI)
+export const backfillMissingSetlists = action({
   args: { limit: v.optional(v.number()) },
   returns: v.null(),
   handler: async (ctx, args) => {
