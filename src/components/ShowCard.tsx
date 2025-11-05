@@ -66,14 +66,14 @@ function ShowCardComponent({
       onClick={handleClick}
       whileHover={{ scale: 1.02, y: -4 }}
       transition={{ duration: 0.2 }}
-      className="group relative overflow-hidden rounded-xl bg-card shadow-apple hover:shadow-apple-hover cursor-pointer"
+      className="group relative overflow-hidden rounded-xl bg-card shadow-apple hover:shadow-apple-hover cursor-pointer transform-gpu will-change-transform"
     >
       {/* Image */}
       {showArtist && show.artist?.images?.[0] && (
         <img
           src={show.artist.images[0]}
           alt={show.artist?.name || 'Show'}
-          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500"
+          className="w-full h-48 object-cover transform-gpu will-change-transform group-hover:scale-105 transition-transform duration-500"
         />
       )}
 

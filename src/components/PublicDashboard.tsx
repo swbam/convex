@@ -158,12 +158,12 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
           </motion.div>
           
           <motion.div variants={containerVariants} className="relative">
-            {/* Horizontal Scroll Container */}
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory -mx-2 px-2 md:-mx-4 md:px-4">
+            {/* Grid for mobile 2x2, horizontal scroll for desktop */}
+            <div className="grid grid-cols-2 gap-3 md:flex md:gap-4 md:overflow-x-auto pb-4 scrollbar-hide md:snap-x md:snap-mandatory -mx-2 px-2 md:-mx-4 md:px-4">
               {isLoading ? (
                 [...Array(6)].map((_, i) => <ArtistCardSkeleton key={i} />)
               ) : dbTrendingArtists.length === 0 ? (
-                <div className="w-full flex flex-col items-center justify-center py-16 text-center min-h-[300px]">
+                <div className="col-span-2 w-full flex flex-col items-center justify-center py-16 text-center min-h-[300px]">
                   <Music className="h-16 w-16 text-gray-800 mb-4" />
                   <p className="text-gray-500 text-lg">No trending artists yet</p>
                   <p className="text-gray-600 text-sm mt-2">Artists will appear here once data is synced</p>
@@ -171,9 +171,13 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
               ) : (
                 dbTrendingArtists.map((artist: any, index: number) => {
                   const key = artist._id || artist.ticketmasterId || artist.slug || artist.name || index;
-                  const targetSlug = artist.slug || artist._id || artist.ticketmasterId || (artist.name ? artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '');
+                  const targetSlug = artist.slug 
+                    || artist?.cachedTrending?.slug 
+                    || artist._id 
+                    || artist.ticketmasterId 
+                    || (artist.name ? artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '');
                   return (
-                    <motion.div key={key} variants={cardVariants} custom={index}>
+                    <motion.div key={key} variants={cardVariants} custom={index} className="w-full md:w-auto">
                       <ArtistCard 
                         artist={artist}
                         onClick={() => navigateTo(`/artists/${targetSlug}`)}
@@ -223,7 +227,11 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
                 <motion.div key={show._id} variants={cardVariants} custom={index}>
                   <ShowCard 
                     show={show} 
-                    onClick={() => navigateTo(`/shows/${show.slug}`)}
+                    onClick={() => {
+                      const s = show as any;
+                      const slug = s.slug || s?.cachedTrending?.showSlug || s.ticketmasterId;
+                      navigateTo(`/shows/${slug}`);
+                    }}
                   />
                 </motion.div>
               ))
@@ -242,7 +250,7 @@ function ArtistCard({ artist, onClick }: {
 }) {
   return (
     <motion.div 
-      className="flex-shrink-0 w-48 sm:w-56 md:w-64 snap-start cursor-pointer"
+      className="w-full md:flex-shrink-0 md:w-48 lg:w-56 xl:w-64 snap-start cursor-pointer transform-gpu will-change-transform"
       onClick={onClick}
       whileHover={{ y: -6, transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } }}
       whileTap={{ scale: 0.98 }}
@@ -254,7 +262,7 @@ function ArtistCard({ artist, onClick }: {
             <motion.img 
               src={artist.images[0]} 
               alt={artist.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transform-gpu will-change-transform"
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             />
@@ -303,7 +311,7 @@ function ShowCard({
 
   return (
     <motion.div 
-      className="cursor-pointer"
+      className="cursor-pointer transform-gpu will-change-transform"
       onClick={onClick}
       whileHover={{ y: -6, transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } }}
       whileTap={{ scale: 0.98 }}
@@ -317,7 +325,7 @@ function ShowCard({
             <motion.img
               src={imgSrc}
               alt={show.artist?.name || show.artistName}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transform-gpu will-change-transform"
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             />

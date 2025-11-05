@@ -2,6 +2,7 @@ import { query, internalMutation, internalAction, internalQuery } from "./_gener
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { internal } from "./_generated/api";
+import { isMassiveArtist } from "./massivenessFilter";
 
 const slugify = (value: string) =>
   value
@@ -288,12 +289,21 @@ export const getTrendingArtists = query({
           artist?.cachedTrending?.ticketmasterId ||
           artist?._id ||
           artist?.name,
-        limit
+        limit * 3
       );
 
+      // Filter to only "massive" artists for homepage
+      const massive = unique.filter((a: any) => isMassiveArtist({
+        artistName: a.name,
+        artistPopularity: a.popularity,
+        artistFollowers: a.followers,
+        upcomingEvents: a.upcomingShowsCount || a.upcomingEvents,
+        genres: a.genres,
+      }));
+
       return {
-        page: unique,
-        isDone: unique.length < limit,
+        page: massive.slice(0, limit),
+        isDone: massive.length < limit,
         continueCursor: undefined,
       };
     }
@@ -309,21 +319,38 @@ export const getTrendingArtists = query({
       (artist) => artist.isActive !== false
     );
 
-    if (filteredRanked.length > 0) {
+    // Apply massive filter to fallback results too
+    const massiveRanked = filteredRanked.filter((a: any) => isMassiveArtist({
+      artistName: a.name,
+      artistPopularity: a.popularity,
+      artistFollowers: a.followers,
+      upcomingEvents: a.upcomingShowsCount,
+      genres: a.genres,
+    }));
+
+    if (massiveRanked.length > 0) {
       return {
-        page: filteredRanked.slice(0, limit),
-        isDone: filteredRanked.length < limit,
+        page: massiveRanked.slice(0, limit),
+        isDone: massiveRanked.length < limit,
         continueCursor: undefined,
       };
     }
 
-    // Final fallback: score active artists by upcoming show count and popularity.
+    // Final fallback: active artists scored by upcoming + popularity, with massive filter
     const activeArtists = await ctx.db
       .query("artists")
       .filter((q) => q.eq(q.field("isActive"), true))
       .take(200);
 
-    const scored = activeArtists
+    const massiveActive = activeArtists.filter((a: any) => isMassiveArtist({
+      artistName: a.name,
+      artistPopularity: a.popularity,
+      artistFollowers: a.followers,
+      upcomingEvents: a.upcomingShowsCount,
+      genres: a.genres,
+    }));
+
+    const scored = massiveActive
       .map((artist) => ({
         artist,
         score:
