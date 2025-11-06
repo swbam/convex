@@ -489,43 +489,45 @@ export const createInternal = internalMutation({
     });
     
     console.log(`✅ Created internal show ${showId} with slug: ${slug}`);
-    // Auto-generate initial setlist for the new show with multiple retries
+    // ENHANCED: Auto-generate initial setlist for the new show with AGGRESSIVE retries
     try {
       const setlistId = await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
         showId,
         artistId: args.artistId,
       });
       if (!setlistId) {
-        console.warn(`⚠️ No setlist generated for show ${showId}; scheduling retries`);
-        // Schedule multiple retries with increasing delays to ensure songs are imported
-        void ctx.scheduler.runAfter(10_000, internal.setlists.autoGenerateSetlist, {
-          showId,
-          artistId: args.artistId,
-        });
-        void ctx.scheduler.runAfter(60_000, internal.setlists.autoGenerateSetlist, {
-          showId,
-          artistId: args.artistId,
-        });
-        void ctx.scheduler.runAfter(180_000, internal.setlists.autoGenerateSetlist, {
+        console.warn(`⚠️ No setlist generated for show ${showId}; scheduling AGGRESSIVE retries`);
+        // CRITICAL: Schedule MANY retries with exponential backoff to ensure songs are imported
+        // This gives the Spotify catalog sync plenty of time to complete
+        const retryDelays = [
+          5_000,      // 5 seconds - quick first retry
+          15_000,     // 15 seconds
+          30_000,     // 30 seconds
+          60_000,     // 1 minute
+          120_000,    // 2 minutes
+          300_000,    // 5 minutes
+          600_000,    // 10 minutes
+          1_800_000,  // 30 minutes
+          3_600_000,  // 1 hour
+        ];
+        
+        for (const delay of retryDelays) {
+          void ctx.scheduler.runAfter(delay, internal.setlists.autoGenerateSetlist, {
+            showId,
+            artistId: args.artistId,
+          });
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Failed to auto-generate setlist for show ${showId}:`, error);
+      // Schedule retries even on error
+      const retryDelays = [5_000, 15_000, 30_000, 60_000, 120_000, 300_000, 600_000, 1_800_000, 3_600_000];
+      for (const delay of retryDelays) {
+        void ctx.scheduler.runAfter(delay, internal.setlists.autoGenerateSetlist, {
           showId,
           artistId: args.artistId,
         });
       }
-    } catch (error) {
-      console.error(`❌ Failed to auto-generate setlist for show ${showId}:`, error);
-      // Schedule multiple retries with increasing delays
-      void ctx.scheduler.runAfter(10_000, internal.setlists.autoGenerateSetlist, {
-        showId,
-        artistId: args.artistId,
-      });
-      void ctx.scheduler.runAfter(60_000, internal.setlists.autoGenerateSetlist, {
-        showId,
-        artistId: args.artistId,
-      });
-      void ctx.scheduler.runAfter(180_000, internal.setlists.autoGenerateSetlist, {
-        showId,
-        artistId: args.artistId,
-      });
     }
     return showId;
   },
@@ -605,43 +607,44 @@ export const createFromTicketmaster = internalMutation({
     
     console.log(`✅ Created show ${showId} with slug: ${slug}`);
 
-    // Auto-generate initial setlist for the new show with multiple retries if songs not yet imported
+    // ENHANCED: Auto-generate initial setlist for the new show with AGGRESSIVE retries
     try {
       const setlistId = await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
         showId,
         artistId: args.artistId,
       });
       if (!setlistId) {
-        console.warn(`⚠️ No setlist generated for show ${showId}; scheduling retries`);
-        // Schedule multiple retries with increasing delays to ensure songs are imported
-        void ctx.scheduler.runAfter(10_000, internal.setlists.autoGenerateSetlist, {
-          showId,
-          artistId: args.artistId,
-        });
-        void ctx.scheduler.runAfter(60_000, internal.setlists.autoGenerateSetlist, {
-          showId,
-          artistId: args.artistId,
-        });
-        void ctx.scheduler.runAfter(180_000, internal.setlists.autoGenerateSetlist, {
+        console.warn(`⚠️ No setlist generated for show ${showId}; scheduling AGGRESSIVE retries`);
+        // CRITICAL: Schedule MANY retries with exponential backoff to ensure songs are imported
+        const retryDelays = [
+          5_000,      // 5 seconds - quick first retry
+          15_000,     // 15 seconds
+          30_000,     // 30 seconds
+          60_000,     // 1 minute
+          120_000,    // 2 minutes
+          300_000,    // 5 minutes
+          600_000,    // 10 minutes
+          1_800_000,  // 30 minutes
+          3_600_000,  // 1 hour
+        ];
+        
+        for (const delay of retryDelays) {
+          void ctx.scheduler.runAfter(delay, internal.setlists.autoGenerateSetlist, {
+            showId,
+            artistId: args.artistId,
+          });
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Failed to auto-generate setlist for show ${showId}:`, error);
+      // Schedule retries even on error
+      const retryDelays = [5_000, 15_000, 30_000, 60_000, 120_000, 300_000, 600_000, 1_800_000, 3_600_000];
+      for (const delay of retryDelays) {
+        void ctx.scheduler.runAfter(delay, internal.setlists.autoGenerateSetlist, {
           showId,
           artistId: args.artistId,
         });
       }
-    } catch (error) {
-      console.error(`❌ Failed to auto-generate setlist for show ${showId}:`, error);
-      // Schedule multiple retries with increasing delays
-      void ctx.scheduler.runAfter(10_000, internal.setlists.autoGenerateSetlist, {
-        showId,
-        artistId: args.artistId,
-      });
-      void ctx.scheduler.runAfter(60_000, internal.setlists.autoGenerateSetlist, {
-        showId,
-        artistId: args.artistId,
-      });
-      void ctx.scheduler.runAfter(180_000, internal.setlists.autoGenerateSetlist, {
-        showId,
-        artistId: args.artistId,
-      });
     }
 
     return showId;

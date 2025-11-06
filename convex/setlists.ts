@@ -463,7 +463,7 @@ export const autoGenerateSetlist = internalMutation({
     artistId: v.id("artists"),
   },
   handler: async (ctx, args) => {
-    // Check if a setlist already exists for this show
+    // CRITICAL: Check if a setlist already exists for this show
     const existingSetlist = await ctx.db
       .query("setlists")
       .withIndex("by_show", (q) => q.eq("showId", args.showId))
@@ -475,8 +475,25 @@ export const autoGenerateSetlist = internalMutation({
       .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
       .collect();
 
+    // ENHANCED: If no songs found, schedule catalog import before failing
     if (artistSongs.length === 0) {
-      console.log(`No songs found for artist ${args.artistId}, skipping setlist generation`);
+      console.log(`⚠️ No songs found for artist ${args.artistId}, scheduling catalog import`);
+      
+      // Try to trigger catalog import for this artist
+      try {
+        // Get artist details to pass artist name
+        const artist = await ctx.db.get(args.artistId);
+        if (artist) {
+          void ctx.scheduler.runAfter(0, internal.spotify.syncArtistCatalog, {
+            artistId: args.artistId,
+            artistName: artist.name,
+          });
+          console.log(`📅 Scheduled catalog import for artist ${artist.name}`);
+        }
+      } catch (error) {
+        console.error(`❌ Failed to schedule catalog import for artist ${args.artistId}:`, error);
+      }
+      
       return null;
     }
 

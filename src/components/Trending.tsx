@@ -37,26 +37,39 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
         ? toSlug(artist.name)
         : undefined;
 
+    // CRITICAL FIX: Check for artistId first (from trending cache)
+    if (typeof artist.artistId === 'string' && artist.artistId.startsWith('k')) {
+      onArtistClick(artist.artistId as Id<'artists'>, fallbackSlug);
+      return;
+    }
+
+    // Then check for _id (from main artists table)
     if (typeof artist._id === 'string' && artist._id.startsWith('k')) {
       onArtistClick(artist._id as Id<'artists'>, fallbackSlug);
       return;
     }
 
+    // Use slug as fallback navigation if we have it
+    if (fallbackSlug) {
+      onArtistClick(fallbackSlug, fallbackSlug);
+      return;
+    }
+
+    // Last resort: use Ticketmaster ID
     if (typeof artist.ticketmasterId === 'string' && artist.ticketmasterId.length > 0) {
       onArtistClick(artist.ticketmasterId, fallbackSlug);
       return;
     }
 
-    if (fallbackSlug) {
-      onArtistClick(fallbackSlug, fallbackSlug);
-    }
+    console.error('Unable to navigate to artist - no valid identifier found:', artist);
   };
 
   const handleShowClick = (show: any) => {
-    const localId = typeof show._id === 'string'
-      ? show._id
-      : typeof show.showId === 'string'
-        ? show.showId
+    // CRITICAL FIX: Check for showId first (from trending cache)
+    const localId = typeof show.showId === 'string'
+      ? show.showId
+      : typeof show._id === 'string'
+        ? show._id
         : undefined;
 
     const inferredSlug = typeof show.slug === 'string' && show.slug.trim().length > 0
@@ -72,19 +85,25 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
             .filter((part) => typeof part === 'string' && part.length > 0)
             .join(' '));
 
+    // Use actual show ID if we have it
     if (localId && localId.startsWith('k')) {
       onShowClick(localId as Id<'shows'>, inferredSlug);
       return;
     }
 
+    // Use slug as fallback navigation if we have it
     if (inferredSlug) {
       onShowClick(inferredSlug, inferredSlug);
       return;
     }
 
+    // Last resort: use Ticketmaster ID
     if (typeof show.ticketmasterId === 'string' && show.ticketmasterId.length > 0) {
       onShowClick(show.ticketmasterId, inferredSlug);
+      return;
     }
+
+    console.error('Unable to navigate to show - no valid identifier found:', show);
   };
 
   return (
