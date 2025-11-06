@@ -1,11 +1,9 @@
-import * as Sentry from '@sentry/react';
-
-// Test button to verify Sentry error tracking is working
+// Test button to verify error boundary is working (no external services)
 export function SentryTestButton() {
   return (
     <button
       onClick={() => {
-        throw new Error('This is your first error!');
+        throw new Error('This is a test error!');
       }}
       className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
     >
@@ -19,13 +17,12 @@ export function SentryCaptureTestButton() {
   return (
     <button
       onClick={() => {
-        Sentry.captureException(new Error('Test error from Sentry capture'));
-        Sentry.captureMessage('Test message to Sentry', 'info');
-        alert('Test error sent to Sentry!');
+        console.log('Test error event (no Sentry):', new Date().toISOString());
+        alert('Test error logged to console!');
       }}
       className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
     >
-      Send Test to Sentry
+      Send Test
     </button>
   );
 }
