@@ -309,7 +309,7 @@ export function ShowDetail({
         </MagicCard>
 
         {/* Apple-Level Header Design - Full Width Background */}
-        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl -mx-4 sm:mx-0 shadow-apple">
+        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl shadow-apple">
           {/* Full-Width Background Cover Image */}
           {heroImage && (
             <div className="absolute inset-0 z-0">
@@ -363,7 +363,15 @@ export function ShowDetail({
                   {show?.startTime && (
                     <>
                       <span className="text-white/40">•</span>
-                      <span className="font-medium">{show?.startTime}</span>
+                      <span className="font-medium">
+                        {(() => {
+                          const [hours, minutes] = show.startTime.split(':');
+                          const hour = parseInt(hours);
+                          const ampm = hour >= 12 ? 'PM' : 'AM';
+                          const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                          return `${displayHour}:${minutes} ${ampm}`;
+                        })()}
+                      </span>
                     </>
                   )}
                 </div>
@@ -378,8 +386,8 @@ export function ShowDetail({
                           "_blank"
                         )
                       }
-                      className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white border-0 px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-semibold"
-                      shimmerColor="#60a5fa"
+                      className="bg-white hover:bg-gray-100 text-black border-0 px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-semibold shadow-lg"
+                      shimmerColor="#ffffff"
                     >
                       <Ticket className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
                       Get Tickets

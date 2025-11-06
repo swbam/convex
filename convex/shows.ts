@@ -21,10 +21,9 @@ function createSEOSlug(name: string): string {
 
 // Helper function to create descriptive show slugs
 function createShowSlug(artistName: string, venueName: string, venueCity: string, date: string, startTime?: string): string {
-  // Format: artist-name-venue-name-city-yyyy-mm-dd[-hh-mm]
+  // Format: artist-name-venue-name-city-yyyy-mm-dd (NO TIME IN URL)
   const datePart = date; // Already in YYYY-MM-DD format
-  const timePart = startTime ? `-${startTime.replace(':', '-')}` : '';
-  return `${createSEOSlug(artistName)}-${createSEOSlug(venueName)}-${createSEOSlug(venueCity)}-${datePart}${timePart}`;
+  return `${createSEOSlug(artistName)}-${createSEOSlug(venueName)}-${createSEOSlug(venueCity)}-${datePart}`;
 }
 
 export const getRecentlyUpdated = query({
