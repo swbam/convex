@@ -580,6 +580,25 @@ export const testTriggerSetlistSync = action({
   },
 });
 
+// Utilities: maintenance wrappers for CLI
+export const normalizeShowSlugs = action({
+  args: { limit: v.optional(v.number()) },
+  returns: v.object({ processed: v.number(), updated: v.number() }),
+  handler: async (ctx, args): Promise<{ processed: number; updated: number }> => {
+    const result = await ctx.runMutation(internal.shows.normalizeSlugsInternal, { limit: args.limit });
+    return result as { processed: number; updated: number };
+  },
+});
+
+export const ensureAutoSetlistsBulk = action({
+  args: { limit: v.optional(v.number()) },
+  returns: v.object({ processed: v.number(), generated: v.number() }),
+  handler: async (ctx, args): Promise<{ processed: number; generated: number }> => {
+    const result = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, { limit: args.limit });
+    return result as { processed: number; generated: number };
+  },
+});
+
 // Add public action for manual sync:
 export const triggerSetlistSyncManual = action({
   args: {},

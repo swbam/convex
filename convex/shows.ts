@@ -1,4 +1,4 @@
-import { query, internalQuery, internalMutation } from "./_generated/server";
+import { query, internalQuery, internalMutation, action } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
@@ -143,11 +143,28 @@ export const getBySlug = query({
   args: { slug: v.string() },
   returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
-    const show = await ctx.db
+    // Primary lookup by exact slug
+    let show = await ctx.db
       .query("shows")
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
-      .unique();
-    
+      .first();
+
+    // Back-compat: if not found, support legacy slugs that included time ("-hh-mm")
+    if (!show) {
+      const parts = args.slug.split("-");
+      if (parts.length >= 2) {
+        const last = parts[parts.length - 1];
+        const secondLast = parts[parts.length - 2];
+        if (/^\d{2}$/.test(last) && /^\d{2}$/.test(secondLast)) {
+          const withoutTime = parts.slice(0, parts.length - 2).join("-");
+          show = await ctx.db
+            .query("shows")
+            .withIndex("by_slug", (q) => q.eq("slug", withoutTime))
+            .first();
+        }
+      }
+    }
+
     if (!show || !show.slug) return null;
     
     const [artist, venue] = await Promise.all([
@@ -156,6 +173,55 @@ export const getBySlug = query({
     ]);
     
     return { ...show, artist, venue };
+  },
+});
+
+// Internal mutation: normalize all show slugs to remove time ("-hh-mm") suffixes
+export const normalizeSlugsInternal = internalMutation({
+  args: { limit: v.optional(v.number()) },
+  returns: v.object({ processed: v.number(), updated: v.number() }),
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 500;
+    const shows = await ctx.db.query("shows").take(limit);
+    let processed = 0;
+    let updated = 0;
+
+    for (const show of shows) {
+      processed += 1;
+      const slug: string | undefined = (show as any).slug;
+      if (!slug) continue;
+      const parts = slug.split("-");
+      if (parts.length < 2) continue;
+      const last = parts[parts.length - 1];
+      const secondLast = parts[parts.length - 2];
+      const hasTimeSuffix = /^\d{2}$/.test(last) && /^\d{2}$/.test(secondLast);
+      if (!hasTimeSuffix) continue;
+
+      const newSlug = parts.slice(0, parts.length - 2).join("-");
+
+      if (newSlug !== slug) {
+        // Ensure uniqueness: if a different show already has this slug, append a short suffix
+        const existing = await ctx.db
+          .query("shows")
+          .withIndex("by_slug", (q) => q.eq("slug", newSlug))
+          .first();
+        const finalSlug = existing && existing._id !== show._id ? `${newSlug}-${String(show._creationTime).slice(-4)}` : newSlug;
+        await ctx.db.patch(show._id, { slug: finalSlug });
+        updated += 1;
+      }
+    }
+
+    return { processed, updated };
+  },
+});
+
+// Public action wrapper so we can trigger from CLI / MCP
+export const normalizeShowSlugs = action({
+  args: { limit: v.optional(v.number()) },
+  returns: v.object({ processed: v.number(), updated: v.number() }),
+  handler: async (ctx, args): Promise<{ processed: number; updated: number }> => {
+    const result = await ctx.runMutation(internal.shows.normalizeSlugsInternal, { limit: args.limit });
+    return result as { processed: number; updated: number };
   },
 });
 

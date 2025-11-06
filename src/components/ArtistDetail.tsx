@@ -13,6 +13,8 @@ import { BorderBeam } from "./ui/border-beam";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { FadeIn } from "./animations/FadeIn";
 import { motion } from "framer-motion";
+import { useAction } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 interface ArtistDetailProps {
   artistId: Id<"artists">;
@@ -27,11 +29,27 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   const songs = useQuery(api.songs.getByArtist, { artistId, limit: 20 });
   const isFollowing = useQuery(api.artists.isFollowing, { artistId });
   const user = useQuery(api.auth.loggedInUser);
-  // Choose best hero image from available images
-  const heroImage = React.useMemo(() => {
-    const images = (artist?.images as string[] | undefined) || [];
-    return images[0];
-  }, [artist?.images]);
+  // Media selection via backend (Ticketmaster hero, Spotify avatar)
+  const getArtistImages = useAction(api.media.getArtistImages);
+  const [heroImage, setHeroImage] = React.useState<string | undefined>(undefined);
+  const [avatarImage, setAvatarImage] = React.useState<string | undefined>(undefined);
+  const [spotifyLink, setSpotifyLink] = React.useState<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    if (!artistId) return;
+    void (async () => {
+      try {
+        const res = await getArtistImages({ artistId });
+        if (res) {
+          setHeroImage(res.heroUrl || undefined);
+          setAvatarImage(res.avatarUrl || undefined);
+          setSpotifyLink(res.spotifyUrl || undefined);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, [artistId, getArtistImages]);
 
   const [anonymousActions, setAnonymousActions] = useState(0);
   const [addToSetlistModal, setAddToSetlistModal] = useState<{ isOpen: boolean; songTitle: string }>({ isOpen: false, songTitle: "" });
@@ -143,37 +161,45 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
       </MagicCard>
 
       {/* Apple-Level Header Design - Full Width Background */}
-      <div className="relative overflow-hidden rounded-xl sm:rounded-2xl shadow-apple">
+      <div className="relative overflow-hidden rounded-none sm:rounded-none shadow-apple mx-[-1rem] sm:mx-[-1.5rem] lg:mx-[-2rem]">
         {/* Full-Width Background Cover Image */}
-        {(() => {
-          const heroImg = heroImage;
-          if (!heroImg) return null;
-          return (
-            <div className="absolute inset-0 z-0">
-              <img src={heroImg} alt="" className="w-full h-full object-cover opacity-20 blur-md scale-105" />
-              {/* Sophisticated Gradient Overlay - Apple Style */}
-              <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/85 to-black" />
-            </div>
-          );
-        })()}
+        {heroImage && (
+          <div className="absolute inset-0 z-0">
+            <img src={heroImage} alt="" className="w-full h-full object-cover opacity-20 blur-md scale-105" />
+            {/* Sophisticated Gradient Overlay - Apple Style */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/85 to-black" />
+          </div>
+        )}
         
         {/* Content - Compact on Mobile, Spacious on Desktop */}
         <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
             {/* Profile Image - Smaller on Mobile */}
-            {(() => {
-              const heroImg = heroImage;
-              if (!heroImg) return null;
-              return (
-                <div className="flex-shrink-0">
+            {(avatarImage || heroImage) && (
+              <div className="flex-shrink-0">
+                <a
+                  href={spotifyLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="View artist on Spotify"
+                  className="relative block"
+                >
                   <img
-                    src={heroImg}
+                    src={(avatarImage || heroImage)!}
                     alt={artist.name}
                     className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10"
                   />
-                </div>
-              );
-            })()}
+                  {spotifyLink && (
+                    <span className="absolute -bottom-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full bg-black/60 text-white text-[10px] sm:text-xs shadow">
+                      <svg viewBox="0 0 168 168" className="h-3 w-3 fill-[#1DB954]" aria-hidden>
+                        <path d="M84 0a84 84 0 1 0 0 168A84 84 0 0 0 84 0zm38.5 120.2a6.3 6.3 0 0 1-8.7 2c-24-14.7-54.3-18-89.9-9.7a6.3 6.3 0 1 1-2.8-12.3c38.7-9 72.9-5.2 99.1 10.8a6.3 6.3 0 0 1 2.3 9.2zm12.4-22.5a7.9 7.9 0 0 1-10.9 2.5c-27.6-17-69.7-22-102.4-11.8a7.9 7.9 0 0 1-4.7-15.1c37.6-11.7 83.6-6.1 114.8 13.4a7.9 7.9 0 0 1 3.2 11zm1.1-23.8C105 54.3 58.7 49.2 27.4 59a9.4 9.4 0 1 1-5.6-18c36-11.1 87.1-5.5 123.8 16.8a9.4 9.4 0 0 1-9.2 16z"/>
+                      </svg>
+                      Spotify
+                    </span>
+                  )}
+                </a>
+              </div>
+            )}
             
             {/* Artist Info - Optimized for Mobile */}
             <div className="flex-1 min-w-0 w-full sm:pb-2">

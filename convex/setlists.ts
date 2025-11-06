@@ -1,8 +1,8 @@
-import { query, mutation, internalMutation } from "./_generated/server";
+import { query, mutation, internalMutation, action } from "./_generated/server";
+import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { getAuthUserId } from "./auth";
-import { internal } from "./_generated/api";
 
 export const create = mutation({
   args: {
@@ -838,6 +838,41 @@ export const refreshMissingAutoSetlists = internalMutation({
     }
 
     return { processed, generated };
+  },
+});
+
+// Public action: ensure an auto-generated prediction setlist exists for a show
+export const ensureAutoSetlistForShow = action({
+  args: { showId: v.id("shows") },
+  returns: v.object({ created: v.boolean() }),
+  handler: async (ctx, args) => {
+    // If a prediction setlist already exists with songs, do nothing
+    const setlists = await ctx.runQuery(api.setlists.getByShow, { showId: args.showId });
+    const hasPrediction = (setlists || []).some((s: any) => !s.isOfficial && !s.userId && Array.isArray(s.songs) && s.songs.length > 0);
+    if (hasPrediction) return { created: false };
+
+    const show = await ctx.runQuery(api.shows.getById, { id: args.showId });
+    if (!show) return { created: false };
+
+    try {
+      await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+        showId: args.showId,
+        artistId: show.artistId,
+      });
+      return { created: true };
+    } catch {
+      return { created: false };
+    }
+  },
+});
+
+// Public action: refresh missing auto-setlists in bulk
+export const refreshMissingAutoSetlistsAction = action({
+  args: { limit: v.optional(v.number()) },
+  returns: v.object({ processed: v.number(), generated: v.number() }),
+  handler: async (ctx, args): Promise<{ processed: number; generated: number }> => {
+    const result = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, { limit: args.limit });
+    return result as { processed: number; generated: number };
   },
 });
 

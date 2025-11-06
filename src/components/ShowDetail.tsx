@@ -64,12 +64,30 @@ export function ShowDetail({
   const user = useQuery(api.auth.loggedInUser);
   const setlist = useQuery(api.setlists.getByShow, { showId }); // Assume exists
   const triggerSetlistSync = useAction(api.setlistfm.triggerSetlistSync); // For retry
+  const ensureAutoSetlist = useAction(api.setlists.ensureAutoSetlistForShow);
+  const fetchArtistImages = useAction(api.media.getArtistImages);
 
-  // Choose best hero image from available artist images
-  const heroImage = React.useMemo(() => {
-    const images = (show?.artist?.images as string[] | undefined) || [];
-    return images[0];
-  }, [show?.artist?.images]);
+  // Dynamic media selection (Ticketmaster hero, Spotify avatar)
+  const [heroImage, setHeroImage] = React.useState<string | undefined>(undefined);
+  const [avatarImage, setAvatarImage] = React.useState<string | undefined>(undefined);
+  const [spotifyLink, setSpotifyLink] = React.useState<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    const artistId = show?.artistId as Id<"artists"> | undefined;
+    if (!artistId) return;
+    void (async () => {
+      try {
+        const res = await fetchArtistImages({ artistId });
+        if (res) {
+          setHeroImage(res.heroUrl || undefined);
+          setAvatarImage(res.avatarUrl || undefined);
+          setSpotifyLink(res.spotifyUrl || undefined);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, [show?.artistId, fetchArtistImages]);
 
   const addSongToSetlist = useMutation(api.setlists.addSongToSetlist);
   const voteOnSong = useMutation(api.songVotes.voteOnSong);
@@ -164,6 +182,17 @@ export function ShowDetail({
   const predictionSetlistId = predictionSetlist?._id as
     | Id<"setlists">
     | undefined;
+
+  // Ensure a 5-song initial setlist exists (no-op if already present)
+  React.useEffect(() => {
+    if (!showId) return;
+    if (!songs || songs.length === 0) return; // wait for catalog
+    if (!setlists) return; // wait for load
+    const hasSongs = !!predictionSetlist && Array.isArray(predictionSetlist.songs) && predictionSetlist.songs.length > 0;
+    if (!hasSongs) {
+      void ensureAutoSetlist({ showId });
+    }
+  }, [showId, songs, setlists, predictionSetlist, ensureAutoSetlist]);
 
   const handleVoteAction = () => {
     if (hasVoted) {
@@ -309,9 +338,9 @@ export function ShowDetail({
         </MagicCard>
 
         {/* Apple-Level Header Design - Full Width Background */}
-        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl shadow-apple">
+        <div className="relative overflow-hidden rounded-none sm:rounded-none shadow-apple mx-[-1rem] sm:mx-[-1.5rem] lg:mx-[-2rem]">
           {/* Full-Width Background Cover Image */}
-          {heroImage && (
+              {heroImage && (
             <div className="absolute inset-0 z-0">
               <img src={heroImage} alt="" className="w-full h-full object-cover opacity-20 blur-md scale-105" />
               {/* Sophisticated Gradient Overlay - Apple Style */}
@@ -323,9 +352,25 @@ export function ShowDetail({
           <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
             <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
               {/* Profile Image - Smaller on Mobile */}
-              {heroImage && (
+              {(avatarImage || heroImage) && (
                 <div className="flex-shrink-0">
-                  <img src={heroImage} alt={show?.artist?.name} className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10" />
+                  <a
+                    href={spotifyLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="View artist on Spotify"
+                    className="relative block"
+                  >
+                    <img src={(avatarImage || heroImage)!} alt={show?.artist?.name} className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10" />
+                    {spotifyLink && (
+                      <span className="absolute -bottom-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full bg-black/60 text-white text-[10px] sm:text-xs shadow">
+                        <svg viewBox="0 0 168 168" className="h-3 w-3 fill-[#1DB954]" aria-hidden>
+                          <path d="M84 0a84 84 0 1 0 0 168A84 84 0 0 0 84 0zm38.5 120.2a6.3 6.3 0 0 1-8.7 2c-24-14.7-54.3-18-89.9-9.7a6.3 6.3 0 1 1-2.8-12.3c38.7-9 72.9-5.2 99.1 10.8a6.3 6.3 0 0 1 2.3 9.2zm12.4-22.5a7.9 7.9 0 0 1-10.9 2.5c-27.6-17-69.7-22-102.4-11.8a7.9 7.9 0 0 1-4.7-15.1c37.6-11.7 83.6-6.1 114.8 13.4a7.9 7.9 0 0 1 3.2 11zm1.1-23.8C105 54.3 58.7 49.2 27.4 59a9.4 9.4 0 1 1-5.6-18c36-11.1 87.1-5.5 123.8 16.8a9.4 9.4 0 0 1-9.2 16z"/>
+                        </svg>
+                        Spotify
+                      </span>
+                    )}
+                  </a>
                 </div>
               )}
 
@@ -386,12 +431,14 @@ export function ShowDetail({
                           "_blank"
                         )
                       }
-                      className="bg-white hover:bg-gray-100 text-black border-0 px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-semibold shadow-lg"
-                      shimmerColor="#ffffff"
+                      className="group relative p-[2px] rounded-xl bg-gradient-to-r from-gray-400/60 via-gray-300/50 to-gray-400/60 hover:from-gray-300/70 hover:to-gray-300/70 shadow-[0_0_0_1px_rgba(209,213,219,0.6)]"
+                      shimmerColor="#9ca3af"
                     >
-                      <Ticket className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
-                      Get Tickets
-                      <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4 ml-1.5 sm:ml-2" />
+                      <span className="inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 rounded-[10px] bg-white text-black text-sm sm:text-base font-semibold transition-colors">
+                        <Ticket className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
+                        Get Tickets
+                        <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4 ml-1.5 sm:ml-2" />
+                      </span>
                     </ShimmerButton>
                   )}
 
