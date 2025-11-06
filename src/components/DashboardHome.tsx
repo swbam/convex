@@ -18,8 +18,10 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   
-  const trendingArtists = useQuery(api.artists.getTrending, { limit: 8 });
-  const upcomingShows = useQuery(api.shows.getUpcoming, { limit: 6 });
+  const trendingArtistsResult = useQuery(api.trending.getTrendingArtists, { limit: 24 });
+  const trendingShowsResult = useQuery(api.trending.getTrendingShows, { limit: 18 });
+  const trendingArtists = trendingArtistsResult?.page || null;
+  const upcomingShows = trendingShowsResult?.page || null;
   const user = useQuery(api.auth.loggedInUser);
   
   const triggerArtistSync = useAction(api.ticketmaster.triggerFullArtistSync);
@@ -170,20 +172,20 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
         )}
       </div>
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Trending Artists */}
-        <div className="bg-black rounded-2xl p-6 border border-white/10">
+      {/* Content Grid with Sliding Carousels */}
+      <div className="space-y-8">
+        {/* Trending Artists - 3 Rows Sliding Carousel */}
+        <div className="bg-black rounded-2xl p-6 border border-white/10 overflow-hidden">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold">Trending Artists</h2>
             <TrendingUp className="h-5 w-5 text-primary" />
           </div>
-          
+
           {!trendingArtists ? (
             <div className="space-y-3">
               {[...Array(6)].map((_, i) => (
                 <div key={i} className="flex items-center gap-4 p-3 rounded-lg">
-                  <div className="w-12 h-12 bg-muted rounded-lg shimmer"></div>
+                  <div className="w-16 h-16 bg-muted rounded-lg shimmer"></div>
                   <div className="flex-1 space-y-2">
                     <div className="h-4 bg-muted rounded shimmer"></div>
                     <div className="h-3 bg-muted rounded w-2/3 shimmer"></div>
@@ -198,46 +200,122 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
               <p className="text-sm mt-1">Check back later</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {trendingArtists.map((artist) => (
-                <div
-                  key={artist._id}
-                  className="trending-item"
-                  onClick={() => onArtistClick(artist._id)}
-                >
-                  {artist.images?.[0] && (
-                    <img
-                      src={artist.images[0]}
-                      alt={artist.name}
-                      className="w-12 h-12 rounded-lg object-cover"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <div className="font-medium">{artist.name}</div>
-                    {artist.genres && artist.genres.length > 0 && (
-                      <div className="text-sm text-muted-foreground">
-                        {(artist.genres || []).slice(0, 2).join(", ")}
+            <div className="space-y-4 relative">
+              {/* Row 1 - Slide Left */}
+              <div className="relative overflow-hidden group">
+                <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none"></div>
+                <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none"></div>
+                <div className="flex gap-4 animate-slide-left group-hover:pause-animation">
+                  {[...trendingArtists.slice(0, 8), ...trendingArtists.slice(0, 8)].map((artist, idx) => (
+                    <div
+                      key={`${artist._id}-${idx}`}
+                      className="flex-shrink-0 w-64 cursor-pointer transition-transform hover:scale-105"
+                      onClick={() => onArtistClick(artist._id)}
+                    >
+                      <div className="bg-card rounded-xl p-4 border border-white/10 hover:border-primary/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          {artist.images?.[0] && (
+                            <img
+                              src={artist.images[0]}
+                              alt={artist.name}
+                              className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{artist.name}</div>
+                            {artist.genres && artist.genres.length > 0 && (
+                              <div className="text-sm text-muted-foreground truncate">
+                                {(artist.genres || []).slice(0, 2).join(", ")}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                  {(typeof artist.trendingScore === 'number' && Number.isFinite(artist.trendingScore) && artist.trendingScore > 0) && (
-                    <div className="text-sm font-medium text-primary">
-                      {artist.trendingScore}
                     </div>
-                  )}
+                  ))}
                 </div>
-              ))}
+              </div>
+
+              {/* Row 2 - Slide Right */}
+              <div className="relative overflow-hidden group">
+                <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none"></div>
+                <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none"></div>
+                <div className="flex gap-4 animate-slide-right group-hover:pause-animation">
+                  {[...trendingArtists.slice(8, 16), ...trendingArtists.slice(8, 16)].map((artist, idx) => (
+                    <div
+                      key={`${artist._id}-${idx}`}
+                      className="flex-shrink-0 w-64 cursor-pointer transition-transform hover:scale-105"
+                      onClick={() => onArtistClick(artist._id)}
+                    >
+                      <div className="bg-card rounded-xl p-4 border border-white/10 hover:border-primary/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          {artist.images?.[0] && (
+                            <img
+                              src={artist.images[0]}
+                              alt={artist.name}
+                              className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{artist.name}</div>
+                            {artist.genres && artist.genres.length > 0 && (
+                              <div className="text-sm text-muted-foreground truncate">
+                                {(artist.genres || []).slice(0, 2).join(", ")}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Row 3 - Slide Left */}
+              <div className="relative overflow-hidden group">
+                <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none"></div>
+                <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none"></div>
+                <div className="flex gap-4 animate-slide-left group-hover:pause-animation">
+                  {[...trendingArtists.slice(16, 24), ...trendingArtists.slice(16, 24)].map((artist, idx) => (
+                    <div
+                      key={`${artist._id}-${idx}`}
+                      className="flex-shrink-0 w-64 cursor-pointer transition-transform hover:scale-105"
+                      onClick={() => onArtistClick(artist._id)}
+                    >
+                      <div className="bg-card rounded-xl p-4 border border-white/10 hover:border-primary/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          {artist.images?.[0] && (
+                            <img
+                              src={artist.images[0]}
+                              alt={artist.name}
+                              className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{artist.name}</div>
+                            {artist.genres && artist.genres.length > 0 && (
+                              <div className="text-sm text-muted-foreground truncate">
+                                {(artist.genres || []).slice(0, 2).join(", ")}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Upcoming Shows */}
-        <div className="bg-black rounded-2xl p-6 border border-white/10">
+        {/* Trending Shows - 3 Rows Sliding Carousel */}
+        <div className="bg-black rounded-2xl p-6 border border-white/10 overflow-hidden">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">Upcoming Shows</h2>
+            <h2 className="text-2xl font-bold">Trending Shows</h2>
             <Calendar className="h-5 w-5 text-primary" />
           </div>
-          
+
           {!upcomingShows ? (
             <div className="space-y-3">
               {[...Array(6)].map((_, i) => (
@@ -255,39 +333,132 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
               <p className="text-sm mt-1">Check back for new announcements</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {upcomingShows.map((show) => (
-                <div
-                  key={show._id}
-                  className="p-4 rounded-lg border bg-card hover:bg-accent cursor-pointer transition-colors"
-                  onClick={() => onShowClick(show._id, (show as any).slug)}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <h3 className="font-medium">{show.artist?.name}</h3>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <MapPin className="h-3 w-3" />
-                        <span>{show.venue?.name}</span>
+            <div className="space-y-4 relative">
+              {/* Row 1 - Slide Right */}
+              <div className="relative overflow-hidden group">
+                <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none"></div>
+                <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none"></div>
+                <div className="flex gap-4 animate-slide-right group-hover:pause-animation">
+                  {[...upcomingShows.slice(0, 6), ...upcomingShows.slice(0, 6)].map((show, idx) => (
+                    <div
+                      key={`${show._id}-${idx}`}
+                      className="flex-shrink-0 w-80 cursor-pointer transition-transform hover:scale-105"
+                      onClick={() => onShowClick(show._id, (show as any).slug)}
+                    >
+                      <div className="bg-card rounded-xl p-4 border border-white/10 hover:border-primary/50 transition-colors h-full">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium truncate">{show.artist?.name}</h3>
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <MapPin className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{show.venue?.name}</span>
+                            </div>
+                          </div>
+                          <div className={`flex-shrink-0 ml-2 px-2 py-1 rounded-full text-xs font-medium border ${
+                            new Date(show.date).toDateString() === new Date().toDateString()
+                              ? "border-foreground text-foreground"
+                              : "border-border text-muted-foreground"
+                          }`}>
+                            {new Date(show.date).toDateString() === new Date().toDateString() ? "Tonight" : "Upcoming"}
+                          </div>
+                        </div>
+                        <div className="text-sm text-muted-foreground truncate">
+                          {new Date(show.date).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                          {show.venue?.city && ` • ${show.venue.city}`}
+                        </div>
                       </div>
                     </div>
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium border ${
-                      new Date(show.date).toDateString() === new Date().toDateString()
-                        ? "border-foreground text-foreground"
-                        : "border-border text-muted-foreground"
-                    }`}>
-                      {new Date(show.date).toDateString() === new Date().toDateString() ? "Tonight" : "Upcoming"}
-                    </div>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {new Date(show.date).toLocaleDateString('en-US', {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric'
-                    })}
-                    {show.venue?.city && ` • ${show.venue.city}`}
-                  </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+
+              {/* Row 2 - Slide Left */}
+              <div className="relative overflow-hidden group">
+                <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none"></div>
+                <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none"></div>
+                <div className="flex gap-4 animate-slide-left group-hover:pause-animation">
+                  {[...upcomingShows.slice(6, 12), ...upcomingShows.slice(6, 12)].map((show, idx) => (
+                    <div
+                      key={`${show._id}-${idx}`}
+                      className="flex-shrink-0 w-80 cursor-pointer transition-transform hover:scale-105"
+                      onClick={() => onShowClick(show._id, (show as any).slug)}
+                    >
+                      <div className="bg-card rounded-xl p-4 border border-white/10 hover:border-primary/50 transition-colors h-full">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium truncate">{show.artist?.name}</h3>
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <MapPin className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{show.venue?.name}</span>
+                            </div>
+                          </div>
+                          <div className={`flex-shrink-0 ml-2 px-2 py-1 rounded-full text-xs font-medium border ${
+                            new Date(show.date).toDateString() === new Date().toDateString()
+                              ? "border-foreground text-foreground"
+                              : "border-border text-muted-foreground"
+                          }`}>
+                            {new Date(show.date).toDateString() === new Date().toDateString() ? "Tonight" : "Upcoming"}
+                          </div>
+                        </div>
+                        <div className="text-sm text-muted-foreground truncate">
+                          {new Date(show.date).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                          {show.venue?.city && ` • ${show.venue.city}`}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Row 3 - Slide Right */}
+              <div className="relative overflow-hidden group">
+                <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none"></div>
+                <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none"></div>
+                <div className="flex gap-4 animate-slide-right group-hover:pause-animation">
+                  {[...upcomingShows.slice(12, 18), ...upcomingShows.slice(12, 18)].map((show, idx) => (
+                    <div
+                      key={`${show._id}-${idx}`}
+                      className="flex-shrink-0 w-80 cursor-pointer transition-transform hover:scale-105"
+                      onClick={() => onShowClick(show._id, (show as any).slug)}
+                    >
+                      <div className="bg-card rounded-xl p-4 border border-white/10 hover:border-primary/50 transition-colors h-full">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium truncate">{show.artist?.name}</h3>
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <MapPin className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{show.venue?.name}</span>
+                            </div>
+                          </div>
+                          <div className={`flex-shrink-0 ml-2 px-2 py-1 rounded-full text-xs font-medium border ${
+                            new Date(show.date).toDateString() === new Date().toDateString()
+                              ? "border-foreground text-foreground"
+                              : "border-border text-muted-foreground"
+                          }`}>
+                            {new Date(show.date).toDateString() === new Date().toDateString() ? "Tonight" : "Upcoming"}
+                          </div>
+                        </div>
+                        <div className="text-sm text-muted-foreground truncate">
+                          {new Date(show.date).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                          {show.venue?.city && ` • ${show.venue.city}`}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
