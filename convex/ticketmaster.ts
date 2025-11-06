@@ -237,13 +237,10 @@ export const syncArtistShows = internalAction({
         const artistAllShows = await ctx.runQuery(internal.shows.getAllByArtistInternal, { artistId: args.artistId });
         for (const show of artistAllShows) {
           if (show.status !== 'upcoming') continue;
-          const existingSetlist = await ctx.db
-            .query('setlists')
-            .withIndex('by_show', (q) => q.eq('showId', show._id))
-            .filter((q) => q.eq(q.field('isOfficial'), false))
-            .filter((q) => q.eq(q.field('userId'), undefined))
-            .first();
-          if (!existingSetlist) {
+          const setlistsForShow = await ctx.runQuery(api.setlists.getByShow, { showId: show._id });
+          const hasCommunity = Array.isArray(setlistsForShow)
+            && setlistsForShow.some((s: any) => s && s.isOfficial === false && s.userId === undefined);
+          if (!hasCommunity) {
             await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
               showId: show._id,
               artistId: args.artistId,
