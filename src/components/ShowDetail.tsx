@@ -318,19 +318,28 @@ export function ShowDetail({
     typeof window !== "undefined" ? window.location.origin : "";
 
   return (
-    <div>
-      <SEOHead />
-      <div className="space-y-4 sm:space-y-8 relative z-10">
-        {/* Hero Header - Full Width */}
-        <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2 overflow-hidden bg-black min-h-[300px] sm:min-h-[380px]">
-          {heroImage && (
+    <>
+      <motion.div
+        className="px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <SEOHead />
+
+        {/* Apple-Level Header Design - Full Width Background */}
+        <div className="relative overflow-hidden shadow-apple -mx-4 sm:-mx-6 lg:-mx-8 rounded-none">
+          {/* Full-Width Background Cover Image */}
+              {heroImage && (
             <div className="absolute inset-0 z-0">
-              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-40" />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/55 to-black/80" />
+              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-40 scale-105" />
+              {/* Light Gradient Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/70" />
             </div>
           )}
 
-          <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+          {/* Content - Compact on Mobile, Spacious on Desktop */}
+          <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
             <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
               {/* Profile Image - Smaller on Mobile */}
               {(avatarImage || heroImage) && (
@@ -445,9 +454,8 @@ export function ShowDetail({
             </div>
           </div>
         </div>
-
-        <div className="container mx-auto px-4 sm:px-6 pb-4 sm:pb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             
@@ -948,7 +956,7 @@ export function ShowDetail({
             </button>
           </div>
         )}
-      </div>
+      </motion.div>
 
       {/* Auth Modal for Unauth Limits */}
       <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
@@ -975,7 +983,7 @@ export function ShowDetail({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
 
