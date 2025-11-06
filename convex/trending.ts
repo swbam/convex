@@ -218,22 +218,10 @@ export const getTrendingShows = query({
       // Require upcoming + valid names; image not required but preferred
       return isUpcoming && notUnknown && hasBasicData;
     });
-    
-    // ENHANCED: If no eligible shows, be more lenient
-    const finalEligible = eligible.length > 0 ? eligible : validShows.filter(show => {
-      const artist = show.artist;
-      const venue = show.venue;
-      if (!artist || !venue) return false;
-      
-      // Very lenient: just need basic fields
-      return show.status === "upcoming" && artist.name && venue.name;
-    });
-    
-    console.log(`✅ Trending shows: ${finalEligible.length} eligible from ${validShows.length} valid shows`);
 
     // DEDUPE: only one show per artist on homepage
     const deduped = dedupeByKey(
-      finalEligible,
+      eligible,
       (show: any) =>
         show?.slug ||
         show?.ticketmasterId ||
@@ -252,7 +240,7 @@ export const getTrendingShows = query({
     );
 
     if (filtered.length < limit / 2) {
-      console.warn(`⚠️ Trending filtered to ${filtered.length} items—check data population (popularity/images missing). Run syncs.`);
+      console.warn(`Trending filtered to ${filtered.length} items—check data population (popularity/images missing). Run syncs.`);
     }
 
     return { page: filtered.slice(0, limit), isDone: filtered.length < limit, continueCursor: undefined };
@@ -380,34 +368,15 @@ export const getTrendingArtists = query({
       .filter((q) => q.eq(q.field("isActive"), true))
       .take(200);
 
-    // RELAXED FILTER: If no massive artists, show any with upcoming shows or popularity
-    let candidates = activeArtists.filter((a: any) => isMassiveArtist({
+    const massiveActive = activeArtists.filter((a: any) => isMassiveArtist({
       artistName: a.name,
       artistPopularity: a.popularity,
       artistFollowers: a.followers,
       upcomingEvents: a.upcomingShowsCount,
       genres: a.genres,
     }));
-    
-    // If strict filter yields no results, be more lenient
-    if (candidates.length === 0) {
-      console.log("⚠️ No massive artists found, using lenient filter");
-      candidates = activeArtists.filter((a: any) => {
-        const popularity = a?.popularity ?? 0;
-        const followers = a?.followers ?? 0;
-        const upcoming = a?.upcomingShowsCount ?? 0;
-        // Very lenient: any artist with some data
-        return upcoming > 0 || popularity > 0 || followers > 0;
-      });
-    }
-    
-    // If still no results, just return any active artists
-    if (candidates.length === 0) {
-      console.log("⚠️ No artists match filters, returning all active artists");
-      candidates = activeArtists;
-    }
 
-    const scored = candidates
+    const scored = massiveActive
       .map((artist) => ({
         artist,
         score:
@@ -420,8 +389,6 @@ export const getTrendingArtists = query({
       .sort((a, b) => b.score - a.score)
       .map((entry) => entry.artist)
       .slice(0, limit);
-    
-    console.log(`✅ Trending artists fallback: returning ${scored.length} artists`);
 
     return {
       page: scored,

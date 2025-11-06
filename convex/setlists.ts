@@ -474,7 +474,7 @@ export const autoGenerateSetlist = internalMutation({
       .collect();
 
     if (artistSongs.length === 0) {
-      console.log(`⚠️ No songs found for artist ${args.artistId}, will retry later`);
+      console.log(`No songs found for artist ${args.artistId}, skipping setlist generation`);
       return null;
     }
 
@@ -491,7 +491,7 @@ export const autoGenerateSetlist = internalMutation({
       .sort((a, b) => (b.popularity || 0) - (a.popularity || 0)); // Sort by popularity
 
     if (studioSongs.length === 0) {
-      console.log(`⚠️ No studio songs found for artist ${args.artistId}, will retry later`);
+      console.log(`No studio songs found for artist ${args.artistId}, skipping setlist generation`);
       return null;
     }
 
@@ -501,7 +501,6 @@ export const autoGenerateSetlist = internalMutation({
     const numSongs = Math.min(5, songsToChooseFrom.length);
 
     if (existingSetlist && Array.isArray(existingSetlist.songs) && existingSetlist.songs.length >= numSongs) {
-      console.log(`✅ Setlist already exists for show ${args.showId} with ${existingSetlist.songs.length} songs`);
       return existingSetlist._id;
     }
 
@@ -561,7 +560,7 @@ export const autoGenerateSetlist = internalMutation({
       downvotes: 0,
     });
 
-    console.log(`✅ Auto-generated setlist ${setlistId} for show ${args.showId} with ${selectedSongs.length} songs`);
+    console.log(`Auto-generated setlist for show ${args.showId} with ${selectedSongs.length} songs`);
     return setlistId;
   },
 });
