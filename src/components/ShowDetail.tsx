@@ -318,7 +318,7 @@ export function ShowDetail({
     typeof window !== "undefined" ? window.location.origin : "";
 
   return (
-    <>
+    <div>
       <SEOHead />
       <div className="space-y-4 sm:space-y-8 relative z-10">
         {/* Hero Header - Full Width */}
@@ -975,7 +975,7 @@ export function ShowDetail({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }
 
