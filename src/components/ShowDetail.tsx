@@ -65,11 +65,11 @@ export function ShowDetail({
   const setlist = useQuery(api.setlists.getByShow, { showId }); // Assume exists
   const triggerSetlistSync = useAction(api.setlistfm.triggerSetlistSync); // For retry
 
-  // Pull Ticketmaster cached image if available to choose widest hero image
-  const tmCached = useQuery(
-    api.trending.getCachedShowByTicketmasterId,
-    show?.ticketmasterId ? { ticketmasterId: show.ticketmasterId as unknown as string } : "skip"
-  );
+  // Choose best hero image from available artist images
+  const heroImage = React.useMemo(() => {
+    const images = (show?.artist?.images as string[] | undefined) || [];
+    return images[0];
+  }, [show?.artist?.images]);
 
   const addSongToSetlist = useMutation(api.setlists.addSongToSetlist);
   const voteOnSong = useMutation(api.songVotes.voteOnSong);
@@ -312,7 +312,7 @@ export function ShowDetail({
         <div className="relative overflow-hidden rounded-xl sm:rounded-2xl -mx-4 sm:mx-0 shadow-apple">
           {/* Full-Width Background Cover Image */}
           {(() => {
-            const heroImg = (tmCached as any)?.artistImage || show?.artist?.images?.[0];
+            const heroImg = heroImage;
             if (!heroImg) return null;
             return (
             <div className="absolute inset-0 z-0">
@@ -328,7 +328,7 @@ export function ShowDetail({
             <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
               {/* Profile Image - Smaller on Mobile */}
               {(() => {
-                const heroImg = (tmCached as any)?.artistImage || show?.artist?.images?.[0];
+                const heroImg = heroImage;
                 if (!heroImg) return null;
                 return (
                 <div className="flex-shrink-0">

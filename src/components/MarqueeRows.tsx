@@ -33,10 +33,14 @@ export function MarqueeRows<T>({
           // Duplicate items for seamless loop
           const loopItems = [...rowItems, ...rowItems];
           return (
-            <div key={rowIdx} className={`marquee-row ${reverse ? 'reverse' : ''}`} style={{ ['--marquee-duration' as any]: `${duration}s` }}>
+            <div
+              key={rowIdx}
+              className={`marquee-row ${reverse ? 'reverse' : ''}`}
+              style={{ ['--marquee-duration' as any]: `${duration}s` } as any}
+            >
               <div className="marquee-track">
                 {loopItems.map((item, idx) => (
-                  <div key={idx} className="flex-shrink-0">
+                  <div key={idx} className="flex-shrink-0 w-56 sm:w-64 md:w-72">
                     {renderItem(item, idx % rowItems.length)}
                   </div>
                 ))}
@@ -50,4 +54,3 @@ export function MarqueeRows<T>({
 }
 
 export default MarqueeRows;
-

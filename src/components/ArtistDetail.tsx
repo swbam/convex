@@ -27,11 +27,11 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   const songs = useQuery(api.songs.getByArtist, { artistId, limit: 20 });
   const isFollowing = useQuery(api.artists.isFollowing, { artistId });
   const user = useQuery(api.auth.loggedInUser);
-  // Pull Ticketmaster cached images if available to choose a wider hero when Spotify images are square
-  const tmCached = useQuery(
-    api.trending.getCachedArtistByTicketmasterId,
-    artist?.ticketmasterId ? { ticketmasterId: artist.ticketmasterId as unknown as string } : "skip"
-  );
+  // Choose best hero image from available images
+  const heroImage = React.useMemo(() => {
+    const images = (artist?.images as string[] | undefined) || [];
+    return images[0];
+  }, [artist?.images]);
 
   const [anonymousActions, setAnonymousActions] = useState(0);
   const [addToSetlistModal, setAddToSetlistModal] = useState<{ isOpen: boolean; songTitle: string }>({ isOpen: false, songTitle: "" });
@@ -146,7 +146,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
       <div className="relative overflow-hidden rounded-xl sm:rounded-2xl -mx-4 sm:mx-0 shadow-apple">
         {/* Full-Width Background Cover Image */}
         {(() => {
-          const heroImg = (tmCached as any)?.images?.[0] || artist.images?.[0];
+          const heroImg = heroImage;
           if (!heroImg) return null;
           return (
             <div className="absolute inset-0 z-0">
@@ -162,7 +162,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
             {/* Profile Image - Smaller on Mobile */}
             {(() => {
-              const heroImg = (tmCached as any)?.images?.[0] || artist.images?.[0];
+              const heroImg = heroImage;
               if (!heroImg) return null;
               return (
                 <div className="flex-shrink-0">
