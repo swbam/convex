@@ -86,12 +86,27 @@ export const syncActualSetlist = internalAction({
         console.log(`✅ Synced setlist for ${artist.name} (${setlistId})`);
         return setlistId;
       } else {
-        // No setlist found - this is not a failure, just no data available
-        console.log(`ℹ️  No setlist found for ${artist.name} @ ${venue.city}`);
-        await ctx.runMutation(internal.shows.updateImportStatus, {
-          showId: args.showId,
-          status: "failed" as const,
-        });
+        // No setlist found - check if show is actually in the past
+        const showDate = new Date(args.showDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        showDate.setHours(0, 0, 0, 0);
+        
+        if (showDate >= today) {
+          // Show hasn't happened yet - keep as pending
+          console.log(`ℹ️  Show hasn't occurred yet: ${artist.name} @ ${venue.city} on ${args.showDate}`);
+          await ctx.runMutation(internal.shows.updateImportStatus, {
+            showId: args.showId,
+            status: "pending" as const,
+          });
+        } else {
+          // Show is past but no setlist available on setlist.fm
+          console.log(`⚠️  No setlist found on setlist.fm for ${artist.name} @ ${venue.city} (${args.showDate})`);
+          await ctx.runMutation(internal.shows.updateImportStatus, {
+            showId: args.showId,
+            status: "failed" as const,
+          });
+        }
         return null;
       }
     } catch (error) {
