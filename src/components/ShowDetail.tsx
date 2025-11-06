@@ -308,34 +308,26 @@ export function ShowDetail({
           </button>
         </MagicCard>
 
-        {/* Apple-Level Header Design - Full Width Background */
+        {/* Apple-Level Header Design - Full Width Background */}
         <div className="relative overflow-hidden rounded-xl sm:rounded-2xl -mx-4 sm:mx-0 shadow-apple">
           {/* Full-Width Background Cover Image */}
-          {(() => {
-            const heroImg = heroImage;
-            if (!heroImg) return null;
-            return (
+          {heroImage && (
             <div className="absolute inset-0 z-0">
-              <img src={heroImg} alt="" className="w-full h-full object-cover opacity-20 blur-md scale-105" />
+              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-20 blur-md scale-105" />
               {/* Sophisticated Gradient Overlay - Apple Style */}
               <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/85 to-black" />
             </div>
-            );
-          })()}
+          )}
 
           {/* Content - Compact on Mobile, Spacious on Desktop */}
           <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
             <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
               {/* Profile Image - Smaller on Mobile */}
-              {(() => {
-                const heroImg = heroImage;
-                if (!heroImg) return null;
-                return (
+              {heroImage && (
                 <div className="flex-shrink-0">
-                  <img src={heroImg} alt={show?.artist?.name} className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10" />
+                  <img src={heroImage} alt={show?.artist?.name} className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10" />
                 </div>
-                );
-              })()}
+              )}
 
               {/* Show Info - Optimized for Mobile */}
               <div className="flex-1 min-w-0 w-full sm:pb-2">
@@ -420,12 +412,11 @@ export function ShowDetail({
             </div>
           </div>
         </div>
-
-        {/* Two-Column Content Grid */}
+        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          {/* Main Setlist Section */}
+          
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-            {/* Enhanced Shared Setlist Display */}
+            
             <MagicCard className="p-0 rounded-2xl border-0 bg-black border-t border-b border-white/5">
               <div className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -552,7 +543,6 @@ export function ShowDetail({
                 )}
 
                 {hasActualSetlist ? (
-                  // Post-Show: Actual Setlist as Primary Content
                   <div className="space-y-8">
                     {/* MAIN: Actual Setlist Performed */}
                     <div className="space-y-4">
@@ -740,7 +730,6 @@ export function ShowDetail({
                   </div>
                 ) : !predictionSetlist ||
                   predictionSetlist.songs.length === 0 ? (
-                  // No songs in shared setlist yet
                   <div className="text-center py-12 text-muted-foreground">
                     <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p className="text-lg font-medium">
