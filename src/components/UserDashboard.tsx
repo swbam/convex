@@ -7,11 +7,10 @@ import { Id } from '../../convex/_generated/dataModel'
 import { MagicCard } from './ui/magic-card'
 import { BorderBeam } from './ui/border-beam'
 import { Button } from './ui/button'
-import { UserPredictions } from './UserPredictions'
 import { MySpotifyArtists } from './MySpotifyArtists'
-import { User, Settings, Activity, Calendar, Music, TrendingUp, ArrowLeft } from 'lucide-react'
-import { FadeIn } from './animations/FadeIn'
+import { User, Music, TrendingUp, ChevronUp } from 'lucide-react'
 import { Loader2 } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 interface UserDashboardProps {
   onArtistClick: (artistId: Id<"artists">) => void;
@@ -22,16 +21,11 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
   const navigate = useNavigate();
   const { user } = useUser();
   const appUser = useQuery(api.auth.loggedInUser);
-  const userVotes = useQuery(api.songVotes.getUserVotes, appUser?.appUser?._id ? { limit: 5 } : "skip");
+  const userVotes = useQuery(api.songVotes.getUserVotes, appUser?.appUser?._id ? { limit: 20 } : "skip");
   const voteAccuracy = useQuery(api.activity.getVoteAccuracy, appUser?.appUser?._id ? { userId: appUser.appUser._id } : "skip");
-
-  // CRITICAL FIX: Proper tri-state user detection  
-  // appUser === undefined → Still loading from Convex (show loading)
-  // appUser === null → Definitely not signed in (show sign-in prompt)
-  // appUser === {...} with identity → Signed in (proceed, even if appUser.appUser is undefined)
+  const spotifyToken = useQuery(api.spotifyAuthQueries.getStoredSpotifyToken, appUser?.appUser?._id ? { userId: appUser.appUser._id } : "skip");
   
   if (appUser === undefined) {
-    // Still loading user data from Convex
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
@@ -41,7 +35,6 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
   }
 
   if (appUser === null || !user) {
-    // Definitely NOT signed in (Convex query returned null)
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -56,155 +49,186 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
     );
   }
 
-  // At this point: appUser is an object (signed in via Clerk)
-  // appUser.appUser might be undefined if still being created (AuthGuard handles this)
-  // Show dashboard regardless - safe to access user data
-
-  const daysActive = appUser?.appUser ? Math.floor((Date.now() - appUser.appUser.createdAt) / (1000 * 60 * 60 * 24)) : 0;
   const showsVotedOn = userVotes ? new Set(userVotes.map(v => v.setlistId)).size : 0;
   const accuracy = voteAccuracy ? `${Math.round(voteAccuracy * 100)}%` : 'N/A';
-
-  // Edge case: No votes or predictions
+  const hasSpotify = !!(appUser?.appUser?.spotifyId || spotifyToken);
   const hasVotes = (userVotes || []).length > 0;
-  const hasSpotify = appUser?.appUser?.spotifyId;
+
+  // Group votes by show
+  const votesByShow = React.useMemo(() => {
+    if (!userVotes) return [];
+    const grouped = new Map<string, any[]>();
+    userVotes.forEach(vote => {
+      const key = vote.setlistId;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(vote);
+    });
+    return Array.from(grouped.entries()).map(([setlistId, votes]) => ({
+      setlistId,
+      votes,
+      songCount: votes.length,
+      lastVote: Math.max(...votes.map(v => v.createdAt))
+    })).sort((a, b) => b.lastVote - a.lastVote);
+  }, [userVotes]);
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 relative z-10">
-      {/* Header */}
-      <FadeIn delay={0} duration={0.6}>
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 bg-black border-t border-b border-white/5">
-        <div className="relative z-10 p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-primary/20 rounded-2xl flex items-center justify-center">
-                <User className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-white">
-                  Welcome back, {user?.firstName || 'User'}!
-                </h1>
-                <p className="text-gray-300 text-sm sm:text-base">
-                  Track your votes and setlist activity
-                </p>
-              </div>
-            </div>
-            
-            <Button variant="outline" onClick={() => void navigate('/activity')}>
-              <Settings className="h-4 w-4 mr-2" />
-              View Activity
-            </Button>
+    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6">
+      {/* Compact Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-white">
+              Welcome back, {user?.firstName || 'User'}!
+            </h1>
+            <p className="text-gray-400">Your setlist predictions and activity</p>
           </div>
         </div>
-        <BorderBeam size={150} duration={12} className="opacity-30" />
-      </MagicCard>
-      </FadeIn>
 
-      {/* Quick Stats */}
-      <FadeIn delay={0.1} duration={0.6}>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <MagicCard className="p-0 rounded-xl border-0 bg-black border-t border-b border-white/5">
-          <div className="p-4 text-center">
-            <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center mx-auto mb-2">
-              <Activity className="h-4 w-4 text-green-400" />
-            </div>
-            <div className="text-2xl font-bold text-white">{userVotes?.length || 0}</div>
-            <div className="text-xs text-gray-400">Total Votes</div>
-          </div>
-          <BorderBeam size={60} duration={8} className="opacity-20" />
-        </MagicCard>
-        
-        <MagicCard className="p-0 rounded-xl border-0 bg-black border-t border-b border-white/5">
-          <div className="p-4 text-center">
-            <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center mx-auto mb-2">
-              <Music className="h-4 w-4 text-blue-400" />
-            </div>
-            <div className="text-2xl font-bold text-white">
-              {showsVotedOn}
-            </div>
-            <div className="text-xs text-gray-400">Shows Voted On</div>
-          </div>
-          <BorderBeam size={60} duration={8} className="opacity-20" />
-        </MagicCard>
-        
-        <MagicCard className="p-0 rounded-xl border-0 bg-black border-t border-b border-white/5">
-          <div className="p-4 text-center">
-            <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center mx-auto mb-2">
-              <TrendingUp className="h-4 w-4 text-purple-400" />
-            </div>
-            <div className="text-2xl font-bold text-white">
-              {accuracy}
-            </div>
-            <div className="text-xs text-gray-400">Prediction Accuracy</div>
-          </div>
-          <BorderBeam size={60} duration={8} className="opacity-20" />
-        </MagicCard>
-      </div>
-      </FadeIn>
-
-      {/* Days Active Card - Edge Case for New Users */}
-      {!hasVotes && (
-        <FadeIn delay={0.15} duration={0.6}>
-          <MagicCard className="p-0 rounded-xl border-0 bg-black border-t border-b border-white/5">
+        {/* Compact Stats */}
+        <div className="grid grid-cols-3 gap-3">
+          <MagicCard className="p-0 rounded-xl border-0 bg-black/50">
             <div className="p-4 text-center">
-              <div className="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center mx-auto mb-2">
-                <Calendar className="h-4 w-4 text-yellow-400" />
+              <div className="text-2xl font-bold text-white">{userVotes?.length || 0}</div>
+              <div className="text-xs text-gray-400">Total Votes</div>
+            </div>
+          </MagicCard>
+          
+          <MagicCard className="p-0 rounded-xl border-0 bg-black/50">
+            <div className="p-4 text-center">
+              <div className="text-2xl font-bold text-white">{showsVotedOn}</div>
+              <div className="text-xs text-gray-400">Shows Voted On</div>
+            </div>
+          </MagicCard>
+          
+          <MagicCard className="p-0 rounded-xl border-0 bg-black/50">
+            <div className="p-4 text-center">
+              <div className="text-2xl font-bold text-white">{accuracy}</div>
+              <div className="text-xs text-gray-400">Accuracy</div>
+            </div>
+          </MagicCard>
+        </div>
+      </motion.div>
+
+      {/* Spotify Section - Only show if NOT connected */}
+      {!hasSpotify && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
+          <MagicCard className="p-0 rounded-xl border-0 bg-gradient-to-br from-green-500/10 to-green-500/5">
+            <div className="p-6 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
+                  <Music className="h-6 w-6 text-green-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Connect Spotify</h3>
+                  <p className="text-sm text-gray-300">Discover personalized shows based on your listening</p>
+                </div>
               </div>
-              <div className="text-2xl font-bold text-white">{daysActive}</div>
-              <div className="text-xs text-gray-400">Days Active</div>
-              <p className="text-sm text-gray-300 mt-2">Get started by voting on upcoming shows!</p>
-              <Button onClick={() => void navigate('/shows')} variant="outline" className="mt-3">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Browse Shows
+              <Button onClick={() => void navigate('/spotify-connect')} className="bg-green-500 hover:bg-green-600 text-white">
+                Connect Now
               </Button>
             </div>
-            <BorderBeam size={60} duration={8} className="opacity-20" />
+            <BorderBeam size={100} duration={10} className="opacity-20" />
           </MagicCard>
-        </FadeIn>
+        </motion.div>
       )}
 
-      {/* ENHANCED: My Spotify Artists Section */}
-      {hasSpotify ? (
-        <FadeIn delay={0.2} duration={0.6}>
+      {/* My Spotify Artists - If connected */}
+      {hasSpotify && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.15 }}
+        >
           <MySpotifyArtists onArtistClick={onArtistClick} />
-        </FadeIn>
-      ) : (
-        <FadeIn delay={0.2} duration={0.6}>
-          <MagicCard className="p-0 rounded-xl border-0 bg-black border-t border-b border-white/5">
-            <div className="p-6 text-center">
-              <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <Music className="h-6 w-6 text-blue-400" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-2">Connect Spotify</h3>
-              <p className="text-gray-300 mb-4">Link your Spotify to discover personalized shows and artists</p>
-              <Button onClick={() => void navigate('/spotify-connect')} variant="outline">
-                Connect Spotify
-              </Button>
-            </div>
-            <BorderBeam size={80} duration={8} className="opacity-20" />
-          </MagicCard>
-        </FadeIn>
+        </motion.div>
       )}
 
-      {/* User Activity Dashboard */}
-      <FadeIn delay={0.3} duration={0.6}>
-        {hasVotes ? (
-          <UserPredictions />
-        ) : (
-          <MagicCard className="p-0 rounded-xl border-0 bg-black border-t border-b border-white/5">
-            <div className="p-6 text-center">
-              <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <TrendingUp className="h-6 w-6 text-primary" />
+      {/* Your Recent Votes - Compact Card Style */}
+      {hasVotes && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+        >
+          <MagicCard className="p-0 rounded-xl border-0 bg-black/50">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                  <ChevronUp className="h-5 w-5 text-white" />
+                </div>
+                <h2 className="text-xl font-bold text-white">Your Recent Votes</h2>
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">No Predictions Yet</h3>
-              <p className="text-gray-300 mb-4">Start voting on shows to see your prediction history and accuracy</p>
+
+              <div className="space-y-2">
+                {userVotes?.slice(0, 10).map((vote) => (
+                  <div
+                    key={vote._id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/10"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Music className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-white truncate">{vote.songTitle}</div>
+                        <div className="text-sm text-gray-400">
+                          {new Date(vote.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 text-primary">
+                      <ChevronUp className="h-4 w-4 fill-current" />
+                      <span className="text-sm font-semibold">+1</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {userVotes && userVotes.length > 10 && (
+                <div className="mt-4 text-center">
+                  <Button variant="outline" onClick={() => void navigate('/activity')}>
+                    View All Votes
+                  </Button>
+                </div>
+              )}
+            </div>
+            <BorderBeam size={120} duration={12} className="opacity-20" />
+          </MagicCard>
+        </motion.div>
+      )}
+
+      {/* Empty State */}
+      {!hasVotes && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+        >
+          <MagicCard className="p-0 rounded-xl border-0 bg-black/50">
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <TrendingUp className="h-8 w-8 text-primary" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2">Start Voting!</h3>
+              <p className="text-gray-300 mb-6 max-w-md mx-auto">
+                Vote on upcoming show setlists to see your predictions here
+              </p>
               <Button onClick={() => void navigate('/shows')} className="bg-primary hover:bg-primary/90">
-                Start Predicting
+                Browse Upcoming Shows
               </Button>
             </div>
-            <BorderBeam size={80} duration={8} className="opacity-20" />
+            <BorderBeam size={120} duration={12} className="opacity-20" />
           </MagicCard>
-        )}
-      </FadeIn>
+        </motion.div>
+      )}
     </div>
   );
 }
