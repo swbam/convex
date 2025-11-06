@@ -160,6 +160,24 @@ export function ShowDetail({
     | Id<"setlists">
     | undefined;
 
+  const heroImageCandidates = useMemo(() => {
+    const pool = new Set<string>();
+    const add = (url?: string | null) => {
+      if (typeof url === "string" && url.length > 0) {
+        pool.add(url);
+      }
+    };
+
+    add(show?.cachedTrending?.artistImage);
+    add((show as any)?.artistImage);
+    (show?.artist?.images || []).forEach(add);
+
+    return Array.from(pool);
+  }, [show]);
+
+  const heroImage = useMemo(() => selectBestImageUrl(heroImageCandidates), [heroImageCandidates]);
+  const avatarImage = useMemo(() => selectBestImageUrl(heroImageCandidates), [heroImageCandidates]);
+
   const handleVoteAction = () => {
     if (hasVoted) {
       setShowAuthModal(true);
@@ -316,46 +334,34 @@ export function ShowDetail({
           </button>
         </MagicCard>
 
-        {/* Apple-Level Header Design - Full Width Background */}
-        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl -mx-4 sm:mx-0 shadow-apple">
-          {/* Full-Width Background Cover Image */}
-          {(() => {
-            const heroImg = selectBestImageUrl([
-              show?.cachedTrending?.artistImage,
-              ...(show?.artist?.images || []),
-            ]);
-            return heroImg ? (
-            <div className="absolute inset-0 z-0">
-              <img
-                src={heroImg}
-                alt=""
-                className="w-full h-full object-cover opacity-20 blur-md scale-105"
-              />
-              {/* Sophisticated Gradient Overlay - Apple Style */}
-              <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/85 to-black" />
-            </div>
-            ) : null;
-          })()}
+          {/* Apple-Level Header Design - Full Width Background */}
+          <div className="relative overflow-hidden rounded-xl sm:rounded-2xl -mx-4 sm:mx-0 shadow-apple">
+            {/* Full-Width Background Cover Image */}
+            {heroImage ? (
+              <div className="absolute inset-0 z-0">
+                <img
+                  src={heroImage}
+                  alt=""
+                  className="w-full h-full object-cover opacity-20 blur-md scale-105"
+                />
+                {/* Sophisticated Gradient Overlay - Apple Style */}
+                <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/85 to-black" />
+              </div>
+            ) : null}
 
-          {/* Content - Compact on Mobile, Spacious on Desktop */}
-          <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
-            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
-              {/* Profile Image - Smaller on Mobile */}
-              {(() => {
-                const avatarImg = selectBestImageUrl([
-                  show?.cachedTrending?.artistImage,
-                  ...(show?.artist?.images || []),
-                ]);
-                return avatarImg ? (
-                <div className="flex-shrink-0">
-                  <img
-                    src={avatarImg}
-                    alt={show?.artist?.name}
-                    className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10"
-                  />
-                </div>
-                ) : null;
-              })()}
+            {/* Content - Compact on Mobile, Spacious on Desktop */}
+            <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+              <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
+                {/* Profile Image - Smaller on Mobile */}
+                {avatarImage ? (
+                  <div className="flex-shrink-0">
+                    <img
+                      src={avatarImage}
+                      alt={show?.artist?.name}
+                      className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10"
+                    />
+                  </div>
+                ) : null}
 
               {/* Show Info - Optimized for Mobile */}
               <div className="flex-1 min-w-0 w-full sm:pb-2">

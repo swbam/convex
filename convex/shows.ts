@@ -507,12 +507,14 @@ export const createInternal = internalMutation({
       const setlistId = await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
         showId,
         artistId: args.artistId,
+        retryCount: 0,
       });
       if (!setlistId) {
         console.warn(`⚠️ No setlist generated for show ${showId}; scheduling retry`);
         void ctx.scheduler.runAfter(30_000, internal.setlists.autoGenerateSetlist, {
           showId,
           artistId: args.artistId,
+          retryCount: 1,
         });
       }
     } catch (error) {
@@ -520,6 +522,7 @@ export const createInternal = internalMutation({
       void ctx.scheduler.runAfter(30_000, internal.setlists.autoGenerateSetlist, {
         showId,
         artistId: args.artistId,
+        retryCount: 1,
       });
     }
     return showId;
@@ -605,12 +608,14 @@ export const createFromTicketmaster = internalMutation({
       const setlistId = await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
         showId,
         artistId: args.artistId,
+        retryCount: 0,
       });
       if (!setlistId) {
         console.warn(`⚠️ No setlist generated for show ${showId}; scheduling retry`);
         void ctx.scheduler.runAfter(30_000, internal.setlists.autoGenerateSetlist, {
           showId,
           artistId: args.artistId,
+          retryCount: 1,
         });
       }
     } catch (error) {
@@ -618,6 +623,7 @@ export const createFromTicketmaster = internalMutation({
       void ctx.scheduler.runAfter(30_000, internal.setlists.autoGenerateSetlist, {
         showId,
         artistId: args.artistId,
+        retryCount: 1,
       });
     }
 

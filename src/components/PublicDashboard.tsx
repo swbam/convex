@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useNavigate } from "react-router-dom";
@@ -7,6 +7,26 @@ import { SearchBar } from "./SearchBar";
 import { Id } from "../../convex/_generated/dataModel";
 import { ArtistCardSkeleton, ShowCardSkeleton } from "./LoadingSkeleton";
 import { motion } from "framer-motion";
+import { selectBestImageUrl } from "@/lib/utils";
+
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+const distributeIntoRows = <T,>(items: T[], rowCount: number): T[][] => {
+  if (rowCount <= 0) return [];
+  if (!items || items.length === 0) {
+    return Array.from({ length: rowCount }, () => []);
+  }
+
+  const rows: T[][] = Array.from({ length: rowCount }, () => []);
+  items.forEach((item, index) => {
+    rows[index % rowCount]!.push(item);
+  });
+  return rows;
+};
 
 interface PublicDashboardProps {
   onArtistClick: (artistKey: Id<"artists"> | string) => void;
@@ -53,6 +73,43 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
   }, [dbTrendingShows, fallbackUpcomingShows]);
 
   const isLoading = finalShows === undefined || finalArtists === undefined;
+
+  const artistRows = useMemo(() => distributeIntoRows((finalArtists as any[]) || [], 3), [finalArtists]);
+  const showRows = useMemo(() => distributeIntoRows((finalShows as any[]) || [], 3), [finalShows]);
+  const artistRowDurations = useMemo(() => [48, 56, 52], []);
+  const showRowDurations = useMemo(() => [54, 50, 62], []);
+
+  const resolveArtistIdentity = (artist: any, fallbackIndex: number) => {
+    const keyCandidate = artist?._id || artist?.ticketmasterId || artist?.slug || artist?.name || `artist-${fallbackIndex}`;
+    const slugCandidate = artist?.slug
+      || artist?.cachedTrending?.slug
+      || (typeof artist?.name === 'string' && artist.name.length > 0 ? slugify(artist.name) : undefined)
+      || artist?.ticketmasterId
+      || (typeof artist?._id === 'string' ? artist._id : undefined);
+    return {
+      key: keyCandidate?.toString() ?? `artist-${fallbackIndex}`,
+      slug: slugCandidate,
+    };
+  };
+
+  const resolveShowIdentity = (show: any, fallbackIndex: number) => {
+    const keyCandidate = show?._id || show?.ticketmasterId || show?.slug || show?.showSlug || `show-${fallbackIndex}`;
+    const fallbackParts = [
+      show?.artist?.name || show?.artistName,
+      show?.venue?.name || show?.venueName,
+      show?.date,
+    ].filter((part) => typeof part === 'string' && part.length > 0) as string[];
+    const generatedSlug = fallbackParts.length > 0 ? slugify(fallbackParts.join(' ')) : undefined;
+    const slugCandidate = show?.slug
+      || show?.cachedTrending?.showSlug
+      || show?.ticketmasterId
+      || generatedSlug
+      || (typeof show?._id === 'string' ? show._id : undefined);
+    return {
+      key: keyCandidate?.toString() ?? `show-${fallbackIndex}`,
+      slug: slugCandidate,
+    };
+  };
 
   // Animation variants for stagger effect
   const heroVariants = {
@@ -179,40 +236,64 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
             </div>
           </motion.div>
           
-          <motion.div variants={containerVariants} className="relative">
-            {/* Grid for mobile 2x2, horizontal scroll for desktop */}
-            <div className="grid grid-cols-2 gap-3 md:flex md:gap-4 md:overflow-x-auto pb-4 scrollbar-hide md:snap-x md:snap-mandatory -mx-2 px-2 md:-mx-4 md:px-4">
-              {isLoading ? (
-                [...Array(6)].map((_, i) => <ArtistCardSkeleton key={i} />)
-              ) : (finalArtists as any[])?.length === 0 ? (
-                <div className="col-span-2 w-full flex flex-col items-center justify-center py-16 text-center min-h-[300px]">
-                  <Music className="h-16 w-16 text-gray-800 mb-4" />
-                  <p className="text-gray-500 text-lg">No trending artists yet</p>
-                  <p className="text-gray-600 text-sm mt-2">Artists will appear here once data is synced</p>
-                </div>
-              ) : (
-                (finalArtists as any[]).map((artist: any, index: number) => {
-                  const key = artist._id || artist.ticketmasterId || artist.slug || artist.name || index;
-                  const targetSlug = artist.slug 
-                    || artist?.cachedTrending?.slug 
-                    || (typeof artist.name === 'string' && artist.name.length > 0 
-                        ? artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-                        : null)
-                    || artist._id 
-                    || artist.ticketmasterId;
-                  if (!targetSlug) return null;
-                  return (
-                    <motion.div key={key} variants={cardVariants} custom={index} className="w-full md:w-auto">
-                      <ArtistCard 
+            {isLoading ? (
+              <motion.div variants={containerVariants} className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                {[...Array(6)].map((_, i) => <ArtistCardSkeleton key={i} />)}
+              </motion.div>
+            ) : (finalArtists as any[])?.length === 0 ? (
+              <motion.div variants={itemVariants} className="col-span-2 w-full flex flex-col items-center justify-center py-16 text-center min-h-[260px]">
+                <Music className="h-16 w-16 text-gray-800 mb-4" />
+                <p className="text-gray-500 text-lg">No trending artists yet</p>
+                <p className="text-gray-600 text-sm mt-2">Artists will appear here once data is synced</p>
+              </motion.div>
+            ) : (
+              <motion.div variants={containerVariants} className="space-y-6">
+                {/* Mobile grid */}
+                <div className="grid grid-cols-2 gap-3 md:hidden">
+                  {(finalArtists as any[]).slice(0, 6).map((artist: any, index: number) => {
+                    const { key, slug } = resolveArtistIdentity(artist, index);
+                    return (
+                      <ArtistCard
+                        key={key}
                         artist={artist}
-                        onClick={() => navigateTo(`/artists/${targetSlug}`)}
+                        onClick={() => slug && navigateTo(`/artists/${slug}`)}
                       />
-                    </motion.div>
-                  );
-                }).filter(Boolean as any)
-              )}
-            </div>
-          </motion.div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop marquee rows */}
+                <div className="hidden md:flex flex-col gap-6">
+                  {artistRows.map((rowItems, rowIndex) => {
+                    const baseItems = rowItems.length > 0 ? rowItems : (finalArtists as any[]);
+                    const duplicated = [...baseItems, ...baseItems];
+                    const duration = artistRowDurations[rowIndex % artistRowDurations.length] ?? 48;
+                    return (
+                      <div key={`artist-row-${rowIndex}`} className="relative overflow-hidden group rounded-2xl border border-white/5 bg-white/[0.02]">
+                        <div className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-black via-black/70 to-transparent" />
+                        <div className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-black via-black/70 to-transparent" />
+                        <div
+                          className={`marquee-track px-8 py-5 gap-6 ${rowIndex % 2 === 0 ? 'marquee-left' : 'marquee-right'} group-hover:[animation-play-state:paused]`}
+                          style={{ '--marquee-duration': `${duration}s` } as React.CSSProperties}
+                        >
+                          {duplicated.map((artist: any, dupIndex: number) => {
+                            const { key, slug } = resolveArtistIdentity(artist, dupIndex);
+                            return (
+                              <div key={`${key}-${dupIndex}`} className="w-64 xl:w-72 flex-shrink-0">
+                                <ArtistCard
+                                  artist={artist}
+                                  onClick={() => slug && navigateTo(`/artists/${slug}`)}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
         </motion.section>
 
         {/* Trending Shows Section */}
@@ -234,36 +315,64 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
             </div>
           </motion.div>
 
-          {/* Shows Grid with stagger animation */}
-          <motion.div 
-            variants={containerVariants}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-          >
             {isLoading ? (
-              [...Array(8)].map((_, i) => <ShowCardSkeleton key={i} />)
+              <motion.div variants={containerVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {[...Array(8)].map((_, i) => <ShowCardSkeleton key={i} />)}
+              </motion.div>
             ) : (finalShows as any[])?.length === 0 ? (
-              <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
+              <motion.div variants={itemVariants} className="col-span-full flex flex-col items-center justify-center py-16 text-center">
                 <Music className="h-16 w-16 text-gray-800 mb-4" />
                 <p className="text-gray-500 text-lg">No shows available</p>
                 <p className="text-gray-600 text-sm mt-2">Check back soon</p>
-              </div>
+              </motion.div>
             ) : (
-              (finalShows as any[]).slice(0, 12).map((show: any, index: number) => {
-                const slug = show?.slug || show?.cachedTrending?.showSlug || show?.ticketmasterId || show?._id;
-                if (!slug) return null;
-                return (
-                  <motion.div key={show._id || index} variants={cardVariants} custom={index}>
-                    <ShowCard 
-                      show={show} 
-                      onClick={() => {
-                        navigateTo(`/shows/${slug}`);
-                      }}
-                    />
-                  </motion.div>
-                );
-              }).filter(Boolean as any)
+              <motion.div variants={containerVariants} className="space-y-6">
+                {/* Mobile grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:hidden">
+                  {(finalShows as any[]).slice(0, 6).map((show: any, index: number) => {
+                    const { key, slug } = resolveShowIdentity(show, index);
+                    return (
+                      <ShowCard
+                        key={key}
+                        show={show}
+                        onClick={() => slug && navigateTo(`/shows/${slug}`)}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Desktop marquee rows */}
+                <div className="hidden md:flex flex-col gap-6">
+                  {showRows.map((rowItems, rowIndex) => {
+                    const baseItems = rowItems.length > 0 ? rowItems : (finalShows as any[]);
+                    const duplicated = [...baseItems, ...baseItems];
+                    const duration = showRowDurations[rowIndex % showRowDurations.length] ?? 54;
+                    return (
+                      <div key={`show-row-${rowIndex}`} className="relative overflow-hidden group rounded-2xl border border-white/5 bg-white/[0.02]">
+                        <div className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-black via-black/70 to-transparent" />
+                        <div className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-black via-black/70 to-transparent" />
+                        <div
+                          className={`marquee-track px-8 py-5 gap-6 ${rowIndex % 2 === 0 ? 'marquee-right' : 'marquee-left'} group-hover:[animation-play-state:paused]`}
+                          style={{ '--marquee-duration': `${duration}s` } as React.CSSProperties}
+                        >
+                          {duplicated.map((show: any, dupIndex: number) => {
+                            const { key, slug } = resolveShowIdentity(show, dupIndex);
+                            return (
+                              <div key={`${key}-${dupIndex}`} className="w-[18rem] xl:w-[20rem] flex-shrink-0">
+                                <ShowCard
+                                  show={show}
+                                  onClick={() => slug && navigateTo(`/shows/${slug}`)}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
             )}
-          </motion.div>
         </motion.section>
       </div>
     </div>
@@ -333,8 +442,13 @@ function ShowCard({
   show: any;
   onClick: () => void;
 }) {
-  const showDate = new Date(show.date);
+    const showDate = new Date(show.date);
   const isUpcoming = showDate >= new Date();
+    const cardImage = selectBestImageUrl([
+      show?.artistImage,
+      show?.cachedTrending?.artistImage,
+      ...(show?.artist?.images || []),
+    ]);
 
   return (
     <motion.div 
@@ -345,24 +459,22 @@ function ShowCard({
     >
       <div className="glass-card glass-card-hover rounded-2xl overflow-hidden card-lift shadow-elevated shadow-elevated-hover">
         {/* Show Image */}
-        <div className="relative w-full aspect-[4/3] overflow-hidden">
-          {(() => {
-            const imgSrc = show?.artist?.images?.[0] || show?.artistImage || show?.cachedTrending?.artistImage;
-            return imgSrc ? (
-            <motion.img
-              src={imgSrc}
-              alt={show.artist?.name || show.artistName}
-              className="w-full h-full object-cover transform-gpu will-change-transform"
-              whileHover={{ scale: 1.05 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center">
-              <span className="text-white/80 font-bold text-xl sm:text-2xl md:text-3xl">
-                {((show?.artist?.name || show?.artistName || '??') as string).slice(0, 2).toUpperCase()}
-              </span>
-            </div>
-          );})()}
+          <div className="relative w-full aspect-[4/3] overflow-hidden">
+            {cardImage ? (
+              <motion.img
+                src={cardImage}
+                alt={show.artist?.name || show.artistName}
+                className="w-full h-full object-cover transform-gpu will-change-transform"
+                whileHover={{ scale: 1.05 }}
+                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center">
+                <span className="text-white/80 font-bold text-xl sm:text-2xl md:text-3xl">
+                  {((show?.artist?.name || show?.artistName || "??") as string).slice(0, 2).toUpperCase()}
+                </span>
+              </div>
+            )}
           {/* Monochrome gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent" />
           

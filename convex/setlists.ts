@@ -457,8 +457,10 @@ export const autoGenerateSetlist = internalMutation({
   args: {
     showId: v.id("shows"),
     artistId: v.id("artists"),
+    retryCount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const retryCount = args.retryCount ?? 0;
     // Check if a shared community setlist already exists for this show (not user-specific, not official)
     const existingSetlist = await ctx.db
       .query("setlists")
@@ -475,6 +477,14 @@ export const autoGenerateSetlist = internalMutation({
 
     if (artistSongs.length === 0) {
       console.log(`No songs found for artist ${args.artistId}, skipping setlist generation`);
+      if (retryCount < 5) {
+        const delayMs = Math.min(300_000, 30_000 * (retryCount + 1));
+        void ctx.scheduler.runAfter(delayMs, internal.setlists.autoGenerateSetlist, {
+          showId: args.showId,
+          artistId: args.artistId,
+          retryCount: retryCount + 1,
+        });
+      }
       return null;
     }
 
@@ -492,6 +502,14 @@ export const autoGenerateSetlist = internalMutation({
 
     if (studioSongs.length === 0) {
       console.log(`No studio songs found for artist ${args.artistId}, skipping setlist generation`);
+      if (retryCount < 5) {
+        const delayMs = Math.min(300_000, 30_000 * (retryCount + 1));
+        void ctx.scheduler.runAfter(delayMs, internal.setlists.autoGenerateSetlist, {
+          showId: args.showId,
+          artistId: args.artistId,
+          retryCount: retryCount + 1,
+        });
+      }
       return null;
     }
 
