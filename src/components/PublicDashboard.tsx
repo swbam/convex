@@ -7,6 +7,7 @@ import { SearchBar } from "./SearchBar";
 import { Id } from "../../convex/_generated/dataModel";
 import { ArtistCardSkeleton, ShowCardSkeleton } from "./LoadingSkeleton";
 import { motion } from "framer-motion";
+import MarqueeRows from "./MarqueeRows";
 
 interface PublicDashboardProps {
   onArtistClick: (artistKey: Id<"artists"> | string) => void;
@@ -33,6 +34,29 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
     if (dbTrendingArtistsResult === null) return [];
     return Array.isArray(dbTrendingArtistsResult.page) ? dbTrendingArtistsResult.page : [];
   }, [dbTrendingArtistsResult]);
+
+  // Extra safety: lightweight dedupe on the client
+  const dedupe = (arr: any[], keyFn: (x: any) => string) => {
+    const seen = new Set<string>();
+    const out: any[] = [];
+    for (const item of arr) {
+      const k = keyFn(item);
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      out.push(item);
+    }
+    return out;
+  };
+
+  const trendingArtists = React.useMemo(() => {
+    if (!Array.isArray(dbTrendingArtists)) return dbTrendingArtists;
+    return dedupe(dbTrendingArtists, (a) => (a.slug || a.ticketmasterId || a._id || a.name || '').toString().toLowerCase());
+  }, [dbTrendingArtists]);
+
+  const trendingShows = React.useMemo(() => {
+    if (!Array.isArray(dbTrendingShows)) return dbTrendingShows;
+    return dedupe(dbTrendingShows, (s) => (s.slug || s.cachedTrending?.showSlug || s.ticketmasterId || s._id || '').toString().toLowerCase());
+  }, [dbTrendingShows]);
 
   const isLoading = dbTrendingShows === undefined || dbTrendingArtists === undefined;
 
@@ -162,38 +186,33 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
           </motion.div>
           
           <motion.div variants={containerVariants} className="relative">
-            {/* Grid for mobile 2x2, horizontal scroll for desktop */}
-            <div className="grid grid-cols-2 gap-3 md:flex md:gap-4 md:overflow-x-auto pb-4 scrollbar-hide md:snap-x md:snap-mandatory -mx-2 px-2 md:-mx-4 md:px-4">
-              {isLoading ? (
-                [...Array(6)].map((_, i) => <ArtistCardSkeleton key={i} />)
-              ) : (dbTrendingArtists as any[])?.length === 0 ? (
-                <div className="col-span-2 w-full flex flex-col items-center justify-center py-16 text-center min-h-[300px]">
-                  <Music className="h-16 w-16 text-gray-800 mb-4" />
-                  <p className="text-gray-500 text-lg">No trending artists yet</p>
-                  <p className="text-gray-600 text-sm mt-2">Artists will appear here once data is synced</p>
-                </div>
-              ) : (
-                (dbTrendingArtists as any[]).map((artist: any, index: number) => {
-                  const key = artist._id || artist.ticketmasterId || artist.slug || artist.name || index;
+            {isLoading ? (
+              <div className="grid grid-cols-2 gap-3">
+                {[...Array(6)].map((_, i) => <ArtistCardSkeleton key={i} />)}
+              </div>
+            ) : (trendingArtists as any[])?.length === 0 ? (
+              <div className="col-span-2 w-full flex flex-col items-center justify-center py-16 text-center min-h-[300px]">
+                <Music className="h-16 w-16 text-gray-800 mb-4" />
+                <p className="text-gray-500 text-lg">No trending artists yet</p>
+                <p className="text-gray-600 text-sm mt-2">Artists will appear here once data is synced</p>
+              </div>
+            ) : (
+              <MarqueeRows
+                items={(trendingArtists as any[])}
+                rows={3}
+                baseDurationSec={70}
+                renderItem={(artist: any) => {
                   const targetSlug = artist.slug 
                     || artist?.cachedTrending?.slug 
                     || (typeof artist.name === 'string' && artist.name.length > 0 
                         ? artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-                        : null)
-                    || artist._id 
-                    || artist.ticketmasterId;
-                  if (!targetSlug) return null;
+                        : artist._id || artist.ticketmasterId);
                   return (
-                    <motion.div key={key} variants={cardVariants} custom={index} className="w-full md:w-auto">
-                      <ArtistCard 
-                        artist={artist}
-                        onClick={() => navigateTo(`/artists/${targetSlug}`)}
-                      />
-                    </motion.div>
+                    <ArtistCard artist={artist} onClick={() => navigateTo(`/artists/${targetSlug}`)} />
                   );
-                }).filter(Boolean as any)
-              )}
-            </div>
+                }}
+              />
+            )}
           </motion.div>
         </motion.section>
 
@@ -217,33 +236,35 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
           </motion.div>
 
           {/* Shows Grid with stagger animation */}
-          <motion.div 
-            variants={containerVariants}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-          >
+          <motion.div variants={containerVariants}>
             {isLoading ? (
-              [...Array(8)].map((_, i) => <ShowCardSkeleton key={i} />)
-            ) : (dbTrendingShows as any[])?.length === 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {[...Array(8)].map((_, i) => <ShowCardSkeleton key={i} />)}
+              </div>
+            ) : (trendingShows as any[])?.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
                 <Music className="h-16 w-16 text-gray-800 mb-4" />
                 <p className="text-gray-500 text-lg">No shows available</p>
                 <p className="text-gray-600 text-sm mt-2">Check back soon</p>
               </div>
             ) : (
-              (dbTrendingShows as any[]).slice(0, 12).map((show: any, index: number) => {
-                const slug = show?.slug || show?.cachedTrending?.showSlug || show?.ticketmasterId || show?._id;
-                if (!slug) return null;
-                return (
-                  <motion.div key={show._id || index} variants={cardVariants} custom={index}>
-                    <ShowCard 
-                      show={show} 
+              <MarqueeRows
+                items={(trendingShows as any[])}
+                rows={3}
+                baseDurationSec={80}
+                renderItem={(show: any) => {
+                  const slug = show?.slug || show?.cachedTrending?.showSlug || show?.ticketmasterId || show?._id;
+                  if (!slug) return null;
+                  return (
+                    <ShowCard
+                      show={show}
                       onClick={() => {
                         navigateTo(`/shows/${slug}`);
                       }}
                     />
-                  </motion.div>
-                );
-              }).filter(Boolean as any)
+                  );
+                }}
+              />
             )}
           </motion.div>
         </motion.section>

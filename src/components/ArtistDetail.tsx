@@ -27,6 +27,11 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   const songs = useQuery(api.songs.getByArtist, { artistId, limit: 20 });
   const isFollowing = useQuery(api.artists.isFollowing, { artistId });
   const user = useQuery(api.auth.loggedInUser);
+  // Pull Ticketmaster cached images if available to choose a wider hero when Spotify images are square
+  const tmCached = useQuery(
+    api.trending.getCachedArtistByTicketmasterId,
+    artist?.ticketmasterId ? { ticketmasterId: artist.ticketmasterId as unknown as string } : "skip"
+  );
 
   const [anonymousActions, setAnonymousActions] = useState(0);
   const [addToSetlistModal, setAddToSetlistModal] = useState<{ isOpen: boolean; songTitle: string }>({ isOpen: false, songTitle: "" });
@@ -140,31 +145,35 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
       {/* Apple-Level Header Design - Full Width Background */}
       <div className="relative overflow-hidden rounded-xl sm:rounded-2xl -mx-4 sm:mx-0 shadow-apple">
         {/* Full-Width Background Cover Image */}
-        {artist.images?.[0] && (
-          <div className="absolute inset-0 z-0">
-            <img
-              src={artist.images[0]}
-              alt=""
-              className="w-full h-full object-cover opacity-20 blur-md scale-105"
-            />
-            {/* Sophisticated Gradient Overlay - Apple Style */}
+        {(() => {
+          const heroImg = (tmCached as any)?.images?.[0] || artist.images?.[0];
+          if (!heroImg) return null;
+          return (
+            <div className="absolute inset-0 z-0">
+              <img src={heroImg} alt="" className="w-full h-full object-cover opacity-20 blur-md scale-105" />
+              {/* Sophisticated Gradient Overlay - Apple Style */}
               <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/85 to-black" />
-          </div>
-        )}
+            </div>
+          );
+        })()}
         
         {/* Content - Compact on Mobile, Spacious on Desktop */}
         <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
             {/* Profile Image - Smaller on Mobile */}
-            {artist.images?.[0] && (
-              <div className="flex-shrink-0">
-                <img
-                  src={artist.images[0]}
-                  alt={artist.name}
-                  className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10"
-                />
-              </div>
-            )}
+            {(() => {
+              const heroImg = (tmCached as any)?.images?.[0] || artist.images?.[0];
+              if (!heroImg) return null;
+              return (
+                <div className="flex-shrink-0">
+                  <img
+                    src={heroImg}
+                    alt={artist.name}
+                    className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10"
+                  />
+                </div>
+              );
+            })()}
             
             {/* Artist Info - Optimized for Mobile */}
             <div className="flex-1 min-w-0 w-full sm:pb-2">

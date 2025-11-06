@@ -645,6 +645,59 @@
   animation: shimmer 1.5s infinite;
 }
 
+/* Continuous marquee rows for trending sections */
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.marquee {
+  position: relative;
+  overflow: hidden;
+}
+
+.marquee-fade:before,
+.marquee-fade:after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 64px;
+  pointer-events: none;
+  z-index: 1;
+}
+.marquee-fade:before {
+  left: 0;
+  background: linear-gradient(90deg, rgba(0,0,0,0.9), rgba(0,0,0,0));
+}
+.marquee-fade:after {
+  right: 0;
+  background: linear-gradient(270deg, rgba(0,0,0,0.9), rgba(0,0,0,0));
+}
+
+.marquee-row {
+  display: flex;
+  align-items: stretch;
+  gap: 1rem; /* 16px */
+  will-change: transform;
+}
+
+.marquee-track {
+  display: flex;
+  align-items: stretch;
+  gap: 1rem;
+  animation: marquee-scroll linear infinite;
+  animation-duration: var(--marquee-duration, 60s);
+}
+
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+.marquee-row.reverse .marquee-track {
+  animation-direction: reverse;
+}
+
 /* =========================================
    OPTIONAL: .light theme (kept grayscale)
    Add class="light" on <html> or <body> to switch

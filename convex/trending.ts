@@ -33,6 +33,23 @@ const normalizeShowStatus = (status?: string) => {
   const value = (status || "").toLowerCase();
   if (value.includes("cancel")) return "cancelled";
   if (value.includes("complete")) return "completed";
+  // Map common Ticketmaster status codes to our normalized state
+  const tmActiveCodes = [
+    "onsale",
+    "onsale_soon",
+    "offsale",
+    "rescheduled",
+    "postponed",
+    "scheduled",
+    "moved",
+    "time_tbd",
+    "date_tbd",
+    "date_tba",
+    "event_rescheduled",
+    "event_postponed",
+    "event_scheduled",
+  ];
+  if (tmActiveCodes.some((k) => value.includes(k))) return "upcoming";
   return "upcoming";
 };
 
@@ -145,7 +162,7 @@ export const getTrendingShows = query({
       const cleaned = artistScoped.filter((s: any) => {
         const name = s?.artist?.name || s?.cachedTrending?.artistName || "";
         const venue = s?.venue?.name || s?.cachedTrending?.venueName || "";
-        const status = s?.status || s?.cachedTrending?.status;
+        const status = normalizeShowStatus(s?.status || s?.cachedTrending?.status);
         return (
           typeof name === "string" && name.length > 0 &&
           !name.toLowerCase().includes("unknown") &&
@@ -469,7 +486,7 @@ export const replaceTrendingShowsCache = internalMutation({
         artistImage: show.artistImage,
         ticketUrl: show.ticketUrl,
         priceRange: show.priceRange,
-        status: show.status,
+        status: normalizeShowStatus(show.status),
         rank: show.rank,
         lastUpdated: args.fetchedAt,
       };
@@ -846,6 +863,32 @@ export const updateTrendingArtist = internalMutation({
     });
 
     return null;
+  },
+});
+
+// Public helper: fetch cached trending show row by Ticketmaster ID
+export const getCachedShowByTicketmasterId = query({
+  args: { ticketmasterId: v.string() },
+  returns: v.union(v.any(), v.null()),
+  handler: async (ctx, args) => {
+    const row = await ctx.db
+      .query("trendingShows")
+      .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.ticketmasterId))
+      .first();
+    return row ?? null;
+  },
+});
+
+// Public helper: fetch cached trending artist row by Ticketmaster ID
+export const getCachedArtistByTicketmasterId = query({
+  args: { ticketmasterId: v.string() },
+  returns: v.union(v.any(), v.null()),
+  handler: async (ctx, args) => {
+    const row = await ctx.db
+      .query("trendingArtists")
+      .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.ticketmasterId))
+      .first();
+    return row ?? null;
   },
 });
 
