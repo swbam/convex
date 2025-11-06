@@ -104,6 +104,17 @@ export const triggerFullArtistSync = action({
       console.warn(`⚠️ Spotify basics sync failed: ${spotifyError}`);
     }
 
+    // CRITICAL: Immediately update artist counts and trending scores so it shows up
+    console.log(`📊 Updating trending data for ${args.artistName}...`);
+    try {
+      await ctx.runMutation(internal.trending.updateArtistShowCounts, {});
+      await ctx.runMutation(internal.trending.updateArtistTrending, {});
+      await ctx.runMutation(internal.trending.updateShowTrending, {});
+      console.log(`✅ Trending data updated for ${args.artistName}`);
+    } catch (trendingError) {
+      console.warn(`⚠️ Trending update failed (not critical): ${trendingError}`);
+    }
+
     // Schedule background tasks (lightweight follow-ups)
     void ctx.scheduler.runAfter(3000, internal.maintenance.updateArtistCounts, { artistId });
 
