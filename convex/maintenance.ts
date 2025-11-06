@@ -168,6 +168,65 @@ export const triggerTrendingSync = action({
   },
 });
 
+// Public: Normalize existing show slugs by removing legacy time suffix ("-hh-mm")
+export const normalizeShowSlugs = action({
+  args: { limit: v.optional(v.number()) },
+  returns: v.object({ processed: v.number(), updated: v.number() }),
+  handler: async (ctx, args): Promise<{ processed: number; updated: number }> => {
+    const result = await ctx.runMutation(internal.shows.normalizeSlugsInternal, { limit: args.limit ?? 1000 });
+    return result as { processed: number; updated: number };
+  },
+});
+
+// CRITICAL: Fix artists with 0 songs by importing Spotify catalogs
+export const fixArtistsWithNoSongs = action({
+  args: { limit: v.optional(v.number()) },
+  returns: v.object({ processed: v.number(), imported: v.number(), failed: v.number() }),
+  handler: async (ctx, args): Promise<{ processed: number; imported: number; failed: number }> => {
+    const limit = args.limit ?? 50;
+    console.log(`🔍 Finding artists with 0 songs (limit: ${limit})...`);
+    
+    // Get all artists
+    const artists = await ctx.runQuery(internal.artists.getAllInternal, { limit });
+    let processed = 0;
+    let imported = 0;
+    let failed = 0;
+    
+    for (const artist of artists) {
+      processed++;
+      
+      // Check if artist has any songs
+      const artistSongs = await ctx.runQuery(internal.artistSongs.getByArtist, { artistId: artist._id });
+      
+      if (!artistSongs || artistSongs.length === 0) {
+        console.log(`📥 Importing catalog for ${artist.name} (0 songs)...`);
+        try {
+          await ctx.runAction(internal.spotify.syncArtistCatalog, {
+            artistId: artist._id,
+            artistName: artist.name,
+          });
+          imported++;
+          
+          // Wait to respect rate limits
+          await new Promise(r => setTimeout(r, 1000));
+        } catch (error) {
+          console.error(`❌ Failed to import catalog for ${artist.name}:`, error);
+          failed++;
+        }
+      }
+    }
+    
+    console.log(`✅ Catalog import complete: ${imported} imported, ${failed} failed, ${processed - imported - failed} already had songs`);
+    
+    // Now regenerate setlists for shows that don't have them
+    console.log(`🎵 Regenerating missing setlists...`);
+    const setlistResult = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, { limit: 100 });
+    console.log(`✅ Setlist generation: ${setlistResult.generated} new setlists created`);
+    
+    return { processed, imported, failed };
+  },
+});
+
 // One-off backfill to seed auto-generated setlists for upcoming shows
 export const backfillMissingSetlists = action({
   args: { limit: v.optional(v.number()) },

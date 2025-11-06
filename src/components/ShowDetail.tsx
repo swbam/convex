@@ -424,22 +424,19 @@ export function ShowDetail({
                 {/* Action Buttons - Responsive */}
                 <div className="flex flex-wrap gap-2 sm:gap-3">
                   {isUpcoming && (
-                    <ShimmerButton
+                    <button
                       onClick={() =>
                         window.open(
                           buildTicketmasterAffiliateUrl(show?.ticketUrl || ""),
                           "_blank"
                         )
                       }
-                      className="group relative p-[2px] rounded-xl bg-gradient-to-r from-gray-400/60 via-gray-300/50 to-gray-400/60 hover:from-gray-300/70 hover:to-gray-300/70 shadow-[0_0_0_1px_rgba(209,213,219,0.6)]"
-                      shimmerColor="#9ca3af"
+                      className="inline-flex items-center justify-center px-4 sm:px-6 py-2.5 sm:py-3 bg-white text-black text-sm sm:text-base font-semibold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
                     >
-                      <span className="inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 rounded-[10px] bg-white text-black text-sm sm:text-base font-semibold transition-colors">
-                        <Ticket className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
-                        Get Tickets
-                        <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4 ml-1.5 sm:ml-2" />
-                      </span>
-                    </ShimmerButton>
+                      <Ticket className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
+                      Get Tickets
+                      <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4 ml-1.5 sm:ml-2" />
+                    </button>
                   )}
 
                   <button

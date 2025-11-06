@@ -161,7 +161,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
       </MagicCard>
 
       {/* Apple-Level Header Design - Full Width Background */}
-      <div className="relative overflow-hidden rounded-none sm:rounded-none shadow-apple mx-[-1rem] sm:mx-[-1.5rem] lg:mx-[-2rem]">
+      <div className="relative overflow-hidden shadow-apple -mx-4 sm:-mx-6 rounded-none">
         {/* Full-Width Background Cover Image */}
         {heroImage && (
           <div className="absolute inset-0 z-0">

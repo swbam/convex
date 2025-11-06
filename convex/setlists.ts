@@ -844,24 +844,43 @@ export const refreshMissingAutoSetlists = internalMutation({
 // Public action: ensure an auto-generated prediction setlist exists for a show
 export const ensureAutoSetlistForShow = action({
   args: { showId: v.id("shows") },
-  returns: v.object({ created: v.boolean() }),
-  handler: async (ctx, args) => {
+  returns: v.object({ created: v.boolean(), message: v.string() }),
+  handler: async (ctx, args): Promise<{ created: boolean; message: string }> => {
+    console.log(`🔍 Checking if setlist exists for show ${args.showId}...`);
+    
     // If a prediction setlist already exists with songs, do nothing
     const setlists = await ctx.runQuery(api.setlists.getByShow, { showId: args.showId });
     const hasPrediction = (setlists || []).some((s: any) => !s.isOfficial && !s.userId && Array.isArray(s.songs) && s.songs.length > 0);
-    if (hasPrediction) return { created: false };
+    
+    if (hasPrediction) {
+      console.log(`✅ Prediction setlist already exists for show ${args.showId}`);
+      return { created: false, message: "Setlist already exists" };
+    }
 
     const show = await ctx.runQuery(api.shows.getById, { id: args.showId });
-    if (!show) return { created: false };
+    if (!show) {
+      console.log(`❌ Show ${args.showId} not found`);
+      return { created: false, message: "Show not found" };
+    }
+
+    console.log(`🎵 Creating auto-generated setlist for show ${args.showId}, artist ${show.artistId}...`);
 
     try {
-      await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+      const setlistId = await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
         showId: args.showId,
         artistId: show.artistId,
       });
-      return { created: true };
-    } catch {
-      return { created: false };
+      
+      if (setlistId) {
+        console.log(`✅ Created setlist ${setlistId} for show ${args.showId}`);
+        return { created: true, message: "Setlist created successfully" };
+      } else {
+        console.log(`⚠️ Auto-generate returned null (likely no songs available yet) for show ${args.showId}`);
+        return { created: false, message: "No songs available to generate setlist" };
+      }
+    } catch (error) {
+      console.error(`❌ Failed to create setlist for show ${args.showId}:`, error);
+      return { created: false, message: error instanceof Error ? error.message : "Unknown error" };
     }
   },
 });
