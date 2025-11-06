@@ -10,11 +10,15 @@ export const getByArtist = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
     
+    console.log(`🔍 getByArtist query called for artist: ${args.artistId}, limit: ${limit}`);
+    
     // Get artist-song relationships
     const artistSongs = await ctx.db
       .query("artistSongs")
       .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
       .take(limit);
+
+    console.log(`📊 Found ${artistSongs.length} artistSong relationships`);
 
     // Get the actual songs
     const songs = await Promise.all(
@@ -27,6 +31,8 @@ export const getByArtist = query({
     const studioSongs = (songs.filter(Boolean) as Array<any>)
       .filter((s) => !s.isLive && !s.isRemix)
       .filter((s) => !/(commentary)/i.test(s.title || ''));
+
+    console.log(`✅ Returning ${studioSongs.length} studio songs`);
 
     return studioSongs.sort((a, b) => (b?.popularity || 0) - (a?.popularity || 0));
   },
