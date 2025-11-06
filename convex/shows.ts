@@ -20,11 +20,10 @@ function createSEOSlug(name: string): string {
 }
 
 // Helper function to create descriptive show slugs
-function createShowSlug(artistName: string, venueName: string, venueCity: string, date: string, startTime?: string): string {
-  // Format: artist-name-venue-name-city-yyyy-mm-dd[-hh-mm]
+function createShowSlug(artistName: string, venueName: string, venueCity: string, date: string): string {
+  // Format: artist-name-venue-name-city-yyyy-mm-dd (no time segment)
   const datePart = date; // Already in YYYY-MM-DD format
-  const timePart = startTime ? `-${startTime.replace(':', '-')}` : '';
-  return `${createSEOSlug(artistName)}-${createSEOSlug(venueName)}-${createSEOSlug(venueCity)}-${datePart}${timePart}`;
+  return `${createSEOSlug(artistName)}-${createSEOSlug(venueName)}-${createSEOSlug(venueCity)}-${datePart}`;
 }
 
 export const getRecentlyUpdated = query({
@@ -172,6 +171,20 @@ export const getBySlugOrId = query({
       .first(); // Use .first() instead of .unique() to handle duplicates gracefully
 
     let showDoc = bySlug;
+    if (!showDoc) {
+      // Fallback: if slug contains trailing time segment (-HH-mm), try without it
+      const timeSuffix = args.key.match(/^(.*)-(\d{2})-(\d{2})$/);
+      if (timeSuffix && timeSuffix[1]) {
+        const withoutTime = timeSuffix[1];
+        const bySlugNoTime = await ctx.db
+          .query("shows")
+          .withIndex("by_slug", (q) => q.eq("slug", withoutTime))
+          .first();
+        if (bySlugNoTime) {
+          showDoc = bySlugNoTime;
+        }
+      }
+    }
     if (!showDoc) {
       // Fallback: try by id
       try {
@@ -471,7 +484,7 @@ export const createInternal = internalMutation({
     }
     
     // Generate SEO-friendly slug: artist-name-venue-name-city-date
-    const slug = createShowSlug(artist.name, venue.name, venue.city, args.date, args.startTime);
+    const slug = createShowSlug(artist.name, venue.name, venue.city, args.date);
     
     // ENHANCED: Initialize all optional fields with proper defaults
     const showId = await ctx.db.insert("shows", {
@@ -562,7 +575,7 @@ export const createFromTicketmaster = internalMutation({
     }
     
     // Generate SEO-friendly slug: artist-name-venue-name-city-date
-    const slug = createShowSlug(artist.name, venue.name, venue.city, args.date, args.startTime);
+    const slug = createShowSlug(artist.name, venue.name, venue.city, args.date);
     
     // ENHANCED: Initialize all optional fields with proper defaults
     const showId = await ctx.db.insert("shows", {

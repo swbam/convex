@@ -219,6 +219,19 @@ export function ShowDetail({
   const isUpcoming = show.status === "upcoming";
   const isToday = showDate.toDateString() === new Date().toDateString();
 
+  const formatStartTime = (raw?: string | null) => {
+    if (!raw) return null;
+    // Accept HH:mm or HH:mm:ss
+    const m = raw.match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (!m) return raw; // fallback
+    let hour = parseInt(m[1]!, 10);
+    const minute = m[2];
+    const ampm = hour >= 12 ? 'pm' : 'am';
+    if (hour === 0) hour = 12;
+    if (hour > 12) hour = hour - 12;
+    return `${hour}:${minute}${ampm} ET`;
+  };
+
   const renderSetlistHeader = () => {
     if (!show.importStatus)
       return <h3 className="text-xl font-bold mb-4">Setlist</h3>;
@@ -378,7 +391,7 @@ export function ShowDetail({
                   {show?.startTime && (
                     <>
                       <span className="text-white/40">•</span>
-                      <span className="font-medium">{show?.startTime}</span>
+                      <span className="font-medium">{formatStartTime(show?.startTime) || show?.startTime}</span>
                     </>
                   )}
                 </div>

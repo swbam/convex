@@ -232,6 +232,28 @@ export const syncArtistShows = internalAction({
       });
       console.log(`✅ Updated show count for artist: ${upcomingShows} upcoming shows`);
       
+      // Ensure community prediction setlists exist for upcoming shows (dev-friendly)
+      try {
+        const artistAllShows = await ctx.runQuery(internal.shows.getAllByArtistInternal, { artistId: args.artistId });
+        for (const show of artistAllShows) {
+          if (show.status !== 'upcoming') continue;
+          const existingSetlist = await ctx.db
+            .query('setlists')
+            .withIndex('by_show', (q) => q.eq('showId', show._id))
+            .filter((q) => q.eq(q.field('isOfficial'), false))
+            .filter((q) => q.eq(q.field('userId'), undefined))
+            .first();
+          if (!existingSetlist) {
+            await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+              showId: show._id,
+              artistId: args.artistId,
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('⚠️ Failed to ensure auto-generated setlists for upcoming shows', e);
+      }
+
       // FIXED: Await scheduler call to prevent dangling promise warning
       try {
         await ctx.scheduler.runAfter(0, internal.trending.updateShowTrending, {});

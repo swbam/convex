@@ -18,15 +18,13 @@ const createShowSlug = (
   artistName: string,
   venueName: string,
   venueCity: string,
-  date: string,
-  startTime?: string | null
+  date: string
 ) => {
   const safeArtist = slugify(artistName || "");
   const safeVenue = slugify(venueName || "");
   const safeCity = slugify(venueCity || "");
   const parts = [safeArtist, safeVenue, safeCity, date].filter(Boolean);
-  const timePart = startTime ? `-${startTime.replace(/:/g, "-")}` : "";
-  return parts.join("-") + timePart;
+  return parts.join("-");
 };
 
 const normalizeShowStatus = (status?: string) => {
@@ -465,8 +463,7 @@ export const replaceTrendingShowsCache = internalMutation({
             artistName,
             show.venueName,
             show.venueCity,
-            show.date,
-            show.startTime
+            show.date
           ),
         artistTicketmasterId: show.artistTicketmasterId,
         artistId: linkedArtist?._id,
