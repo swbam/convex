@@ -89,6 +89,9 @@ export const getTrendingShows = query({
       .order("asc")
       .take(limit * 3);
 
+    // CRITICAL FIX: Process cache but fallback if no valid shows after filtering
+    let validShows: any[] = [];
+    
     if (cached.length > 0) {
       const hydrated = await Promise.all(
         cached.map(async (row) => {
@@ -117,50 +120,53 @@ export const getTrendingShows = query({
       );
 
       // Filter out null values (cache-only shows)
-      const validShows = hydrated.filter((show): show is NonNullable<typeof show> => show !== null);
+      validShows = hydrated.filter((show): show is NonNullable<typeof show> => show !== null);
 
-      const uniqueShows = dedupeByKey(
-        validShows,
-        (show: any) =>
-          show?.slug ||
-          show?.ticketmasterId ||
-          show?.cachedTrending?.showSlug ||
-          show?.cachedTrending?.ticketmasterId ||
-          `${show?.artist?.name ?? show?.cachedTrending?.artistName ?? "unknown"}::${show?.venue?.name ?? show?.cachedTrending?.venueName ?? "unknown"}::${show?.date ?? show?.cachedTrending?.date ?? "unknown"}`,
-        limit * 2
-      );
-
-      const artistScoped = dedupeByKey(
-        uniqueShows,
-        (show: any) =>
-          show?.artist?._id ||
-          show?.artist?.slug ||
-          show?.cachedTrending?.artistSlug ||
-          show?.cachedTrending?.artistTicketmasterId ||
-          show?.artist?.ticketmasterId ||
-          show?.artist?.name ||
-          show?.cachedTrending?.artistName,
-        limit
-      );
-
-      // final cleanup to avoid Unknown entries and non-upcoming items
-      const cleaned = artistScoped.filter((s: any) => {
-        const name = s?.artist?.name || s?.cachedTrending?.artistName || "";
-        const venue = s?.venue?.name || s?.cachedTrending?.venueName || "";
-        const status = normalizeShowStatus(s?.status || s?.cachedTrending?.status);
-        return (
-          typeof name === "string" && name.length > 0 &&
-          !name.toLowerCase().includes("unknown") &&
-          typeof venue === "string" && venue.length > 0 &&
-          status === "upcoming"
+      // CRITICAL: Only use cache if we have valid shows after filtering
+      if (validShows.length > 0) {
+        const uniqueShows = dedupeByKey(
+          validShows,
+          (show: any) =>
+            show?.slug ||
+            show?.ticketmasterId ||
+            show?.cachedTrending?.showSlug ||
+            show?.cachedTrending?.ticketmasterId ||
+            `${show?.artist?.name ?? show?.cachedTrending?.artistName ?? "unknown"}::${show?.venue?.name ?? show?.cachedTrending?.venueName ?? "unknown"}::${show?.date ?? show?.cachedTrending?.date ?? "unknown"}`,
+          limit * 2
         );
-      });
 
-      return {
-        page: cleaned.slice(0, limit),
-        isDone: cleaned.length < limit,
-        continueCursor: undefined,
-      };
+        const artistScoped = dedupeByKey(
+          uniqueShows,
+          (show: any) =>
+            show?.artist?._id ||
+            show?.artist?.slug ||
+            show?.cachedTrending?.artistSlug ||
+            show?.cachedTrending?.artistTicketmasterId ||
+            show?.artist?.ticketmasterId ||
+            show?.artist?.name ||
+            show?.cachedTrending?.artistName,
+          limit
+        );
+
+        // final cleanup to avoid Unknown entries and non-upcoming items
+        const cleaned = artistScoped.filter((s: any) => {
+          const name = s?.artist?.name || s?.cachedTrending?.artistName || "";
+          const venue = s?.venue?.name || s?.cachedTrending?.venueName || "";
+          const status = normalizeShowStatus(s?.status || s?.cachedTrending?.status);
+          return (
+            typeof name === "string" && name.length > 0 &&
+            !name.toLowerCase().includes("unknown") &&
+            typeof venue === "string" && venue.length > 0 &&
+            status === "upcoming"
+          );
+        });
+
+        return {
+          page: cleaned.slice(0, limit),
+          isDone: cleaned.length < limit,
+          continueCursor: undefined,
+        };
+      }
     }
 
     // Fallback: derive from upcoming shows (no engagement-based ranking)
@@ -188,13 +194,13 @@ export const getTrendingShows = query({
     }));
 
     // Filter out null results from failed hydrations
-    const validShows = hydrated.filter((show): show is NonNullable<typeof show> => show !== null);
+    const fallbackShows = hydrated.filter((show): show is NonNullable<typeof show> => show !== null);
 
     // Sort purely by date ascending (next upcoming first)
-    validShows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    fallbackShows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     // PRODUCTION FILTER: Balance quality with availability
-    const eligible = validShows.filter(show => {
+    const eligible = fallbackShows.filter(show => {
       const artist = show.artist;
       const venue = show.venue;
       if (!artist || !venue) return false;

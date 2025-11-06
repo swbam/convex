@@ -262,16 +262,12 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
                 rows={3}
                 baseDurationSec={80}
                 renderItem={(show: any) => {
-                  // CRITICAL FIX: Extract both ID and slug properly from cache or main table
-                  const showId = show?._id || show?.showId;
-                  const slug = show?.slug || show?.showSlug || show?.cachedTrending?.showSlug;
-                  
                   return (
                     <ShowCard
                       show={show}
-                      onClick={(id, showSlug) => {
-                        // Use the proper callback instead of direct navigation
-                        onShowClick(id || showId || slug, showSlug || slug);
+                      onClick={(id, slug) => {
+                        // CRITICAL: Pass through the validated ID and slug from ShowCard
+                        onShowClick(id, slug);
                       }}
                     />
                   );

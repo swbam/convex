@@ -22,7 +22,12 @@ function ShowCardComponent({
     const slug = show.slug || show.showSlug || (show.cachedTrending?.showSlug);
     // Fallback to showId if available (from trending cache)
     const showId = show._id || show.showId;
-    onClick(showId, slug);
+    
+    // CRITICAL: Ensure we're passing strings, not objects
+    const validShowId = typeof showId === 'string' ? showId : '';
+    const validSlug = typeof slug === 'string' && slug.length > 0 && !slug.includes('[object') ? slug : undefined;
+    
+    onClick(validShowId as Id<"shows">, validSlug);
   };
 
   const formatDate = (dateStr: string) => {

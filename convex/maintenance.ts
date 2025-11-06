@@ -180,6 +180,83 @@ export const backfillMissingSetlists = action({
   },
 });
 
+// CRITICAL: Import trending shows from cache into main database
+export const importTrendingShows = internalMutation({
+  args: { limit: v.optional(v.number()) },
+  returns: v.object({
+    processed: v.number(),
+    imported: v.number(),
+    errors: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 50;
+    const stats = { processed: 0, imported: 0, errors: 0 };
+    
+    const cached = await ctx.db.query("trendingShows").take(limit);
+    
+    for (const show of cached) {
+      stats.processed++;
+      if (show.showId) continue; // Skip if already imported
+      
+      try {
+        if (!show.artistName || !show.venueName || !show.date) continue;
+        
+        // Get/create artist
+        let artistId = show.artistId;
+        if (!artistId) {
+          const lowerName = show.artistName.toLowerCase();
+          let artist = await ctx.db.query("artists").withIndex("by_lower_name", (q) => q.eq("lowerName", lowerName)).first();
+          if (!artist && show.artistTicketmasterId) {
+            artist = await ctx.db.query("artists").withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", show.artistTicketmasterId!)).first();
+          }
+          if (!artist) {
+            const slug = show.artistName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').substring(0, 100);
+            artistId = await ctx.db.insert("artists", {
+              slug, name: show.artistName, ticketmasterId: show.artistTicketmasterId, lowerName, genres: [],
+              images: show.artistImage ? [show.artistImage] : [], isActive: true, popularity: 0, followers: 0,
+              trendingScore: 0, trendingRank: 0, upcomingShowsCount: 0, lastSynced: Date.now(), lastTrendingUpdate: Date.now(),
+            });
+          } else {
+            artistId = artist._id;
+          }
+        }
+        
+        // Get/create venue
+        let venue = await ctx.db.query("venues").withIndex("by_name_city", (q) => q.eq("name", show.venueName).eq("city", show.venueCity)).first();
+        const venueId = venue ? venue._id : await ctx.db.insert("venues", { name: show.venueName, city: show.venueCity, country: show.venueCountry });
+        
+        // Create show
+        const artist = await ctx.db.get(artistId);
+        const ven = await ctx.db.get(venueId);
+        if (!artist || !ven) continue;
+        
+        const slug = `${artist.slug}-${ven.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${ven.city.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${show.date}`.substring(0, 200);
+        const showId = await ctx.db.insert("shows", {
+          slug, artistId, venueId, date: show.date, startTime: show.startTime,
+          status: (show.status || '').includes('cancel') ? 'cancelled' as const : 'upcoming' as const,
+          ticketmasterId: show.ticketmasterId, ticketUrl: show.ticketUrl, priceRange: show.priceRange,
+          voteCount: 0, setlistCount: 0, trendingScore: 0, trendingRank: 0, lastSynced: Date.now(), lastTrendingUpdate: Date.now(),
+        });
+        
+        await ctx.db.patch(show._id, { showId, artistId });
+        stats.imported++;
+      } catch (e) {
+        stats.errors++;
+      }
+    }
+    
+    return stats;
+  },
+});
+
+export const triggerShowImport = action({
+  args: { limit: v.optional(v.number()) },
+  returns: v.object({ processed: v.number(), imported: v.number(), errors: v.number() }),
+  handler: async (ctx, args): Promise<{processed: number; imported: number; errors: number}> => {
+    return await ctx.runMutation(internal.maintenance.importTrendingShows, { limit: args.limit ?? 50 });
+  },
+});
+
 // Fix missing artist data (unchanged)
 export const fixMissingArtistData = internalAction({
   args: {},
