@@ -51,15 +51,32 @@ export function ShowDetail({
   onSignInRequired,
 }: ShowDetailProps) {
   const show = useQuery(api.shows.getById, { id: showId });
-  const songs = useQuery(
-    api.songs.getByArtist,
-    show?.artistId
-      ? {
-          artistId: show.artistId,
-          limit: 100,
-        }
-      : "skip"
-  );
+  
+  // ULTRA-FIX: Force query with explicit non-skip condition
+  const songsQueryArgs = React.useMemo(() => {
+    if (!show?.artistId) {
+      console.log("⏭️ Skipping songs query - no artistId yet");
+      return "skip" as const;
+    }
+    console.log("✅ Songs query active for artist:", show.artistId);
+    return { artistId: show.artistId, limit: 100 };
+  }, [show?.artistId]);
+  
+  const songs = useQuery(api.songs.getByArtist, songsQueryArgs);
+  
+  // CRITICAL: Log what we got
+  React.useEffect(() => {
+    if (songs) {
+      console.log("🎵 SONGS LOADED:", {
+        count: songs.length,
+        artistId: show?.artistId,
+        first5: songs.slice(0, 5).map(s => s?.title)
+      });
+    } else if (songsQueryArgs !== "skip") {
+      console.log("⚠️ Songs query returned null/undefined for artist:", show?.artistId);
+    }
+  }, [songs, show?.artistId, songsQueryArgs]);
+  
   const setlists = useQuery(api.setlists.getByShow, show ? { showId } : "skip");
   const user = useQuery(api.auth.loggedInUser);
   const setlist = useQuery(api.setlists.getByShow, { showId }); // Assume exists
@@ -183,16 +200,34 @@ export function ShowDetail({
     | Id<"setlists">
     | undefined;
 
-  // Ensure a 5-song initial setlist exists (no-op if already present)
+  // ULTRA-FIX: Retry mechanism for setlist creation
+  const [retryCount, setRetryCount] = React.useState(0);
+  
   React.useEffect(() => {
-    if (!showId) return;
-    if (!songs || songs.length === 0) return; // wait for catalog
-    if (!setlists) return; // wait for load
-    const hasSongs = !!predictionSetlist && Array.isArray(predictionSetlist.songs) && predictionSetlist.songs.length > 0;
-    if (!hasSongs) {
-      void ensureAutoSetlist({ showId });
+    if (!showId || !show || !isUpcoming) return;
+    
+    const hasPredictionWithSongs = !!predictionSetlist && 
+      Array.isArray(predictionSetlist.songs) && 
+      predictionSetlist.songs.length > 0;
+    
+    if (hasPredictionWithSongs) {
+      console.log(`✅ Setlist ready: ${predictionSetlist.songs.length} songs`);
+      return;
     }
-  }, [showId, songs, setlists, predictionSetlist, ensureAutoSetlist]);
+    
+    // If no songs yet and haven't retried too much, schedule retry
+    if ((!songs || songs.length === 0) && retryCount < 5) {
+      console.log(`⏳ Retry ${retryCount + 1}/5: No songs loaded yet`);
+      const timer = setTimeout(() => setRetryCount(prev => prev + 1), 2000);
+      return () => clearTimeout(timer);
+    }
+    
+    // Songs exist, create setlist if missing
+    if (songs && songs.length > 0 && !hasPredictionWithSongs && setlists !== undefined) {
+      console.log(`🎵 Creating setlist NOW with ${songs.length} songs`);
+      void ensureAutoSetlist({ showId }).then(r => console.log("Setlist result:", r));
+    }
+  }, [showId, show, songs, setlists, predictionSetlist, ensureAutoSetlist, isUpcoming, retryCount]);
 
   const handleVoteAction = () => {
     if (hasVoted) {
