@@ -476,8 +476,8 @@ export const autoGenerateSetlist = internalMutation({
       .collect();
 
     if (artistSongs.length === 0) {
-      console.log(`No songs found for artist ${args.artistId}, skipping setlist generation`);
-      return null;
+      console.log(`❌ No songs found for artist ${args.artistId}, will retry later`);
+      return null; // Caller schedules retry
     }
 
     // Get the actual song records and filter out live/remix versions
@@ -503,6 +503,7 @@ export const autoGenerateSetlist = internalMutation({
     const numSongs = Math.min(5, songsToChooseFrom.length);
 
     if (existingSetlist && Array.isArray(existingSetlist.songs) && existingSetlist.songs.length >= numSongs) {
+      // Already has enough songs – nothing to do
       return existingSetlist._id;
     }
 
@@ -532,6 +533,12 @@ export const autoGenerateSetlist = internalMutation({
         songId: selectedSong._id,
       });
       songsToChooseFrom.splice(selectedIndex, 1); // Remove to avoid duplicates
+    }
+
+    // If we somehow didn't pick any songs, skip so retry can happen later
+    if (selectedSongs.length === 0) {
+      console.warn(`⚠️ Selected 0 songs for show ${args.showId}; will retry`);
+      return null;
     }
 
     // Create or update the auto-generated setlist
