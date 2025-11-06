@@ -18,16 +18,28 @@ function ShowCardComponent({
   compact = false 
 }: ShowCardProps) {
   const handleClick = () => {
-    // CRITICAL FIX: Handle both slug formats (trending cache uses showSlug, main table uses slug)
-    const slug = show.slug || show.showSlug || (show.cachedTrending?.showSlug);
-    // Fallback to showId if available (from trending cache)
-    const showId = show._id || show.showId;
+    // CRITICAL FIX: Robustly extract ID and slug, handling any data type
+    const rawId = show._id || show.showId;
+    const rawSlug = show.slug || show.showSlug || show.cachedTrending?.showSlug;
     
-    // CRITICAL: Ensure we're passing strings, not objects
-    const validShowId = typeof showId === 'string' ? showId : '';
-    const validSlug = typeof slug === 'string' && slug.length > 0 && !slug.includes('[object') ? slug : undefined;
+    // Force convert to strings
+    const showId = typeof rawId === 'string' ? rawId : String(rawId || '');
+    let slug = typeof rawSlug === 'string' ? rawSlug : (typeof rawSlug === 'object' ? '' : String(rawSlug || ''));
     
-    onClick(validShowId as Id<"shows">, validSlug);
+    // Validate slug doesn't contain [object
+    if (slug.includes('[object')) {
+      slug = '';
+    }
+    
+    // If no valid slug, try to use showId
+    const finalSlug = slug || (showId.startsWith('k') ? showId : '');
+    
+    if (!finalSlug) {
+      console.error('ShowCard: No valid identifier found', { show, rawId, rawSlug });
+      return;
+    }
+    
+    onClick(showId as Id<"shows">, finalSlug || undefined);
   };
 
   const formatDate = (dateStr: string) => {

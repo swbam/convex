@@ -15,7 +15,7 @@ import { Loader2 } from 'lucide-react'
 
 interface UserDashboardProps {
   onArtistClick: (artistId: Id<"artists">) => void;
-  onShowClick: (showId: Id<"shows">) => void;
+  onShowClick: (showId: Id<"shows">, slug?: string) => void;
 }
 
 export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps) {

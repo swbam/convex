@@ -11,7 +11,7 @@ import MarqueeRows from "./MarqueeRows";
 
 interface PublicDashboardProps {
   onArtistClick: (artistKey: Id<"artists"> | string) => void;
-  onShowClick: (showKey: Id<"shows"> | string) => void;
+  onShowClick: (showKey: Id<"shows"> | string, slug?: string) => void;
   onSignInRequired: () => void;
   navigate: (path: string) => void;
 }

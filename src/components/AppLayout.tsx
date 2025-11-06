@@ -382,8 +382,15 @@ export function AppLayout({ children }: AppLayoutProps) {
                     onArtistClick={(artistId) => {
                       void navigate(`/artists/${artistId}`)
                     }}
-                    onShowClick={(showId) => {
-                      void navigate(`/shows/${showId}`)
+                    onShowClick={(showId, slug) => {
+                      // CRITICAL FIX: Always prefer slug, validate it's a string
+                      const cleanSlug = typeof slug === 'string' && slug.length > 0 && !slug.includes('[object') && !slug.includes('undefined')
+                        ? slug
+                        : (typeof showId === 'string' && showId.length > 0 && !showId.startsWith('k') ? showId : null);
+                      
+                      if (cleanSlug) {
+                        void navigate(`/shows/${cleanSlug}`)
+                      }
                     }}
                   />
                 ) : (
@@ -391,8 +398,15 @@ export function AppLayout({ children }: AppLayoutProps) {
                     onArtistClick={(artistId) => {
                       void navigate(`/artists/${artistId}`)
                     }}
-                    onShowClick={(showId) => {
-                      void navigate(`/shows/${showId}`)
+                    onShowClick={(showId, slug) => {
+                      // CRITICAL FIX: Always prefer slug, validate it's a string
+                      const cleanSlug = typeof slug === 'string' && slug.length > 0 && !slug.includes('[object') && !slug.includes('undefined')
+                        ? slug
+                        : (typeof showId === 'string' && showId.length > 0 && !showId.startsWith('k') ? showId : null);
+                      
+                      if (cleanSlug) {
+                        void navigate(`/shows/${cleanSlug}`)
+                      }
                     }}
                     onSignInRequired={() => {
                       void navigate('/signin')
