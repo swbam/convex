@@ -34,19 +34,27 @@ export const syncTrendingData = internalAction({
       // Step 4: Refresh cached trending collections so UI has rich fallback
       try {
         const artistsTop = await ctx.runQuery(internal.trending.getTopRankedArtists, { limit: 50 });
-        await ctx.runMutation(internal.trending.replaceTrendingArtistsCache, {
-          fetchedAt: Date.now(),
-          artists: artistsTop
-            .filter((a: any) => typeof a.ticketmasterId === "string" && a.ticketmasterId.length > 0)
-            .map((a: any, i: number) => ({
-              name: a.name || "Unknown Artist",
-              genres: Array.isArray(a.genres) ? a.genres : [],
-              images: Array.isArray(a.images) ? a.images : [],
-              upcomingEvents: typeof a.upcomingShowsCount === "number" ? a.upcomingShowsCount : 0,
-              ticketmasterId: a.ticketmasterId,
-              rank: i + 1,
-            })),
-        });
+        
+        // CRITICAL FIX: Don't filter out artists without Ticketmaster IDs
+        // This allows Spotify-only artists to appear in trending
+        const validArtists = artistsTop
+          .filter((a: any) => a.name && a.name.length > 0) // Just need a name
+          .map((a: any, i: number) => ({
+            name: a.name || "Unknown Artist",
+            genres: Array.isArray(a.genres) ? a.genres : [],
+            images: Array.isArray(a.images) ? a.images : [],
+            upcomingEvents: typeof a.upcomingShowsCount === "number" ? a.upcomingShowsCount : 0,
+            ticketmasterId: a.ticketmasterId || `spotify-${a.spotifyId || a._id}`, // Generate fake TM ID for Spotify artists
+            rank: i + 1,
+          }));
+        
+        if (validArtists.length > 0) {
+          await ctx.runMutation(internal.trending.replaceTrendingArtistsCache, {
+            fetchedAt: Date.now(),
+            artists: validArtists,
+          });
+          console.log(`✅ Populated trending cache with ${validArtists.length} artists from DB`);
+        }
       } catch (e) {
         console.warn("⚠️ Failed to refresh trending artists cache from DB", e);
       }

@@ -204,10 +204,22 @@ export const getTrendingShows = query({
       // Require upcoming + valid names; image not required but preferred
       return isUpcoming && notUnknown && hasBasicData;
     });
+    
+    // ENHANCED: If no eligible shows, be more lenient
+    const finalEligible = eligible.length > 0 ? eligible : validShows.filter(show => {
+      const artist = show.artist;
+      const venue = show.venue;
+      if (!artist || !venue) return false;
+      
+      // Very lenient: just need basic fields
+      return show.status === "upcoming" && artist.name && venue.name;
+    });
+    
+    console.log(`✅ Trending shows: ${finalEligible.length} eligible from ${validShows.length} valid shows`);
 
     // DEDUPE: only one show per artist on homepage
     const deduped = dedupeByKey(
-      eligible,
+      finalEligible,
       (show: any) =>
         show?.slug ||
         show?.ticketmasterId ||
@@ -226,7 +238,7 @@ export const getTrendingShows = query({
     );
 
     if (filtered.length < limit / 2) {
-      console.warn(`Trending filtered to ${filtered.length} items—check data population (popularity/images missing). Run syncs.`);
+      console.warn(`⚠️ Trending filtered to ${filtered.length} items—check data population (popularity/images missing). Run syncs.`);
     }
 
     return { page: filtered.slice(0, limit), isDone: filtered.length < limit, continueCursor: undefined };
@@ -292,20 +304,28 @@ export const getTrendingArtists = query({
         limit * 3
       );
 
-      // Relaxed filter: allow artists with any upcoming events or reasonable popularity/followers
-      const massive = unique.filter((a: any) => {
-        const popularity = a?.popularity ?? 0;
-        const followers = a?.followers ?? 0;
-        const upcoming = a?.upcomingShowsCount ?? a?.upcomingEvents ?? 0;
-        // Keep if any of these basic signals indicate relevance
-        return upcoming > 0 || popularity > 30 || followers > 50_000 || isMassiveArtist({
-          artistName: a.name,
-          artistPopularity: a.popularity,
-          artistFollowers: a.followers,
-          upcomingEvents: a.upcomingShowsCount || a.upcomingEvents,
-          genres: a.genres,
+      // CRITICAL FIX: Multi-tier filtering to ensure data always shows
+      // Tier 1: Massive artists (ideal)
+      let massive = unique.filter((a: any) => isMassiveArtist({
+        artistName: a.name,
+        artistPopularity: a.popularity,
+        artistFollowers: a.followers,
+        upcomingEvents: a.upcomingShowsCount || a.upcomingEvents,
+        genres: a.genres,
+      }));
+      
+      // Tier 2: Artists with any activity signals (relaxed)
+      if (massive.length < limit) {
+        const relaxed = unique.filter((a: any) => {
+          const popularity = a?.popularity ?? 0;
+          const followers = a?.followers ?? 0;
+          const upcoming = a?.upcomingShowsCount ?? a?.upcomingEvents ?? 0;
+          return upcoming > 0 || popularity > 20 || followers > 10_000;
         });
-      });
+        massive = relaxed.length > 0 ? relaxed : unique; // Fallback to ALL cached if still empty
+      }
+      
+      console.log(`📊 Trending artists from cache: ${massive.length} (from ${unique.length} cached)`);
 
       return {
         page: massive.slice(0, limit),
@@ -325,21 +345,36 @@ export const getTrendingArtists = query({
       (artist) => artist.isActive !== false
     );
 
-    // Apply massive filter to fallback results too
-    const massiveRanked = filteredRanked.filter((a: any) => {
-      const popularity = a?.popularity ?? 0;
-      const followers = a?.followers ?? 0;
-      const upcoming = a?.upcomingShowsCount ?? 0;
-      return upcoming > 0 || popularity > 30 || followers > 50_000 || isMassiveArtist({
-        artistName: a.name,
-        artistPopularity: a.popularity,
-        artistFollowers: a.followers,
-        upcomingEvents: a.upcomingShowsCount,
-        genres: a.genres,
+    // CRITICAL FIX: Multi-tier filtering for database fallback
+    // Tier 1: Try massive filter
+    let massiveRanked = filteredRanked.filter((a: any) => isMassiveArtist({
+      artistName: a.name,
+      artistPopularity: a.popularity,
+      artistFollowers: a.followers,
+      upcomingEvents: a.upcomingShowsCount,
+      genres: a.genres,
+    }));
+    
+    // Tier 2: Relaxed filter if no massive artists
+    if (massiveRanked.length < limit) {
+      const relaxed = filteredRanked.filter((a: any) => {
+        const popularity = a?.popularity ?? 0;
+        const followers = a?.followers ?? 0;
+        const upcoming = a?.upcomingShowsCount ?? 0;
+        return upcoming > 0 || popularity > 20 || followers > 10_000;
       });
-    });
+      
+      // Tier 3: If still no results, show ANY active artist with a ranking
+      if (relaxed.length === 0 && filteredRanked.length > 0) {
+        console.log(`⚠️ No massive/relaxed artists, showing all ranked artists (${filteredRanked.length})`);
+        massiveRanked = filteredRanked;
+      } else {
+        massiveRanked = relaxed;
+      }
+    }
 
     if (massiveRanked.length > 0) {
+      console.log(`📊 Trending artists from DB: ${massiveRanked.length}`);
       return {
         page: massiveRanked.slice(0, limit),
         isDone: massiveRanked.length < limit,
@@ -353,15 +388,34 @@ export const getTrendingArtists = query({
       .filter((q) => q.eq(q.field("isActive"), true))
       .take(200);
 
-    const massiveActive = activeArtists.filter((a: any) => isMassiveArtist({
+    // RELAXED FILTER: If no massive artists, show any with upcoming shows or popularity
+    let candidates = activeArtists.filter((a: any) => isMassiveArtist({
       artistName: a.name,
       artistPopularity: a.popularity,
       artistFollowers: a.followers,
       upcomingEvents: a.upcomingShowsCount,
       genres: a.genres,
     }));
+    
+    // If strict filter yields no results, be more lenient
+    if (candidates.length === 0) {
+      console.log("⚠️ No massive artists found, using lenient filter");
+      candidates = activeArtists.filter((a: any) => {
+        const popularity = a?.popularity ?? 0;
+        const followers = a?.followers ?? 0;
+        const upcoming = a?.upcomingShowsCount ?? 0;
+        // Very lenient: any artist with some data
+        return upcoming > 0 || popularity > 0 || followers > 0;
+      });
+    }
+    
+    // If still no results, just return any active artists
+    if (candidates.length === 0) {
+      console.log("⚠️ No artists match filters, returning all active artists");
+      candidates = activeArtists;
+    }
 
-    const scored = massiveActive
+    const scored = candidates
       .map((artist) => ({
         artist,
         score:
@@ -374,6 +428,8 @@ export const getTrendingArtists = query({
       .sort((a, b) => b.score - a.score)
       .map((entry) => entry.artist)
       .slice(0, limit);
+    
+    console.log(`✅ Trending artists fallback: returning ${scored.length} artists`);
 
     return {
       page: scored,
