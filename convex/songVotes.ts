@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { getAuthUserId } from "./auth";
 import { Id } from "./_generated/dataModel";
 
@@ -12,17 +13,18 @@ export const voteOnSong = mutation({
     anonId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const authUserId = await getAuthUserId(ctx);
-    let effectiveUserId: Id<"users"> | string;
+    try {
+      const authUserId = await getAuthUserId(ctx);
+      let effectiveUserId: Id<"users"> | string;
 
-    if (!authUserId) {
-      if (!args.anonId) {
-        throw new Error("Anonymous ID required for unauthenticated users");
+      if (!authUserId) {
+        if (!args.anonId) {
+          throw new Error("Anonymous ID required for unauthenticated users");
+        }
+        effectiveUserId = args.anonId;
+      } else {
+        effectiveUserId = authUserId;
       }
-      effectiveUserId = args.anonId;
-    } else {
-      effectiveUserId = authUserId;
-    }
 
     // Check if user already voted on this song in this setlist
     const existingVote = await ctx.db
@@ -69,16 +71,29 @@ export const voteOnSong = mutation({
       }
     }
 
-    // Create new vote
-    await ctx.db.insert("songVotes", {
-      userId: effectiveUserId,
-      setlistId: args.setlistId,
-      songTitle: args.songTitle,
-      voteType: args.voteType,
-      createdAt: Date.now(),
-    });
+      // Create new vote
+      await ctx.db.insert("songVotes", {
+        userId: effectiveUserId,
+        setlistId: args.setlistId,
+        songTitle: args.songTitle,
+        voteType: args.voteType,
+        createdAt: Date.now(),
+      });
 
-    return null;
+      return null;
+    } catch (error) {
+      // Track voting errors
+      await ctx.runMutation(internal.errorTracking.logError, {
+        operation: "song_vote",
+        error: error instanceof Error ? error.message : String(error),
+        context: {
+          setlistId: args.setlistId,
+          additionalData: { songTitle: args.songTitle },
+        },
+        severity: "warning",
+      });
+      throw error;
+    }
   }
 });
 

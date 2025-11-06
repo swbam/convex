@@ -102,10 +102,10 @@ export const syncActualSetlist = internalAction({
         } else {
           // Show is past but no setlist available on setlist.fm
           console.log(`⚠️  No setlist found on setlist.fm for ${artist.name} @ ${venue.city} (${args.showDate})`);
-          await ctx.runMutation(internal.shows.updateImportStatus, {
-            showId: args.showId,
-            status: "failed" as const,
-          });
+        await ctx.runMutation(internal.shows.updateImportStatus, {
+          showId: args.showId,
+          status: "failed" as const,
+        });
         }
         return null;
       }

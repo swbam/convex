@@ -345,6 +345,30 @@ const applicationTables = {
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"]),
+
+  // Error logs table for tracking backend errors with Sentry integration
+  errorLogs: defineTable({
+    operation: v.string(),
+    error: v.string(),
+    context: v.optional(v.object({
+      artistId: v.optional(v.id("artists")),
+      showId: v.optional(v.id("shows")),
+      setlistId: v.optional(v.id("setlists")),
+      userId: v.optional(v.id("users")),
+      artistName: v.optional(v.string()),
+      showDate: v.optional(v.string()),
+      additionalData: v.optional(v.any()),
+    })),
+    severity: v.union(v.literal("error"), v.literal("warning"), v.literal("info")),
+    timestamp: v.number(),
+    resolved: v.boolean(),
+    sentToSentry: v.optional(v.boolean()),
+  })
+    .index("by_operation", ["operation"])
+    .index("by_severity", ["severity"])
+    .index("by_timestamp", ["timestamp"])
+    .index("by_resolved", ["resolved"])
+    .index("by_sentry_status", ["sentToSentry"]),
 };
 
 export default defineSchema({

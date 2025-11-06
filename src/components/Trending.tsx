@@ -69,7 +69,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
     const localId = typeof show.showId === 'string'
       ? show.showId
       : typeof show._id === 'string'
-        ? show._id
+      ? show._id
         : undefined;
 
     const inferredSlug = typeof show.slug === 'string' && show.slug.trim().length > 0

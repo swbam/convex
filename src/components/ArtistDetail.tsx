@@ -14,7 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { FadeIn } from "./animations/FadeIn";
 import { motion } from "framer-motion";
 import { useAction } from "convex/react";
-import { api } from "../../convex/_generated/api";
 
 interface ArtistDetailProps {
   artistId: Id<"artists">;
@@ -142,92 +141,89 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   const recentShows = shows?.filter(show => show.status === "completed") || [];
 
   return (
-    <motion.div 
-      className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-    >
+    <>
       <SEOHead />
+      <motion.div
+        className="space-y-4 sm:space-y-8 relative z-10"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      >
+        {/* Hero Header - Truly Full Width */}
+        <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2 overflow-hidden bg-black min-h-[300px] sm:min-h-[380px]">
+          {heroImage && (
+            <div className="absolute inset-0 z-0">
+              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-40" />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/55 to-black/80" />
+            </div>
+          )}
 
-      {/* Apple-Level Header Design - Full Width Background */}
-      <div className="relative overflow-hidden shadow-apple -mx-4 sm:-mx-6 lg:-mx-8 rounded-none">
-        {/* Full-Width Background Cover Image */}
-        {heroImage && (
-          <div className="absolute inset-0 z-0">
-            <img src={heroImage} alt="" className="w-full h-full object-cover opacity-40 scale-105" />
-            {/* Light Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/70" />
-          </div>
-        )}
-        
-        {/* Content - Compact on Mobile, Spacious on Desktop */}
-        <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
-          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
-            {/* Profile Image - Smaller on Mobile */}
-            {(avatarImage || heroImage) && (
-              <div className="flex-shrink-0">
-                <a
-                  href={spotifyLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="View artist on Spotify"
-                  className="relative block"
-                >
-                  <img
-                    src={(avatarImage || heroImage)!}
-                    alt={artist.name}
-                    className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10"
-                  />
-                  {spotifyLink && (
-                    <span className="absolute -bottom-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full bg-black/60 text-white text-[10px] sm:text-xs shadow">
-                      <svg viewBox="0 0 168 168" className="h-3 w-3 fill-[#1DB954]" aria-hidden>
-                        <path d="M84 0a84 84 0 1 0 0 168A84 84 0 0 0 84 0zm38.5 120.2a6.3 6.3 0 0 1-8.7 2c-24-14.7-54.3-18-89.9-9.7a6.3 6.3 0 1 1-2.8-12.3c38.7-9 72.9-5.2 99.1 10.8a6.3 6.3 0 0 1 2.3 9.2zm12.4-22.5a7.9 7.9 0 0 1-10.9 2.5c-27.6-17-69.7-22-102.4-11.8a7.9 7.9 0 0 1-4.7-15.1c37.6-11.7 83.6-6.1 114.8 13.4a7.9 7.9 0 0 1 3.2 11zm1.1-23.8C105 54.3 58.7 49.2 27.4 59a9.4 9.4 0 1 1-5.6-18c36-11.1 87.1-5.5 123.8 16.8a9.4 9.4 0 0 1-9.2 16z"/>
-                      </svg>
-                      Spotify
-                    </span>
-                  )}
-                </a>
-              </div>
-            )}
-            
-            {/* Artist Info - Optimized for Mobile */}
-            <div className="flex-1 min-w-0 w-full sm:pb-2">
-              <p className="text-xs font-semibold text-white/60 mb-1 sm:mb-2 uppercase tracking-widest">Artist</p>
-              <h1 className="text-2xl sm:text-3xl lg:text-5xl xl:text-6xl font-bold text-white mb-2 sm:mb-3 leading-tight tracking-tight">
-                {artist.name}
-              </h1>
-              
-              {/* Stats Row - Compact on Mobile */}
-              <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-white/80">
-                {artist.followers && (
-                  <div className="flex items-center gap-1.5">
-                    <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span className="font-medium">{(artist.followers / 1000000).toFixed(1)}M</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  <span className="font-medium">{upcomingShows.length} {upcomingShows.length === 1 ? 'show' : 'shows'}</span>
-                </div>
-                {(artist.genres && artist.genres.length > 0) && (
-                  <div className="hidden sm:flex items-center gap-2">
-                    {(artist.genres || []).slice(0, 2).map((genre: any, idx: number) => (
-                      <span key={idx} className="px-2.5 py-1 bg-white/10 backdrop-blur-sm rounded-full text-xs font-medium">
-                        {genre}
+          <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
+              {(avatarImage || heroImage) && (
+                <div className="flex-shrink-0">
+                  <a
+                    href={spotifyLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="View artist on Spotify"
+                    className="relative block"
+                  >
+                    <img
+                      src={(avatarImage || heroImage)!}
+                      alt={artist.name}
+                      className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10"
+                    />
+                    {spotifyLink && (
+                      <span className="absolute -bottom-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full bg-black/60 text-white text-[10px] sm:text-xs shadow">
+                        <svg viewBox="0 0 168 168" className="h-3 w-3 fill-[#1DB954]" aria-hidden>
+                          <path d="M84 0a84 84 0 1 0 0 168A84 84 0 0 0 84 0zm38.5 120.2a6.3 6.3 0 0 1-8.7 2c-24-14.7-54.3-18-89.9-9.7a6.3 6.3 0 1 1-2.8-12.3c38.7-9 72.9-5.2 99.1 10.8a6.3 6.3 0 0 1 2.3 9.2zm12.4-22.5a7.9 7.9 0 0 1-10.9 2.5c-27.6-17-69.7-22-102.4-11.8a7.9 7.9 0 0 1-4.7-15.1c37.6-11.7 83.6-6.1 114.8 13.4a7.9 7.9 0 0 1 3.2 11zm1.1-23.8C105 54.3 58.7 49.2 27.4 59a9.4 9.4 0 1 1-5.6-18c36-11.1 87.1-5.5 123.8 16.8a9.4 9.4 0 0 1-9.2 16z" />
+                        </svg>
+                        Spotify
                       </span>
-                    ))}
+                    )}
+                  </a>
+                </div>
+              )}
+
+              <div className="flex-1 min-w-0 w-full sm:pb-2">
+                <p className="text-xs font-semibold text-white/60 mb-1 sm:mb-2 uppercase tracking-widest">Artist</p>
+                <h1 className="text-2xl sm:text-3xl lg:text-5xl xl:text-6xl font-bold text-white mb-2 sm:mb-3 leading-tight tracking-tight">
+                  {artist.name}
+                </h1>
+
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-white/80">
+                  {artist.followers && (
+                    <div className="flex items-center gap-1.5">
+                      <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      <span className="font-medium">{(artist.followers / 1000000).toFixed(1)}M</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="font-medium">
+                      {upcomingShows.length} {upcomingShows.length === 1 ? "show" : "shows"}
+                    </span>
                   </div>
-                )}
+                  {artist.genres && artist.genres.length > 0 && (
+                    <div className="hidden sm:flex items-center gap-2">
+                      {(artist.genres || []).slice(0, 2).map((genre: any, idx: number) => (
+                        <span key={idx} className="px-2.5 py-1 bg-white/10 backdrop-blur-sm rounded-full text-xs font-medium">
+                          {genre}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Content Grid */}
-      <FadeIn delay={0.3} duration={0.6}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
+        {/* Main Content */}
+        <div className="container mx-auto px-4 sm:px-6 pb-4 sm:pb-8">
+          <FadeIn delay={0.3} duration={0.6}>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
           {/* Upcoming Shows - Main Content */}
         <div className="lg:col-span-2">
           <MagicCard className="p-0 rounded-2xl border-0 bg-black border-t border-b border-white/10">
@@ -494,15 +490,17 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         </div>
         </div>
       </FadeIn>
-
-      {/* Add to Setlist Modal */}
-      <AddToSetlistModal
-        isOpen={addToSetlistModal.isOpen}
-        onClose={() => setAddToSetlistModal({ isOpen: false, songTitle: "" })}
-        artistId={artistId}
-        songTitle={addToSetlistModal.songTitle}
-        onSignInRequired={onSignInRequired}
-      />
+      </div>
     </motion.div>
+
+    {/* Add to Setlist Modal */}
+    <AddToSetlistModal
+      isOpen={addToSetlistModal.isOpen}
+      onClose={() => setAddToSetlistModal({ isOpen: false, songTitle: "" })}
+      artistId={artistId}
+      songTitle={addToSetlistModal.songTitle}
+      onSignInRequired={onSignInRequired}
+    />
+  </>
   );
 }

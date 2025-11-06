@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { SentryTestButton, SentryCaptureTestButton } from "./SentryTestButton";
 import { Id } from "../../convex/_generated/dataModel";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
@@ -193,13 +194,19 @@ export function AdminDashboard() {
           {/* Header */}
           <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 bg-black">
             <div className="relative z-10 p-4 sm:p-6 lg:p-8">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-red-500/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                  <Database className="h-6 w-6 text-red-400" />
+              <div className="flex items-center gap-4 justify-between flex-wrap">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-red-500/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                    <Database className="h-6 w-6 text-red-400" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">Admin Dashboard</h1>
+                    <p className="text-gray-300 text-sm sm:text-base">System management and data synchronization</p>
+                  </div>
                 </div>
-                <div>
-                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">Admin Dashboard</h1>
-                  <p className="text-gray-300 text-sm sm:text-base">System management and data synchronization</p>
+                <div className="flex gap-2">
+                  <SentryCaptureTestButton />
+                  <SentryTestButton />
                 </div>
               </div>
             </div>

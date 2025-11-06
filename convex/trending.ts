@@ -91,7 +91,7 @@ export const getTrendingShows = query({
 
     // CRITICAL FIX: Process cache but fallback if no valid shows after filtering
     let validShows: any[] = [];
-    
+
     if (cached.length > 0) {
       const hydrated = await Promise.all(
         cached.map(async (row) => {
@@ -124,48 +124,48 @@ export const getTrendingShows = query({
 
       // CRITICAL: Only use cache if we have valid shows after filtering
       if (validShows.length > 0) {
-        const uniqueShows = dedupeByKey(
+      const uniqueShows = dedupeByKey(
           validShows,
-          (show: any) =>
-            show?.slug ||
-            show?.ticketmasterId ||
-            show?.cachedTrending?.showSlug ||
-            show?.cachedTrending?.ticketmasterId ||
-            `${show?.artist?.name ?? show?.cachedTrending?.artistName ?? "unknown"}::${show?.venue?.name ?? show?.cachedTrending?.venueName ?? "unknown"}::${show?.date ?? show?.cachedTrending?.date ?? "unknown"}`,
-          limit * 2
+        (show: any) =>
+          show?.slug ||
+          show?.ticketmasterId ||
+          show?.cachedTrending?.showSlug ||
+          show?.cachedTrending?.ticketmasterId ||
+          `${show?.artist?.name ?? show?.cachedTrending?.artistName ?? "unknown"}::${show?.venue?.name ?? show?.cachedTrending?.venueName ?? "unknown"}::${show?.date ?? show?.cachedTrending?.date ?? "unknown"}`,
+        limit * 2
+      );
+
+      const artistScoped = dedupeByKey(
+        uniqueShows,
+        (show: any) =>
+          show?.artist?._id ||
+          show?.artist?.slug ||
+          show?.cachedTrending?.artistSlug ||
+          show?.cachedTrending?.artistTicketmasterId ||
+          show?.artist?.ticketmasterId ||
+          show?.artist?.name ||
+          show?.cachedTrending?.artistName,
+        limit
+      );
+
+      // final cleanup to avoid Unknown entries and non-upcoming items
+      const cleaned = artistScoped.filter((s: any) => {
+        const name = s?.artist?.name || s?.cachedTrending?.artistName || "";
+        const venue = s?.venue?.name || s?.cachedTrending?.venueName || "";
+        const status = normalizeShowStatus(s?.status || s?.cachedTrending?.status);
+        return (
+          typeof name === "string" && name.length > 0 &&
+          !name.toLowerCase().includes("unknown") &&
+          typeof venue === "string" && venue.length > 0 &&
+          status === "upcoming"
         );
+      });
 
-        const artistScoped = dedupeByKey(
-          uniqueShows,
-          (show: any) =>
-            show?.artist?._id ||
-            show?.artist?.slug ||
-            show?.cachedTrending?.artistSlug ||
-            show?.cachedTrending?.artistTicketmasterId ||
-            show?.artist?.ticketmasterId ||
-            show?.artist?.name ||
-            show?.cachedTrending?.artistName,
-          limit
-        );
-
-        // final cleanup to avoid Unknown entries and non-upcoming items
-        const cleaned = artistScoped.filter((s: any) => {
-          const name = s?.artist?.name || s?.cachedTrending?.artistName || "";
-          const venue = s?.venue?.name || s?.cachedTrending?.venueName || "";
-          const status = normalizeShowStatus(s?.status || s?.cachedTrending?.status);
-          return (
-            typeof name === "string" && name.length > 0 &&
-            !name.toLowerCase().includes("unknown") &&
-            typeof venue === "string" && venue.length > 0 &&
-            status === "upcoming"
-          );
-        });
-
-        return {
-          page: cleaned.slice(0, limit),
-          isDone: cleaned.length < limit,
-          continueCursor: undefined,
-        };
+      return {
+        page: cleaned.slice(0, limit),
+        isDone: cleaned.length < limit,
+        continueCursor: undefined,
+      };
       }
     }
 

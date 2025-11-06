@@ -374,7 +374,10 @@ export function AppLayout({ children }: AppLayoutProps) {
         {/* Main Content Area with Enhanced Background */}
         <main className="flex-1 overflow-y-auto bg-transparent flex flex-col min-w-0">
           <div className="flex-1 min-w-0 relative">
-            <PageContainer variant={location.pathname === '/' || location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists') ? 'wide' : 'narrow'}>
+            <PageContainer 
+              variant={location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists') ? 'full' : (location.pathname === '/' ? 'wide' : 'narrow')}
+              noPadding={location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists')}
+            >
               <SyncProgress />
               {location.pathname === '/' ? (
                 isSignedIn ? (

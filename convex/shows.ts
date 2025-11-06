@@ -164,7 +164,7 @@ export const getBySlug = query({
         }
       }
     }
-
+    
     if (!show || !show.slug) return null;
     
     const [artist, venue] = await Promise.all([
@@ -578,9 +578,9 @@ export const createInternal = internalMutation({
         
         for (const delay of retryDelays) {
           void ctx.scheduler.runAfter(delay, internal.setlists.autoGenerateSetlist, {
-            showId,
-            artistId: args.artistId,
-          });
+          showId,
+          artistId: args.artistId,
+        });
         }
       }
     } catch (error) {
@@ -589,9 +589,9 @@ export const createInternal = internalMutation({
       const retryDelays = [5_000, 15_000, 30_000, 60_000, 120_000, 300_000, 600_000, 1_800_000, 3_600_000];
       for (const delay of retryDelays) {
         void ctx.scheduler.runAfter(delay, internal.setlists.autoGenerateSetlist, {
-          showId,
-          artistId: args.artistId,
-        });
+        showId,
+        artistId: args.artistId,
+      });
       }
     }
     return showId;
@@ -695,9 +695,9 @@ export const createFromTicketmaster = internalMutation({
         
         for (const delay of retryDelays) {
           void ctx.scheduler.runAfter(delay, internal.setlists.autoGenerateSetlist, {
-            showId,
-            artistId: args.artistId,
-          });
+          showId,
+          artistId: args.artistId,
+        });
         }
       }
     } catch (error) {
@@ -706,9 +706,9 @@ export const createFromTicketmaster = internalMutation({
       const retryDelays = [5_000, 15_000, 30_000, 60_000, 120_000, 300_000, 600_000, 1_800_000, 3_600_000];
       for (const delay of retryDelays) {
         void ctx.scheduler.runAfter(delay, internal.setlists.autoGenerateSetlist, {
-          showId,
-          artistId: args.artistId,
-        });
+        showId,
+        artistId: args.artistId,
+      });
       }
     }
 

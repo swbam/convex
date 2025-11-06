@@ -358,6 +358,17 @@ export const syncArtistCatalog = internalAction({
           }
         } catch (error) {
           console.error(`❌ Failed to import song ${track.name}:`, error);
+          // Track error for monitoring
+          await ctx.runMutation(internal.errorTracking.logError, {
+            operation: "spotify_song_import",
+            error: error instanceof Error ? error.message : String(error),
+            context: {
+              artistId: args.artistId,
+              artistName: args.artistName,
+              additionalData: { songTitle: track.name, album: track.album_info?.name },
+            },
+            severity: "warning",
+          });
         }
       }
 
@@ -379,10 +390,29 @@ export const syncArtistCatalog = internalAction({
         }
       } catch (e) {
         console.error('Failed to auto-generate setlists after catalog import:', e);
+        await ctx.runMutation(internal.errorTracking.logError, {
+          operation: "spotify_auto_setlist_generation",
+          error: e instanceof Error ? e.message : String(e),
+          context: {
+            artistId: args.artistId,
+            artistName: args.artistName,
+          },
+          severity: "warning",
+        });
       }
 
     } catch (error) {
       console.error("Failed to sync Spotify catalog:", error);
+      // Track critical catalog sync failure
+      await ctx.runMutation(internal.errorTracking.logError, {
+        operation: "spotify_catalog_sync",
+        error: error instanceof Error ? error.message : String(error),
+        context: {
+          artistId: args.artistId,
+          artistName: args.artistName,
+        },
+        severity: "error",
+      });
     }
     return null;
   },

@@ -1,11 +1,22 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 import path from "path";
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
+    // Sentry plugin for sourcemap upload (only in production builds)
+    mode === "production" && sentryVitePlugin({
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      sourcemaps: {
+        assets: "./dist/**",
+      },
+      telemetry: false,
+    }),
     // The code below enables dev tools like taking screenshots of your site
     // while it is being developed on chef.convex.dev.
     // Feel free to remove this code if you're no longer developing your app with Chef.
@@ -38,6 +49,7 @@ window.addEventListener('message', async (message) => {
   build: {
     outDir: 'dist',
     chunkSizeWarningLimit: 1000,
+    sourcemap: true, // Enable sourcemaps for Sentry
     rollupOptions: {
       external: ['old/**/*'],
       input: {

@@ -24,6 +24,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { TestSuite } from "./components/TestSuite";
 import { AuthGuard } from "./components/AuthGuard";
+import { BackendErrorMonitor } from "./components/BackendErrorMonitor";
 
 import { MagicCard } from "./components/ui/magic-card";
 
@@ -397,6 +398,9 @@ function App() {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      {/* Backend error monitoring - sends Convex errors to Sentry */}
+      <BackendErrorMonitor />
+      
       {/* Premium monochrome gradient background */}
       <div className="fixed inset-0 bg-gradient-to-br from-black via-gray-950 to-black" />
       

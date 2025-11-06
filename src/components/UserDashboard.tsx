@@ -23,7 +23,6 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
   const appUser = useQuery(api.auth.loggedInUser);
   const userVotes = useQuery(api.songVotes.getUserVotes, appUser?.appUser?._id ? { limit: 20 } : "skip");
   const voteAccuracy = useQuery(api.activity.getVoteAccuracy, appUser?.appUser?._id ? { userId: appUser.appUser._id } : "skip");
-  const spotifyToken = useQuery(api.spotifyAuthQueries.getStoredSpotifyToken, appUser?.appUser?._id ? { userId: appUser.appUser._id } : "skip");
   
   if (appUser === undefined) {
     return (
@@ -51,25 +50,14 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
 
   const showsVotedOn = userVotes ? new Set(userVotes.map(v => v.setlistId)).size : 0;
   const accuracy = voteAccuracy ? `${Math.round(voteAccuracy * 100)}%` : 'N/A';
-  const hasSpotify = !!(appUser?.appUser?.spotifyId || spotifyToken);
+  const hasSpotify = React.useMemo(() => {
+    if (appUser?.appUser?.spotifyId) return true;
+    if (user?.externalAccounts) {
+      return user.externalAccounts.some((account) => account.provider === 'oauth_spotify');
+    }
+    return false;
+  }, [appUser?.appUser?.spotifyId, user?.externalAccounts]);
   const hasVotes = (userVotes || []).length > 0;
-
-  // Group votes by show
-  const votesByShow = React.useMemo(() => {
-    if (!userVotes) return [];
-    const grouped = new Map<string, any[]>();
-    userVotes.forEach(vote => {
-      const key = vote.setlistId;
-      if (!grouped.has(key)) grouped.set(key, []);
-      grouped.get(key)!.push(vote);
-    });
-    return Array.from(grouped.entries()).map(([setlistId, votes]) => ({
-      setlistId,
-      votes,
-      songCount: votes.length,
-      lastVote: Math.max(...votes.map(v => v.createdAt))
-    })).sort((a, b) => b.lastVote - a.lastVote);
-  }, [userVotes]);
 
   return (
     <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6">

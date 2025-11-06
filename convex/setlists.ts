@@ -4,6 +4,21 @@ import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { getAuthUserId } from "./auth";
 
+// Helper to safely track errors in mutations
+async function trackError(ctx: any, operation: string, error: unknown, context?: any) {
+  try {
+    await ctx.runMutation(internal.errorTracking.logError, {
+      operation,
+      error: error instanceof Error ? error.message : String(error),
+      context,
+      severity: "error",
+    });
+  } catch (e) {
+    // Don't fail the mutation if error tracking fails
+    console.error("Failed to track error:", e);
+  }
+}
+
 export const create = mutation({
   args: {
     showId: v.id("shows"),
@@ -64,17 +79,18 @@ export const addSongToSetlist = mutation({
     anonId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const authUserId = await getAuthUserId(ctx);
-    let effectiveUserId: Id<"users"> | string;
+    try {
+      const authUserId = await getAuthUserId(ctx);
+      let effectiveUserId: Id<"users"> | string;
 
-    if (!authUserId) {
-      if (!args.anonId) {
-        throw new Error("Anonymous ID required for unauthenticated users");
+      if (!authUserId) {
+        if (!args.anonId) {
+          throw new Error("Anonymous ID required for unauthenticated users");
+        }
+        effectiveUserId = args.anonId;
+      } else {
+        effectiveUserId = authUserId;
       }
-      effectiveUserId = args.anonId;
-    } else {
-      effectiveUserId = authUserId;
-    }
 
     // For anonymous users, enforce limit of 1 total song add
     if (typeof effectiveUserId === "string") {
@@ -132,16 +148,24 @@ export const addSongToSetlist = mutation({
       });
     }
 
-    // Log the action for anonymous users (authenticated don't need limit tracking)
-    if (typeof effectiveUserId === "string") {
-      await ctx.db.insert("userActions", {
-        userId: effectiveUserId,
-        action: "add_song",
-        timestamp: Date.now(),
-      });
-    }
+      // Log the action for anonymous users (authenticated don't need limit tracking)
+      if (typeof effectiveUserId === "string") {
+        await ctx.db.insert("userActions", {
+          userId: effectiveUserId,
+          action: "add_song",
+          timestamp: Date.now(),
+        });
+      }
 
-    return setlistId;
+      return setlistId;
+    } catch (error) {
+      // Track song addition errors
+      await trackError(ctx, "add_song_to_setlist", error, {
+        showId: args.showId,
+        additionalData: { songTitle: args.song.title },
+      });
+      throw error;
+    }
   },
 });
 
