@@ -320,12 +320,7 @@ export function ShowDetail({
   return (
     <>
       <SEOHead />
-      <motion.div
-        className="space-y-4 sm:space-y-8 relative z-10"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      >
+      <div className="space-y-4 sm:space-y-8 relative z-10">
         {/* Hero Header - Full Width */}
         <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2 overflow-hidden bg-black min-h-[300px] sm:min-h-[380px]">
           {heroImage && (
@@ -953,7 +948,7 @@ export function ShowDetail({
             </button>
           </div>
         )}
-      </motion.div>
+      </div>
 
       {/* Auth Modal for Unauth Limits */}
       <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>

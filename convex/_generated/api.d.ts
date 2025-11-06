@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as activity from "../activity.js";
+import type * as admin_errorMonitoring from "../admin/errorMonitoring.js";
 import type * as admin from "../admin.js";
 import type * as artistSongs from "../artistSongs.js";
 import type * as artists from "../artists.js";
@@ -23,6 +24,7 @@ import type * as common from "../common.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
 import type * as deployment from "../deployment.js";
+import type * as errorTracking from "../errorTracking.js";
 import type * as health from "../health.js";
 import type * as http from "../http.js";
 import type * as importTrendingShows from "../importTrendingShows.js";
@@ -60,6 +62,7 @@ import type * as webhooks from "../webhooks.js";
  */
 declare const fullApi: ApiFromModules<{
   activity: typeof activity;
+  "admin/errorMonitoring": typeof admin_errorMonitoring;
   admin: typeof admin;
   artistSongs: typeof artistSongs;
   artists: typeof artists;
@@ -69,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   dashboard: typeof dashboard;
   deployment: typeof deployment;
+  errorTracking: typeof errorTracking;
   health: typeof health;
   http: typeof http;
   importTrendingShows: typeof importTrendingShows;
