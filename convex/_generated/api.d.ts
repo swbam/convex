@@ -42,6 +42,7 @@ import type * as syncJobs from "../syncJobs.js";
 import type * as syncStatus from "../syncStatus.js";
 import type * as ticketmaster from "../ticketmaster.js";
 import type * as trending from "../trending.js";
+import type * as trendingImport from "../trendingImport.js";
 import type * as users from "../users.js";
 import type * as validators from "../validators.js";
 import type * as venues from "../venues.js";
@@ -86,6 +87,7 @@ declare const fullApi: ApiFromModules<{
   syncStatus: typeof syncStatus;
   ticketmaster: typeof ticketmaster;
   trending: typeof trending;
+  trendingImport: typeof trendingImport;
   users: typeof users;
   validators: typeof validators;
   venues: typeof venues;

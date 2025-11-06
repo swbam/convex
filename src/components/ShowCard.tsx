@@ -18,7 +18,11 @@ function ShowCardComponent({
   compact = false 
 }: ShowCardProps) {
   const handleClick = () => {
-    onClick(show._id, show.slug);
+    // CRITICAL FIX: Handle both slug formats (trending cache uses showSlug, main table uses slug)
+    const slug = show.slug || show.showSlug || (show.cachedTrending?.showSlug);
+    // Fallback to showId if available (from trending cache)
+    const showId = show._id || show.showId;
+    onClick(showId, slug);
   };
 
   const formatDate = (dateStr: string) => {

@@ -82,7 +82,7 @@ export const getTrendingShows = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
 
-    // Primary source: curated trending cache
+    // Primary source: curated trending cache - ONLY return shows that have been imported
     const cached = await ctx.db
       .query("trendingShows")
       .withIndex("by_rank")
@@ -92,6 +92,7 @@ export const getTrendingShows = query({
     if (cached.length > 0) {
       const hydrated = await Promise.all(
         cached.map(async (row) => {
+          // CRITICAL FIX: Only return shows that have been imported into main database
           if (row.showId) {
             const showDoc = await ctx.db.get(row.showId);
             if (showDoc) {
@@ -109,33 +110,17 @@ export const getTrendingShows = query({
               }
             }
           }
-          return {
-            _id: row._id,
-            slug: row.showSlug,
-            date: row.date,
-            startTime: row.startTime,
-            status: row.status,
-            ticketmasterId: row.ticketmasterId,
-            // expose image directly for clients
-            artistImage: row.artistImage,
-            artist: {
-              name: row.artistName,
-              slug: row.artistSlug,
-              ticketmasterId: row.artistTicketmasterId,
-              images: row.artistImage ? [row.artistImage] : [],
-            },
-            venue: {
-              name: row.venueName,
-              city: row.venueCity,
-              country: row.venueCountry,
-            },
-            cachedTrending: row,
-          };
+          // CRITICAL: Return null for cache-only shows (not imported yet)
+          // This prevents "Not Found" errors when users click them
+          return null;
         })
       );
 
+      // Filter out null values (cache-only shows)
+      const validShows = hydrated.filter((show): show is NonNullable<typeof show> => show !== null);
+
       const uniqueShows = dedupeByKey(
-        hydrated,
+        validShows,
         (show: any) =>
           show?.slug ||
           show?.ticketmasterId ||

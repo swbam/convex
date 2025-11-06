@@ -23,7 +23,7 @@ export function Shows({ onShowClick }: ShowsProps) {
   const isLoading = trendingShowsResult === undefined;
   
   const allShows = React.useMemo(() => {
-    // Deduplicate shows by Convex document id (or slug fallback)
+    //Deduplicate shows by Convex document id (or slug fallback)
     const showsMap = new Map<string, any>();
     (allShowsRaw || []).forEach((show) => {
       if (!show?.artist?.name || show.artist.name.trim() === '' || show.artist.name === 'Unknown Artist') {

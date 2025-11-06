@@ -202,13 +202,22 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
                 rows={3}
                 baseDurationSec={70}
                 renderItem={(artist: any) => {
-                  const targetSlug = artist.slug 
+                  // CRITICAL FIX: Extract both ID and slug properly from cache or main table
+                  const artistId = artist?._id || artist?.artistId;
+                  const slug = artist?.slug 
                     || artist?.cachedTrending?.slug 
                     || (typeof artist.name === 'string' && artist.name.length > 0 
                         ? artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-                        : artist._id || artist.ticketmasterId);
+                        : undefined);
+                  
                   return (
-                    <ArtistCard artist={artist} onClick={() => navigateTo(`/artists/${targetSlug}`)} />
+                    <ArtistCard 
+                      artist={artist} 
+                      onClick={() => {
+                        // Use the proper callback instead of direct navigation
+                        onArtistClick(artistId || slug || artist.ticketmasterId);
+                      }} 
+                    />
                   );
                 }}
               />
@@ -253,13 +262,16 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
                 rows={3}
                 baseDurationSec={80}
                 renderItem={(show: any) => {
-                  const slug = show?.slug || show?.cachedTrending?.showSlug || show?.ticketmasterId || show?._id;
-                  if (!slug) return null;
+                  // CRITICAL FIX: Extract both ID and slug properly from cache or main table
+                  const showId = show?._id || show?.showId;
+                  const slug = show?.slug || show?.showSlug || show?.cachedTrending?.showSlug;
+                  
                   return (
                     <ShowCard
                       show={show}
-                      onClick={() => {
-                        navigateTo(`/shows/${slug}`);
+                      onClick={(id, showSlug) => {
+                        // Use the proper callback instead of direct navigation
+                        onShowClick(id || showId || slug, showSlug || slug);
                       }}
                     />
                   );
