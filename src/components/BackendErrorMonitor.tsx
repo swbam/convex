@@ -6,7 +6,6 @@
 import { useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import * as Sentry from "@sentry/react";
 import { Id } from "../../convex/_generated/dataModel";
 
 export function BackendErrorMonitor() {
@@ -20,33 +19,14 @@ export function BackendErrorMonitor() {
 
   useEffect(() => {
     if (!errors) return;
-
-    // Send new backend errors to Sentry
     errors.forEach((error) => {
       if (error.sentToSentry) return;
-
-      // Create Sentry event with backend context
-      Sentry.captureException(new Error(error.error), {
-        level: error.severity as "error" | "warning" | "info",
-        tags: {
-          operation: error.operation,
-          source: "convex-backend",
-        },
-        contexts: {
-          backend: {
-            operation: error.operation,
-            timestamp: new Date(error.timestamp).toISOString(),
-            ...error.context,
-          },
-        },
-        fingerprint: [
-          "backend-error",
-          error.operation,
-          error.error.substring(0, 100),
-        ],
+      // Log to console in lieu of Sentry
+      console.error("[BackendError]", {
+        message: error.error,
+        operation: error.operation,
+        context: error.context,
       });
-
-      // Mark as sent
       void markSentToSentry({ errorId: error._id as Id<"errorLogs"> });
     });
   }, [errors, markSentToSentry]);
