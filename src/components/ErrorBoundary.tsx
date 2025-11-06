@@ -1,5 +1,4 @@
 import React from 'react';
-import * as Sentry from "@sentry/react";
 import { Button } from "./ui/button";
 
 // Fallback component for error boundary
@@ -40,20 +39,32 @@ function ErrorFallback({ error, resetError }: { error: Error; resetError: () => 
   );
 }
 
-// Wrap with Sentry's ErrorBoundary for automatic error reporting
-const ErrorBoundary = Sentry.withErrorBoundary(
-  ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  {
-    fallback: ({ error, resetError }) => <ErrorFallback error={error} resetError={resetError} />,
-    showDialog: false, // Don't show Sentry's default dialog
-    beforeCapture: (scope, error, errorInfo) => {
-      // Add additional context before sending to Sentry
-      scope.setContext("errorInfo", {
-        componentStack: errorInfo.componentStack,
-      });
-      scope.setLevel("error");
-    },
+class BasicErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
   }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    // Log locally; no external services
+    // eslint-disable-next-line no-console
+    console.error("App Error:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return <ErrorFallback error={this.state.error ?? new Error("Unknown error")} resetError={() => this.setState({ hasError: false, error: undefined })} />;
+    }
+    return this.props.children as React.ReactElement;
+  }
+}
+
+const ErrorBoundary = ({ children }: { children: React.ReactNode }) => (
+  <BasicErrorBoundary>{children}</BasicErrorBoundary>
 );
 
 export { ErrorBoundary };
