@@ -18,28 +18,11 @@ function ShowCardComponent({
   compact = false 
 }: ShowCardProps) {
   const handleClick = () => {
-    // CRITICAL FIX: Robustly extract ID and slug, handling any data type
-    const rawId = show._id || show.showId;
-    const rawSlug = show.slug || show.showSlug || show.cachedTrending?.showSlug;
+    // Simple, clean extraction - database has proper slugs
+    const showId = show._id || show.showId || '';
+    const slug = show.slug || show.showSlug || show.cachedTrending?.showSlug || '';
     
-    // Force convert to strings
-    const showId = typeof rawId === 'string' ? rawId : String(rawId || '');
-    let slug = typeof rawSlug === 'string' ? rawSlug : (typeof rawSlug === 'object' ? '' : String(rawSlug || ''));
-    
-    // Validate slug doesn't contain [object
-    if (slug.includes('[object')) {
-      slug = '';
-    }
-    
-    // If no valid slug, try to use showId
-    const finalSlug = slug || (showId.startsWith('k') ? showId : '');
-    
-    if (!finalSlug) {
-      console.error('ShowCard: No valid identifier found', { show, rawId, rawSlug });
-      return;
-    }
-    
-    onClick(showId as Id<"shows">, finalSlug || undefined);
+    onClick(showId as Id<"shows">, slug);
   };
 
   const formatDate = (dateStr: string) => {

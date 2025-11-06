@@ -153,8 +153,7 @@ function App() {
       setSelectedArtistId((id as Id<"artists">) ?? null);
       setSelectedShowId(null);
       const urlParam = slug ?? (typeof id === "string" ? id : undefined);
-      // CRITICAL: Only navigate if urlParam is a valid string
-      if (urlParam && typeof urlParam === 'string' && urlParam.length > 0) {
+      if (urlParam) {
         void navigate(`/artists/${urlParam}`);
       }
       return;
@@ -164,8 +163,7 @@ function App() {
       setSelectedShowId((id as Id<"shows">) ?? null);
       setSelectedArtistId(null);
       const urlParam = slug ?? (typeof id === "string" ? id : undefined);
-      // CRITICAL: Only navigate if urlParam is a valid string
-      if (urlParam && typeof urlParam === 'string' && urlParam.length > 0) {
+      if (urlParam) {
         void navigate(`/shows/${urlParam}`);
       }
       return;
@@ -192,13 +190,8 @@ function App() {
   };
 
   const handleShowClick = (showKey: string | Id<"shows">, slug?: string) => {
-    // CRITICAL FIX: Ensure all params are strings, not objects
-    const keyStr = typeof showKey === 'string' ? showKey : String(showKey);
-    const slugStr = typeof slug === 'string' && slug.length > 0 && !slug.includes('[object') ? slug : undefined;
-    
-    const showId = keyStr.startsWith('k') ? (keyStr as Id<"shows">) : undefined;
-    const preferredSlug = slugStr ?? (!keyStr.startsWith('k') ? keyStr : undefined);
-    
+    const showId = typeof showKey === 'string' && showKey.startsWith('k') ? (showKey as Id<"shows">) : undefined;
+    const preferredSlug = slug ?? (typeof showKey === 'string' && !showKey.startsWith('k') ? showKey : undefined);
     handleViewChange("show", showId ?? null, preferredSlug);
   };
 

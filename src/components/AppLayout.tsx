@@ -383,13 +383,10 @@ export function AppLayout({ children }: AppLayoutProps) {
                       void navigate(`/artists/${artistId}`)
                     }}
                     onShowClick={(showId, slug) => {
-                      // CRITICAL FIX: Always prefer slug, validate it's a string
-                      const cleanSlug = typeof slug === 'string' && slug.length > 0 && !slug.includes('[object') && !slug.includes('undefined')
-                        ? slug
-                        : (typeof showId === 'string' && showId.length > 0 && !showId.startsWith('k') ? showId : null);
-                      
-                      if (cleanSlug) {
-                        void navigate(`/shows/${cleanSlug}`)
+                      // Use slug if provided, otherwise use showId
+                      const urlParam = slug || showId;
+                      if (urlParam && typeof urlParam === 'string') {
+                        void navigate(`/shows/${urlParam}`)
                       }
                     }}
                   />
@@ -399,13 +396,10 @@ export function AppLayout({ children }: AppLayoutProps) {
                       void navigate(`/artists/${artistId}`)
                     }}
                     onShowClick={(showId, slug) => {
-                      // CRITICAL FIX: Always prefer slug, validate it's a string
-                      const cleanSlug = typeof slug === 'string' && slug.length > 0 && !slug.includes('[object') && !slug.includes('undefined')
-                        ? slug
-                        : (typeof showId === 'string' && showId.length > 0 && !showId.startsWith('k') ? showId : null);
-                      
-                      if (cleanSlug) {
-                        void navigate(`/shows/${cleanSlug}`)
+                      // Use slug if provided, otherwise use showId
+                      const urlParam = slug || showId;
+                      if (urlParam && typeof urlParam === 'string') {
+                        void navigate(`/shows/${urlParam}`)
                       }
                     }}
                     onSignInRequired={() => {
