@@ -383,11 +383,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                       void navigate(`/artists/${artistId}`)
                     }}
                     onShowClick={(showId, slug) => {
-                      // Use slug if provided, otherwise use showId
-                      const urlParam = slug || showId;
-                      if (urlParam && typeof urlParam === 'string') {
-                        void navigate(`/shows/${urlParam}`)
-                      }
+                      void navigate(`/shows/${slug || showId}`)
                     }}
                   />
                 ) : (
@@ -396,11 +392,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                       void navigate(`/artists/${artistId}`)
                     }}
                     onShowClick={(showId, slug) => {
-                      // Use slug if provided, otherwise use showId
-                      const urlParam = slug || showId;
-                      if (urlParam && typeof urlParam === 'string') {
-                        void navigate(`/shows/${urlParam}`)
-                      }
+                      void navigate(`/shows/${slug || showId}`)
                     }}
                     onSignInRequired={() => {
                       void navigate('/signin')

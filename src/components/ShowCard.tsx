@@ -18,9 +18,12 @@ function ShowCardComponent({
   compact = false 
 }: ShowCardProps) {
   const handleClick = () => {
-    // Simple, clean extraction - database has proper slugs
+    // Extract showId
     const showId = show._id || show.showId || '';
-    const slug = show.slug || show.showSlug || show.cachedTrending?.showSlug || '';
+    
+    // Extract slug - ENSURE it's a string, not an object
+    const rawSlug = show.slug || show.showSlug || show.cachedTrending?.showSlug;
+    const slug = typeof rawSlug === 'string' ? rawSlug : undefined;
     
     onClick(showId as Id<"shows">, slug);
   };
