@@ -18,15 +18,13 @@ const createShowSlug = (
   artistName: string,
   venueName: string,
   venueCity: string,
-  date: string,
-  startTime?: string | null
+  date: string
 ) => {
   const safeArtist = slugify(artistName || "");
   const safeVenue = slugify(venueName || "");
   const safeCity = slugify(venueCity || "");
   const parts = [safeArtist, safeVenue, safeCity, date].filter(Boolean);
-  const timePart = startTime ? `-${startTime.replace(/:/g, "-")}` : "";
-  return parts.join("-") + timePart;
+  return parts.join("-");
 };
 
 const normalizeShowStatus = (status?: string) => {
@@ -141,16 +139,32 @@ export const getTrendingShows = query({
         limit
       );
 
-      // final cleanup to avoid Unknown entries and non-upcoming items
+      // final cleanup to avoid Unknown entries and ensure upcoming/future items
       const cleaned = artistScoped.filter((s: any) => {
         const name = s?.artist?.name || s?.cachedTrending?.artistName || "";
         const venue = s?.venue?.name || s?.cachedTrending?.venueName || "";
-        const status = s?.status || s?.cachedTrending?.status;
+        const rawStatus = s?.status || s?.cachedTrending?.status || "";
+        const normalized = normalizeShowStatus(rawStatus);
+        // Accept clearly upcoming OR future-dated items from cache (TM uses 'onsale', 'scheduled', etc.)
+        let isFutureDated = true;
+        const dateStr = s?.date || s?.cachedTrending?.date;
+        if (typeof dateStr === "string") {
+          const t = new Date(dateStr).getTime();
+          if (Number.isFinite(t)) {
+            // Allow same-day and future shows; treat clearly past as not upcoming
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            isFutureDated = t >= todayStart.getTime();
+          }
+        }
+
+        const isEligibleStatus = normalized === "upcoming" || isFutureDated;
+
         return (
           typeof name === "string" && name.length > 0 &&
           !name.toLowerCase().includes("unknown") &&
           typeof venue === "string" && venue.length > 0 &&
-          status === "upcoming"
+          isEligibleStatus
         );
       });
 
@@ -327,9 +341,10 @@ export const getTrendingArtists = query({
       
       console.log(`📊 Trending artists from cache: ${massive.length} (from ${unique.length} cached)`);
 
+      const pageCandidates = massive.length > 0 ? massive : unique;
       return {
-        page: massive.slice(0, limit),
-        isDone: massive.length < limit,
+        page: pageCandidates.slice(0, limit),
+        isDone: pageCandidates.length < limit,
         continueCursor: undefined,
       };
     }
@@ -504,8 +519,7 @@ export const replaceTrendingShowsCache = internalMutation({
             artistName,
             show.venueName,
             show.venueCity,
-            show.date,
-            show.startTime
+            show.date
           ),
         artistTicketmasterId: show.artistTicketmasterId,
         artistId: linkedArtist?._id,

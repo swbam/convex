@@ -21,6 +21,9 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
   // Load trending data directly from the optimized trending system
   const dbTrendingShowsResult = useQuery(api.trending.getTrendingShows, { limit: 20 });
   const dbTrendingArtistsResult = useQuery(api.trending.getTrendingArtists, { limit: 20 });
+  // Fallback sources for when trending caches are empty in dev or before cron runs
+  const fallbackArtists = useQuery(api.artists.getTrending, { limit: 20 });
+  const fallbackUpcomingShows = useQuery(api.shows.getUpcoming, { limit: 20 });
   
   // Extract page arrays from paginated results with robust guards
   const dbTrendingShows = React.useMemo(() => {
@@ -34,7 +37,22 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
     return Array.isArray(dbTrendingArtistsResult.page) ? dbTrendingArtistsResult.page : [];
   }, [dbTrendingArtistsResult]);
 
-  const isLoading = dbTrendingShows === undefined || dbTrendingArtists === undefined;
+  // Final datasets with graceful fallbacks for empty states
+  const finalArtists = React.useMemo(() => {
+    if (dbTrendingArtists === undefined) return undefined;
+    return (dbTrendingArtists && dbTrendingArtists.length > 0)
+      ? dbTrendingArtists
+      : (fallbackArtists || []);
+  }, [dbTrendingArtists, fallbackArtists]);
+
+  const finalShows = React.useMemo(() => {
+    if (dbTrendingShows === undefined) return undefined;
+    return (dbTrendingShows && dbTrendingShows.length > 0)
+      ? dbTrendingShows
+      : (fallbackUpcomingShows || []);
+  }, [dbTrendingShows, fallbackUpcomingShows]);
+
+  const isLoading = finalShows === undefined || finalArtists === undefined;
 
   // Animation variants for stagger effect
   const heroVariants = {
@@ -166,14 +184,14 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
             <div className="grid grid-cols-2 gap-3 md:flex md:gap-4 md:overflow-x-auto pb-4 scrollbar-hide md:snap-x md:snap-mandatory -mx-2 px-2 md:-mx-4 md:px-4">
               {isLoading ? (
                 [...Array(6)].map((_, i) => <ArtistCardSkeleton key={i} />)
-              ) : (dbTrendingArtists as any[])?.length === 0 ? (
+              ) : (finalArtists as any[])?.length === 0 ? (
                 <div className="col-span-2 w-full flex flex-col items-center justify-center py-16 text-center min-h-[300px]">
                   <Music className="h-16 w-16 text-gray-800 mb-4" />
                   <p className="text-gray-500 text-lg">No trending artists yet</p>
                   <p className="text-gray-600 text-sm mt-2">Artists will appear here once data is synced</p>
                 </div>
               ) : (
-                (dbTrendingArtists as any[]).map((artist: any, index: number) => {
+                (finalArtists as any[]).map((artist: any, index: number) => {
                   const key = artist._id || artist.ticketmasterId || artist.slug || artist.name || index;
                   const targetSlug = artist.slug 
                     || artist?.cachedTrending?.slug 
@@ -223,14 +241,14 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
           >
             {isLoading ? (
               [...Array(8)].map((_, i) => <ShowCardSkeleton key={i} />)
-            ) : (dbTrendingShows as any[])?.length === 0 ? (
+            ) : (finalShows as any[])?.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
                 <Music className="h-16 w-16 text-gray-800 mb-4" />
                 <p className="text-gray-500 text-lg">No shows available</p>
                 <p className="text-gray-600 text-sm mt-2">Check back soon</p>
               </div>
             ) : (
-              (dbTrendingShows as any[]).slice(0, 12).map((show: any, index: number) => {
+              (finalShows as any[]).slice(0, 12).map((show: any, index: number) => {
                 const slug = show?.slug || show?.cachedTrending?.showSlug || show?.ticketmasterId || show?._id;
                 if (!slug) return null;
                 return (
