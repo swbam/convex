@@ -16,30 +16,29 @@ export const create = mutation({
     isOfficial: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    // SIMPLIFIED: Only create/update community prediction setlists
+    // No more personal user setlists - everyone contributes to the shared community prediction
     
-    // Check if user already has a setlist for this show
-    if (userId) {
-      const existing = await ctx.db
-        .query("setlists")
-        .withIndex("by_show_and_user", (q) => 
-          q.eq("showId", args.showId).eq("userId", userId)
-        )
-        .first();
-      
-      if (existing) {
-        // Update existing setlist
-        await ctx.db.patch(existing._id, {
-          songs: args.songs,
-          lastUpdated: Date.now(),
-        });
-        return existing._id;
-      }
+    const existingCommunity = await ctx.db
+      .query("setlists")
+      .withIndex("by_show", (q) => q.eq("showId", args.showId))
+      .filter((q) => q.eq(q.field("isOfficial"), false))
+      .filter((q) => q.eq(q.field("userId"), undefined))
+      .first();
+    
+    if (existingCommunity) {
+      // Update existing community setlist
+      await ctx.db.patch(existingCommunity._id, {
+        songs: args.songs,
+        lastUpdated: Date.now(),
+      });
+      return existingCommunity._id;
     }
     
+    // Create new community prediction setlist
     return await ctx.db.insert("setlists", {
       showId: args.showId,
-      userId: userId || undefined,
+      userId: undefined, // Community setlist - not user-specific
       songs: args.songs,
       verified: false,
       source: "user_submitted",
@@ -230,18 +229,13 @@ export const getByShow = query({
   },
 });
 
+// DEPRECATED: Personal setlists removed - only community predictions and official setlists exist
+// This query now returns null always for backward compatibility
 export const getUserSetlistForShow = query({
   args: { showId: v.id("shows") },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) return null;
-    
-    return await ctx.db
-      .query("setlists")
-      .withIndex("by_show_and_user", (q) => 
-        q.eq("showId", args.showId).eq("userId", userId)
-      )
-      .first();
+    // Personal setlists no longer supported - everyone contributes to community predictions
+    return null;
   },
 });
 
@@ -434,26 +428,14 @@ export const getUserVote = query({
   },
 });
 
+// DEPRECATED: Personal setlists removed - only community predictions exist
+// This query now returns community predictions for backward compatibility
 export const getByUser = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) return [];
-    
-    const limit = args.limit || 10;
-    const setlists = await ctx.db
-      .query("setlists")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .order("desc")
-      .take(limit);
-
-    // Enrich with show data
-    return await Promise.all(
-      setlists.map(async (setlist) => {
-        const show = await ctx.db.get(setlist.showId);
-        return { ...setlist, show };
-      })
-    );
+    // Personal setlists no longer supported
+    // Return empty array for backward compatibility
+    return [];
   },
 });
 
@@ -463,10 +445,13 @@ export const autoGenerateSetlist = internalMutation({
     artistId: v.id("artists"),
   },
   handler: async (ctx, args) => {
-    // Check if a setlist already exists for this show
-    const existingSetlist = await ctx.db
+    // CRITICAL FIX: Check specifically for community setlist (not official, not user-specific)
+    // This matches the logic in addSongToSetlist and prevents duplicate auto-generation
+    const existingCommunitySetlist = await ctx.db
       .query("setlists")
       .withIndex("by_show", (q) => q.eq("showId", args.showId))
+      .filter((q) => q.eq(q.field("isOfficial"), false))
+      .filter((q) => q.eq(q.field("userId"), undefined))
       .first();
 
     // Get all songs for this artist
@@ -502,9 +487,9 @@ export const autoGenerateSetlist = internalMutation({
     const songsToChooseFrom = [...studioSongs];
     const numSongs = Math.min(5, songsToChooseFrom.length);
 
-    if (existingSetlist && Array.isArray(existingSetlist.songs) && existingSetlist.songs.length >= numSongs) {
-      console.log(`✅ Setlist already exists for show ${args.showId} with ${existingSetlist.songs.length} songs`);
-      return existingSetlist._id;
+    if (existingCommunitySetlist && Array.isArray(existingCommunitySetlist.songs) && existingCommunitySetlist.songs.length >= numSongs) {
+      console.log(`✅ Community setlist already exists for show ${args.showId} with ${existingCommunitySetlist.songs.length} songs`);
+      return existingCommunitySetlist._id;
     }
 
     for (let i = 0; i < numSongs; i++) {
@@ -535,24 +520,25 @@ export const autoGenerateSetlist = internalMutation({
       songsToChooseFrom.splice(selectedIndex, 1); // Remove to avoid duplicates
     }
 
-    // Create or update the auto-generated setlist
-    if (existingSetlist) {
-      await ctx.db.patch(existingSetlist._id, {
+    // Create or update the community setlist
+    if (existingCommunitySetlist) {
+      await ctx.db.patch(existingCommunitySetlist._id, {
         songs: selectedSongs,
         lastUpdated: Date.now(),
-        source: existingSetlist.source ?? "user_submitted",
-        isOfficial: existingSetlist.isOfficial ?? false,
-        confidence: existingSetlist.confidence ?? 0.3,
-        upvotes: existingSetlist.upvotes ?? 0,
-        downvotes: existingSetlist.downvotes ?? 0,
+        source: "user_submitted",
+        isOfficial: false,
+        confidence: 0.3,
+        upvotes: existingCommunitySetlist.upvotes ?? 0,
+        downvotes: existingCommunitySetlist.downvotes ?? 0,
       });
-      console.log(`Refreshed auto-generated setlist for show ${args.showId} with ${selectedSongs.length} songs`);
-      return existingSetlist._id;
+      console.log(`✅ Refreshed community setlist for show ${args.showId} with ${selectedSongs.length} songs`);
+      return existingCommunitySetlist._id;
     }
 
+    // Create new community setlist (not user-specific)
     const setlistId = await ctx.db.insert("setlists", {
       showId: args.showId,
-      userId: undefined, // System-generated
+      userId: undefined, // Community setlist - not user-specific
       songs: selectedSongs,
       verified: false,
       source: "user_submitted",
@@ -563,7 +549,7 @@ export const autoGenerateSetlist = internalMutation({
       downvotes: 0,
     });
 
-    console.log(`✅ Auto-generated setlist ${setlistId} for show ${args.showId} with ${selectedSongs.length} songs`);
+    console.log(`✅ Auto-generated community setlist ${setlistId} for show ${args.showId} with ${selectedSongs.length} songs`);
     return setlistId;
   },
 });
@@ -797,21 +783,28 @@ export const refreshMissingAutoSetlists = internalMutation({
         continue;
       }
 
-      const existingSetlist = await ctx.db
+      // CRITICAL FIX: Check specifically for community setlist (not official, not user-specific)
+      // This matches the logic in autoGenerateSetlist
+      const existingCommunitySetlist = await ctx.db
         .query("setlists")
         .withIndex("by_show", (q) => q.eq("showId", show._id))
+        .filter((q) => q.eq(q.field("isOfficial"), false))
+        .filter((q) => q.eq(q.field("userId"), undefined))
         .first();
 
-      if (existingSetlist) {
-        continue;
+      if (existingCommunitySetlist) {
+        continue; // Community prediction already exists
       }
 
       try {
-        await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+        const setlistId = await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
           showId: show._id,
           artistId: show.artistId,
         });
-        generated += 1;
+        
+        if (setlistId) {
+          generated += 1;
+        }
       } catch (error) {
         console.error("Failed to auto-generate setlist", {
           showId: show._id,
@@ -821,6 +814,7 @@ export const refreshMissingAutoSetlists = internalMutation({
       }
     }
 
+    console.log(`✅ Refresh complete: Processed ${processed} shows, generated ${generated} community setlists`);
     return { processed, generated };
   },
 });
@@ -833,16 +827,60 @@ export const createFromApi = internalMutation({
   returns: v.id("setlists"),
   handler: async (ctx, args) => {
     const songs = Array.isArray(args.data.songs) ? args.data.songs : [];
+    
+    // Check if official setlist already exists (avoid duplicates)
+    const existingOfficial = await ctx.db
+      .query("setlists")
+      .withIndex("by_show", (q) => q.eq("showId", args.showId))
+      .filter((q) => q.eq(q.field("isOfficial"), true))
+      .first();
+    
+    if (existingOfficial) {
+      // Update existing official setlist
+      await ctx.db.patch(existingOfficial._id, {
+        songs: songs.map((s: any) => ({ 
+          title: s.title || s, 
+          album: s.album, 
+          duration: s.duration, 
+          songId: s.songId 
+        })),
+        actualSetlist: songs.map((s: any) => ({ 
+          title: s.title || s, 
+          setNumber: s.setNumber || 1, 
+          encore: s.encore || false 
+        })),
+        setlistfmId: args.data.id || undefined,
+        lastUpdated: Date.now(),
+      });
+      console.log(`✅ Updated existing official setlist ${existingOfficial._id} for show ${args.showId}`);
+      return existingOfficial._id;
+    }
+    
+    // Create new official setlist
     const setlistId = await ctx.db.insert("setlists", {
       showId: args.showId,
+      userId: undefined,
       setlistfmId: args.data.id || undefined,
-      songs: songs.map((s: any) => ({ title: s.title || s, album: s.album, duration: s.duration, songId: s.songId })),
-      actualSetlist: songs.map((s: any) => ({ title: s.title || s, setNumber: s.setNumber, encore: s.encore })),
+      songs: songs.map((s: any) => ({ 
+        title: s.title || s, 
+        album: s.album, 
+        duration: s.duration, 
+        songId: s.songId 
+      })),
+      actualSetlist: songs.map((s: any) => ({ 
+        title: s.title || s, 
+        setNumber: s.setNumber || 1, 
+        encore: s.encore || false 
+      })),
       isOfficial: true,
       verified: true,
       source: "setlistfm" as const,
       lastUpdated: Date.now(),
+      confidence: 1.0,
+      upvotes: 0,
+      downvotes: 0,
     });
+    console.log(`✅ Created official setlist ${setlistId} for show ${args.showId} from setlist.fm`);
     return setlistId;
   },
 });
