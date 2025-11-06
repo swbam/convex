@@ -4,7 +4,6 @@ import { ClerkProvider, useAuth as useClerkAuth } from "@clerk/clerk-react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexReactClient } from "convex/react";
 import { RouterProvider } from "react-router-dom";
-import * as Sentry from "@sentry/react";
 import "./index.css";
 import { router } from "./router";
 import { DiagnosticApp } from "./components/DiagnosticApp";
@@ -13,55 +12,7 @@ import { Toaster } from "./components/ui/sonner";
 const convexUrl = import.meta.env.VITE_CONVEX_URL as string;
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string;
 
-// Initialize Sentry for error tracking and performance monitoring
-Sentry.init({
-  dsn: "https://7a0b4270ce0837a16efc62a1f9e7493b@o4509554346754048.ingest.us.sentry.io/4510320697081856",
-  
-  // Performance Monitoring
-  integrations: [
-    Sentry.browserTracingIntegration(),
-    Sentry.replayIntegration({
-      maskAllText: false,
-      blockAllMedia: false,
-    }),
-  ],
-  
-  // Performance monitoring sample rate (1.0 = 100% of transactions)
-  tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
-  
-  // Session Replay sampling rates
-  replaysSessionSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
-  replaysOnErrorSampleRate: 1.0,
-  
-  // Send default PII (personally identifiable information)
-  sendDefaultPii: true,
-  
-  // Environment configuration
-  environment: import.meta.env.MODE,
-  
-  // Release tracking (optional - can be set via CI/CD)
-  // release: "setlists-live@" + packageJson.version,
-  
-  // Ignore specific errors
-  ignoreErrors: [
-    // Browser extensions
-    'ResizeObserver loop limit exceeded',
-    'Non-Error promise rejection captured',
-    // Network errors
-    'NetworkError',
-    'Failed to fetch',
-  ],
-  
-  // Before sending events, filter or modify them
-  beforeSend(event, hint) {
-    // Don't send events in development if you prefer
-    if (!import.meta.env.PROD && !import.meta.env.VITE_SENTRY_DEBUG) {
-      console.log('[Sentry] Would send event:', event);
-      return null;
-    }
-    return event;
-  },
-});
+// Sentry removed
 
 // Safety check for DOM availability
 if (typeof document === 'undefined') {
@@ -96,9 +47,6 @@ if (!convexUrl || !publishableKey) {
       );
     };
 
-    // Wrap router with Sentry for performance monitoring
-    const SentryRouter = Sentry.withSentryRouting(RouterProvider);
-
     createRoot(rootElement).render(
       <React.StrictMode>
         <ClerkProvider 
@@ -106,7 +54,7 @@ if (!convexUrl || !publishableKey) {
           afterSignOutUrl="/"
         >
           <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-            <SentryRouter router={router} />
+            <RouterProvider router={router} />
             <Toaster 
               theme="dark"
               position="bottom-right"
