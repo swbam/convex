@@ -2,7 +2,7 @@
 
 import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
 // Ticketmaster API integration for artist search
@@ -83,7 +83,8 @@ export const triggerFullArtistSync = action({
         artistName: args.artistName,
       });
     } catch (catalogError) {
-      console.warn(`⚠️ Spotify catalog sync failed (will continue): ${catalogError}`);
+      const msg = catalogError instanceof Error ? catalogError.message : String(catalogError);
+      console.warn(`⚠️ Spotify catalog sync failed (will continue): ${msg}`);
     }
 
     // Phase 3: Sync shows SYNCHRONOUSLY (auto-generate setlists can now use catalog)
@@ -101,7 +102,8 @@ export const triggerFullArtistSync = action({
         artistName: args.artistName,
       });
     } catch (spotifyError) {
-      console.warn(`⚠️ Spotify basics sync failed: ${spotifyError}`);
+      const msg = spotifyError instanceof Error ? spotifyError.message : String(spotifyError);
+      console.warn(`⚠️ Spotify basics sync failed: ${msg}`);
     }
 
     // Schedule background tasks (lightweight follow-ups)
