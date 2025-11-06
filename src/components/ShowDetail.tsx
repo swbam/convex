@@ -332,9 +332,9 @@ export function ShowDetail({
           {/* Full-Width Background Cover Image */}
               {heroImage && (
             <div className="absolute inset-0 z-0">
-              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-20 blur-md scale-105" />
-              {/* Sophisticated Gradient Overlay - Apple Style */}
-              <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/85 to-black" />
+              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-40 scale-105" />
+              {/* Light Gradient Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/70" />
             </div>
           )}
 
