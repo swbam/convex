@@ -7,6 +7,7 @@ import { SearchBar } from "./SearchBar";
 import { Id } from "../../convex/_generated/dataModel";
 import { ArtistCardSkeleton, ShowCardSkeleton } from "./LoadingSkeleton";
 import { motion } from "framer-motion";
+import { TrendingSlider } from "./TrendingSlider";
 
 interface PublicDashboardProps {
   onArtistClick: (artistKey: Id<"artists"> | string) => void;
@@ -160,7 +161,7 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
       {/* Content Sections */}
       <div className="container mx-auto px-4 space-y-16 pb-16">
         
-        {/* Trending Artists Section */}
+        {/* Trending Artists Section - 3 ROWS WITH SLIDING ANIMATION */}
         <motion.section
           initial="hidden"
           whileInView="show"
@@ -171,51 +172,94 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
                 <Users className="h-6 w-6 text-white/80" />
-            </div>
-            <div>
+              </div>
+              <div>
                 <h2 className="text-2xl md:text-3xl font-bold text-white">Trending Artists</h2>
                 <p className="text-sm text-gray-500">Most popular artists with upcoming shows</p>
               </div>
             </div>
           </motion.div>
-          
-          <motion.div variants={containerVariants} className="relative">
-            {/* Grid for mobile 2x2, horizontal scroll for desktop */}
-            <div className="grid grid-cols-2 gap-3 md:flex md:gap-4 md:overflow-x-auto pb-4 scrollbar-hide md:snap-x md:snap-mandatory -mx-2 px-2 md:-mx-4 md:px-4">
-              {isLoading ? (
-                [...Array(6)].map((_, i) => <ArtistCardSkeleton key={i} />)
-              ) : (finalArtists as any[])?.length === 0 ? (
-                <div className="col-span-2 w-full flex flex-col items-center justify-center py-16 text-center min-h-[300px]">
-                  <Music className="h-16 w-16 text-gray-800 mb-4" />
-                  <p className="text-gray-500 text-lg">No trending artists yet</p>
-                  <p className="text-gray-600 text-sm mt-2">Artists will appear here once data is synced</p>
+
+          {isLoading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, rowIndex) => (
+                <div key={rowIndex} className="flex gap-4 overflow-x-auto pb-4">
+                  {[...Array(6)].map((_, i) => <ArtistCardSkeleton key={i} />)}
                 </div>
-              ) : (
-                (finalArtists as any[]).map((artist: any, index: number) => {
-                  const key = artist._id || artist.ticketmasterId || artist.slug || artist.name || index;
-                  const targetSlug = artist.slug 
-                    || artist?.cachedTrending?.slug 
-                    || (typeof artist.name === 'string' && artist.name.length > 0 
-                        ? artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-                        : null)
-                    || artist._id 
-                    || artist.ticketmasterId;
-                  if (!targetSlug) return null;
-                  return (
-                    <motion.div key={key} variants={cardVariants} custom={index} className="w-full md:w-auto">
-                      <ArtistCard 
-                        artist={artist}
-                        onClick={() => navigateTo(`/artists/${targetSlug}`)}
-                      />
-                    </motion.div>
-                  );
-                }).filter(Boolean as any)
+              ))}
+            </div>
+          ) : (finalArtists as any[])?.length === 0 ? (
+            <div className="w-full flex flex-col items-center justify-center py-16 text-center min-h-[300px]">
+              <Music className="h-16 w-16 text-gray-800 mb-4" />
+              <p className="text-gray-500 text-lg">No trending artists yet</p>
+              <p className="text-gray-600 text-sm mt-2">Artists will appear here once data is synced</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {/* Row 1 - Slides Left */}
+              {(finalArtists as any[]).length > 0 && (
+                <TrendingSlider
+                  items={(finalArtists as any[]).slice(0, Math.ceil((finalArtists as any[]).length / 3))}
+                  type="artists"
+                  direction="left"
+                  speed={80}
+                  onItemClick={(artist) => {
+                    const targetSlug = artist.slug
+                      || artist?.cachedTrending?.slug
+                      || (typeof artist.name === 'string' && artist.name.length > 0
+                          ? artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+                          : null)
+                      || artist._id
+                      || artist.ticketmasterId;
+                    if (targetSlug) navigateTo(`/artists/${targetSlug}`);
+                  }}
+                />
+              )}
+
+              {/* Row 2 - Slides Right */}
+              {(finalArtists as any[]).length > Math.ceil((finalArtists as any[]).length / 3) && (
+                <TrendingSlider
+                  items={(finalArtists as any[]).slice(Math.ceil((finalArtists as any[]).length / 3), Math.ceil((finalArtists as any[]).length * 2 / 3))}
+                  type="artists"
+                  direction="right"
+                  speed={70}
+                  onItemClick={(artist) => {
+                    const targetSlug = artist.slug
+                      || artist?.cachedTrending?.slug
+                      || (typeof artist.name === 'string' && artist.name.length > 0
+                          ? artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+                          : null)
+                      || artist._id
+                      || artist.ticketmasterId;
+                    if (targetSlug) navigateTo(`/artists/${targetSlug}`);
+                  }}
+                />
+              )}
+
+              {/* Row 3 - Slides Left */}
+              {(finalArtists as any[]).length > Math.ceil((finalArtists as any[]).length * 2 / 3) && (
+                <TrendingSlider
+                  items={(finalArtists as any[]).slice(Math.ceil((finalArtists as any[]).length * 2 / 3))}
+                  type="artists"
+                  direction="left"
+                  speed={90}
+                  onItemClick={(artist) => {
+                    const targetSlug = artist.slug
+                      || artist?.cachedTrending?.slug
+                      || (typeof artist.name === 'string' && artist.name.length > 0
+                          ? artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+                          : null)
+                      || artist._id
+                      || artist.ticketmasterId;
+                    if (targetSlug) navigateTo(`/artists/${targetSlug}`);
+                  }}
+                />
               )}
             </div>
-          </motion.div>
+          )}
         </motion.section>
 
-        {/* Trending Shows Section */}
+        {/* Trending Shows Section - 3 ROWS WITH SLIDING ANIMATION */}
         <motion.section
           initial="hidden"
           whileInView="show"
@@ -227,43 +271,72 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
               <div className="h-12 w-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
                 <TrendingUp className="h-6 w-6 text-white/80" />
               </div>
-          <div>
+              <div>
                 <h2 className="text-2xl md:text-3xl font-bold text-white">Top Shows</h2>
                 <p className="text-sm text-gray-500">Most popular upcoming concerts</p>
               </div>
             </div>
           </motion.div>
 
-          {/* Shows Grid with stagger animation */}
-          <motion.div 
-            variants={containerVariants}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-          >
-            {isLoading ? (
-              [...Array(8)].map((_, i) => <ShowCardSkeleton key={i} />)
-            ) : (finalShows as any[])?.length === 0 ? (
-              <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
-                <Music className="h-16 w-16 text-gray-800 mb-4" />
-                <p className="text-gray-500 text-lg">No shows available</p>
-                <p className="text-gray-600 text-sm mt-2">Check back soon</p>
-              </div>
-            ) : (
-              (finalShows as any[]).slice(0, 12).map((show: any, index: number) => {
-                const slug = show?.slug || show?.cachedTrending?.showSlug || show?.ticketmasterId || show?._id;
-                if (!slug) return null;
-                return (
-                  <motion.div key={show._id || index} variants={cardVariants} custom={index}>
-                    <ShowCard 
-                      show={show} 
-                      onClick={() => {
-                        navigateTo(`/shows/${slug}`);
-                      }}
-                    />
-                  </motion.div>
-                );
-              }).filter(Boolean as any)
-            )}
-          </motion.div>
+          {isLoading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, rowIndex) => (
+                <div key={rowIndex} className="flex gap-4 overflow-x-auto pb-4">
+                  {[...Array(6)].map((_, i) => <ShowCardSkeleton key={i} />)}
+                </div>
+              ))}
+            </div>
+          ) : (finalShows as any[])?.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <Music className="h-16 w-16 text-gray-800 mb-4" />
+              <p className="text-gray-500 text-lg">No shows available</p>
+              <p className="text-gray-600 text-sm mt-2">Check back soon</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {/* Row 1 - Slides Right */}
+              {(finalShows as any[]).length > 0 && (
+                <TrendingSlider
+                  items={(finalShows as any[]).slice(0, Math.ceil((finalShows as any[]).length / 3))}
+                  type="shows"
+                  direction="right"
+                  speed={85}
+                  onItemClick={(show) => {
+                    const slug = show?.slug || show?.cachedTrending?.showSlug || show?.ticketmasterId || show?._id;
+                    if (slug) navigateTo(`/shows/${slug}`);
+                  }}
+                />
+              )}
+
+              {/* Row 2 - Slides Left */}
+              {(finalShows as any[]).length > Math.ceil((finalShows as any[]).length / 3) && (
+                <TrendingSlider
+                  items={(finalShows as any[]).slice(Math.ceil((finalShows as any[]).length / 3), Math.ceil((finalShows as any[]).length * 2 / 3))}
+                  type="shows"
+                  direction="left"
+                  speed={75}
+                  onItemClick={(show) => {
+                    const slug = show?.slug || show?.cachedTrending?.showSlug || show?.ticketmasterId || show?._id;
+                    if (slug) navigateTo(`/shows/${slug}`);
+                  }}
+                />
+              )}
+
+              {/* Row 3 - Slides Right */}
+              {(finalShows as any[]).length > Math.ceil((finalShows as any[]).length * 2 / 3) && (
+                <TrendingSlider
+                  items={(finalShows as any[]).slice(Math.ceil((finalShows as any[]).length * 2 / 3))}
+                  type="shows"
+                  direction="right"
+                  speed={95}
+                  onItemClick={(show) => {
+                    const slug = show?.slug || show?.cachedTrending?.showSlug || show?.ticketmasterId || show?._id;
+                    if (slug) navigateTo(`/shows/${slug}`);
+                  }}
+                />
+              )}
+            </div>
+          )}
         </motion.section>
       </div>
     </div>
