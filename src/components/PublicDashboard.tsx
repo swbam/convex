@@ -349,14 +349,14 @@ function ShowCard({
 
   return (
     <motion.div 
-      className="cursor-pointer transform-gpu will-change-transform"
+      className="w-full md:flex-shrink-0 md:w-48 lg:w-56 xl:w-64 snap-start cursor-pointer transform-gpu will-change-transform"
       onClick={onClick}
       whileHover={{ y: -6, transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } }}
       whileTap={{ scale: 0.98 }}
     >
       <div className="glass-card glass-card-hover rounded-2xl overflow-hidden card-lift shadow-elevated shadow-elevated-hover">
         {/* Show Image */}
-        <div className="relative w-full aspect-[4/3] overflow-hidden">
+        <div className="relative w-full aspect-square overflow-hidden">
           {(() => {
             const imgSrc = show?.artist?.images?.[0] || show?.artistImage || show?.cachedTrending?.artistImage;
             return imgSrc ? (

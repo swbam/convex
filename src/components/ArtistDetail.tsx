@@ -149,19 +149,9 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
     >
       <SEOHead />
-      {/* Enhanced Back Button */}
-      <MagicCard className="inline-block p-0 rounded-xl border-0">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all duration-300 px-4 py-2 rounded-xl"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Dashboard
-        </button>
-      </MagicCard>
 
       {/* Apple-Level Header Design - Full Width Background */}
-      <div className="relative overflow-hidden shadow-apple -mx-4 sm:-mx-6 rounded-none">
+      <div className="relative overflow-hidden shadow-apple -mx-4 sm:-mx-6 lg:-mx-8 rounded-none">
         {/* Full-Width Background Cover Image */}
         {heroImage && (
           <div className="absolute inset-0 z-0">
