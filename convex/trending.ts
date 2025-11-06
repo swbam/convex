@@ -280,17 +280,23 @@ export const getTrendingArtists = query({
         })
       );
 
-      const unique = dedupeByKey(
-        hydrated,
-        (artist: any) =>
+      // ENHANCED: Deduplicate using unique artist ID first, then fallback to other identifiers
+      const seen = new Set<string>();
+      const unique = hydrated.filter((artist: any) => {
+        // Priority order: _id, slug, ticketmasterId, name (lowercase)
+        const key =
+          artist?._id?.toString() ||
           artist?.slug ||
           artist?.ticketmasterId ||
+          artist?.cachedTrending?.artistId?.toString() ||
           artist?.cachedTrending?.slug ||
           artist?.cachedTrending?.ticketmasterId ||
-          artist?._id ||
-          artist?.name,
-        limit * 3
-      );
+          artist?.name?.toLowerCase().trim();
+
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }).slice(0, limit * 3);
 
       // Relaxed filter: allow artists with any upcoming events or reasonable popularity/followers
       const massive = unique.filter((a: any) => {
