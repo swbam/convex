@@ -25,6 +25,9 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
   // Get trending data directly from main tables with trending ranks!
   const trendingArtists = useQuery(api.trending.getTrendingArtists, { limit: 20 });
   const trendingShows = useQuery(api.trending.getTrendingShows, { limit: 20 });
+  // Fallbacks for empty trending states (e.g., dev before cron runs)
+  const fallbackArtists = useQuery(api.artists.getTrending, { limit: 20 });
+  const fallbackShows = useQuery(api.shows.getUpcoming, { limit: 20 });
   const trendingSetlists = useQuery(api.activity.getTrendingSetlists, { limit: 20 });
   
   // Get recent activity/updates
@@ -172,7 +175,24 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                   ) : (!Array.isArray(trendingArtists.page) || trendingArtists.page.length === 0) ? (
                     <div className="text-center py-12 text-gray-400">
                       <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No trending artists data available</p>
+                      {Array.isArray(fallbackArtists) && fallbackArtists.length > 0 ? (
+                        <div className="space-y-3">
+                          {(fallbackArtists || []).map((artist: any, index: number) => (
+                            <Card
+                              key={`${artist._id || index}`}
+                              variant="artist"
+                              imageSrc={(artist.images || [])[0]}
+                              title={artist.name}
+                              subtitle={`${artist.upcomingShowsCount || 0} shows`}
+                              onClick={() => handleArtistClick(artist)}
+                              footer={<Button variant="outline" size="sm">View Artist</Button>}
+                              children={null}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <p>No trending artists data available</p>
+                      )}
                     </div>
                   ) : (
                     (trendingArtists.page ?? []).map((artist: any, index: number) => {
@@ -221,7 +241,24 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                   ) : (!Array.isArray(trendingShows.page) || trendingShows.page.length === 0) ? (
                     <div className="text-center py-12 text-gray-400">
                       <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No trending shows data available</p>
+                      {Array.isArray(fallbackShows) && fallbackShows.length > 0 ? (
+                        <div className="space-y-3">
+                          {(fallbackShows || []).map((show: any, index: number) => (
+                            <Card
+                              key={`${show._id || index}`}
+                              variant="show"
+                              imageSrc={show?.artist?.images?.[0]}
+                              title={show?.artist?.name}
+                              subtitle={`${show?.venue?.city || ''}${show?.venue?.country ? `, ${show.venue.country}` : ''} • ${new Date(show.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                              onClick={() => handleShowClick(show)}
+                              footer={<Button variant="outline" size="sm">View Show</Button>}
+                              children={null}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <p>No trending shows data available</p>
+                      )}
                     </div>
                   ) : (
                     (trendingShows.page ?? []).map((show: any, index: number) => {
