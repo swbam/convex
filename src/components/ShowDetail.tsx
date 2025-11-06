@@ -514,12 +514,12 @@ export function ShowDetail({
 
                 {/* Song Addition Dropdown */}
                 {!hasActualSetlist && isUpcoming && songs && songs.length > 0 && (
-                  <div className="mb-6 p-4 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl backdrop-blur-sm">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xl font-semibold text-white">
+                  <div className="mb-6 p-3 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl backdrop-blur-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-semibold text-white">
                         Add Songs to Setlist
                       </h3>
-                      <div className="text-base text-gray-300">
+                      <div className="text-sm text-gray-300">
                         {(songs || [])
                           .filter(Boolean)
                           .filter((s) => s && !s.isLive && !s.isRemix)
@@ -542,7 +542,7 @@ export function ShowDetail({
                           e.target.value = "";
                         }
                       }}
-                      className="w-full px-4 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-lg sm:text-xl text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300 cursor-pointer"
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-base sm:text-lg text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300 cursor-pointer"
                     >
                       <option
                         value=""
@@ -1093,7 +1093,7 @@ function FanRequestSongRow({
 
         <div className="flex-1 min-w-0">
           <h3
-            className={`font-medium text-base ${
+            className={`font-medium text-lg ${
               wasPlayed ? "text-white" : "text-gray-300"
             } truncate`}
           >
@@ -1117,7 +1117,7 @@ function FanRequestSongRow({
             className={`h-4 w-4 ${userVoted ? "fill-current" : ""}`}
           />
           <span
-            className={`font-semibold text-sm ${
+            className={`font-semibold text-base ${
               userVoted ? "text-primary" : "text-gray-400"
             }`}
           >
@@ -1128,7 +1128,7 @@ function FanRequestSongRow({
       {wasPlayed && (
         <div className="flex flex-col items-center gap-0.5 text-sm text-green-400">
           <ChevronUp className="h-4 w-4 fill-current" />
-          <span className="font-semibold text-xs">{voteCount}</span>
+          <span className="font-semibold text-base">{voteCount}</span>
         </div>
       )}
     </div>
@@ -1256,7 +1256,7 @@ function SongVoteRow({
         <span className="text-xs text-gray-500 w-6 text-right font-medium">
           {position}
         </span>
-        <span className="font-medium text-sm sm:text-base text-white truncate">
+        <span className="font-medium text-base sm:text-lg text-white truncate">
           {songTitle}
         </span>
       </div>
@@ -1274,7 +1274,7 @@ function SongVoteRow({
         <ChevronUp
           className={`h-5 w-5 ${songVotes?.userVoted ? "fill-current" : ""}`}
         />
-        <span className="font-semibold text-sm">
+        <span className="font-semibold text-base">
           {songVotes?.upvotes || 0}
         </span>
       </button>
