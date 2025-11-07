@@ -94,31 +94,3 @@ export const markErrorResolved = internalMutation({
   },
 });
 
-/**
- * Helper function to safely execute operations with error tracking
- * Use this wrapper in your backend code
- */
-export async function withErrorTracking<T>(
-  ctx: any,
-  operation: string,
-  fn: () => Promise<T>,
-  context?: any
-): Promise<T | null> {
-  try {
-    return await fn();
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    
-    // Log error to database
-    await ctx.runMutation(internalMutation, {
-      operation,
-      error: errorMessage,
-      context,
-      severity: "error",
-    });
-    
-    // Re-throw for caller to handle
-    throw error;
-  }
-}
-

@@ -51,11 +51,10 @@ export const getUserSpotifyArtists = query({
       const artist = await ctx.db.get(userArtist.artistId);
       if (!artist) continue;
       
-      // Count upcoming shows
+      // Count upcoming shows - OPTIMIZED: Use compound index instead of filter
       const upcomingShows = await ctx.db
         .query("shows")
-        .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
-        .filter((q) => q.eq(q.field("status"), "upcoming"))
+        .withIndex("by_artist_and_status", (q) => q.eq("artistId", artist._id).eq("status", "upcoming"))
         .collect();
       
       const upcomingShowsCount = upcomingShows.length;

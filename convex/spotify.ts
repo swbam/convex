@@ -169,7 +169,8 @@ export const syncArtistCatalog = internalAction({
     const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
-      console.log("Spotify credentials not configured");
+      console.warn("⚠️ Spotify credentials not configured - skipping catalog sync");
+      console.warn("Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET in Convex dashboard");
       return null;
     }
 

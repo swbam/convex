@@ -37,18 +37,15 @@ export function Footer() {
             </nav>
           </div>
 
-          {/* Support */}
+          {/* Community */}
           <div className="space-y-3 sm:space-y-4 lg:space-y-6 hidden sm:block">
-            <h3 className="font-semibold text-foreground text-responsive-base sm:text-responsive-lg">Support</h3>
+            <h3 className="font-semibold text-foreground text-responsive-base sm:text-responsive-lg">Community</h3>
             <nav className="space-y-2 sm:space-y-3">
-              <a href="/help" className="block text-responsive-xs sm:text-responsive-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
-                Help Center
+              <a href="/trending" className="block text-responsive-xs sm:text-responsive-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
+                Trending Now
               </a>
-              <a href="/contact" className="block text-responsive-xs sm:text-responsive-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
-                Contact Us
-              </a>
-              <a href="/feedback" className="block text-responsive-xs sm:text-responsive-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
-                Send Feedback
+              <a href="/activity" className="block text-responsive-xs sm:text-responsive-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
+                Recent Activity
               </a>
             </nav>
           </div>

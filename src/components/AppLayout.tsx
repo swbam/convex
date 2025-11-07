@@ -296,7 +296,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               <div className="flex-1" />
 
               {/* Global search */}
-              <div className="hidden lg:block w-full max-w-md xl:max-w-lg relative z-[60]">
+              <div className="hidden lg:block w-full max-w-md xl:max-w-lg relative z-[100]">
                 <SearchBar onResultClick={(type: string, id: string, slug?: string) => {
                   if (type === 'artist') {
                     // Prefer SEO slug when available; fallback to id

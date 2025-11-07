@@ -101,35 +101,14 @@ export const getArtistLeaderboard = query({
           .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
           .collect();
         
-        // Prefer aggregated counts from shows to reduce query load
-        // Fallback to on-the-fly counts if aggregates are missing
+        // OPTIMIZED: Use pre-aggregated counts only (cron jobs keep these updated)
+        // Removed N+1 query fallback - rely on aggregates populated by trending cron
         let totalSetlists = 0;
         let totalVotes = 0;
 
-        const showsWithAggregates = shows.filter((s) => typeof s.setlistCount === "number" || typeof s.voteCount === "number");
-        if (showsWithAggregates.length === shows.length && shows.length > 0) {
-          // All shows have aggregates: just sum them
-          totalSetlists = shows.reduce((sum, s) => sum + (s.setlistCount || 0), 0);
-          totalVotes = shows.reduce((sum, s) => sum + (s.voteCount || 0), 0);
-        } else {
-          // Fallback: compute counts
-          for (const show of shows) {
-            const setlists = await ctx.db
-              .query("setlists")
-              .withIndex("by_show", (q) => q.eq("showId", show._id))
-              .collect();
-
-            totalSetlists += setlists.length;
-
-            for (const setlist of setlists) {
-              const votes = await ctx.db
-                .query("votes")
-                .withIndex("by_setlist", (q) => q.eq("setlistId", setlist._id))
-                .collect();
-              totalVotes += votes.length;
-            }
-          }
-        }
+        // Sum pre-aggregated counts from shows
+        totalSetlists = shows.reduce((sum, s) => sum + (s.setlistCount || 0), 0);
+        totalVotes = shows.reduce((sum, s) => sum + (s.voteCount || 0), 0);
         
         return {
           artistId: artist._id,

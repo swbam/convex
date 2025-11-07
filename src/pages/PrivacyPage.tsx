@@ -176,8 +176,8 @@ export function PrivacyPage() {
               If you have questions about this privacy policy or our data practices, please contact us at:
             </p>
             <div className="mt-4 p-4 bg-white/5 rounded-lg">
-              <p className="text-white">Email: [your-email@example.com]</p>
-              <p className="text-white mt-2">Address: [Your Business Address]</p>
+              <p className="text-white">Email: privacy@setlists.live</p>
+              <p className="text-white mt-2">Website: https://setlists.live</p>
             </div>
           </section>
 

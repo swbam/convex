@@ -143,7 +143,7 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
             {/* Search Bar - Centered with glass effect */}
             <motion.div 
               variants={itemVariants}
-              className="max-w-2xl mx-auto pt-4"
+              className="max-w-2xl mx-auto pt-4 relative z-[100]"
             >
               <div className="glass-card rounded-2xl p-1 shadow-elevated">
                 <SearchBar 

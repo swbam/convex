@@ -1,5 +1,7 @@
 /**
  * Admin functions for monitoring backend errors
+ * CRITICAL: Changed from internalMutation to public query/mutation
+ * so BackendErrorMonitor component can access via api.admin.errorMonitoring
  */
 
 import { query, mutation } from "../_generated/server";

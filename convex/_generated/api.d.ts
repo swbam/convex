@@ -30,6 +30,7 @@ import type * as health from "../health.js";
 import type * as http from "../http.js";
 import type * as importTrendingShows from "../importTrendingShows.js";
 import type * as leaderboard from "../leaderboard.js";
+import type * as logger from "../logger.js";
 import type * as maintenance from "../maintenance.js";
 import type * as massivenessFilter from "../massivenessFilter.js";
 import type * as media from "../media.js";
@@ -80,6 +81,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   importTrendingShows: typeof importTrendingShows;
   leaderboard: typeof leaderboard;
+  logger: typeof logger;
   maintenance: typeof maintenance;
   massivenessFilter: typeof massivenessFilter;
   media: typeof media;

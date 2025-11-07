@@ -163,7 +163,7 @@ export function TermsPage() {
             
             <h3 className="text-xl font-semibold mb-3 mt-6">Governing Law</h3>
             <p className="text-muted-foreground leading-relaxed">
-              These Terms are governed by the laws of [Your Jurisdiction], without regard to conflict of law principles.
+              These Terms are governed by the laws of the United States, without regard to conflict of law principles.
             </p>
 
             <h3 className="text-xl font-semibold mb-3 mt-6">Arbitration</h3>
@@ -185,8 +185,8 @@ export function TermsPage() {
               If you have questions about these Terms, please contact us at:
             </p>
             <div className="mt-4 p-4 bg-white/5 rounded-lg">
-              <p className="text-white">Email: [your-email@example.com]</p>
-              <p className="text-white mt-2">Address: [Your Business Address]</p>
+              <p className="text-white">Email: legal@setlists.live</p>
+              <p className="text-white mt-2">Website: https://setlists.live</p>
             </div>
           </section>
 

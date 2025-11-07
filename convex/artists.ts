@@ -154,6 +154,7 @@ export const getTrending = query({
     }
     
     // Fallback: Popularity sort for all active artists
+    // Note: Using filter here as isActive isn't indexed (rarely false, so filter is acceptable)
     const allActive = await ctx.db
       .query("artists")
       .filter((q) => q.eq(q.field("isActive"), true))
@@ -314,6 +315,12 @@ export const createFromTicketmaster = internalMutation({
       if (existingWithSlug.ticketmasterId === args.ticketmasterId) return existingWithSlug._id;
       slug = `${baseSlug}-${counter}`;
       counter++;
+      // Safety: prevent infinite loop (extremely unlikely but good practice)
+      if (counter > 1000) {
+        slug = `${baseSlug}-${Date.now()}`;
+        console.warn(`⚠️ Slug collision limit reached for ${args.name}, using timestamp`);
+        break;
+      }
     }
 
     const artistId = await ctx.db.insert("artists", {

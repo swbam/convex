@@ -190,7 +190,7 @@ export function SearchBar({
   const getTypeColor = (_type: 'artist' = 'artist') => 'text-muted-foreground'
 
   return (
-    <div ref={searchRef} className={`relative ${className}`}>
+    <div ref={searchRef} className={`relative ${className} z-[100]`}>
       <div className="relative">
         <span className="absolute left-2.5 sm:left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground text-responsive-sm">🔍</span>
         <input
@@ -219,9 +219,9 @@ export function SearchBar({
         </div>
       </div>
 
-      {/* Search Results Dropdown */}
+      {/* Search Results Dropdown - CRITICAL: High z-index for mobile */}
       {isOpen && debouncedQuery.length >= 2 && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 sm:mt-2 z-[60] bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-lg sm:rounded-xl max-h-[60vh] sm:max-h-[70vh] lg:max-h-[32rem] overflow-hidden">
+        <div className="absolute top-full left-0 right-0 mt-1.5 sm:mt-2 z-[9999] bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-lg sm:rounded-xl max-h-[60vh] sm:max-h-[70vh] lg:max-h-[32rem] overflow-hidden">
           <div className="p-0">
             <div className="max-h-[60vh] sm:max-h-[70vh] lg:max-h-[30rem] overflow-y-auto">
               {sortedResults.length > 0 ? (
@@ -293,7 +293,7 @@ export function SearchBar({
       {/* Backdrop to close search - keep below dropdown so results remain clickable */}
       {isOpen && (
         <div 
-          className="fixed inset-0 z-[59]" 
+          className="fixed inset-0 z-[9998]" 
           onClick={() => setIsOpen(false)}
         />
       )}
