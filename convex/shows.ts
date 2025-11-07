@@ -640,6 +640,35 @@ export const createFromTicketmaster = internalMutation({
           lastSynced: Date.now(),
         });
       }
+
+      // Ensure an auto-generated prediction setlist exists with ~5 songs
+      try {
+        const existingSetlist = await ctx.db
+          .query("setlists")
+          .withIndex("by_show", (q) => q.eq("showId", existing._id))
+          .first();
+
+        const needsSeed = !existingSetlist || !Array.isArray(existingSetlist.songs) || (existingSetlist.songs?.length ?? 0) < 5;
+
+        if (needsSeed) {
+          // Kick off immediate generation and a few retries while catalog sync catches up
+          void ctx.scheduler.runAfter(0, internal.setlists.autoGenerateSetlist, {
+            showId: existing._id,
+            artistId: args.artistId,
+          });
+
+          const retryDelays = [10_000, 60_000, 300_000];
+          for (const delay of retryDelays) {
+            void ctx.scheduler.runAfter(delay, internal.setlists.autoGenerateSetlist, {
+              showId: existing._id,
+              artistId: args.artistId,
+            });
+          }
+        }
+      } catch (e) {
+        console.error(`Failed to ensure auto setlist for existing show ${existing._id}:`, e);
+      }
+
       return existing._id;
     }
 
