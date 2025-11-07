@@ -320,7 +320,7 @@ export function ShowDetail({
   return (
     <>
       <motion.div
-        className="px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10"
+        className="px-2 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
@@ -452,7 +452,7 @@ export function ShowDetail({
           </div>
         </div>
         
-        <div className="container mx-auto px-4 sm:px-6 pb-4 sm:pb-8">
+        <div className="mx-auto w-full px-2 sm:px-6 pb-4 sm:pb-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">

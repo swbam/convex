@@ -226,7 +226,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         </div>
 
         {/* Main Content */}
-        <div className="container mx-auto px-4 sm:px-6 pb-4 sm:pb-8">
+        <div className="mx-auto w-full px-2 sm:px-6 pb-4 sm:pb-8">
           <FadeIn delay={0.3} duration={0.6}>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
           {/* Upcoming Shows - Main Content */}

@@ -585,9 +585,9 @@ export const createInternal = internalMutation({
         
         for (const delay of retryDelays) {
           void ctx.scheduler.runAfter(delay, internal.setlists.autoGenerateSetlist, {
-            showId,
-            artistId: args.artistId,
-          });
+          showId,
+          artistId: args.artistId,
+        });
         }
       }
     } catch (error) {
@@ -596,9 +596,9 @@ export const createInternal = internalMutation({
       const retryDelays = [10_000, 60_000, 300_000];
       for (const delay of retryDelays) {
         void ctx.scheduler.runAfter(delay, internal.setlists.autoGenerateSetlist, {
-          showId,
-          artistId: args.artistId,
-        });
+        showId,
+        artistId: args.artistId,
+      });
       }
     }
     return showId;
@@ -725,9 +725,9 @@ export const createFromTicketmaster = internalMutation({
         
         for (const delay of retryDelays) {
           void ctx.scheduler.runAfter(delay, internal.setlists.autoGenerateSetlist, {
-            showId,
-            artistId: args.artistId,
-          });
+          showId,
+          artistId: args.artistId,
+        });
         }
       }
     } catch (error) {
@@ -736,9 +736,9 @@ export const createFromTicketmaster = internalMutation({
       const retryDelays = [10_000, 60_000, 300_000];
       for (const delay of retryDelays) {
         void ctx.scheduler.runAfter(delay, internal.setlists.autoGenerateSetlist, {
-          showId,
-          artistId: args.artistId,
-        });
+        showId,
+        artistId: args.artistId,
+      });
       }
     }
 

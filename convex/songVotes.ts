@@ -14,17 +14,17 @@ export const voteOnSong = mutation({
   },
   handler: async (ctx, args) => {
     try {
-      const authUserId = await getAuthUserId(ctx);
-      let effectiveUserId: Id<"users"> | string;
+    const authUserId = await getAuthUserId(ctx);
+    let effectiveUserId: Id<"users"> | string;
 
-      if (!authUserId) {
-        if (!args.anonId) {
-          throw new Error("Anonymous ID required for unauthenticated users");
-        }
-        effectiveUserId = args.anonId;
-      } else {
-        effectiveUserId = authUserId;
+    if (!authUserId) {
+      if (!args.anonId) {
+        throw new Error("Anonymous ID required for unauthenticated users");
       }
+      effectiveUserId = args.anonId;
+    } else {
+      effectiveUserId = authUserId;
+    }
 
     // Check if user already voted on this song in this setlist
     const existingVote = await ctx.db
@@ -71,16 +71,16 @@ export const voteOnSong = mutation({
       }
     }
 
-      // Create new vote
-      await ctx.db.insert("songVotes", {
-        userId: effectiveUserId,
-        setlistId: args.setlistId,
-        songTitle: args.songTitle,
-        voteType: args.voteType,
-        createdAt: Date.now(),
-      });
+    // Create new vote
+    await ctx.db.insert("songVotes", {
+      userId: effectiveUserId,
+      setlistId: args.setlistId,
+      songTitle: args.songTitle,
+      voteType: args.voteType,
+      createdAt: Date.now(),
+    });
 
-      return null;
+    return null;
     } catch (error) {
       // Track voting errors
       await ctx.runMutation(internal.errorTracking.logError, {

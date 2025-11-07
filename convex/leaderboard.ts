@@ -107,8 +107,8 @@ export const getArtistLeaderboard = query({
         let totalVotes = 0;
 
         // Sum pre-aggregated counts from shows
-        totalSetlists = shows.reduce((sum, s) => sum + (s.setlistCount || 0), 0);
-        totalVotes = shows.reduce((sum, s) => sum + (s.voteCount || 0), 0);
+          totalSetlists = shows.reduce((sum, s) => sum + (s.setlistCount || 0), 0);
+          totalVotes = shows.reduce((sum, s) => sum + (s.voteCount || 0), 0);
         
         return {
           artistId: artist._id,

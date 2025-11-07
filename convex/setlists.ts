@@ -80,17 +80,17 @@ export const addSongToSetlist = mutation({
   },
   handler: async (ctx, args) => {
     try {
-      const authUserId = await getAuthUserId(ctx);
-      let effectiveUserId: Id<"users"> | string;
+    const authUserId = await getAuthUserId(ctx);
+    let effectiveUserId: Id<"users"> | string;
 
-      if (!authUserId) {
-        if (!args.anonId) {
-          throw new Error("Anonymous ID required for unauthenticated users");
-        }
-        effectiveUserId = args.anonId;
-      } else {
-        effectiveUserId = authUserId;
+    if (!authUserId) {
+      if (!args.anonId) {
+        throw new Error("Anonymous ID required for unauthenticated users");
       }
+      effectiveUserId = args.anonId;
+    } else {
+      effectiveUserId = authUserId;
+    }
 
     // For anonymous users, enforce limit of 1 total song add
     if (typeof effectiveUserId === "string") {
@@ -148,16 +148,16 @@ export const addSongToSetlist = mutation({
       });
     }
 
-      // Log the action for anonymous users (authenticated don't need limit tracking)
-      if (typeof effectiveUserId === "string") {
-        await ctx.db.insert("userActions", {
-          userId: effectiveUserId,
-          action: "add_song",
-          timestamp: Date.now(),
-        });
-      }
+    // Log the action for anonymous users (authenticated don't need limit tracking)
+    if (typeof effectiveUserId === "string") {
+      await ctx.db.insert("userActions", {
+        userId: effectiveUserId,
+        action: "add_song",
+        timestamp: Date.now(),
+      });
+    }
 
-      return setlistId;
+    return setlistId;
     } catch (error) {
       // Track song addition errors
       await trackError(ctx, "add_song_to_setlist", error, {

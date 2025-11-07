@@ -195,7 +195,7 @@ export const syncArtistCatalogWithTracking = internalAction({
     }
     return null;
   },
-});
+    });
 
 // Wrapper for basics enrichment with tracking
 export const enrichArtistBasicsWithTracking = internalAction({
