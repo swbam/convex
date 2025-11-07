@@ -965,7 +965,7 @@ export const getUpcomingCountByArtist = internalQuery({
   handler: async (ctx, args) => {
     const shows = await ctx.db
       .query("shows")
-      .withIndex("by_status_artist", (q) => q.eq("status", "upcoming").eq("artistId", args.artistId))
+      .withIndex("by_status_and_artist", (q) => q.eq("status", "upcoming").eq("artistId", args.artistId))
       .collect();
 
     return shows.length;

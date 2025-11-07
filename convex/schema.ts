@@ -111,9 +111,8 @@ const applicationTables = {
     .index("by_artist", ["artistId"])
     .index("by_venue", ["venueId"])
     .index("by_status", ["status"])
-    .index("by_status_artist", ["status", "artistId"])
-    .index("by_status_and_artist", ["status", "artistId"]) // For filtered queries
-    .index("by_artist_and_status", ["artistId", "status"]) // For artist page filtered queries
+    .index("by_status_and_artist", ["status", "artistId"]) // For status-filtered queries
+    .index("by_artist_and_status", ["artistId", "status"]) // For artist page status filtering
     .index("by_date", ["date"]) 
     .index("by_ticketmaster_id", ["ticketmasterId"]) 
     .index("by_trending_rank", ["trendingRank"])
