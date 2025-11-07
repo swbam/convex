@@ -3,13 +3,11 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import React, { useMemo, useState, useEffect } from "react";
 import {
-  ArrowLeft,
   MapPin,
   Users,
   Music,
   ChevronUp,
   Calendar,
-  ExternalLink,
   Ticket,
   Vote,
   CheckCircle,
@@ -27,14 +25,10 @@ import {
 import { Button } from "./ui/button";
 import { toast } from "sonner";
 import { SEOHead } from "./SEOHead";
-import { AnimatedSubscribeButton } from "./ui/animated-subscribe-button";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
-import { ShimmerButton } from "./ui/shimmer-button";
 import { buildTicketmasterAffiliateUrl } from "../utils/ticketmaster";
-import { FadeIn } from "./animations/FadeIn";
 import { Badge } from "./ui/badge";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { motion } from "framer-motion";
 
 interface ShowDetailProps {
@@ -46,7 +40,6 @@ interface ShowDetailProps {
 
 export function ShowDetail({
   showId,
-  onBack,
   onArtistClick,
   onSignInRequired,
 }: ShowDetailProps) {
@@ -62,8 +55,7 @@ export function ShowDetail({
   );
   const setlists = useQuery(api.setlists.getByShow, show ? { showId } : "skip");
   const user = useQuery(api.auth.loggedInUser);
-  const setlist = useQuery(api.setlists.getByShow, { showId }); // Assume exists
-  const triggerSetlistSync = useAction(api.setlistfm.triggerSetlistSync); // For retry
+  const triggerSetlistSync = useAction(api.setlistfm.triggerSetlistSync);
   const ensureAutoSetlist = useAction(api.setlists.ensureAutoSetlistForShow);
   const fetchArtistImages = useAction(api.media.getArtistImages);
 
@@ -92,7 +84,7 @@ export function ShowDetail({
   const addSongToSetlist = useMutation(api.setlists.addSongToSetlist);
   const voteOnSong = useMutation(api.songVotes.voteOnSong);
 
-  const [anonId, setAnonId] = useState(() => {
+  const [anonId] = useState(() => {
     if (typeof window !== "undefined") {
       let id = localStorage.getItem("anonId");
       if (!id) {
@@ -131,8 +123,6 @@ export function ShowDetail({
     }
   }, [hasVoted, hasAdded]);
 
-  // Loading state
-  const isLoading = !show;
 
   const predictionSetlist = useMemo(() => {
     if (!setlists) return null;
@@ -231,8 +221,7 @@ export function ShowDetail({
       });
 
       toast.success(`Added "${songTitle}" to the setlist`);
-    } catch (error: any) {
-      console.error("Failed to add song:", error);
+    } catch {
       toast.error("Failed to add song to setlist");
     }
   };
@@ -251,7 +240,6 @@ export function ShowDetail({
 
   const showDate = new Date(show.date);
   const isUpcoming = show.status === "upcoming";
-  const isToday = showDate.toDateString() === new Date().toDateString();
 
   const renderSetlistHeader = () => {
     if (!show.importStatus)
@@ -314,13 +302,10 @@ export function ShowDetail({
     );
   };
 
-  const origin =
-    typeof window !== "undefined" ? window.location.origin : "";
-
   return (
     <>
       <motion.div
-        className="px-2 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10"
+        className="py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
@@ -348,7 +333,7 @@ export function ShowDetail({
                     aria-label="View artist on Spotify"
                     className="relative block"
                   >
-                    <img src={(avatarImage || heroImage)!} alt={show?.artist?.name} className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10" />
+                    <img src={avatarImage || heroImage} alt={show?.artist?.name} className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10" />
                     {spotifyLink && (
                       <span className="absolute -bottom-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full bg-black/60 text-white text-[10px] sm:text-xs shadow">
                         <svg viewBox="0 0 168 168" className="h-3 w-3 fill-[#1DB954]" aria-hidden>
@@ -361,11 +346,9 @@ export function ShowDetail({
                 </div>
               )}
 
-              {/* Show Info - Optimized for Mobile */}
+              {/* Show Info - Consistent with Artist Page */}
               <div className="flex-1 min-w-0 w-full sm:pb-2">
-                <p className="text-xs font-semibold text-white/60 mb-1 sm:mb-2 uppercase tracking-widest">
-                  Concert
-                </p>
+                <p className="text-xs font-semibold text-white/60 mb-1 sm:mb-2 uppercase tracking-widest">Concert</p>
                 <button
                   onClick={() => {
                     if (show?.artistId) onArtistClick(show.artistId);
@@ -375,163 +358,53 @@ export function ShowDetail({
                   {show?.artist?.name}
                 </button>
 
-                {/* Stats Row - Compact on Mobile */}
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-white/80 mb-3 sm:mb-4">
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-white/80">
                   <div className="flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                    <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span className="font-medium">{show?.venue?.name}</span>
                   </div>
-                  <span className="text-white/40">•</span>
                   <div className="flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                    <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span className="font-medium">
                       {showDate.toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
                         year: "numeric",
                       })}
+                      {show?.startTime && ` • ${(() => {
+                        const [hours, minutes] = show.startTime.split(':');
+                        const hour = parseInt(hours);
+                        const ampm = hour >= 12 ? 'PM' : 'AM';
+                        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                        return `${displayHour}:${minutes} ${ampm}`;
+                      })()}`}
                     </span>
                   </div>
-                  {show?.startTime && (
-                    <>
-                      <span className="text-white/40">•</span>
-                      <span className="font-medium">
-                        {(() => {
-                          const [hours, minutes] = show.startTime.split(':');
-                          const hour = parseInt(hours);
-                          const ampm = hour >= 12 ? 'PM' : 'AM';
-                          const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-                          return `${displayHour}:${minutes} ${ampm}`;
-                        })()}
-                      </span>
-                    </>
-                  )}
-                </div>
-
-                {/* Action Buttons - Responsive */}
-                <div className="flex flex-wrap gap-2 sm:gap-3">
-                  {isUpcoming && (
-                    <button
-                      onClick={() =>
-                        window.open(
-                          buildTicketmasterAffiliateUrl(show?.ticketUrl || ""),
-                          "_blank"
-                        )
-                      }
-                      className="inline-flex items-center justify-center px-4 sm:px-6 py-2.5 sm:py-3 bg-white text-black text-sm sm:text-base font-semibold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
-                    >
-                      <Ticket className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
-                      Get Tickets
-                      <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4 ml-1.5 sm:ml-2" />
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      const shareUrl = `${origin}/shows/${show?.slug}`;
-                      if (typeof navigator !== "undefined" && navigator.share) {
-                        void navigator.share({
-                          title: `${show?.artist?.name || ""} Concert`,
-                          url: shareUrl,
-                        });
-                      } else if (typeof navigator !== "undefined") {
-                        void navigator.clipboard.writeText(shareUrl);
-                        toast.success("Link copied!");
-                      }
-                    }}
-                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white rounded-lg text-xs sm:text-sm font-medium transition-all"
-                  >
-                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M15 8a3 3 0 10-6.976 2.224 1 1 0 01.435.179l.341.056a1 1 0 01.179.435c.086.24.24.435.435.179A3 3 0 0115 8zM5.5 13a2.5 2.5 0 01-.121-.535l-.745 1.149A2.5 2.5 0 005.5 15h3.179a1 1 0 01.435.179 1 1 0 01.179.435l.056.341A2.5 2.5 0 009 15.5V13a1 1 0 11-2 0v1.5a1 1 0 01-1 1 1 1 0 00-.179-.435l-.056-.341A2.5 2.5 0 005.5 13z" />
-                    </svg>
-                    <span className="hidden sm:inline">Share</span>
-                  </button>
                 </div>
               </div>
             </div>
           </div>
         </div>
         
-        <div className="mx-auto w-full px-2 sm:px-6 pb-4 sm:pb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+        <div className="container mx-auto px-0 sm:px-6 pb-4 sm:pb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 sm:gap-6 lg:gap-8">
           
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             
-            <MagicCard className="p-0 rounded-2xl border-0 bg-black border-t border-b border-white/5">
-              <div className="p-4 sm:p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 bg-black border-t border-b border-white/5 sm:border">
+              <div className="px-4 py-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
                       <Music className="h-5 w-5 text-white" />
                     </div>
-                    <h2 className="text-2xl sm:text-3xl font-bold text-white">
-                      {hasActualSetlist ? "Official Setlist" : "Vote on the Setlist"}
-                    </h2>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    {/* ENHANCED: Show import status for completed shows */}
-                    {!hasActualSetlist &&
-                      show?.status === "completed" &&
-                      show?.importStatus && (
-                        <div
-                          className={`text-xs px-3 py-1.5 rounded-full backdrop-blur-sm ${
-                            show?.importStatus === "importing"
-                              ? "bg-blue-500/20 text-blue-400"
-                              : show?.importStatus === "pending"
-                              ? "bg-yellow-500/20 text-yellow-400"
-                              : show?.importStatus === "failed"
-                              ? "bg-red-500/20 text-red-400"
-                              : "bg-green-500/20 text-green-400"
-                          }`}
-                        >
-                          {show?.importStatus === "importing" &&
-                            "Syncing setlist..."}
-                          {show?.importStatus === "pending" &&
-                            "Setlist sync pending"}
-                          {show?.importStatus === "failed" && "Setlist not found"}
-                          {show?.importStatus === "completed" && "Setlist synced"}
-                        </div>
-                      )}
-                    {(predictionSetlist || hasActualSetlist) && (
-                      <div className="text-xl font-medium text-gray-300">
-                        {hasActualSetlist
-                          ? actualSetlistSongs.length
-                          : predictionSetlist?.songs?.length || 0}{" "}
-                        songs
-                      </div>
-                    )}
-                    {predictionSetlist &&
-                      !hasActualSetlist &&
-                      !show?.importStatus && (
-                        <div className="text-sm text-gray-400 bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm">
-                          Community Predictions
-                        </div>
-                      )}
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white">Setlist</h2>
                   </div>
                 </div>
 
                 {/* Song Addition Dropdown */}
                 {!hasActualSetlist && isUpcoming && songs && songs.length > 0 && (
-                  <div className="mb-6 p-3 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl backdrop-blur-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-lg font-semibold text-white">
-                        Add Songs to Setlist
-                      </h3>
-                      <div className="text-sm text-gray-300">
-                        {(songs || [])
-                          .filter(Boolean)
-                          .filter((s) => s && !s.isLive && !s.isRemix)
-                          .filter((s) => {
-                            const songTitles =
-                              predictionSetlist?.songs?.map((song: any) =>
-                                typeof song === "string" ? song : song?.title
-                              ) || [];
-                            return !songTitles.includes(s!.title);
-                          }).length}{" "}
-                        available
-                      </div>
-                    </div>
-
+                  <div className="mb-4">
                     <select
                       value=""
                       onChange={(e) => {
@@ -540,15 +413,15 @@ export function ShowDetail({
                           e.target.value = "";
                         }
                       }}
-                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-base sm:text-lg text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300 cursor-pointer"
+                      className="w-full px-4 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-sm text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300 cursor-pointer min-h-[56px]"
                     >
                       <option
                         value=""
                         disabled
-                        className="bg-background text-foreground text-base"
+                        className="bg-background text-foreground text-sm"
                       >
                         {user
-                          ? "Choose a song to add instantly..."
+                          ? "Add a song..."
                           : "Sign in to add songs"}
                       </option>
                       {(songs || [])
@@ -567,18 +440,13 @@ export function ShowDetail({
                           <option
                             key={song!._id}
                             value={song!.title}
-                            className="bg-background text-foreground text-lg sm:text-xl py-2"
+                            className="bg-background text-foreground text-sm py-2"
                           >
                             {song!.title}{" "}
                             {song!.album ? `• ${song!.album}` : ""}
                           </option>
                         ))}
                     </select>
-
-                    <div className="mt-3 text-base text-gray-300 font-medium">
-                      <ChevronUp className="inline h-4 w-4 mr-1" />
-                      Songs are added instantly - no save button needed
-                    </div>
                   </div>
                 )}
 
@@ -623,7 +491,7 @@ export function ShowDetail({
                         </div>
                       </div>
 
-                      <div className="space-y-3">
+                      <div className="divide-y divide-white/5 -mx-4 sm:mx-0">
                         {actualSetlistSongs.map((song: any, index: number) => (
                           <ActualSetlistSongRow
                             key={`actual-${index}`}
@@ -678,7 +546,7 @@ export function ShowDetail({
                             </div>
                           </div>
 
-                          <div className="space-y-2">
+                          <div className="divide-y divide-white/5 -mx-4 sm:mx-0">
                             {(predictionSetlist.songs || [])
                               .map((s: any) =>
                                 typeof s === "string" ? s : s?.title
@@ -780,12 +648,9 @@ export function ShowDetail({
                     </p>
                   </div>
                 ) : (
-                  <div className="mt-8 touch-manipulation">
-                    <div className="flex flex-col">
-                      {renderSetlistHeader()}
-
-                      {/* Setlist shown by default - no accordion */}
-                      <div className="space-y-0 mt-6">
+                  <div className="mt-6 touch-manipulation">
+                    {/* Setlist - Native iOS style with dividers */}
+                    <div className="divide-y divide-white/5 -mx-4 sm:mx-0">
                         {(predictionSetlist.songs || [])
                           .map((s: any) =>
                             typeof s === "string" ? s : s?.title
@@ -805,7 +670,6 @@ export function ShowDetail({
                               anonId={anonId}
                             />
                           ))}
-                      </div>
                     </div>
                   </div>
                 )}
@@ -816,10 +680,10 @@ export function ShowDetail({
         </div>
 
           {/* Sidebar */}
-          <div className="space-y-4 sm:space-y-6">
+          <div className="space-y-0 sm:space-y-6">
             {/* Venue Details */}
-            <MagicCard className="p-0 rounded-2xl border-0">
-              <div className="p-4 sm:p-6 bg-black">
+            <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border">
+              <div className="px-4 py-4 sm:p-6 bg-black">
                 <h3 className="text-lg sm:text-xl font-bold mb-4 text-white">
                   Venue Details
                 </h3>
@@ -853,8 +717,8 @@ export function ShowDetail({
             </MagicCard>
 
             {/* Show Stats */}
-            <MagicCard className="p-0 rounded-2xl border-0">
-              <div className="p-4 sm:p-6 bg-black">
+            <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border">
+              <div className="px-4 py-4 sm:p-6 bg-black">
                 <h3 className="text-lg sm:text-xl font-bold mb-4 text-white">
                   Show Stats
                 </h3>
@@ -917,8 +781,8 @@ export function ShowDetail({
 
             {/* Call to Action - Only for upcoming shows */}
             {!user && isUpcoming && (
-              <MagicCard className="p-0 rounded-2xl border-0">
-                <div className="p-6 text-center bg-black">
+              <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border">
+                <div className="px-4 py-6 sm:p-6 text-center bg-black">
                   <div className="flex items-center justify-center gap-3 mb-4">
                     <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
                       <Vote className="h-5 w-5 text-primary" />
@@ -946,12 +810,18 @@ export function ShowDetail({
 
         {/* Sticky mobile CTA for primary action */}
         {isUpcoming && (
-          <div className="sm:hidden fixed inset-x-4 bottom-[calc(16px+env(safe-area-inset-bottom))] z-40">
+          <div className="sm:hidden fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-40 px-4 pb-3">
             <button
-              onClick={onSignInRequired}
-              className="w-full h-12 rounded-xl bg-primary text-primary-foreground shadow-lg"
+              onClick={() =>
+                window.open(
+                  buildTicketmasterAffiliateUrl(show?.ticketUrl || ""),
+                  "_blank"
+                )
+              }
+              className="w-full h-14 rounded-xl bg-white text-black font-bold shadow-2xl active:scale-[0.98] transition-transform duration-150 flex items-center justify-center gap-2"
             >
-              Vote on Setlist
+              <Ticket className="h-5 w-5" />
+              Get Tickets
             </button>
           </div>
         )}
@@ -1041,7 +911,7 @@ function FanRequestSongRow({
           anonId,
         });
         toast.success("Vote added!");
-      } catch (e) {
+      } catch {
         toast.error("Vote failed");
       }
       return;
@@ -1054,17 +924,14 @@ function FanRequestSongRow({
         voteType: "upvote",
       });
       toast.success("Vote added!");
-    } catch (e) {
+    } catch {
       toast.error("Vote failed");
     }
   };
 
   return (
     <div
-      className="flex items-center justify-between py-3 px-0 hover:bg-white/5 transition-all duration-200 min-h-[44px]"
-      style={{
-        borderBottom: "1px solid rgba(255, 255, 255, 0.03)",
-      }}
+      className="flex items-center justify-between py-4 px-4 sm:px-0 active:bg-white/10 sm:hover:bg-white/5 transition-all duration-150 active:scale-[0.98] min-h-[56px]"
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         {/* Minimal status indicator */}
@@ -1085,20 +952,20 @@ function FanRequestSongRow({
             </svg>
           </div>
         ) : (
-          <span className="text-sm text-gray-500 w-5 text-center font-medium">
+          <span className="text-sm text-gray-500 w-5 text-center font-semibold">
             {index + 1}
           </span>
         )}
 
         <div className="flex-1 min-w-0">
           <h3
-            className={`font-medium text-lg ${
+            className={`font-semibold text-base leading-tight ${
               wasPlayed ? "text-white" : "text-gray-300"
             } truncate`}
           >
             {songTitle}
           </h3>
-          {wasPlayed && <p className="text-sm text-green-400">Played</p>}
+          {wasPlayed && <p className="text-xs text-green-400 mt-0.5">Played</p>}
         </div>
       </div>
 
@@ -1108,8 +975,8 @@ function FanRequestSongRow({
           onClick={() => {
             void handleVote();
           }}
-          className={`flex flex-col items-center gap-0.5 text-base transition-colors ${
-            userVoted ? "text-primary" : "text-gray-500 hover:text-white"
+          className={`flex flex-col items-center gap-0.5 text-base transition-all duration-150 active:scale-95 min-w-[44px] min-h-[44px] justify-center ${
+            userVoted ? "text-primary" : "text-gray-500 active:text-white sm:hover:text-white"
           }`}
         >
           <ChevronUp
@@ -1162,16 +1029,13 @@ function ActualSetlistSongRow({
 
   return (
     <div
-      className={`flex items-center justify-between py-3 px-0 transition-all duration-200 min-h-[44px] ${
+      className={`flex items-center justify-between py-4 px-4 sm:px-0 transition-all duration-150 min-h-[56px] ${
         wasRequested ? "bg-green-500/5" : ""
       }`}
-      style={{
-        borderBottom: "1px solid rgba(255, 255, 255, 0.03)",
-      }}
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <span
-          className={`text-base font-semibold w-6 text-center ${
+          className={`text-sm font-bold w-6 text-center ${
             wasRequested ? "text-green-400" : "text-gray-500"
           }`}
         >
@@ -1179,11 +1043,11 @@ function ActualSetlistSongRow({
         </span>
 
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-base sm:text-lg text-white truncate">
+          <h3 className="font-semibold text-base leading-tight text-white truncate">
             {song.title}
           </h3>
           {song.album && (
-            <p className="text-sm text-gray-400 truncate">{song.album}</p>
+            <p className="text-xs text-gray-400 truncate mt-0.5">{song.album}</p>
           )}
         </div>
       </div>
@@ -1207,76 +1071,3 @@ function ActualSetlistSongRow({
   );
 }
 
-// Individual Song in Shared Setlist with Always-Visible Voting
-function SongVoteRow({
-  setlistId,
-  songTitle,
-  position,
-  user,
-  onSignInRequired,
-}: {
-  setlistId: Id<"setlists">;
-  songTitle: string;
-  position: number;
-  user: any;
-  onSignInRequired: () => void;
-}) {
-  const voteOnSong = useMutation(api.songVotes.voteOnSong);
-  const songVotes = useQuery(api.songVotes.getSongVotes, {
-    setlistId,
-    songTitle,
-  });
-
-  const handleSongVote = async () => {
-    if (!user) {
-      onSignInRequired();
-      return;
-    }
-
-    try {
-      await voteOnSong({
-        setlistId,
-        songTitle,
-        voteType: "upvote",
-      });
-    } catch {
-      toast.error("Failed to vote");
-    }
-  };
-
-  return (
-    <div
-      className="flex items-center justify-between py-3 px-0 hover:bg-white/5 transition-all duration-200 group min-h-[44px]"
-      style={{
-        borderBottom: "1px solid rgba(255, 255, 255, 0.03)",
-      }}
-    >
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <span className="text-xs text-gray-500 w-6 text-right font-medium">
-          {position}
-        </span>
-        <span className="font-medium text-base sm:text-lg text-white truncate">
-          {songTitle}
-        </span>
-      </div>
-
-      {/* Minimal upvote button */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          void handleSongVote();
-        }}
-        className={`flex items-center gap-1.5 px-2 py-1 transition-all duration-200 min-h-[44px] ${
-          songVotes?.userVoted ? "text-primary" : "text-gray-500 hover:text-white"
-        }`}
-      >
-        <ChevronUp
-          className={`h-5 w-5 ${songVotes?.userVoted ? "fill-current" : ""}`}
-        />
-        <span className="font-semibold text-base">
-          {songVotes?.upvotes || 0}
-        </span>
-      </button>
-    </div>
-  );
-}
