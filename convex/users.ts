@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { getAuthUserId } from "./auth";
 
 // Get current user profile
@@ -225,7 +226,10 @@ export const createFromClerk = internalMutation({
   args: { clerkUser: v.any() },
   returns: v.id("users"),
   handler: async (ctx, args) => {
-    return await ctx.runMutation(internal.users.upsertFromClerk, { clerkUser: args.clerkUser });
+    // Break circular type inference by casting `internal` for same-file reference
+    const upsertRef = (internal as any).users.upsertFromClerk as any;
+    const id = await ctx.runMutation(upsertRef, { clerkUser: args.clerkUser });
+    return id;
   },
 });
 
@@ -262,52 +266,7 @@ export const updateFromClerk = internalMutation({
   },
 });
 
-// FIXED: Alias for createFromClerk (which already does upsert logic)
-export const upsertFromClerk = internalMutation({
-  args: { clerkUser: v.any() },
-  returns: v.id("users"),
-  handler: async (ctx, args) => {
-    const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata, external_accounts } = args.clerkUser;
-    const email = email_addresses?.[0]?.email_address || "";
-    const name = [first_name, last_name].filter(Boolean).join(" ") || email || "User";
-    const avatar = image_url;
-    const spotifyAccount = external_accounts?.find((acc: any) => acc.provider === 'oauth_spotify');
-    const spotifyId = spotifyAccount?.provider_user_id || unsafe_metadata?.spotifyId;
-
-    // Check if user already exists
-    const existing = await ctx.db
-      .query("users")
-      .withIndex("by_auth_id", (q) => q.eq("authId", id))
-      .first();
-
-    if (existing) {
-      // Update existing user
-      await ctx.db.patch(existing._id, {
-        email,
-        name,
-        avatar,
-        spotifyId,
-      });
-      return existing._id;
-    } else {
-      // Create new user
-      return await ctx.db.insert("users", {
-        authId: id,
-        email,
-        name,
-        avatar,
-        spotifyId,
-        username: email.split('@')[0] || name.toLowerCase().replace(/\s+/g, ''),
-        role: "user",
-        preferences: {
-          emailNotifications: true,
-          favoriteGenres: [],
-        },
-        createdAt: Date.now(),
-      });
-    }
-  },
-});
+// (Duplicate upsertFromClerk removed to avoid redeclaration)
 
 // FIXED: Add deleteFromClerk mutation for Clerk webhooks
 export const deleteFromClerk = internalMutation({
