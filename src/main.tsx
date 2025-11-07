@@ -52,6 +52,12 @@ if (!convexUrl || !publishableKey) {
         <ClerkProvider 
           publishableKey={publishableKey}
           afterSignOutUrl="/"
+          appearance={{
+            elements: {
+              // Hide CAPTCHA if it's causing issues
+              captcha: 'hidden',
+            },
+          }}
         >
           <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
             <RouterProvider router={router} />

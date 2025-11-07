@@ -176,7 +176,7 @@ export const upsertFromClerk = internalMutation({
   args: { clerkUser: v.any() },
   returns: v.id("users"),
   handler: async (ctx, args) => {
-    const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata, external_accounts } = args.clerkUser;
+    const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata, public_metadata, external_accounts } = args.clerkUser;
     const email = email_addresses?.[0]?.email_address || "";
     const name = [first_name, last_name].filter(Boolean).join(" ") || email || "User";
     const avatar = image_url;
@@ -184,6 +184,7 @@ export const upsertFromClerk = internalMutation({
     // CRITICAL: Extract Spotify ID from external_accounts (Clerk webhook payload)
     const spotifyAccount = external_accounts?.find((acc: any) => acc.provider === 'oauth_spotify');
     const spotifyId = spotifyAccount?.provider_user_id || unsafe_metadata?.spotifyId;
+    const role = (public_metadata?.role || unsafe_metadata?.role) === "admin" ? "admin" : "user";
 
     console.log('🔵 Clerk webhook: upsertFromClerk', {
       clerkId: id,
@@ -207,12 +208,24 @@ export const upsertFromClerk = internalMutation({
         username: email.split('@')[0] || name.toLowerCase().replace(/\s+/g, ''),
         avatar,
         spotifyId,
-        role: "user" as const,
+        role,
+        preferences: {
+          emailNotifications: true,
+          favoriteGenres: [],
+        },
         createdAt: Date.now(),
       });
       console.log('✅ User created from webhook:', userId);
     } else {
-      await ctx.db.patch(user._id, { email, name, avatar, spotifyId });
+      // CRITICAL: Preserve preferences when updating, only update if they don't exist
+      const updateData: any = { email, name, avatar, spotifyId, role };
+      if (!user.preferences) {
+        updateData.preferences = {
+          emailNotifications: true,
+          favoriteGenres: [],
+        };
+      }
+      await ctx.db.patch(user._id, updateData);
       userId = user._id;
       console.log('✅ User updated from webhook:', userId);
     }
@@ -237,7 +250,7 @@ export const updateFromClerk = internalMutation({
   args: { clerkUser: v.any() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata, external_accounts } = args.clerkUser;
+    const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata, public_metadata, external_accounts } = args.clerkUser;
     const email = email_addresses?.[0]?.email_address;
     const name = [first_name, last_name].filter(Boolean).join(" ") || email;
     const avatar = image_url;
@@ -245,6 +258,7 @@ export const updateFromClerk = internalMutation({
     // CRITICAL: Extract Spotify ID from external_accounts (Clerk webhook payload)
     const spotifyAccount = external_accounts?.find((acc: any) => acc.provider === 'oauth_spotify');
     const spotifyId = spotifyAccount?.provider_user_id || unsafe_metadata?.spotifyId;
+    const role = (public_metadata?.role || unsafe_metadata?.role) === "admin" ? "admin" : "user";
 
     console.log('🔵 Clerk webhook: updateFromClerk', {
       clerkId: id,
@@ -259,7 +273,7 @@ export const updateFromClerk = internalMutation({
       .first();
 
     if (user) {
-      await ctx.db.patch(user._id, { email, name, avatar, spotifyId });
+      await ctx.db.patch(user._id, { email, name, avatar, spotifyId, role });
       console.log('✅ User updated from webhook:', user._id);
     }
     return null;

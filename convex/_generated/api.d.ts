@@ -33,6 +33,7 @@ import type * as maintenance from "../maintenance.js";
 import type * as massivenessFilter from "../massivenessFilter.js";
 import type * as media from "../media.js";
 import type * as migrations_20240929_add_shows_fields from "../migrations/20240929_add_shows_fields.js";
+import type * as migrations_fixUserFieldsMismatch from "../migrations/fixUserFieldsMismatch.js";
 import type * as setlistfm from "../setlistfm.js";
 import type * as setlists from "../setlists.js";
 import type * as shows from "../shows.js";
@@ -81,6 +82,7 @@ declare const fullApi: ApiFromModules<{
   massivenessFilter: typeof massivenessFilter;
   media: typeof media;
   "migrations/20240929_add_shows_fields": typeof migrations_20240929_add_shows_fields;
+  "migrations/fixUserFieldsMismatch": typeof migrations_fixUserFieldsMismatch;
   setlistfm: typeof setlistfm;
   setlists: typeof setlists;
   shows: typeof shows;

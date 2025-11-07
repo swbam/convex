@@ -15,6 +15,34 @@ const sanitizeUsername = (value: string) =>
 const extractString = (value: unknown) =>
   typeof value === "string" && value.trim().length > 0 ? value : undefined;
 
+// Helper to extract Spotify ID from Clerk identity
+function extractSpotifyId(identity: any): string | undefined {
+  // Check various places Spotify ID might be stored
+  if (identity?.spotifyId) return String(identity.spotifyId);
+  if (identity?.externalAccounts) {
+    const spotifyAccount = identity.externalAccounts.find((acc: any) => 
+      acc.provider === 'spotify' || acc.provider === 'oauth_spotify'
+    );
+    if (spotifyAccount?.providerAccountId || spotifyAccount?.provider_user_id) {
+      return String(spotifyAccount.providerAccountId || spotifyAccount.provider_user_id);
+    }
+  }
+  if (identity?.unsafeMetadata?.spotifyId) return String(identity.unsafeMetadata.spotifyId);
+  if (identity?.publicMetadata?.spotifyId) return String(identity.publicMetadata.spotifyId);
+  return undefined;
+}
+
+function extractRoleFromIdentity(identity: any): "user" | "admin" {
+  // Preferred: role claim from JWT template (maps Clerk public_metadata.role)
+  const roleClaim = (identity && (identity as any).role) as string | undefined;
+  const publicMetaRole =
+    (identity && (identity as any).publicMetadata?.role) as string | undefined;
+  const unsafeMetaRole =
+    (identity && (identity as any).unsafeMetadata?.role) as string | undefined;
+  const role = roleClaim || publicMetaRole || unsafeMetaRole || "user";
+  return role === "admin" ? "admin" : "user";
+}
+
 async function generateUniqueUsername(ctx: MutationCtx, seed: string | null | undefined) {
   const base = sanitizeUsername(seed ?? "");
   const fallbackBase = base.length > 0 ? base : "user";
@@ -106,10 +134,11 @@ export const createAppUser = mutation({
     const username = await generateUniqueUsername(ctx, usernameSeed || extractString(identity.subject) || "user");
 
     // Create app user
+    const role = extractRoleFromIdentity(identity);
     return await ctx.db.insert("users", {
       authId: identity.subject,
       username,
-      role: "user",
+      role,
       preferences: {
         emailNotifications: true,
         favoriteGenres: [],
@@ -133,7 +162,37 @@ export const ensureUserExists = mutation({
       .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
       .first();
 
-    if (existing) return existing._id;
+    if (existing) {
+      // CRITICAL: Keep user data in sync with Clerk
+      const desiredRole = extractRoleFromIdentity(identity);
+      const avatar = extractString(identity.pictureUrl) || extractString(identity.imageUrl);
+      const spotifyId = extractSpotifyId(identity);
+      const email = extractString(identity.email) || existing.email;
+      const name = extractString(identity.name) || existing.name;
+      
+      // Update fields that may have changed in Clerk
+      const updates: any = {};
+      if (desiredRole !== existing.role) updates.role = desiredRole;
+      if (avatar && avatar !== existing.avatar) updates.avatar = avatar;
+      if (spotifyId && spotifyId !== existing.spotifyId) updates.spotifyId = spotifyId;
+      if (email !== existing.email) updates.email = email;
+      if (name !== existing.name) updates.name = name;
+      
+      // Ensure preferences exist
+      if (!existing.preferences) {
+        updates.preferences = {
+          emailNotifications: true,
+          favoriteGenres: [],
+        };
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        await ctx.db.patch(existing._id, updates);
+        console.log('✅ User synced from Clerk:', existing._id, updates);
+      }
+      
+      return existing._id;
+    }
     
     // Extract email and name from Clerk identity
     const email = extractString(identity.email) || "";
@@ -145,12 +204,19 @@ export const ensureUserExists = mutation({
       (email ? email.split("@")[0] : null);
     const username = await generateUniqueUsername(ctx, usernameSeed || name);
     
+    // CRITICAL: Extract avatar and spotifyId from identity
+    const avatar = extractString(identity.pictureUrl) || extractString(identity.imageUrl);
+    const spotifyId = extractSpotifyId(identity);
+    
+    const role = extractRoleFromIdentity(identity);
     return await ctx.db.insert("users", {
       authId: identity.subject,
       email,
       name,
       username,
-      role: "user",
+      avatar,
+      spotifyId,
+      role,
       preferences: {
         emailNotifications: true,
         favoriteGenres: [],
