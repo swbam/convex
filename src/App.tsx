@@ -397,14 +397,14 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white overflow-x-hidden">
       {/* Backend error monitoring - sends Convex errors to Sentry */}
       <BackendErrorMonitor />
       
       {/* Premium monochrome gradient background */}
       <div className="fixed inset-0 bg-gradient-to-br from-black via-gray-950 to-black" />
       
-      <div className="relative z-10">
+      <div className="relative z-10 overflow-x-hidden w-full">
         <ErrorBoundary
           fallback={
             <div className="min-h-screen bg-black flex items-center justify-center p-4">

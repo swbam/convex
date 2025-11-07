@@ -328,7 +328,7 @@ export function ShowDetail({
         <SEOHead />
 
         {/* Hero Header - Full Width and Consistent with Artist page */}
-        <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2 overflow-hidden bg-black min-h-[320px] sm:min-h-[420px]">
+        <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2 overflow-hidden bg-black min-h-[320px] sm:min-h-[420px] max-w-[100vw]">
           {heroImage && (
             <div className="absolute inset-0 z-0">
               <img src={heroImage} alt="" className="w-full h-full object-cover opacity-40" />

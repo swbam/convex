@@ -43,7 +43,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, [location.pathname])
 
   return (
-    <div className="flex min-h-dvh bg-transparent text-foreground supports-[overflow:clip]:overflow-clip overflow-x-hidden relative">
+    <div className="flex min-h-dvh bg-transparent text-foreground supports-[overflow:clip]:overflow-clip overflow-x-hidden relative max-w-[100vw]">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
