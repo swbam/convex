@@ -25,13 +25,12 @@ export function Card({
   footer, 
   ...props 
 }: CardProps) {
-  const baseClasses = "relative overflow-hidden touch-manipulation bg-black rounded-lg border border-white/10 flex flex-row md:flex-col w-full";
+  const baseClasses = "relative overflow-hidden touch-manipulation bg-black rounded-none sm:rounded-lg border-0 border-t border-b border-white/5 sm:border sm:border-white/10 flex flex-row sm:flex-col w-full active:bg-white/5 sm:hover:bg-white/5 transition-all duration-150 cursor-pointer active:scale-[0.99]";
 
-  const imageClasses = "h-20 w-20 object-cover md:h-32 md:w-full flex-shrink-0";
-  const contentClasses = "p-3 flex-1 space-y-1 md:p-4 md:space-y-2";
-  const titleClasses = "text-white font-semibold text-sm md:text-base leading-tight line-clamp-1";
-  const subtitleClasses = "text-gray-400 text-xs line-clamp-1 md:text-sm";
-  const textClasses = "text-xs md:text-sm text-gray-400";
+  const imageClasses = "h-16 w-16 object-cover sm:h-32 sm:w-full flex-shrink-0 rounded-lg sm:rounded-none";
+  const contentClasses = "px-4 py-3 flex-1 space-y-1 sm:p-4 sm:space-y-2";
+  const titleClasses = "text-white font-bold text-base sm:text-base leading-tight line-clamp-1";
+  const subtitleClasses = "text-gray-400 text-sm line-clamp-1 sm:text-sm";
 
   return (
     <motion.div
@@ -39,7 +38,7 @@ export function Card({
       className={cn(baseClasses, className)}
       onClick={onClick}
       style={{
-        minHeight: '80px', // Compact on mobile
+        minHeight: '72px', // 72px for premium feel on mobile
       }}
     >
       {imageSrc && (

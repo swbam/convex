@@ -92,10 +92,10 @@ export function Shows({ onShowClick }: ShowsProps) {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-8 relative z-10">
+    <div className="space-y-0 sm:space-y-8 relative z-10">
       {/* Clean Apple-Style Shows Header */}
-      <MagicCard className="relative overflow-hidden rounded-xl p-0 border-0 bg-black">
-        <div className="relative z-10 p-3 sm:p-4">
+      <MagicCard className="relative overflow-hidden rounded-none sm:rounded-xl p-0 border-0 border-t border-b border-white/5 sm:border bg-black">
+        <div className="relative z-10 px-4 py-4 sm:p-4">
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/10 rounded-xl flex items-center justify-center">
               <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
@@ -109,8 +109,8 @@ export function Shows({ onShowClick }: ShowsProps) {
       </MagicCard>
 
       {/* Simple Zip Code Search */}
-      <MagicCard className="p-0 rounded-xl border-0 bg-black">
-        <div className="p-3 sm:p-4">
+      <MagicCard className="p-0 rounded-none sm:rounded-xl border-0 border-t border-b border-white/5 sm:border bg-black">
+        <div className="px-4 py-4 sm:p-4">
           <div className="max-w-md">
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -130,8 +130,8 @@ export function Shows({ onShowClick }: ShowsProps) {
       </MagicCard>
 
       {/* Results */}
-      <MagicCard className="p-0 rounded-2xl border-0 bg-black">
-        <div className="p-4 sm:p-6">
+      <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border bg-black">
+        <div className="px-0 py-4 sm:p-6">
         {isLoading ? (
           // Loading state
           <div className="space-y-4">
@@ -184,13 +184,13 @@ export function Shows({ onShowClick }: ShowsProps) {
               )}
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6">
+            <div className="divide-y divide-white/5 sm:divide-y-0 sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 sm:gap-4 sm:gap-6">
               {paginatedShows.map((show) => (
                 <ShowCard
                   key={show._id}
                   show={show}
                   onClick={handleShowClick}
-                  compact={false}
+                  compact={true}
                 />
               ))}
             </div>

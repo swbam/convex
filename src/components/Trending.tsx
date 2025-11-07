@@ -107,10 +107,10 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
   };
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 relative z-10">
+    <div className="container mx-auto px-0 sm:px-6 py-0 sm:py-8 space-y-0 sm:space-y-6 relative z-10">
       {/* Header */}
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-white/10 bg-black">
-        <div className="relative z-10 p-4 sm:p-6 lg:p-8">
+      <MagicCard className="relative overflow-hidden rounded-none sm:rounded-2xl p-0 border-0 border-t border-b border-white/5 sm:border sm:border-white/10 bg-black">
+        <div className="relative z-10 px-4 py-4 sm:p-6 lg:p-8">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
               <TrendingUp className="h-6 w-6 text-white" />
@@ -161,8 +161,8 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2">
-          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
-            <div className="p-4 sm:p-6">
+          <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border sm:border-white/10 bg-black">
+            <div className="px-0 py-4 sm:p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
                   <TrendingUp className="h-5 w-5 text-white" />
@@ -174,7 +174,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
 
               {activeTab === 'artists' && (
                 // Artists Tab
-                <div className="space-y-3">
+                <div className="divide-y divide-white/5 -mx-0 sm:mx-0 sm:divide-y-0 sm:space-y-3">
                   {!trendingArtists ? (
                     // Loading state
                     [...Array(10)].map((_, i) => (
@@ -223,7 +223,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
 
               {activeTab === 'shows' && (
                 // Shows Tab
-                <div className="space-y-3">
+                <div className="divide-y divide-white/5 -mx-0 sm:mx-0 sm:divide-y-0 sm:space-y-3">
                   {!trendingShows ? (
                     // Loading state
                     [...Array(10)].map((_, i) => (
@@ -278,7 +278,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
               
               {activeTab === 'setlists' && (
                 // Setlists Tab
-                <div className="space-y-3">
+                <div className="divide-y divide-white/5 -mx-0 sm:mx-0 sm:divide-y-0 sm:space-y-3">
                   {!trendingSetlists ? (
                     [...Array(10)].map((_, i) => (
                       <div key={i} className="animate-pulse">

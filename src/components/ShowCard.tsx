@@ -46,20 +46,16 @@ function ShowCardComponent({
     return (
       <motion.div
         onClick={handleClick}
-        className="group cursor-pointer relative overflow-hidden touch-manipulation bg-black rounded-md p-3"
-        style={{
-          borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-        }}
+        className="group cursor-pointer relative overflow-hidden touch-manipulation bg-black px-4 py-4 border-b border-white/5 active:bg-white/10 transition-all duration-150 active:scale-[0.98] min-h-[56px] flex items-center"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between w-full">
           <div className="flex-1 min-w-0">
-            <p className="text-white font-semibold text-sm line-clamp-1">{show.artist?.name}</p>
-            <p className="text-gray-400 text-xs">{formatDate(show.date)}</p>
+            <p className="text-white font-bold text-base leading-tight line-clamp-1">{show.artist?.name}</p>
+            <p className="text-gray-400 text-sm mt-0.5">{formatDate(show.date)}</p>
           </div>
           {show.venue && (
-            <div className="ml-3 text-right">
-              <p className="text-gray-400 text-xs">{show.venue.name}</p>
+            <div className="ml-3 text-right flex-shrink-0">
+              <p className="text-gray-300 text-sm font-medium">{show.venue.name}</p>
               <p className="text-muted-foreground text-xs">{show.venue.city}</p>
             </div>
           )}
@@ -72,8 +68,9 @@ function ShowCardComponent({
     <motion.div
       onClick={handleClick}
       whileHover={{ scale: 1.02, y: -4 }}
-      transition={{ duration: 0.2 }}
-      className="group relative overflow-hidden rounded-xl bg-card shadow-apple hover:shadow-apple-hover cursor-pointer transform-gpu will-change-transform"
+      whileTap={{ scale: 0.98 }}
+      transition={{ duration: 0.15 }}
+      className="group relative overflow-hidden rounded-xl bg-card shadow-apple hover:shadow-apple-hover cursor-pointer transform-gpu will-change-transform min-h-[200px]"
     >
       {/* Image */}
       {showArtist && show.artist?.images?.[0] && (
