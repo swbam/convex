@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as activity from "../activity.js";
 import type * as admin_errorMonitoring from "../admin/errorMonitoring.js";
+import type * as admin_sentryForward from "../admin/sentryForward.js";
 import type * as admin from "../admin.js";
 import type * as artistSongs from "../artistSongs.js";
 import type * as artistSync from "../artistSync.js";
@@ -66,6 +67,7 @@ import type * as webhooks from "../webhooks.js";
 declare const fullApi: ApiFromModules<{
   activity: typeof activity;
   "admin/errorMonitoring": typeof admin_errorMonitoring;
+  "admin/sentryForward": typeof admin_sentryForward;
   admin: typeof admin;
   artistSongs: typeof artistSongs;
   artistSync: typeof artistSync;

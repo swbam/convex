@@ -39,17 +39,9 @@ export const submitVote = mutation({
         songVotes: args.songVotes,
         createdAt: Date.now(),
       });
-      
-      // CRITICAL FIX: Update show voteCount when new vote is created
-      const setlist = await ctx.db.get(args.setlistId);
-      if (setlist && setlist.showId) {
-        const show = await ctx.db.get(setlist.showId);
-        if (show) {
-          await ctx.db.patch(setlist.showId, {
-            voteCount: (show.voteCount || 0) + 1,
-          });
-        }
-      }
+
+      // NOTE: Do not increment show.voteCount here.
+      // voteCount is derived by trending.updateEngagementCounts to avoid drift.
     }
 
     return { success: true };

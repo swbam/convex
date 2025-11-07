@@ -123,12 +123,22 @@ export const processSetlistImportQueue = internalAction({
     const maxJobs = args.maxJobs || 5;
     console.log(`Processing up to ${maxJobs} setlist import jobs...`);
 
-    // Get pending jobs
-    const pendingJobs = await ctx.runQuery(internal.syncJobs.getPendingJobs, {});
+    // Single-runner lock to prevent overlapping processors
+    const lockName = "setlist_import_queue";
+    const STALE_MS = 10 * 60 * 1000; // 10 minutes
+    const acquired = await ctx.runMutation(internal.maintenance.acquireLock as any, { name: lockName, staleMs: STALE_MS });
+    if (!acquired) {
+      console.warn("⏳ Setlist import queue is already being processed; skipping this run");
+      return null;
+    }
 
-    let processed = 0;
-    for (const job of pendingJobs) {
-      try {
+    try {
+      // Get pending jobs
+      const pendingJobs = await ctx.runQuery(internal.syncJobs.getPendingJobs, {});
+
+      let processed = 0;
+      for (const job of pendingJobs) {
+        try {
         // Mark as running
         await ctx.runMutation(internal.syncJobs.updateJobStatus, {
           jobId: job._id,
@@ -212,21 +222,24 @@ export const processSetlistImportQueue = internalAction({
           }
         }
 
-        processed++;
-      } catch (error) {
-        console.error(`Error processing job ${job._id}:`, error);
-        await ctx.runMutation(internal.syncJobs.updateJobStatus, {
-          jobId: job._id,
-          status: "failed",
-          errorMessage: error instanceof Error ? error.message : "Unknown error",
-          progress: 0,
-        });
-        processed++;
+          processed++;
+        } catch (error) {
+          console.error(`Error processing job ${job._id}:`, error);
+          await ctx.runMutation(internal.syncJobs.updateJobStatus, {
+            jobId: job._id,
+            status: "failed",
+            errorMessage: error instanceof Error ? error.message : "Unknown error",
+            progress: 0,
+          });
+          processed++;
+        }
       }
-    }
 
-    console.log(`Processed ${processed} setlist import jobs`);
-    return null;
+      console.log(`Processed ${processed} setlist import jobs`);
+      return null;
+    } finally {
+      await ctx.runMutation(internal.maintenance.releaseLock as any, { name: lockName });
+    }
   },
 });
 

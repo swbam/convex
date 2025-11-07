@@ -56,14 +56,39 @@ export const syncActualSetlist = internalAction({
 
       console.log(`🔍 Searching setlist.fm: ${artist.name} @ ${venue.city} on ${setlistfmDate}`);
 
-      const apiResponse = await fetch(searchUrl, {
-        headers: {
-          'x-api-key': apiKey,
-          'Accept': 'application/json',
-          'User-Agent': 'setlists.live/1.0'
+      // Exponential backoff with jitter for 429/5xx
+      const fetchWithRetry = async (url: string, maxAttempts = 4) => {
+        let attempt = 0;
+        let delay = 1000; // 1s
+        while (attempt < maxAttempts) {
+          const response = await fetch(url, {
+            headers: {
+              'x-api-key': apiKey,
+              'Accept': 'application/json',
+              'User-Agent': 'setlists.live/1.0'
+            }
+          });
+          if (response.ok) return response;
+          if (response.status === 429 || response.status >= 500) {
+            attempt += 1;
+            if (attempt >= maxAttempts) return response;
+            const jitter = Math.floor(Math.random() * 250);
+            await new Promise(r => setTimeout(r, delay + jitter));
+            delay *= 2; // backoff
+            continue;
+          }
+          return response;
         }
-      });
+        return await fetch(url, {
+          headers: {
+            'x-api-key': apiKey,
+            'Accept': 'application/json',
+            'User-Agent': 'setlists.live/1.0'
+          }
+        });
+      };
 
+      const apiResponse = await fetchWithRetry(searchUrl);
       if (!apiResponse.ok) {
         const errorMsg = `Setlist.fm API error: ${apiResponse.status}`;
         console.error(`❌ ${errorMsg}`);

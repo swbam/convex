@@ -68,6 +68,14 @@ export const triggerFullArtistSync = action({
   handler: async (ctx, args): Promise<Id<"artists">> => {
     console.log(`🚀 Starting optimized sync for artist: ${args.artistName}`);
 
+    // Centralized scheduler delays for progressive phases
+    const SCHEDULER_DELAYS = {
+      shows: 0,
+      catalog: 3000,
+      basics: 6000,
+      counts: 10000,
+    } as const;
+
     // Phase 1: Create basic artist (FAST - < 1 second)
     const artistId: Id<"artists"> = await ctx.runMutation(internal.artists.createFromTicketmaster, {
       ticketmasterId: args.ticketmasterId,
@@ -85,26 +93,26 @@ export const triggerFullArtistSync = action({
     // Background imports scheduled below (non-blocking)
     
     // Priority 1: Shows (user sees these first) - starts immediately
-    void ctx.scheduler.runAfter(0, internal.ticketmaster.syncArtistShowsWithTracking, {
+    void ctx.scheduler.runAfter(SCHEDULER_DELAYS.shows, internal.ticketmaster.syncArtistShowsWithTracking, {
       artistId,
       ticketmasterId: args.ticketmasterId,
       artistName: args.artistName,
     });
     
     // Priority 2: Catalog (for setlist generation) - starts after 3 seconds
-    void ctx.scheduler.runAfter(3000, internal.ticketmaster.syncArtistCatalogWithTracking, {
+    void ctx.scheduler.runAfter(SCHEDULER_DELAYS.catalog, internal.ticketmaster.syncArtistCatalogWithTracking, {
       artistId,
       artistName: args.artistName,
     });
     
     // Priority 3: Metadata enrichment (nice to have) - starts after 6 seconds
-    void ctx.scheduler.runAfter(6000, internal.ticketmaster.enrichArtistBasicsWithTracking, {
+    void ctx.scheduler.runAfter(SCHEDULER_DELAYS.basics, internal.ticketmaster.enrichArtistBasicsWithTracking, {
       artistId,
       artistName: args.artistName,
     });
     
     // Priority 4: Update counts (after everything else) - starts after 10 seconds
-    void ctx.scheduler.runAfter(10000, internal.maintenance.updateArtistCounts, { artistId });
+    void ctx.scheduler.runAfter(SCHEDULER_DELAYS.counts, internal.maintenance.updateArtistCounts, { artistId });
 
     console.log(`✅ Artist ${artistId} created, background sync scheduled`);
     return artistId; // Returns in < 1 second!

@@ -19,6 +19,10 @@ export const syncTrendingData = internalAction({
     }
     
     try {
+      // Step 0: Ensure engagement counts are up-to-date before ranking
+      await ctx.runMutation(internal.trending.updateEngagementCounts, {});
+      console.log("✅ Engagement counts updated");
+
       // Step 1: Update artist show counts (cached)
       await ctx.runMutation(internal.trending.updateArtistShowCounts, {});
       console.log("✅ Updated artist show counts");

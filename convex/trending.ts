@@ -712,23 +712,35 @@ export const updateEngagementCounts = internalMutation({
     
     // Update setlistCount: count setlists per show
     const setlists = await ctx.db.query("setlists").collect();
-    const setlistCounts = new Map();
+    const setlistCounts = new Map<string, number>();
+    const setlistIdToShowId = new Map<string, string>();
     for (const setlist of setlists) {
       if (setlist.showId) {
-        setlistCounts.set(setlist.showId.toString(), (setlistCounts.get(setlist.showId.toString()) || 0) + 1);
+        const showKey = setlist.showId.toString();
+        setlistCounts.set(showKey, (setlistCounts.get(showKey) || 0) + 1);
+        setlistIdToShowId.set((setlist as any)._id.toString(), showKey);
       }
     }
-    
-    // Update voteCount: count votes per show via setlists
+
+    // Update voteCount: count votes per show via cached setlist->show mapping
     const votes = await ctx.db.query("votes").collect();
-    const voteCounts = new Map();
+    const voteCounts = new Map<string, number>();
+    // Cache for setlists not in the initial setlist query (defensive)
+    const setlistCache = new Map<string, string | null>();
     for (const vote of votes) {
-      if (vote.setlistId) {
-        // Get showId from setlist
-        const setlist = await ctx.db.get(vote.setlistId);
-        if (setlist && setlist.showId) {
-          voteCounts.set(setlist.showId.toString(), (voteCounts.get(setlist.showId.toString()) || 0) + 1);
+      if (!vote.setlistId) continue;
+      const setlistKey = vote.setlistId.toString();
+      let showKey = setlistIdToShowId.get(setlistKey);
+      if (!showKey) {
+        // Fallback: fetch once and memoize
+        if (!setlistCache.has(setlistKey)) {
+          const s = await ctx.db.get(vote.setlistId);
+          setlistCache.set(setlistKey, s?.showId ? s.showId.toString() : null);
         }
+        showKey = setlistCache.get(setlistKey) || undefined;
+      }
+      if (showKey) {
+        voteCounts.set(showKey, (voteCounts.get(showKey) || 0) + 1);
       }
     }
     

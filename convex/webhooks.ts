@@ -12,23 +12,59 @@ export const handleClerkWebhook = internalAction({
     svixId: v.optional(v.string()),
     svixTimestamp: v.optional(v.string()),
     svixSignature: v.optional(v.string()),
+    rawBody: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
-    // WEBHOOK VERIFICATION
-    // Note: In production, you should verify webhooks using Svix
-    // For now, we check if the secret exists but allow processing to continue
-    if (!WEBHOOK_SECRET) {
-      console.warn('⚠️ CLERK_WEBHOOK_SECRET not configured - skipping verification');
-    } else {
-      // Verification would happen here with Svix library
-      // Currently allowing through for development
-      console.log('✅ Webhook secret configured, processing event...');
+    // Enforce Svix verification in production; allow best-effort in dev
+    const isProd = process.env.NODE_ENV === 'production';
+    try {
+      if (!WEBHOOK_SECRET) {
+        const msg = 'CLERK_WEBHOOK_SECRET not configured';
+        if (isProd) {
+          console.error(`❌ ${msg}`);
+          throw new Error('UNAUTHORIZED');
+        } else {
+          console.warn(`⚠️ ${msg} - skipping verification in development`);
+        }
+      } else {
+        // Require headers and raw body for verification
+        const { svixId, svixTimestamp, svixSignature, rawBody } = args;
+        if (!svixId || !svixTimestamp || !svixSignature || !rawBody) {
+          const msg = 'Missing Svix headers or raw body for verification';
+          if (isProd) {
+            console.error(`❌ ${msg}`);
+            throw new Error('UNAUTHORIZED');
+          } else {
+            console.warn(`⚠️ ${msg} - skipping verification in development`);
+          }
+        } else {
+          const wh = new Webhook(WEBHOOK_SECRET);
+          try {
+            wh.verify(rawBody, {
+              'svix-id': svixId,
+              'svix-timestamp': svixTimestamp,
+              'svix-signature': svixSignature,
+            } as Record<string, string>);
+            console.log('✅ Webhook signature verified');
+          } catch (e) {
+            if (isProd) {
+              console.error('❌ Webhook signature verification failed');
+              throw new Error('UNAUTHORIZED');
+            } else {
+              console.warn('⚠️ Webhook signature verification failed - continuing in development', e);
+            }
+          }
+        }
+      }
+    } catch (verificationError) {
+      // Surface as UNAUTHORIZED to HTTP layer
+      throw verificationError;
     }
     
-    const event = args.event;
+    const event = args.event as WebhookEvent;
     console.log('🔵 Processing Clerk webhook:', event.type);
 
     switch (event.type) {

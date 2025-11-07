@@ -6,6 +6,7 @@ const crons = cronJobs();
 // Production-optimized cron frequencies for scalability and API rate limits
 
 // Trending updates: Every 4 hours (balanced between freshness and API limits)
+// NOTE: syncTrendingData internally updates engagement counts before ranking
 crons.interval("update-trending", { hours: 4 }, internal.maintenance.syncTrendingData, {});
 
 // Completed shows check: Every 2 hours (sufficient for post-concert setlist availability)

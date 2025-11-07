@@ -27,8 +27,13 @@ const decryptToken = (token?: string | null) => {
   if (!token) return undefined;
   try {
     if (!ENCRYPTION_SECRET) {
-      console.warn("SPOTIFY_TOKEN_ENC_KEY is not set; returning stored token as-is.");
-      return token;
+      if (process.env.NODE_ENV === 'production') {
+        console.error("SPOTIFY_TOKEN_ENC_KEY missing in production; cannot decrypt token.");
+        throw new Error("ENCRYPTION_KEY_MISSING");
+      } else {
+        console.warn("SPOTIFY_TOKEN_ENC_KEY is not set; returning stored token as-is (development only).");
+        return token;
+      }
     }
 
     const [ivB64, authTagB64, payloadB64] = token.split(":");

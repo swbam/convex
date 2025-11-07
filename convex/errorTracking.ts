@@ -47,6 +47,23 @@ export const logError = internalMutation({
       args.context ? JSON.stringify(args.context, null, 2) : ""
     );
 
+    // Forward to Sentry when DSN configured (best-effort, non-blocking)
+    try {
+      if (process.env.SENTRY_DSN) {
+        const res = await ctx.runAction((internal as any).admin.sentryForward.forward, {
+          operation: args.operation,
+          error: args.error,
+          context: args.context,
+          severity: args.severity || "error",
+        });
+        if (res && (res as any).success) {
+          await ctx.db.patch(errorId, { sentToSentry: true });
+        }
+      }
+    } catch (e) {
+      // Swallow Sentry forwarding errors
+    }
+
     return errorId;
   },
 });
