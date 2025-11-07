@@ -140,6 +140,11 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   const upcomingShows = shows?.filter(show => show.status === "upcoming") || [];
   const recentShows = shows?.filter(show => show.status === "completed") || [];
 
+  // Progressive loading states
+  const isImportingShows = artist && !artist.syncStatus?.showsImported && artist.syncStatus?.phase === "shows";
+  const isImportingCatalog = artist?.syncStatus?.phase === "catalog";
+  const hasImportError = artist?.syncStatus?.error;
+
   return (
     <>
       <SEOHead />
@@ -149,8 +154,8 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       >
-        {/* Hero Header - Truly Full Width */}
-        <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2 overflow-hidden bg-black min-h-[300px] sm:min-h-[380px]">
+        {/* Hero Header - Full Width and Consistent with Show page */}
+        <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2 overflow-hidden bg-black min-h-[320px] sm:min-h-[420px]">
           {heroImage && (
             <div className="absolute inset-0 z-0">
               <img src={heroImage} alt="" className="w-full h-full object-cover opacity-40" />
@@ -158,8 +163,8 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
             </div>
           )}
 
-          <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
-            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
+          <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-14">
+            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-6">
               {(avatarImage || heroImage) && (
                 <div className="flex-shrink-0">
                   <a
@@ -259,6 +264,38 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                   </div>
                 ))}
               </div>
+            ) : isImportingShows ? (
+              <FadeIn>
+                <MagicCard className="p-8 rounded-2xl border-0 bg-black">
+                  <div className="flex flex-col items-center justify-center space-y-4">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                    <div className="text-center">
+                      <p className="text-lg font-medium text-white">Fetching Shows</p>
+                      <p className="text-sm text-gray-400 mt-2">
+                        Importing {artist.name}'s tour dates from Ticketmaster...
+                      </p>
+                      <div className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-500">
+                        <span className="animate-pulse">⚡</span>
+                        <span>Usually takes 3-5 seconds</span>
+                      </div>
+                    </div>
+                  </div>
+                  <BorderBeam size={150} duration={8} className="opacity-30" />
+                </MagicCard>
+              </FadeIn>
+            ) : hasImportError ? (
+              <MagicCard className="p-8 rounded-2xl border-0 bg-red-500/10 border border-red-500/20">
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto">
+                    <Music className="h-8 w-8 text-red-400" />
+                  </div>
+                  <p className="text-red-400 font-medium">{hasImportError}</p>
+                  <p className="text-sm text-gray-400">There was an issue importing show data.</p>
+                  <Button onClick={() => window.location.reload()} variant="outline">
+                    Retry Import
+                  </Button>
+                </div>
+              </MagicCard>
             ) : upcomingShows.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />

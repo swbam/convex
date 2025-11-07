@@ -1,6 +1,19 @@
 import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
+// Internal query to count songs for an artist
+export const countByArtist = internalQuery({
+  args: { artistId: v.id("artists") },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const artistSongs = await ctx.db
+      .query("artistSongs")
+      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
+      .collect();
+    return artistSongs.length;
+  },
+});
+
 export const getByArtist = query({
   args: { 
     artistId: v.id("artists"),

@@ -327,20 +327,17 @@ export function ShowDetail({
       >
         <SEOHead />
 
-        {/* Apple-Level Header Design - Full Width Background */}
-        <div className="relative overflow-hidden shadow-apple -mx-4 sm:-mx-6 lg:-mx-8 rounded-none">
-          {/* Full-Width Background Cover Image */}
-              {heroImage && (
+        {/* Hero Header - Full Width and Consistent with Artist page */}
+        <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2 overflow-hidden bg-black min-h-[320px] sm:min-h-[420px]">
+          {heroImage && (
             <div className="absolute inset-0 z-0">
-              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-40 scale-105" />
-              {/* Light Gradient Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/70" />
+              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-40" />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/55 to-black/80" />
             </div>
           )}
 
-          {/* Content - Compact on Mobile, Spacious on Desktop */}
-          <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
-            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
+          <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-14">
+            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-6">
               {/* Profile Image - Smaller on Mobile */}
               {(avatarImage || heroImage) && (
                 <div className="flex-shrink-0">
@@ -455,7 +452,8 @@ export function ShowDetail({
           </div>
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+        <div className="container mx-auto px-4 sm:px-6 pb-4 sm:pb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             
@@ -815,6 +813,7 @@ export function ShowDetail({
               <BorderBeam size={120} duration={10} className="opacity-20" />
             </MagicCard>
           </div>
+        </div>
 
           {/* Sidebar */}
           <div className="space-y-4 sm:space-y-6">

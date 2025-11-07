@@ -55,7 +55,8 @@ export const searchArtists = action({
   },
 });
 
-// Trigger full artist sync when user clicks on search result
+// OPTIMIZED: Non-blocking artist sync with progressive loading
+// Returns artistId immediately, imports run in background
 export const triggerFullArtistSync = action({
   args: {
     ticketmasterId: v.string(),
@@ -65,9 +66,9 @@ export const triggerFullArtistSync = action({
   },
   returns: v.id("artists"),
   handler: async (ctx, args): Promise<Id<"artists">> => {
-    console.log(`🚀 Starting full sync for artist: ${args.artistName}`);
+    console.log(`🚀 Starting optimized sync for artist: ${args.artistName}`);
 
-    // Phase 1: Create basic artist
+    // Phase 1: Create basic artist (FAST - < 1 second)
     const artistId: Id<"artists"> = await ctx.runMutation(internal.artists.createFromTicketmaster, {
       ticketmasterId: args.ticketmasterId,
       name: args.artistName,
@@ -75,39 +76,160 @@ export const triggerFullArtistSync = action({
       images: args.images || [],
     });
 
-    // Phase 2: Import Spotify catalog FIRST so songs exist before shows are created
-    console.log(`🎧 Importing Spotify catalog for ${args.artistName} before creating shows...`);
-    try {
-      await ctx.runAction(internal.spotify.syncArtistCatalog, {
-        artistId,
-        artistName: args.artistName,
-      });
-    } catch (catalogError) {
-      console.warn(`⚠️ Spotify catalog sync failed (will continue): ${catalogError}`);
-    }
-
-    // Phase 3: Sync shows SYNCHRONOUSLY (auto-generate setlists can now use catalog)
-    console.log(`📅 Syncing shows for ${args.artistName}...`);
-    await ctx.runAction(internal.ticketmaster.syncArtistShows, {
+    // Initialize sync status
+    await ctx.runMutation(internal.artistSync.initializeSyncStatus, {
       artistId,
-      ticketmasterId: args.ticketmasterId,
     });
 
-    // Phase 4: Enrich with Spotify basics SYNCHRONOUSLY
-    console.log(`🎵 Enriching with Spotify basics for ${args.artistName}...`);
+    // RETURN IMMEDIATELY - frontend can navigate now!
+    // Background imports scheduled below (non-blocking)
+    
+    // Priority 1: Shows (user sees these first) - starts immediately
+    void ctx.scheduler.runAfter(0, internal.ticketmaster.syncArtistShowsWithTracking, {
+      artistId,
+      ticketmasterId: args.ticketmasterId,
+      artistName: args.artistName,
+    });
+    
+    // Priority 2: Catalog (for setlist generation) - starts after 3 seconds
+    void ctx.scheduler.runAfter(3000, internal.ticketmaster.syncArtistCatalogWithTracking, {
+      artistId,
+      artistName: args.artistName,
+    });
+    
+    // Priority 3: Metadata enrichment (nice to have) - starts after 6 seconds
+    void ctx.scheduler.runAfter(6000, internal.ticketmaster.enrichArtistBasicsWithTracking, {
+      artistId,
+      artistName: args.artistName,
+    });
+    
+    // Priority 4: Update counts (after everything else) - starts after 10 seconds
+    void ctx.scheduler.runAfter(10000, internal.maintenance.updateArtistCounts, { artistId });
+
+    console.log(`✅ Artist ${artistId} created, background sync scheduled`);
+    return artistId; // Returns in < 1 second!
+  },
+});
+
+// Wrapper with status tracking for progressive loading
+export const syncArtistShowsWithTracking = internalAction({
+  args: {
+    artistId: v.id("artists"),
+    ticketmasterId: v.string(),
+    artistName: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
     try {
-      await ctx.runAction(internal.spotify.enrichArtistBasics, {
-        artistId,
+      console.log(`📅 Starting show sync with tracking for ${args.artistName}...`);
+      
+      // Call existing sync logic
+      await ctx.runAction(internal.ticketmaster.syncArtistShows, {
+        artistId: args.artistId,
+        ticketmasterId: args.ticketmasterId,
+      });
+      
+      // Get count of shows imported
+      const showCount = await ctx.runQuery(internal.shows.countByArtist, {
+        artistId: args.artistId,
+      });
+      
+      // Mark shows as imported
+      await ctx.runMutation(internal.artistSync.updateSyncStatus, {
+        artistId: args.artistId,
+        showsImported: true,
+        showCount,
+        phase: "catalog",
+      });
+      
+      console.log(`✅ Shows imported for ${args.artistName}: ${showCount} shows`);
+    } catch (error) {
+      console.error(`❌ Failed to sync shows for ${args.artistName}:`, error);
+      await ctx.runMutation(internal.artistSync.updateSyncStatus, {
+        artistId: args.artistId,
+        error: "Failed to import shows",
+        phase: "error",
+      });
+    }
+    return null;
+  },
+});
+
+// Wrapper for catalog sync with tracking
+export const syncArtistCatalogWithTracking = internalAction({
+  args: {
+    artistId: v.id("artists"),
+    artistName: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    try {
+      console.log(`🎧 Starting catalog sync with tracking for ${args.artistName}...`);
+      
+      await ctx.runAction(internal.spotify.syncArtistCatalog, {
+        artistId: args.artistId,
         artistName: args.artistName,
       });
-    } catch (spotifyError) {
-      console.warn(`⚠️ Spotify basics sync failed: ${spotifyError}`);
+      
+      // Get count of songs imported
+      const songs = await ctx.runQuery(internal.songs.countByArtist, {
+        artistId: args.artistId,
+      });
+      
+      await ctx.runMutation(internal.artistSync.updateSyncStatus, {
+        artistId: args.artistId,
+        catalogImported: true,
+        songCount: songs,
+        phase: "enriching",
+      });
+      
+      console.log(`✅ Catalog imported for ${args.artistName}: ${songs} songs`);
+    } catch (error) {
+      console.error(`❌ Failed to sync catalog for ${args.artistName}:`, error);
+      // Don't mark as error - shows still work without catalog
+      await ctx.runMutation(internal.artistSync.updateSyncStatus, {
+        artistId: args.artistId,
+        catalogImported: false,
+        phase: "enriching", // Continue to next phase
+      });
     }
+    return null;
+  },
+});
 
-    // Schedule background tasks (lightweight follow-ups)
-    void ctx.scheduler.runAfter(3000, internal.maintenance.updateArtistCounts, { artistId });
-
-    return artistId;
+// Wrapper for basics enrichment with tracking
+export const enrichArtistBasicsWithTracking = internalAction({
+  args: {
+    artistId: v.id("artists"),
+    artistName: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    try {
+      console.log(`🎵 Starting basics enrichment with tracking for ${args.artistName}...`);
+      
+      await ctx.runAction(internal.spotify.enrichArtistBasics, {
+        artistId: args.artistId,
+        artistName: args.artistName,
+      });
+      
+      await ctx.runMutation(internal.artistSync.updateSyncStatus, {
+        artistId: args.artistId,
+        basicsEnriched: true,
+        phase: "complete",
+      });
+      
+      console.log(`✅ Basics enriched for ${args.artistName}`);
+    } catch (error) {
+      console.error(`❌ Failed to enrich basics for ${args.artistName}:`, error);
+      // Mark as complete anyway - shows and catalog are the important parts
+      await ctx.runMutation(internal.artistSync.updateSyncStatus, {
+        artistId: args.artistId,
+        basicsEnriched: false,
+        phase: "complete",
+      });
+    }
+    return null;
   },
 });
 

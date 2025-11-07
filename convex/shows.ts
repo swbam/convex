@@ -268,6 +268,19 @@ export const getBySlugOrId = query({
   },
 });
 
+// Internal query to count shows for an artist
+export const countByArtist = internalQuery({
+  args: { artistId: v.id("artists") },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const shows = await ctx.db
+      .query("shows")
+      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
+      .collect();
+    return shows.length;
+  },
+});
+
 export const getByArtist = query({
   args: { 
     artistId: v.id("artists"),

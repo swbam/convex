@@ -17,6 +17,7 @@ import type * as activity from "../activity.js";
 import type * as admin_errorMonitoring from "../admin/errorMonitoring.js";
 import type * as admin from "../admin.js";
 import type * as artistSongs from "../artistSongs.js";
+import type * as artistSync from "../artistSync.js";
 import type * as artists from "../artists.js";
 import type * as auth from "../auth.js";
 import type * as bulkCatalogSync from "../bulkCatalogSync.js";
@@ -66,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   "admin/errorMonitoring": typeof admin_errorMonitoring;
   admin: typeof admin;
   artistSongs: typeof artistSongs;
+  artistSync: typeof artistSync;
   artists: typeof artists;
   auth: typeof auth;
   bulkCatalogSync: typeof bulkCatalogSync;

@@ -46,6 +46,17 @@ const applicationTables = {
     isTopArtist: v.optional(v.boolean()),
     topArtistRank: v.optional(v.number()),
     isFollowed: v.optional(v.boolean()),
+    // Progressive import status tracking
+    syncStatus: v.optional(v.object({
+      showsImported: v.boolean(),
+      catalogImported: v.boolean(),
+      basicsEnriched: v.boolean(),
+      showCount: v.optional(v.number()),
+      songCount: v.optional(v.number()),
+      phase: v.optional(v.string()),
+      error: v.optional(v.string()),
+      lastSync: v.number(),
+    })),
   })
     .index("by_slug", ["slug"])
     .index("by_name", ["name"]) 
