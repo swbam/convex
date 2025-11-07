@@ -155,6 +155,7 @@ export function SignUpPage() {
     console.log('📧 Starting email sign up...');
     
     try {
+      // CRITICAL: Create with CAPTCHA support
       const result = await signUp.create({
         emailAddress: email,
         password,
@@ -330,6 +331,9 @@ export function SignUpPage() {
                       </button>
                     </div>
                   </div>
+
+                  {/* CAPTCHA Widget Container - Required by Clerk */}
+                  <div id="clerk-captcha" className="flex justify-center"></div>
 
                   {/* Submit Button */}
                   <ShimmerButton

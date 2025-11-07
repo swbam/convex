@@ -170,7 +170,8 @@ export const setUserRoleById = internalMutation({
   },
 });
 
-export const createFromClerk = internalMutation({
+// UNIFIED function for Clerk webhook - handles both create and update
+export const upsertFromClerk = internalMutation({
   args: { clerkUser: v.any() },
   returns: v.id("users"),
   handler: async (ctx, args) => {
@@ -183,7 +184,7 @@ export const createFromClerk = internalMutation({
     const spotifyAccount = external_accounts?.find((acc: any) => acc.provider === 'oauth_spotify');
     const spotifyId = spotifyAccount?.provider_user_id || unsafe_metadata?.spotifyId;
 
-    console.log('🔵 Clerk webhook: createFromClerk', {
+    console.log('🔵 Clerk webhook: upsertFromClerk', {
       clerkId: id,
       email,
       hasSpotifyAccount: !!spotifyAccount,
@@ -216,6 +217,15 @@ export const createFromClerk = internalMutation({
     }
 
     return userId;
+  },
+});
+
+// Legacy function - redirects to upsertFromClerk
+export const createFromClerk = internalMutation({
+  args: { clerkUser: v.any() },
+  returns: v.id("users"),
+  handler: async (ctx, args) => {
+    return await ctx.runMutation(internal.users.upsertFromClerk, { clerkUser: args.clerkUser });
   },
 });
 
