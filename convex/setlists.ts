@@ -279,10 +279,10 @@ export const submitVote = mutation({
       vote: v.union(v.literal("correct"), v.literal("incorrect"), v.literal("missing")),
     }))),
   },
-  returns: v.union(v.string(), v.null()),
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     // Delegate to canonical votes.submitVote to avoid duplication
-    const result: string | null = await ctx.runMutation(api.votes.submitVote, args);
+    const result: { success: boolean } = await ctx.runMutation(api.votes.submitVote, args);
     return result;
   },
 });
