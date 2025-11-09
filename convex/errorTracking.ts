@@ -4,6 +4,7 @@
  */
 
 import { internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
 // Export as public mutation for now (can be made internal later with proper API routing)
@@ -47,18 +48,17 @@ export const logError = internalMutation({
       args.context ? JSON.stringify(args.context, null, 2) : ""
     );
 
-    // Forward to Sentry when DSN configured (best-effort, non-blocking)
+    // Forward to Sentry via scheduler (mutations can't call actions directly)
     try {
       if (process.env.SENTRY_DSN) {
-        const res = await ctx.runAction((internal as any).admin.sentryForward.forward, {
+        void ctx.scheduler.runAfter(0, internal.admin.sentryForward.forward, {
           operation: args.operation,
           error: args.error,
           context: args.context,
           severity: args.severity || "error",
         });
-        if (res && (res as any).success) {
-          await ctx.db.patch(errorId, { sentToSentry: true });
-        }
+        // Mark as sent to Sentry (scheduler will handle delivery)
+        await ctx.db.patch(errorId, { sentToSentry: true });
       }
     } catch (e) {
       // Swallow Sentry forwarding errors

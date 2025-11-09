@@ -271,6 +271,31 @@ export const createFromTicketmaster = internalMutation({
   },
   handler: async (ctx, args) => {
     const lowerName = args.name.toLowerCase();
+    
+    // CRITICAL: Filter out non-musical artists (festivals, theater, plays)
+    const skipKeywords = [
+      'festival',
+      'coachella',
+      'lollapalooza',
+      'bonnaroo',
+      'rocky horror',
+      'theatre',
+      'theater',
+      'broadway',
+      'grease',
+      'phantom',
+      'wicked',
+      'hamilton',
+      'lions king',
+      'in concert', // Excludes "Movie in Concert" type shows
+      'live in concert',
+      'symphony orchestra', // Excludes orchestras playing movie scores
+    ];
+    
+    if (skipKeywords.some(keyword => lowerName.includes(keyword))) {
+      console.log(`⏭️ Skipping non-musical artist: ${args.name} (festival/theatrical/orchestra)`);
+      throw new Error(`Not a musical artist: ${args.name}`);
+    }
     // Check existing by name or TM ID
     let existing = await ctx.db
       .query("artists")

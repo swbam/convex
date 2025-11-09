@@ -8,13 +8,27 @@ import { BorderBeam } from "./ui/border-beam";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { ShimmerButton } from "./ui/shimmer-button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
-import { Activity, TrendingUp, Users, Music, Calendar, Flag, Database, Mic, CheckCircle, AlertCircle, Loader2, Shield, Lock, Search, Trash2, RefreshCw, UserCheck } from "lucide-react";
+import { Activity, TrendingUp, Users, Music, Calendar, Flag, Database, Mic, CheckCircle, AlertCircle, Loader2, Shield, Lock, Search, Trash2, RefreshCw, UserCheck, BarChart3, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+  SidebarHeader,
+  SidebarFooter,
+} from "./ui/sidebar";
 
 export function AdminDashboard() {
   const navigate = useNavigate();
@@ -36,6 +50,9 @@ export function AdminDashboard() {
   // Setlist sync actions
   const triggerSetlistSync = useAction(api.admin.testTriggerSetlistSync);
   const cleanupSongs = useAction(api.admin.testCleanupNonStudioSongs);
+  const backfillSetlists = useAction(api.admin.testBackfillMissingSetlists);
+  const resyncCatalogs = useAction(api.admin.resyncArtistCatalogs);
+  const importTrending = useAction(api.admin.testImportTrendingFromTicketmaster);
   
   // Loading state
   const [trendingSyncing, setTrendingSyncing] = useState(false);
@@ -43,10 +60,13 @@ export function AdminDashboard() {
   const [showSyncing, setShowSyncing] = useState(false);
   const [setlistSyncing, setSetlistSyncing] = useState(false);
   const [cleanupSyncing, setCleanupSyncing] = useState(false);
+  const [backfillSyncing, setBackfillSyncing] = useState(false);
+  const [catalogSyncing, setCatalogSyncing] = useState(false);
+  const [importSyncing, setImportSyncing] = useState(false);
 
   const pendingFlags = useMemo(() => (flagged || []).filter(f => f.status === "pending"), [flagged]);
 
-  const [tab, setTab] = useState('stats');
+  const [activeSection, setActiveSection] = useState('stats');
   const [selectedFlagged, setSelectedFlagged] = useState<Set<Id<'contentFlags'>>>(new Set());
   const [userSearch, setUserSearch] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<Set<Id<'users'>>>(new Set());
@@ -125,6 +145,40 @@ export function AdminDashboard() {
     }
   };
 
+  const handleBackfillSetlists = async () => {
+    setBackfillSyncing(true);
+    try {
+      const res = await backfillSetlists({ limit: 500 });
+      if (res.success) {
+        toast.success(`Backfill: ${res.scheduled} setlist generations scheduled`);
+      } else {
+        toast.error(res.message);
+      }
+    } finally {
+      setBackfillSyncing(false);
+    }
+  };
+
+  const handleResyncCatalogs = async () => {
+    setCatalogSyncing(true);
+    try {
+      const res = await resyncCatalogs({ limit: 50 });
+      res.success ? toast.success(res.message) : toast.error(res.message);
+    } finally {
+      setCatalogSyncing(false);
+    }
+  };
+
+  const handleImportTrending = async () => {
+    setImportSyncing(true);
+    try {
+      const res = await importTrending();
+      toast.success(`Imported ${res.artistsImported} new trending artists`);
+    } finally {
+      setImportSyncing(false);
+    }
+  };
+
   const handleBulkDelete = async () => {
     if (selectedFlagged.size === 0) return;
     try {
@@ -175,22 +229,102 @@ export function AdminDashboard() {
   }
   
   return (
-    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 sm:space-y-8 relative z-10">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>
-        <Button onClick={() => navigate('/')} variant="outline">Home</Button>
-      </div>
+    <SidebarProvider defaultOpen={true}>
+      <div className="flex min-h-screen w-full">
+        {/* Left Sidebar */}
+        <Sidebar className="border-r border-white/10">
+          <SidebarHeader className="border-b border-white/10 p-4">
+            <div className="flex items-center gap-2">
+              <Shield className="h-6 w-6 text-primary" />
+              <h2 className="font-semibold text-lg">Admin</h2>
+            </div>
+          </SidebarHeader>
+          
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      isActive={activeSection === 'stats'}
+                      onClick={() => setActiveSection('stats')}
+                    >
+                      <BarChart3 className="h-4 w-4" />
+                      <span>Statistics</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      isActive={activeSection === 'users'}
+                      onClick={() => setActiveSection('users')}
+                    >
+                      <Users className="h-4 w-4" />
+                      <span>Users</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      isActive={activeSection === 'flagged'}
+                      onClick={() => setActiveSection('flagged')}
+                    >
+                      <Flag className="h-4 w-4" />
+                      <span>Flagged Content</span>
+                      {pendingFlags.length > 0 && (
+                        <Badge className="ml-auto" variant="destructive">{pendingFlags.length}</Badge>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="grid w-full grid-cols-5 gap-2 h-auto">
-          <TabsTrigger value="stats" className="h-10 data-[state=active]:bg-white/10">Stats</TabsTrigger>
-          <TabsTrigger value="users" className="h-10 data-[state=active]:bg-white/10">Users</TabsTrigger>
-          <TabsTrigger value="flagged" className="h-10 data-[state=active]:bg-white/10">Flagged</TabsTrigger>
-          <TabsTrigger value="syncs" className="h-10 data-[state=active]:bg-white/10">Syncs</TabsTrigger>
-          <TabsTrigger value="logs" className="h-10 data-[state=active]:bg-white/10">Logs</TabsTrigger>
-        </TabsList>
+            <SidebarGroup>
+              <SidebarGroupLabel>Operations</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      isActive={activeSection === 'syncs'}
+                      onClick={() => setActiveSection('syncs')}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      <span>Sync Tools</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      isActive={activeSection === 'logs'}
+                      onClick={() => setActiveSection('logs')}
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span>System Logs</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
 
-        <TabsContent value="stats" className="space-y-6">
+          <SidebarFooter className="border-t border-white/10 p-4">
+            <Button onClick={() => navigate('/')} variant="outline" className="w-full">
+              Back to Home
+            </Button>
+          </SidebarFooter>
+        </Sidebar>
+
+        {/* Main Content */}
+        <SidebarInset className="flex-1">
+          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b border-white/10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4">
+            <SidebarTrigger />
+            <div className="flex items-center gap-2 flex-1">
+              <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+            </div>
+          </header>
+
+          <div className="flex-1 p-6 space-y-6">
+            {activeSection === 'stats' && (
+              <div className="space-y-6">
           {/* Header */}
           <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 bg-black">
             <div className="relative z-10 p-4 sm:p-6 lg:p-8">
@@ -292,9 +426,11 @@ export function AdminDashboard() {
             </div>
             <BorderBeam size={80} duration={8} className="opacity-20" />
           </MagicCard>
-        </TabsContent>
+              </div>
+            )}
 
-        <TabsContent value="users" className="space-y-6">
+            {activeSection === 'users' && (
+              <div className="space-y-6">
           <div className="flex gap-2 mb-4">
             <Input 
               placeholder="Search users by email..." 
@@ -318,9 +454,11 @@ export function AdminDashboard() {
               </div>
             ))}
           </div>
-        </TabsContent>
+              </div>
+            )}
 
-        <TabsContent value="flagged" className="space-y-6">
+            {activeSection === 'flagged' && (
+              <div className="space-y-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">Flagged Content ({filteredFlagged.length})</h2>
             <Button onClick={handleBulkDelete} disabled={selectedFlagged.size === 0} variant="destructive">
@@ -350,88 +488,183 @@ export function AdminDashboard() {
               </div>
             ))}
           </div>
-        </TabsContent>
+              </div>
+            )}
 
-        <TabsContent value="syncs" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <ShimmerButton
-              onClick={handleSyncTrending}
-              disabled={trendingSyncing}
-              className="w-full bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 text-white border-white/20"
-              shimmerColor="#8b5cf6"
-            >
-              {trendingSyncing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Updating Rankings...
-                </>
-              ) : (
-                <>
-                  <TrendingUp className="h-4 w-4 mr-2" />
-                  Update Trending Data
-                </>
-              )}
-            </ShimmerButton>
-            <ShimmerButton
-              onClick={handleSyncArtists}
-              disabled={artistSyncing}
-              className="w-full bg-gradient-to-r from-emerald-500/20 to-green-500/20 hover:from-emerald-500/30 hover:to-green-500/30 text-white border-white/20"
-              shimmerColor="#10b981"
-            >
-              {artistSyncing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Sync Artists
-                </>
-              ) : (
-                <>Sync Trending Artists</>
-              )}
-            </ShimmerButton>
-            <ShimmerButton
-              onClick={handleSyncShows}
-              disabled={showSyncing}
-              className="w-full bg-gradient-to-r from-sky-500/20 to-blue-500/20 hover:from-sky-500/30 hover:to-blue-500/30 text-white border-white/20"
-              shimmerColor="#0ea5e9"
-            >
-              {showSyncing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Sync Shows
-                </>
-              ) : (
-                <>Sync Trending Shows</>
-              )}
-            </ShimmerButton>
-            <ShimmerButton
-              onClick={handleSyncSetlists}
-              disabled={setlistSyncing}
-              className="w-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-white border-white/20"
-              shimmerColor="#a855f7"
-            >
-              {setlistSyncing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Sync Setlists
-                </>
-              ) : (
-                <>Sync Setlists</>
-              )}
-            </ShimmerButton>
-            <ShimmerButton
-              onClick={handleCleanupSongs}
-              disabled={cleanupSyncing}
-              className="w-full bg-gradient-to-r from-red-500/20 to-orange-500/20 hover:from-red-500/30 hover:to-orange-500/30 text-white border-white/20"
-              shimmerColor="#ef4444"
-            >
-              {cleanupSyncing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Cleaning Songs
-                </>
-              ) : (
-                <>Clean Non-Studio</>
-              )}
-            </ShimmerButton>
+            {activeSection === 'syncs' && (
+              <div className="space-y-6">
+          {/* Trending & Rankings Section */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Trending & Rankings
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <ShimmerButton
+                onClick={handleSyncTrending}
+                disabled={trendingSyncing}
+                className="w-full bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 text-white border-white/20"
+                shimmerColor="#8b5cf6"
+              >
+                {trendingSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp className="h-4 w-4 mr-2" />
+                    Update All Trending
+                  </>
+                )}
+              </ShimmerButton>
+              <ShimmerButton
+                onClick={handleSyncArtists}
+                disabled={artistSyncing}
+                className="w-full bg-gradient-to-r from-emerald-500/20 to-green-500/20 hover:from-emerald-500/30 hover:to-green-500/30 text-white border-white/20"
+                shimmerColor="#10b981"
+              >
+                {artistSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <Mic className="h-4 w-4 mr-2" />
+                    Artist Rankings
+                  </>
+                )}
+              </ShimmerButton>
+              <ShimmerButton
+                onClick={handleSyncShows}
+                disabled={showSyncing}
+                className="w-full bg-gradient-to-r from-sky-500/20 to-blue-500/20 hover:from-sky-500/30 hover:to-blue-500/30 text-white border-white/20"
+                shimmerColor="#0ea5e9"
+              >
+                {showSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Show Rankings
+                  </>
+                )}
+              </ShimmerButton>
+            </div>
+          </div>
+
+          {/* Setlist Generation Section */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Music className="h-5 w-5" />
+              Setlist Generation
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <ShimmerButton
+                onClick={handleBackfillSetlists}
+                disabled={backfillSyncing}
+                className="w-full bg-gradient-to-r from-indigo-500/20 to-purple-500/20 hover:from-indigo-500/30 hover:to-purple-500/30 text-white border-white/20"
+                shimmerColor="#6366f1"
+              >
+                {backfillSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Music className="h-4 w-4 mr-2" />
+                    Generate Initial Setlists
+                  </>
+                )}
+              </ShimmerButton>
+              <ShimmerButton
+                onClick={handleSyncSetlists}
+                disabled={setlistSyncing}
+                className="w-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-white border-white/20"
+                shimmerColor="#a855f7"
+              >
+                {setlistSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Import from Setlist.fm
+                  </>
+                )}
+              </ShimmerButton>
+              <ShimmerButton
+                onClick={handleResyncCatalogs}
+                disabled={catalogSyncing}
+                className="w-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/30 hover:to-cyan-500/30 text-white border-white/20"
+                shimmerColor="#3b82f6"
+              >
+                {catalogSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <Database className="h-4 w-4 mr-2" />
+                    Import Artist Catalogs
+                  </>
+                )}
+              </ShimmerButton>
+            </div>
+          </div>
+
+          {/* Data Import Section */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              Data Import & Cleanup
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ShimmerButton
+                onClick={handleImportTrending}
+                disabled={importSyncing}
+                className="w-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 text-white border-white/20"
+                shimmerColor="#22c55e"
+              >
+                {importSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp className="h-4 w-4 mr-2" />
+                    Import Trending Artists
+                  </>
+                )}
+              </ShimmerButton>
+              <ShimmerButton
+                onClick={handleCleanupSongs}
+                disabled={cleanupSyncing}
+                className="w-full bg-gradient-to-r from-red-500/20 to-orange-500/20 hover:from-red-500/30 hover:to-orange-500/30 text-white border-white/20"
+                shimmerColor="#ef4444"
+              >
+                {cleanupSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Cleaning...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Clean Non-Studio Songs
+                  </>
+                )}
+              </ShimmerButton>
+            </div>
           </div>
           
           <div className="text-sm text-gray-400 px-2">
@@ -458,9 +691,11 @@ export function AdminDashboard() {
               <p className="text-xs text-gray-500">Manual triggers available</p>
             </div>
           </div>
-        </TabsContent>
+              </div>
+            )}
 
-        <TabsContent value="logs" className="space-y-6">
+            {activeSection === 'logs' && (
+              <div className="space-y-6">
           <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-6">
@@ -521,9 +756,12 @@ export function AdminDashboard() {
             </div>
             <BorderBeam size={80} duration={8} className="opacity-20" />
           </MagicCard>
-        </TabsContent>
-      </Tabs>
-    </div>
+              </div>
+            )}
+          </div>
+        </SidebarInset>
+      </div>
+    </SidebarProvider>
   );
 }
 

@@ -17,6 +17,8 @@ import { PageContainer } from './PageContainer'
 import { Button } from './ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from './ui/dropdown-menu'
 import { Home, Mic, Menu, X, User, Settings, Shield, LogIn, Calendar, Activity } from 'lucide-react'
+import { ThemeToggle } from './ThemeToggle'
+import { MobileThemeToggle } from './MobileThemeToggle'
 
 interface AppLayoutProps {
   children?: React.ReactNode
@@ -311,6 +313,11 @@ export function AppLayout({ children }: AppLayoutProps) {
 
               {/* User dropdown and mobile menu */}
               <div className="flex items-center gap-2">
+                {/* Theme Toggle - Desktop */}
+                <div className="hidden md:block">
+                  <ThemeToggle />
+                </div>
+                
                 {/* User Account Dropdown */}
                 {isSignedIn && user ? (
                   <DropdownMenu>
@@ -357,6 +364,11 @@ export function AppLayout({ children }: AppLayoutProps) {
                     </Button>
                   </div>
                 )}
+
+                {/* Mobile theme toggle - subtle, to the left of hamburger */}
+                <div className="md:hidden">
+                  <MobileThemeToggle />
+                </div>
 
                 {/* Mobile menu button */}
                 <button 

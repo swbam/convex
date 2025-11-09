@@ -747,8 +747,7 @@ export const refreshMissingAutoSetlists = internalMutation({
     includeCompleted: v.optional(v.boolean()), // NEW: Option to include completed shows for backfill
   },
   returns: v.object({
-    processed: v.number(),
-    generated: v.number(),
+    scheduled: v.number(),
   }),
   handler: async (ctx, args) => {
     const limit = args.limit ?? 60;
@@ -761,17 +760,14 @@ export const refreshMissingAutoSetlists = internalMutation({
     } else {
       // Default: only upcoming (normal cron behavior)
       shows = await ctx.db
-        .query("shows")
-        .withIndex("by_status", (q) => q.eq("status", "upcoming"))
-        .take(limit);
+      .query("shows")
+      .withIndex("by_status", (q) => q.eq("status", "upcoming"))
+      .take(limit);
     }
 
-    let processed = 0;
-    let generated = 0;
+    let scheduled = 0;
 
     for (const show of shows) {
-      processed += 1;
-
       // Skip shows without artist reference
       if (!show.artistId) {
         continue;
@@ -786,14 +782,15 @@ export const refreshMissingAutoSetlists = internalMutation({
         continue;
       }
 
+      // Schedule each setlist generation separately to avoid transaction conflicts
       try {
-        const result = await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+        void ctx.scheduler.runAfter(0, internal.setlists.autoGenerateSetlist, {
           showId: show._id,
           artistId: show.artistId,
         });
-        if (result) generated += 1; // Count only successful generations
+        scheduled += 1;
       } catch (error) {
-        console.error("Failed to auto-generate setlist", {
+        console.error("Failed to schedule setlist generation", {
           showId: show._id,
           artistId: show.artistId,
           error,
@@ -801,7 +798,8 @@ export const refreshMissingAutoSetlists = internalMutation({
       }
     }
 
-    return { processed, generated };
+    console.log(`✅ Scheduled ${scheduled} setlist generations`);
+    return { scheduled };
   },
 });
 
@@ -852,10 +850,10 @@ export const ensureAutoSetlistForShow = action({
 // Public action: refresh missing auto-setlists in bulk
 export const refreshMissingAutoSetlistsAction = action({
   args: { limit: v.optional(v.number()) },
-  returns: v.object({ processed: v.number(), generated: v.number() }),
-  handler: async (ctx, args): Promise<{ processed: number; generated: number }> => {
+  returns: v.object({ scheduled: v.number() }),
+  handler: async (ctx, args): Promise<{ scheduled: number }> => {
     const result = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, { limit: args.limit });
-    return result as { processed: number; generated: number };
+    return result as { scheduled: number };
   },
 });
 

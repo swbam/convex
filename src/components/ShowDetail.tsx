@@ -30,6 +30,7 @@ import { BorderBeam } from "./ui/border-beam";
 import { buildTicketmasterAffiliateUrl } from "../utils/ticketmaster";
 import { Badge } from "./ui/badge";
 import { motion } from "framer-motion";
+import { SongCombobox } from "./SongCombobox";
 
 interface ShowDetailProps {
   showId: Id<"shows">;
@@ -172,6 +173,13 @@ export function ShowDetail({
   const predictionSetlistId = predictionSetlist?._id as
     | Id<"setlists">
     | undefined;
+
+  // Simple analytics
+  const catalogCount = songs?.length || 0;
+  const predictedCount = predictionSetlist?.songs?.length || 0;
+  const catalogCoverage = catalogCount
+    ? Math.round((predictedCount / catalogCount) * 100)
+    : 0;
 
   // Ensure a 5-song initial setlist exists (no-op if already present)
   React.useEffect(() => {
@@ -402,51 +410,52 @@ export function ShowDetail({
                   </div>
                 </div>
 
-                {/* Song Addition Dropdown */}
+                {/* Song Addition: Combined Search + Dropdown */}
                 {!hasActualSetlist && isUpcoming && songs && songs.length > 0 && (
                   <div className="mb-4">
-                    <select
-                      value=""
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          void handleAddSongToSharedSetlist(e.target.value);
-                          e.target.value = "";
-                        }
+                    <SongCombobox
+                      disabled={!user}
+                      placeholder={user ? "Add a song..." : "Sign in to add songs"}
+                      items={React.useMemo(() => {
+                        const seen = new Set<string>();
+                        const list =
+                          (songs || [])
+                            .filter(Boolean)
+                            // Exclude remixes and live variants
+                            .filter((s: any) => !s?.isRemix && !s?.isLive)
+                            // Deduplicate by normalized title
+                            .filter((s: any) => {
+                              const t = (s?.title || "").toString();
+                              const norm = t
+                                .toLowerCase()
+                                .replace(/\s*\(.*?\)\s*/g, " ")
+                                .replace(/\s+-\s+.*$/, " ")
+                                .replace(/\s+/g, " ")
+                                .trim();
+                              if (seen.has(norm)) return false;
+                              seen.add(norm);
+                              return true;
+                            })
+                            .map((s: any) => {
+                              const title = s.title as string;
+                              const disabled =
+                                predictedSongTitleSet.has(
+                                  (title || "").toLowerCase().trim()
+                                ) || false;
+                              return {
+                                id: s._id,
+                                title,
+                                album: s.album || null,
+                                disabled,
+                              };
+                            })
+                            .sort((a, b) => a.title.localeCompare(b.title));
+                        return list;
+                      }, [songs, predictedSongTitleSet])}
+                      onSelect={(title) => {
+                        void handleAddSongToSharedSetlist(title);
                       }}
-                      className="w-full px-4 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-sm text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300 cursor-pointer min-h-[56px]"
-                    >
-                      <option
-                        value=""
-                        disabled
-                        className="bg-background text-foreground text-sm"
-                      >
-                        {user
-                          ? "Add a song..."
-                          : "Sign in to add songs"}
-                      </option>
-                      {(songs || [])
-                        .filter(Boolean)
-                        .filter((s) => s && !s.isLive && !s.isRemix)
-                        .filter((s) => {
-                          // Don't show songs already in the setlist
-                          const songTitles =
-                            predictionSetlist?.songs?.map((song: any) =>
-                              typeof song === "string" ? song : song?.title
-                            ) || [];
-                          return !songTitles.includes(s!.title);
-                        })
-                        .sort((a, b) => a!.title.localeCompare(b!.title))
-                        .map((song) => (
-                          <option
-                            key={song!._id}
-                            value={song!.title}
-                            className="bg-background text-foreground text-sm py-2"
-                          >
-                            {song!.title}{" "}
-                            {song!.album ? `• ${song!.album}` : ""}
-                          </option>
-                        ))}
-                    </select>
+                    />
                   </div>
                 )}
 
@@ -735,6 +744,18 @@ export function ShowDetail({
                   </div>
 
                   <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Catalog songs</span>
+                    <span className="font-medium text-white">{catalogCount}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Coverage</span>
+                    <span className="font-medium text-white">
+                      {catalogCoverage}%
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-400">
                       Studio songs available
                     </span>
@@ -765,6 +786,13 @@ export function ShowDetail({
                           {predictionSetlist.upvotes || 0}
                         </span>
                       </div>
+
+                      {/* Top requested songs */}
+                      {predictionSetlistId && (
+                        <div className="pt-3 mt-3 border-t border-white/5">
+                          <TopRequestedSongs setlistId={predictionSetlistId} />
+                        </div>
+                      )}
                     </>
                   )}
 
@@ -853,6 +881,28 @@ export function ShowDetail({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function TopRequestedSongs({ setlistId }: { setlistId: Id<"setlists"> }) {
+  const agg = useQuery(api.songVotes.getSetlistSongVotes, { setlistId });
+  const top = React.useMemo(
+    () => (agg || []).sort((a: any, b: any) => b.upvotes - a.upvotes).slice(0, 5),
+    [agg]
+  );
+  if (!top.length) return null;
+  return (
+    <div>
+      <div className="text-sm font-semibold mb-2 text-white">Top requested songs</div>
+      <ul className="space-y-1">
+        {top.map((s: any) => (
+          <li key={s.songTitle} className="flex items-center justify-between text-sm">
+            <span className="truncate">{s.songTitle}</span>
+            <span className="opacity-70">{s.upvotes}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

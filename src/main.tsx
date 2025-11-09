@@ -4,6 +4,7 @@ import { ClerkProvider, useAuth as useClerkAuth } from "@clerk/clerk-react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexReactClient } from "convex/react";
 import { RouterProvider } from "react-router-dom";
+import { ThemeProvider } from "next-themes";
 import "./index.css";
 import { router } from "./router";
 import { DiagnosticApp } from "./components/DiagnosticApp";
@@ -49,34 +50,41 @@ if (!convexUrl || !publishableKey) {
 
     createRoot(rootElement).render(
       <React.StrictMode>
-        <ClerkProvider 
-          publishableKey={publishableKey}
-          afterSignOutUrl="/"
-          appearance={{
-            elements: {
-              // Hide CAPTCHA if it's causing issues
-              captcha: 'hidden',
-            },
-          }}
+        <ThemeProvider 
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
         >
-          <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-            <RouterProvider router={router} />
-            <Toaster 
-              theme="dark"
-              position="bottom-right"
-              toastOptions={{
-                style: {
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  backdropFilter: 'blur(20px)',
-                  WebkitBackdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  color: '#fff',
-                  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5)',
-                },
-              }}
-            />
-          </ConvexProviderWithClerk>
-        </ClerkProvider>
+          <ClerkProvider 
+            publishableKey={publishableKey}
+            afterSignOutUrl="/"
+            appearance={{
+              elements: {
+                // Hide CAPTCHA if it's causing issues
+                captcha: 'hidden',
+              },
+            }}
+          >
+            <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+              <RouterProvider router={router} />
+              <Toaster 
+                theme="dark"
+                position="bottom-right"
+                toastOptions={{
+                  style: {
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    color: '#fff',
+                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5)',
+                  },
+                }}
+              />
+            </ConvexProviderWithClerk>
+          </ClerkProvider>
+        </ThemeProvider>
       </React.StrictMode>,
     );
   } catch (error) {

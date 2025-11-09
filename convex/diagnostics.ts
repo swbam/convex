@@ -58,15 +58,15 @@ export const findShowsWithoutSetlists = internalQuery({
 // Public action to manually trigger backfill (for admin dashboard)
 export const backfillMissingSetlists = action({
   args: { limit: v.optional(v.number()) },
-  returns: v.object({ processed: v.number(), generated: v.number() }),
-  handler: async (ctx, args): Promise<{ processed: number; generated: number }> => {
+  returns: v.object({ scheduled: v.number() }),
+  handler: async (ctx, args): Promise<{ scheduled: number }> => {
     console.log("🔄 Starting backfill for missing setlists...");
     const result = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, {
       limit: args.limit || 500,
       includeCompleted: true, // CRITICAL: Scan ALL shows, not just upcoming
     });
-    console.log(`✅ Backfill complete: ${result.generated} setlists generated from ${result.processed} shows`);
-    return result as { processed: number; generated: number };
+    console.log(`✅ Backfill scheduled: ${result.scheduled} setlist generations queued`);
+    return result as { scheduled: number };
   },
 });
 

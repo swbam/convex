@@ -8,11 +8,6 @@
  * @module
  */
 
-import type {
-  ApiFromModules,
-  FilterApi,
-  FunctionReference,
-} from "convex/server";
 import type * as activity from "../activity.js";
 import type * as admin_errorMonitoring from "../admin/errorMonitoring.js";
 import type * as admin_sentryForward from "../admin/sentryForward.js";
@@ -26,6 +21,7 @@ import type * as common from "../common.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
 import type * as deployment from "../deployment.js";
+import type * as diagnostics from "../diagnostics.js";
 import type * as errorTracking from "../errorTracking.js";
 import type * as health from "../health.js";
 import type * as http from "../http.js";
@@ -56,6 +52,12 @@ import type * as venues from "../venues.js";
 import type * as votes from "../votes.js";
 import type * as webhooks from "../webhooks.js";
 
+import type {
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
+} from "convex/server";
+
 /**
  * A utility for referencing Convex functions in your app's API.
  *
@@ -78,6 +80,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   dashboard: typeof dashboard;
   deployment: typeof deployment;
+  diagnostics: typeof diagnostics;
   errorTracking: typeof errorTracking;
   health: typeof health;
   http: typeof http;
@@ -108,11 +111,15 @@ declare const fullApi: ApiFromModules<{
   votes: typeof votes;
   webhooks: typeof webhooks;
 }>;
+declare const fullApiWithMounts: typeof fullApi;
+
 export declare const api: FilterApi<
-  typeof fullApi,
+  typeof fullApiWithMounts,
   FunctionReference<any, "public">
 >;
 export declare const internal: FilterApi<
-  typeof fullApi,
+  typeof fullApiWithMounts,
   FunctionReference<any, "internal">
 >;
+
+export declare const components: {};

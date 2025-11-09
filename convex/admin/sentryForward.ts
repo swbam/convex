@@ -1,6 +1,6 @@
 "use node";
 
-import { internalAction, internalMutation } from "../_generated/server";
+import { internalAction } from "../_generated/server";
 import { v } from "convex/values";
 
 export const forward = internalAction({
@@ -55,14 +55,4 @@ export const forward = internalAction({
     }
   },
 });
-
-export const markSent = internalMutation({
-  args: { errorId: v.id("errorLogs") },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    await ctx.db.patch(args.errorId, { sentToSentry: true });
-    return null;
-  },
-});
-
 

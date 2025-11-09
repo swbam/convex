@@ -225,7 +225,7 @@ export const fixArtistsWithNoSongs = action({
     // Now regenerate setlists for shows that don't have them
     console.log(`🎵 Regenerating missing setlists...`);
     const setlistResult = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, { limit: 100 });
-    console.log(`✅ Setlist generation: ${setlistResult.generated} new setlists created`);
+    console.log(`✅ Setlist generation: ${setlistResult.scheduled} setlist generations scheduled`);
     
     return { processed, imported, failed };
   },
@@ -238,7 +238,7 @@ export const backfillMissingSetlists = action({
   handler: async (ctx, args) => {
     const limit = args.limit ?? 100;
     const result = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, { limit });
-    console.log(`Backfill complete: processed=${result.processed}, generated=${result.generated}`);
+    console.log(`Backfill scheduled: ${result.scheduled} setlist generations queued`);
     return null;
   },
 });

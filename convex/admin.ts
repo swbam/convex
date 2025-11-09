@@ -592,10 +592,10 @@ export const normalizeShowSlugs = action({
 
 export const ensureAutoSetlistsBulk = action({
   args: { limit: v.optional(v.number()) },
-  returns: v.object({ processed: v.number(), generated: v.number() }),
-  handler: async (ctx, args): Promise<{ processed: number; generated: number }> => {
+  returns: v.object({ scheduled: v.number() }),
+  handler: async (ctx, args): Promise<{ scheduled: number }> => {
     const result = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, { limit: args.limit });
-    return result as { processed: number; generated: number };
+    return result as { scheduled: number };
   },
 });
 
@@ -1229,8 +1229,8 @@ export const importCachedShows = mutation({
 // NEW: Manual backfill action for admin dashboard
 export const backfillMissingSetlists = action({
   args: { limit: v.optional(v.number()) },
-  returns: v.object({ success: v.boolean(), message: v.string(), processed: v.number(), generated: v.number() }),
-  handler: async (ctx, args): Promise<{ success: boolean; message: string; processed: number; generated: number }> => {
+  returns: v.object({ success: v.boolean(), message: v.string(), scheduled: v.number() }),
+  handler: async (ctx, args): Promise<{ success: boolean; message: string; scheduled: number }> => {
     const user = await ctx.runQuery(api.auth.loggedInUser);
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
@@ -1245,17 +1245,15 @@ export const backfillMissingSetlists = action({
       
       return {
         success: true,
-        message: `Backfill complete: ${result.generated} setlists generated from ${result.processed} shows`,
-        processed: result.processed,
-        generated: result.generated,
+        message: `Backfill scheduled: ${result.scheduled} setlist generations queued`,
+        scheduled: result.scheduled,
       };
     } catch (error) {
       console.error("❌ Backfill failed:", error);
       return {
         success: false,
         message: error instanceof Error ? error.message : "Unknown error",
-        processed: 0,
-        generated: 0,
+        scheduled: 0,
       };
     }
   },
@@ -1264,8 +1262,8 @@ export const backfillMissingSetlists = action({
 // NEW: Test version without auth for development
 export const testBackfillMissingSetlists = action({
   args: { limit: v.optional(v.number()) },
-  returns: v.object({ success: v.boolean(), message: v.string(), processed: v.number(), generated: v.number() }),
-  handler: async (ctx, args): Promise<{ success: boolean; message: string; processed: number; generated: number }> => {
+  returns: v.object({ success: v.boolean(), message: v.string(), scheduled: v.number() }),
+  handler: async (ctx, args): Promise<{ success: boolean; message: string; scheduled: number }> => {
     try {
       console.log("🔄 [TEST] Backfill for missing setlists...");
       const result = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, {
@@ -1275,17 +1273,15 @@ export const testBackfillMissingSetlists = action({
       
       return {
         success: true,
-        message: `Backfill complete: ${result.generated} setlists generated from ${result.processed} shows`,
-        processed: result.processed,
-        generated: result.generated,
+        message: `Backfill scheduled: ${result.scheduled} setlist generations queued (will process in background)`,
+        scheduled: result.scheduled,
       };
     } catch (error) {
       console.error("❌ Backfill failed:", error);
       return {
         success: false,
         message: error instanceof Error ? error.message : "Unknown error",
-        processed: 0,
-        generated: 0,
+        scheduled: 0,
       };
     }
   },
