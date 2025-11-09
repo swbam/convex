@@ -279,9 +279,11 @@ export const submitVote = mutation({
       vote: v.union(v.literal("correct"), v.literal("incorrect"), v.literal("missing")),
     }))),
   },
+  returns: v.union(v.string(), v.null()),
   handler: async (ctx, args) => {
     // Delegate to canonical votes.submitVote to avoid duplication
-    return await ctx.runMutation(api.votes.submitVote, args);
+    const result: string | null = await ctx.runMutation(api.votes.submitVote, args);
+    return result;
   },
 });
 
@@ -742,6 +744,7 @@ export const getSetlistWithVotes = query({
 export const refreshMissingAutoSetlists = internalMutation({
   args: {
     limit: v.optional(v.number()),
+    includeCompleted: v.optional(v.boolean()), // NEW: Option to include completed shows for backfill
   },
   returns: v.object({
     processed: v.number(),
@@ -749,15 +752,24 @@ export const refreshMissingAutoSetlists = internalMutation({
   }),
   handler: async (ctx, args) => {
     const limit = args.limit ?? 60;
-    const upcomingShows = await ctx.db
-      .query("shows")
-      .withIndex("by_status", (q) => q.eq("status", "upcoming"))
-      .take(limit);
+    
+    // FIXED: Query upcoming AND completed shows if flag is set
+    let shows;
+    if (args.includeCompleted) {
+      // Get all shows without status filter (for one-time backfill)
+      shows = await ctx.db.query("shows").take(limit);
+    } else {
+      // Default: only upcoming (normal cron behavior)
+      shows = await ctx.db
+        .query("shows")
+        .withIndex("by_status", (q) => q.eq("status", "upcoming"))
+        .take(limit);
+    }
 
     let processed = 0;
     let generated = 0;
 
-    for (const show of upcomingShows) {
+    for (const show of shows) {
       processed += 1;
 
       // Skip shows without artist reference
@@ -775,11 +787,11 @@ export const refreshMissingAutoSetlists = internalMutation({
       }
 
       try {
-        await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+        const result = await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
           showId: show._id,
           artistId: show.artistId,
         });
-        generated += 1;
+        if (result) generated += 1; // Count only successful generations
       } catch (error) {
         console.error("Failed to auto-generate setlist", {
           showId: show._id,

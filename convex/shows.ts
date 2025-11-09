@@ -574,13 +574,15 @@ export const createInternal = internalMutation({
         artistId: args.artistId,
       });
       if (!setlistId) {
-        console.warn(`⚠️ No setlist generated for show ${showId}; scheduling optimized retries`);
-        // OPTIMIZED: Reduced retries - catalog sync happens in 3-30 seconds
-        // Strategic retry schedule gives catalog time to complete
+        console.warn(`⚠️ No setlist generated for show ${showId}; scheduling extended retries`);
+        // ENHANCED: Extended retry schedule to allow more time for catalog sync
+        // Catalog sync can take 30s-2min for large catalogs
         const retryDelays = [
           10_000,     // 10 seconds
           60_000,     // 1 minute
           300_000,    // 5 minutes
+          900_000,    // 15 minutes (NEW)
+          1800_000,   // 30 minutes (NEW)
         ];
         
         for (const delay of retryDelays) {
@@ -592,8 +594,8 @@ export const createInternal = internalMutation({
       }
     } catch (error) {
       console.error(`❌ Failed to auto-generate setlist for show ${showId}:`, error);
-      // Schedule retries on error (reduced from 9 to 3)
-      const retryDelays = [10_000, 60_000, 300_000];
+      // Schedule retries on error with extended delays
+      const retryDelays = [10_000, 60_000, 300_000, 900_000, 1800_000];
       for (const delay of retryDelays) {
         void ctx.scheduler.runAfter(delay, internal.setlists.autoGenerateSetlist, {
         showId,
@@ -651,13 +653,13 @@ export const createFromTicketmaster = internalMutation({
         const needsSeed = !existingSetlist || !Array.isArray(existingSetlist.songs) || (existingSetlist.songs?.length ?? 0) < 5;
 
         if (needsSeed) {
-          // Kick off immediate generation and a few retries while catalog sync catches up
+          // Kick off immediate generation and extended retries while catalog sync catches up
           void ctx.scheduler.runAfter(0, internal.setlists.autoGenerateSetlist, {
             showId: existing._id,
             artistId: args.artistId,
           });
 
-          const retryDelays = [10_000, 60_000, 300_000];
+          const retryDelays = [10_000, 60_000, 300_000, 900_000, 1800_000];
           for (const delay of retryDelays) {
             void ctx.scheduler.runAfter(delay, internal.setlists.autoGenerateSetlist, {
               showId: existing._id,
@@ -715,12 +717,14 @@ export const createFromTicketmaster = internalMutation({
         artistId: args.artistId,
       });
       if (!setlistId) {
-        console.warn(`⚠️ No setlist generated for show ${showId}; scheduling optimized retries`);
-        // OPTIMIZED: Strategic retry schedule (reduced from 9 to 3)
+        console.warn(`⚠️ No setlist generated for show ${showId}; scheduling extended retries`);
+        // ENHANCED: Extended retry schedule to allow more time for catalog sync
         const retryDelays = [
           10_000,     // 10 seconds
           60_000,     // 1 minute
           300_000,    // 5 minutes
+          900_000,    // 15 minutes (NEW)
+          1800_000,   // 30 minutes (NEW)
         ];
         
         for (const delay of retryDelays) {
@@ -732,8 +736,8 @@ export const createFromTicketmaster = internalMutation({
       }
     } catch (error) {
       console.error(`❌ Failed to auto-generate setlist for show ${showId}:`, error);
-      // Schedule retries on error (reduced from 9 to 3)
-      const retryDelays = [10_000, 60_000, 300_000];
+      // Schedule retries on error with extended delays
+      const retryDelays = [10_000, 60_000, 300_000, 900_000, 1800_000];
       for (const delay of retryDelays) {
         void ctx.scheduler.runAfter(delay, internal.setlists.autoGenerateSetlist, {
         showId,

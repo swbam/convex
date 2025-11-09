@@ -178,6 +178,18 @@ export const deleteSong = internalMutation({
   },
 });
 
+// NEW: Get all artistSongs for an artist (for spotify.ts catalog sync guard)
+export const getByArtistInternal = internalQuery({
+  args: { artistId: v.id("artists") },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("artistSongs")
+      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
+      .collect();
+  },
+});
+
 export const deleteByArtist = internalMutation({
   args: { artistId: v.id("artists") },
   returns: v.null(),

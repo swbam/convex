@@ -182,14 +182,19 @@ export const syncArtistCatalog = internalAction({
       return null;
     }
 
+    // FIXED: Check if artist has ANY songs before applying sync guard
+    const artistSongs = await ctx.runQuery(internal.songs.getByArtistInternal, { artistId: args.artistId });
+    const hasSongs = artistSongs && artistSongs.length > 0;
+
     // Skip if synced within last hour (prevents duplicate triggers)
+    // BUT allow sync if artist has no songs (catalog might have failed)
     const ONE_HOUR = 60 * 60 * 1000;
-    if (artist.lastSynced && (Date.now() - artist.lastSynced) < ONE_HOUR) {
+    if (hasSongs && artist.lastSynced && (Date.now() - artist.lastSynced) < ONE_HOUR) {
       console.log(`⏭️ Skipping catalog sync for ${args.artistName} - synced ${Math.round((Date.now() - artist.lastSynced) / 1000 / 60)} minutes ago`);
       return null;
     }
 
-    console.log(`🎵 Starting catalog sync for ${args.artistName} (Last sync: ${artist.lastSynced ? new Date(artist.lastSynced).toISOString() : 'never'})`);
+    console.log(`🎵 Starting catalog sync for ${args.artistName} (Last sync: ${artist.lastSynced ? new Date(artist.lastSynced).toISOString() : 'never'}, Songs in DB: ${artistSongs?.length || 0})`);
 
     try {
       // Get access token

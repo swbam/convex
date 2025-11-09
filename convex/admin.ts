@@ -1225,3 +1225,68 @@ export const importCachedShows = mutation({
     return stats;
   },
 });
+
+// NEW: Manual backfill action for admin dashboard
+export const backfillMissingSetlists = action({
+  args: { limit: v.optional(v.number()) },
+  returns: v.object({ success: v.boolean(), message: v.string(), processed: v.number(), generated: v.number() }),
+  handler: async (ctx, args): Promise<{ success: boolean; message: string; processed: number; generated: number }> => {
+    const user = await ctx.runQuery(api.auth.loggedInUser);
+    if (!user?.appUser || user.appUser.role !== "admin") {
+      throw new Error("Admin access required");
+    }
+    
+    try {
+      console.log("🔄 Admin triggered backfill for missing setlists...");
+      const result = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, {
+        limit: args.limit || 500,
+        includeCompleted: true, // Scan ALL shows (including legacy/completed)
+      });
+      
+      return {
+        success: true,
+        message: `Backfill complete: ${result.generated} setlists generated from ${result.processed} shows`,
+        processed: result.processed,
+        generated: result.generated,
+      };
+    } catch (error) {
+      console.error("❌ Backfill failed:", error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error",
+        processed: 0,
+        generated: 0,
+      };
+    }
+  },
+});
+
+// NEW: Test version without auth for development
+export const testBackfillMissingSetlists = action({
+  args: { limit: v.optional(v.number()) },
+  returns: v.object({ success: v.boolean(), message: v.string(), processed: v.number(), generated: v.number() }),
+  handler: async (ctx, args): Promise<{ success: boolean; message: string; processed: number; generated: number }> => {
+    try {
+      console.log("🔄 [TEST] Backfill for missing setlists...");
+      const result = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, {
+        limit: args.limit || 500,
+        includeCompleted: true,
+      });
+      
+      return {
+        success: true,
+        message: `Backfill complete: ${result.generated} setlists generated from ${result.processed} shows`,
+        processed: result.processed,
+        generated: result.generated,
+      };
+    } catch (error) {
+      console.error("❌ Backfill failed:", error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error",
+        processed: 0,
+        generated: 0,
+      };
+    }
+  },
+});
