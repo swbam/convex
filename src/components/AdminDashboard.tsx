@@ -10,7 +10,7 @@ import { Badge } from "./ui/badge";
 import { ShimmerButton } from "./ui/shimmer-button";
 import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
-import { Activity, TrendingUp, Users, Music, Calendar, Flag, Database, Mic, CheckCircle, AlertCircle, Loader2, Shield, Lock, Search, Trash2, RefreshCw, UserCheck, BarChart3, FileText } from "lucide-react";
+import { Activity, TrendingUp, Users, Music, Calendar, Flag, Database, Mic, CheckCircle, AlertCircle, Loader2, Shield, Lock, Search, Trash2, RefreshCw, UserCheck, BarChart3, FileText, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
@@ -34,10 +34,12 @@ export function AdminDashboard() {
   const navigate = useNavigate();
   const { user: clerkUser } = useUser();
   const isAdmin = useQuery(api.admin.isCurrentUserAdmin);
+  const logged = useQuery(api.auth.loggedInUser);
   const stats = useQuery(api.admin.getAdminStats);
   const health = useQuery(api.admin.getSystemHealth);
   const flagged = useQuery(api.admin.getFlaggedContent, {});
   const users = useQuery(api.admin.getAllUsers, { limit: 50 });
+  const recentActivity = useQuery(api.admin.getRecentActivity, { limit: 50 });
   const verifySetlist = useMutation(api.admin.verifySetlist);
   const bulkDeleteFlagged = useMutation(api.admin.bulkDeleteFlagged); // New mutation
   const updateUserRole = useMutation(api.admin.updateUserRole); // New for roles
@@ -105,7 +107,11 @@ export function AdminDashboard() {
     setArtistSyncing(true);
     try {
       const res = await syncTrendingArtists();
-      res.success ? toast.success(res.message) : toast.error(res.message);
+      if (res.success) {
+        toast.success(res.message);
+      } else {
+        toast.error(res.message);
+      }
     } finally {
       setArtistSyncing(false);
     }
@@ -115,7 +121,11 @@ export function AdminDashboard() {
     setShowSyncing(true);
     try {
       const res = await syncTrendingShows();
-      res.success ? toast.success(res.message) : toast.error(res.message);
+      if (res.success) {
+        toast.success(res.message);
+      } else {
+        toast.error(res.message);
+      }
     } finally {
       setShowSyncing(false);
     }
@@ -125,7 +135,11 @@ export function AdminDashboard() {
     setSetlistSyncing(true);
     try {
       const res = await triggerSetlistSync();
-      res.success ? toast.success(res.message) : toast.error(res.message);
+      if (res.success) {
+        toast.success(res.message);
+      } else {
+        toast.error(res.message);
+      }
     } finally {
       setSetlistSyncing(false);
     }
@@ -163,7 +177,11 @@ export function AdminDashboard() {
     setCatalogSyncing(true);
     try {
       const res = await resyncCatalogs({ limit: 50 });
-      res.success ? toast.success(res.message) : toast.error(res.message);
+      if (res.success) {
+        toast.success(res.message);
+      } else {
+        toast.error(res.message);
+      }
     } finally {
       setCatalogSyncing(false);
     }
@@ -190,7 +208,7 @@ export function AdminDashboard() {
     }
   };
 
-  const handleRoleUpdate = async (userId: Id<'users'>, role: string) => {
+  const handleRoleUpdate = async (userId: Id<'users'>, role: "user" | "admin") => {
     try {
       await updateUserRole({ userId, role });
       toast.success("Role updated");
@@ -218,7 +236,7 @@ export function AdminDashboard() {
             </div>
             <h1 className="text-2xl font-bold text-white mb-2">Access Denied</h1>
             <p className="text-gray-400 mb-6">You don't have permission to access the admin dashboard.</p>
-            <Button onClick={() => navigate('/')} variant="outline">
+            <Button onClick={() => { void navigate('/'); }} variant="outline">
               Return to Home
             </Button>
           </div>
@@ -307,7 +325,7 @@ export function AdminDashboard() {
           </SidebarContent>
 
           <SidebarFooter className="border-t border-white/10 p-4">
-            <Button onClick={() => navigate('/')} variant="outline" className="w-full">
+            <Button onClick={() => { void navigate('/'); }} variant="outline" className="w-full">
               Back to Home
             </Button>
           </SidebarFooter>
@@ -375,6 +393,26 @@ export function AdminDashboard() {
               )}
             </div>
             <BorderBeam size={120} duration={8} className="opacity-20" />
+          </MagicCard>
+
+          {/* Auth Diagnostics */}
+          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 bg-primary/20 rounded-xl flex items-center justify-center">
+                  <Shield className="h-4 w-4 text-primary" />
+                </div>
+                <h2 className="text-xl font-semibold text-white">Auth Diagnostics</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <DiagItem label="Clerk subject" value={logged?.identity?.subject} />
+                <DiagItem label="JWT issuer" value={logged?.identity?.issuer} />
+                <DiagItem label="DB user id" value={logged?.appUser?._id} />
+                <DiagItem label="Role" value={logged?.appUser?.role || 'user'} />
+                <DiagItem label="Email" value={logged?.appUser?.email || logged?.identity?.email} />
+              </div>
+            </div>
+            <BorderBeam size={80} duration={8} className="opacity-10" />
           </MagicCard>
 
           {/* Health */}
@@ -447,8 +485,8 @@ export function AdminDashboard() {
                   <p className="text-gray-400 text-sm">ID: {user._id}</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => handleRoleUpdate(user._id, "admin")}>Admin</Button>
-                  <Button size="sm" variant="destructive" onClick={() => handleRoleUpdate(user._id, "user")}>User</Button>
+                <Button size="sm" onClick={() => { void handleRoleUpdate(user._id, "admin"); }}>Admin</Button>
+                  <Button size="sm" variant="destructive" onClick={() => { void handleRoleUpdate(user._id, "user"); }}>User</Button>
                   {/* Checkbox for bulk if needed */}
                 </div>
               </div>
@@ -461,7 +499,7 @@ export function AdminDashboard() {
               <div className="space-y-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">Flagged Content ({filteredFlagged.length})</h2>
-            <Button onClick={handleBulkDelete} disabled={selectedFlagged.size === 0} variant="destructive">
+            <Button onClick={() => { void handleBulkDelete(); }} disabled={selectedFlagged.size === 0} variant="destructive">
               Delete Selected ({selectedFlagged.size})
             </Button>
           </div>
@@ -483,8 +521,8 @@ export function AdminDashboard() {
                   <p className="text-gray-400 text-sm">Reporter: {flag.reporterId}, Date: {new Date(flag.createdAt).toLocaleString()}</p>
                   <p className="text-gray-400 text-sm">Content: {flag.contentType} - {flag.contentId}</p>
                 </div>
-                <Button size="sm" onClick={() => toast.info("Flag review coming soon")}>Review</Button>
-                <Button size="sm" variant="destructive" onClick={() => toast.info("Flag deletion coming soon")}>Delete</Button>
+                <Button size="sm" onClick={() => { toast.info("Flag review coming soon"); }}>Review</Button>
+                <Button size="sm" variant="destructive" onClick={() => { toast.info("Flag deletion coming soon"); }}>Delete</Button>
               </div>
             ))}
           </div>
@@ -500,8 +538,8 @@ export function AdminDashboard() {
               Trending & Rankings
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <ShimmerButton
-                onClick={handleSyncTrending}
+                  <ShimmerButton
+                onClick={() => { void handleSyncTrending(); }}
                 disabled={trendingSyncing}
                 className="w-full bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 text-white border-white/20"
                 shimmerColor="#8b5cf6"
@@ -519,7 +557,7 @@ export function AdminDashboard() {
                 )}
               </ShimmerButton>
               <ShimmerButton
-                onClick={handleSyncArtists}
+                onClick={() => { void handleSyncArtists(); }}
                 disabled={artistSyncing}
                 className="w-full bg-gradient-to-r from-emerald-500/20 to-green-500/20 hover:from-emerald-500/30 hover:to-green-500/30 text-white border-white/20"
                 shimmerColor="#10b981"
@@ -537,7 +575,7 @@ export function AdminDashboard() {
                 )}
               </ShimmerButton>
               <ShimmerButton
-                onClick={handleSyncShows}
+                onClick={() => { void handleSyncShows(); }}
                 disabled={showSyncing}
                 className="w-full bg-gradient-to-r from-sky-500/20 to-blue-500/20 hover:from-sky-500/30 hover:to-blue-500/30 text-white border-white/20"
                 shimmerColor="#0ea5e9"
@@ -565,7 +603,7 @@ export function AdminDashboard() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <ShimmerButton
-                onClick={handleBackfillSetlists}
+                onClick={() => { void handleBackfillSetlists(); }}
                 disabled={backfillSyncing}
                 className="w-full bg-gradient-to-r from-indigo-500/20 to-purple-500/20 hover:from-indigo-500/30 hover:to-purple-500/30 text-white border-white/20"
                 shimmerColor="#6366f1"
@@ -583,7 +621,7 @@ export function AdminDashboard() {
                 )}
               </ShimmerButton>
               <ShimmerButton
-                onClick={handleSyncSetlists}
+                onClick={() => { void handleSyncSetlists(); }}
                 disabled={setlistSyncing}
                 className="w-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-white border-white/20"
                 shimmerColor="#a855f7"
@@ -601,7 +639,7 @@ export function AdminDashboard() {
                 )}
               </ShimmerButton>
               <ShimmerButton
-                onClick={handleResyncCatalogs}
+                onClick={() => { void handleResyncCatalogs(); }}
                 disabled={catalogSyncing}
                 className="w-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/30 hover:to-cyan-500/30 text-white border-white/20"
                 shimmerColor="#3b82f6"
@@ -629,7 +667,7 @@ export function AdminDashboard() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <ShimmerButton
-                onClick={handleImportTrending}
+                onClick={() => { void handleImportTrending(); }}
                 disabled={importSyncing}
                 className="w-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 text-white border-white/20"
                 shimmerColor="#22c55e"
@@ -647,7 +685,7 @@ export function AdminDashboard() {
                 )}
               </ShimmerButton>
               <ShimmerButton
-                onClick={handleCleanupSongs}
+                onClick={() => { void handleCleanupSongs(); }}
                 disabled={cleanupSyncing}
                 className="w-full bg-gradient-to-r from-red-500/20 to-orange-500/20 hover:from-red-500/30 hover:to-orange-500/30 text-white border-white/20"
                 shimmerColor="#ef4444"
@@ -705,54 +743,42 @@ export function AdminDashboard() {
                 <h2 className="text-xl font-semibold text-white">Recent Activity</h2>
               </div>
 
-              {(() => {
-                const recentActivity = useQuery(api.admin.getRecentActivity, { limit: 50 });
-                
-                if (!recentActivity) {
-                  return (
-                    <div className="space-y-3">
-                      {[...Array(10)].map((_, i) => (
-                        <div key={i} className="animate-pulse bg-white/5 rounded-lg p-4 h-16" />
-                      ))}
-                    </div>
-                  );
-                }
-                
-                if (recentActivity.length === 0) {
-                  return (
-                    <div className="text-center py-12">
-                      <Activity className="h-12 w-12 mx-auto mb-4 text-gray-500" />
-                      <p className="text-gray-400">No recent activity</p>
-                    </div>
-                  );
-                }
-                
-                return (
-                  <div className="space-y-2">
-                    {recentActivity.map((activity: any, idx: number) => (
-                      <div key={idx} className="flex items-start gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
-                        <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                          {activity.type === 'vote' && <TrendingUp className="h-4 w-4 text-green-400" />}
-                          {activity.type === 'setlist' && <Music className="h-4 w-4 text-blue-400" />}
-                          {activity.type === 'user' && <UserCheck className="h-4 w-4 text-purple-400" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-white text-sm">{activity.description}</p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {new Date(activity.timestamp).toLocaleString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: 'numeric',
-                              minute: '2-digit'
-                            })}
-                            {activity.user && ` • ${activity.user}`}
-                          </p>
-                        </div>
+              {!recentActivity ? (
+                <div className="space-y-3">
+                  {[...Array(10)].map((_, i) => (
+                    <div key={i} className="animate-pulse bg-white/5 rounded-lg p-4 h-16" />
+                  ))}
+                </div>
+              ) : recentActivity.length === 0 ? (
+                <div className="text-center py-12">
+                  <Activity className="h-12 w-12 mx-auto mb-4 text-gray-500" />
+                  <p className="text-gray-400">No recent activity</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {recentActivity.map((activity: any, idx: number) => (
+                    <div key={idx} className="flex items-start gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                      <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                        {activity.type === 'vote' && <TrendingUp className="h-4 w-4 text-green-400" />}
+                        {activity.type === 'setlist' && <Music className="h-4 w-4 text-blue-400" />}
+                        {activity.type === 'user' && <UserCheck className="h-4 w-4 text-purple-400" />}
                       </div>
-                    ))}
-                  </div>
-                );
-              })()}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm">{activity.description}</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {new Date(activity.timestamp).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit'
+                          })}
+                          {activity.user && ` • ${activity.user}`}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <BorderBeam size={80} duration={8} className="opacity-20" />
           </MagicCard>
@@ -777,6 +803,33 @@ function StatCard({ icon, label, value }: {
       </div>
       <div className="text-2xl font-bold text-white">{value.toLocaleString()}</div>
       <div className="text-xs text-gray-400 mt-1">{label}</div>
+    </div>
+  );
+}
+
+function DiagItem({ label, value }: { label: string; value: any }) {
+  const text = value === undefined || value === null ? "—" : String(value);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      // optional toast
+    } catch {
+      // ignore
+    }
+  };
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+      <div className="text-xs text-gray-400 mb-1">{label}</div>
+      <div className="flex items-center justify-between gap-2">
+        <code className="text-sm text-white/90 truncate">{text}</code>
+        <button
+          onClick={() => { void copy(); }}
+          className="inline-flex items-center justify-center rounded-md border border-white/10 px-2 py-1 text-xs text-white/80 hover:bg-white/10"
+          aria-label={`Copy ${label}`}
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
