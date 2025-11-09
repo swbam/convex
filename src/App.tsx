@@ -27,8 +27,9 @@ import { AuthGuard } from "./components/AuthGuard";
 import { BackendErrorMonitor } from "./components/BackendErrorMonitor";
 
 import { MagicCard } from "./components/ui/magic-card";
+import { DocsPage } from "./pages/Docs";
 
-type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "activity" | "signin" | "trending" | "profile" | "following" | "predictions" | "admin" | "test";
+type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "activity" | "signin" | "trending" | "profile" | "following" | "predictions" | "admin" | "test" | "docs";
 
 function App() {
   const location = useLocation();
@@ -142,6 +143,9 @@ function App() {
     } else if (path === '/test') {
       setCurrentView('test');
       document.title = 'Test Suite – setlists.live';
+    } else if (path === '/docs') {
+      setCurrentView('docs');
+      document.title = 'API Docs – setlists.live';
     }
   }, [location.pathname, artistBySlug, showBySlugOrId]);
 
@@ -382,6 +386,8 @@ function App() {
         return (
           <TestSuite />
         );
+      case "docs":
+        return <DocsPage />;
       case "following":
       case "predictions":
         return (
