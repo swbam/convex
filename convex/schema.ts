@@ -42,6 +42,15 @@ const applicationTables = {
     lowerName: v.optional(v.string()),
     isActive: v.boolean(),
     lastSynced: v.optional(v.number()),
+    // CRITICAL: Track catalog sync attempts to prevent infinite loops
+    catalogSyncAttemptedAt: v.optional(v.number()),
+    catalogSyncStatus: v.optional(v.union(
+      v.literal("never"),
+      v.literal("pending"),
+      v.literal("syncing"),
+      v.literal("completed"),
+      v.literal("failed")
+    )),
     // Optional per-user flags occasionally patched in legacy code paths
     isTopArtist: v.optional(v.boolean()),
     topArtistRank: v.optional(v.number()),

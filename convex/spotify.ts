@@ -174,7 +174,7 @@ export const syncArtistCatalog = internalAction({
       return null;
     }
 
-    // CRITICAL FIX: Prevent duplicate syncs with timestamp guard
+    // CRITICAL FIX: Enhanced deduplication with catalogSyncAttemptedAt
     const artist = await ctx.runQuery(internal.artists.getByIdInternal, { id: args.artistId });
 
     if (!artist) {
@@ -182,19 +182,30 @@ export const syncArtistCatalog = internalAction({
       return null;
     }
 
-    // FIXED: Check if artist has ANY songs before applying sync guard
-    const artistSongs = await ctx.runQuery(internal.songs.getByArtistInternal, { artistId: args.artistId });
-    const hasSongs = artistSongs && artistSongs.length > 0;
+    const now = Date.now();
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
-    // Skip if synced within last hour (prevents duplicate triggers)
-    // BUT allow sync if artist has no songs (catalog might have failed)
-    const ONE_HOUR = 60 * 60 * 1000;
-    if (hasSongs && artist.lastSynced && (Date.now() - artist.lastSynced) < ONE_HOUR) {
-      console.log(`⏭️ Skipping catalog sync for ${args.artistName} - synced ${Math.round((Date.now() - artist.lastSynced) / 1000 / 60)} minutes ago`);
+    // CRITICAL: Check both lastSynced AND catalogSyncAttemptedAt
+    // This prevents infinite loops even if sync fails
+    const recentlySynced = artist.lastSynced && (now - artist.lastSynced) < TWENTY_FOUR_HOURS;
+    const recentlyAttempted = artist.catalogSyncAttemptedAt && (now - artist.catalogSyncAttemptedAt) < TWENTY_FOUR_HOURS;
+
+    if (recentlySynced || recentlyAttempted) {
+      const lastAction = recentlySynced ? artist.lastSynced : artist.catalogSyncAttemptedAt;
+      const actionType = recentlySynced ? "synced" : "attempted";
+      const minutesAgo = Math.round((now - (lastAction || 0)) / 1000 / 60);
+      console.log(`⏭️ Skipping catalog sync for ${args.artistName} - ${actionType} ${minutesAgo} minutes ago`);
       return null;
     }
 
-    console.log(`🎵 Starting catalog sync for ${args.artistName} (Last sync: ${artist.lastSynced ? new Date(artist.lastSynced).toISOString() : 'never'}, Songs in DB: ${artistSongs?.length || 0})`);
+    // Mark sync as in progress BEFORE starting
+    await ctx.runMutation(internal.artists.updateSyncStatus, {
+      artistId: args.artistId,
+      catalogSyncAttemptedAt: now,
+      catalogSyncStatus: "syncing",
+    });
+
+    console.log(`🎵 Starting catalog sync for ${args.artistName} (Last attempt: ${artist.catalogSyncAttemptedAt ? new Date(artist.catalogSyncAttemptedAt).toISOString() : 'never'})`);
 
     try {
       // Get access token
@@ -380,35 +391,60 @@ export const syncArtistCatalog = internalAction({
 
       console.log(`✅ Catalog sync completed for ${args.artistName}: ${songsImported}/${originalTracks.length} songs imported successfully`);
 
-      // Auto-generate setlists for shows without them
-      try {
-        const artistShows = await ctx.runQuery(internal.shows.getAllByArtistInternal, { artistId: args.artistId });
-        
-        for (const show of artistShows) {
-          const existingSetlists = await ctx.runQuery(api.setlists.getByShow, { showId: show._id });
+      // Mark catalog sync as completed
+      await ctx.runMutation(internal.artists.updateSyncStatus, {
+        artistId: args.artistId,
+        catalogSyncStatus: songsImported > 0 ? "completed" : "failed",
+      });
+
+      // Auto-generate setlists for shows without them (only if songs were imported)
+      if (songsImported > 0) {
+        try {
+          const artistShows = await ctx.runQuery(internal.shows.getAllByArtistInternal, { artistId: args.artistId });
           
-          if (!existingSetlists || existingSetlists.length === 0) {
-            await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+          // CRITICAL: Limit to prevent cascading updates
+          const showsNeedingSetlists = [];
+          for (const show of artistShows.slice(0, 10)) { // Max 10 shows at a time
+            const existingSetlists = await ctx.runQuery(api.setlists.getByShow, { showId: show._id });
+            
+            if (!existingSetlists || existingSetlists.length === 0) {
+              showsNeedingSetlists.push(show);
+            }
+          }
+
+          // Schedule with delays to prevent write conflicts
+          for (let i = 0; i < showsNeedingSetlists.length; i++) {
+            const show = showsNeedingSetlists[i];
+            await ctx.scheduler.runAfter(i * 5000, internal.setlists.autoGenerateSetlist, {
               showId: show._id,
               artistId: args.artistId,
             });
           }
+          
+          console.log(`📅 Scheduled ${showsNeedingSetlists.length} setlist generations after catalog import`);
+        } catch (e) {
+          console.error('Failed to auto-generate setlists after catalog import:', e);
+          await ctx.runMutation(internal.errorTracking.logError, {
+            operation: "spotify_auto_setlist_generation",
+            error: e instanceof Error ? e.message : String(e),
+            context: {
+              artistId: args.artistId,
+              artistName: args.artistName,
+            },
+            severity: "warning",
+          });
         }
-      } catch (e) {
-        console.error('Failed to auto-generate setlists after catalog import:', e);
-        await ctx.runMutation(internal.errorTracking.logError, {
-          operation: "spotify_auto_setlist_generation",
-          error: e instanceof Error ? e.message : String(e),
-          context: {
-            artistId: args.artistId,
-            artistName: args.artistName,
-          },
-          severity: "warning",
-        });
       }
 
     } catch (error) {
       console.error("Failed to sync Spotify catalog:", error);
+      
+      // Mark as failed
+      await ctx.runMutation(internal.artists.updateSyncStatus, {
+        artistId: args.artistId,
+        catalogSyncStatus: "failed",
+      });
+      
       // Track critical catalog sync failure
       await ctx.runMutation(internal.errorTracking.logError, {
         operation: "spotify_catalog_sync",

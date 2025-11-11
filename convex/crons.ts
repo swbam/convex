@@ -42,20 +42,21 @@ crons.interval("populate-missing-fields", { hours: 1 }, internal.maintenance.pop
 crons.interval("spotify-refresh", { hours: 12 }, internal.spotifyAuth.refreshUserTokens, {});
 
 // Ensure prediction setlists are always seeded for active shows (upcoming only)
+// REDUCED frequency and limit to prevent usage spikes
 crons.interval(
   "refresh-auto-setlists",
-  { hours: 6 },
+  { hours: 12 }, // Reduced from 6 to 12 hours
   internal.setlists.refreshMissingAutoSetlists,
-  { limit: 60 } // Default: upcoming shows only
+  { limit: 20 } // Reduced from 60 to 20 to prevent bulk scheduling
 );
 
-// CRITICAL FIX: Weekly backfill for legacy/completed shows without setlists
-// This catches shows created before auto-generation was implemented
-crons.interval(
-  "backfill-legacy-setlists",
-  { hours: 168 }, // Once per week (7 days * 24 hours)
-  internal.setlists.refreshMissingAutoSetlists,
-  { limit: 200, includeCompleted: true } // Scan ALL statuses for legacy fixes
-);
+// DISABLED: Weekly backfill was causing infinite loops and usage spikes
+// If needed, run manually via admin dashboard with careful monitoring
+// crons.interval(
+//   "backfill-legacy-setlists",
+//   { hours: 168 }, // Once per week (7 days * 24 hours)
+//   internal.setlists.refreshMissingAutoSetlists,
+//   { limit: 200, includeCompleted: true } // Scan ALL statuses for legacy fixes
+// );
 
 export default crons;

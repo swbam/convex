@@ -472,6 +472,36 @@ export const updateShowCount = internalMutation({
   },
 });
 
+// CRITICAL NEW: Track catalog sync attempts to prevent infinite loops
+export const updateSyncStatus = internalMutation({
+  args: {
+    artistId: v.id("artists"),
+    catalogSyncAttemptedAt: v.optional(v.number()),
+    catalogSyncStatus: v.optional(v.union(
+      v.literal("never"),
+      v.literal("pending"),
+      v.literal("syncing"),
+      v.literal("completed"),
+      v.literal("failed")
+    )),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const updates: any = {};
+    if (args.catalogSyncAttemptedAt !== undefined) {
+      updates.catalogSyncAttemptedAt = args.catalogSyncAttemptedAt;
+    }
+    if (args.catalogSyncStatus !== undefined) {
+      updates.catalogSyncStatus = args.catalogSyncStatus;
+    }
+    if (Object.keys(updates).length > 0) {
+      await ctx.db.patch(args.artistId, updates);
+      console.log(`✅ Updated sync status for artist ${args.artistId}: ${args.catalogSyncStatus}`);
+    }
+    return null;
+  },
+});
+
 
 
 // Internal queries for sync operations

@@ -429,26 +429,101 @@ export const autoGenerateSetlist = internalMutation({
       .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
       .collect();
 
-    // FIXED: Trigger ONE catalog sync if no songs exist (bootstrap mechanism)
-    // The spotify.ts has a 1-hour guard to prevent duplicate syncs
+    // CRITICAL FIX: If no songs exist, check if we recently attempted catalog sync
     if (artistSongs.length === 0) {
-      console.log(`⚠️ No songs found for artist ${args.artistId}, triggering catalog import`);
+      console.log(`⚠️ No songs found for artist ${args.artistId}`);
 
-      try {
-        const artist = await ctx.db.get(args.artistId);
-        if (artist) {
-          // Schedule ONE catalog sync - spotify.ts will dedupe if already syncing
-          void ctx.scheduler.runAfter(0, internal.spotify.syncArtistCatalog, {
-            artistId: args.artistId,
-            artistName: artist.name,
-          });
-          console.log(`📅 Scheduled catalog import for artist ${artist.name}`);
-        }
-      } catch (error) {
-        console.error(`❌ Failed to schedule catalog import for artist ${args.artistId}:`, error);
+      const artist = await ctx.db.get(args.artistId);
+      if (!artist) {
+        console.error(`❌ Artist ${args.artistId} not found`);
+        return null;
       }
 
-      return null;
+      const now = Date.now();
+      const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+      
+      // Check if we've attempted sync recently
+      const recentlySynced = artist.catalogSyncAttemptedAt && 
+                              (now - artist.catalogSyncAttemptedAt) < TWENTY_FOUR_HOURS;
+
+      if (recentlySynced) {
+        console.log(`⏭️ Catalog sync already attempted within 24 hours for ${artist.name}, skipping`);
+        
+        // CRITICAL: Create a PLACEHOLDER setlist to prevent infinite re-triggering
+        // This breaks the infinite loop by ensuring a setlist exists
+        if (!existingSetlist) {
+          const placeholderId = await ctx.db.insert("setlists", {
+            showId: args.showId,
+            userId: undefined,
+            songs: [], // Empty songs array indicates "waiting for catalog"
+            verified: false,
+            source: "user_submitted",
+            lastUpdated: now,
+            isOfficial: false,
+            confidence: 0.0, // Zero confidence for placeholder
+            upvotes: 0,
+            downvotes: 0,
+          });
+          console.log(`📝 Created placeholder setlist ${placeholderId} for show ${args.showId} (catalog sync pending)`);
+          return placeholderId;
+        }
+        return existingSetlist._id;
+      }
+
+      // First time or after 24 hours - schedule catalog sync
+      console.log(`📅 Scheduling catalog import for artist ${artist.name}`);
+      
+      try {
+        // Mark that we're attempting a sync to prevent duplicate scheduling
+        await ctx.db.patch(args.artistId, {
+          catalogSyncAttemptedAt: now,
+          catalogSyncStatus: "pending",
+        });
+
+        // Schedule ONE catalog sync with delay to prevent write conflicts
+        void ctx.scheduler.runAfter(5000, internal.spotify.syncArtistCatalog, {
+          artistId: args.artistId,
+          artistName: artist.name,
+        });
+
+        // Create placeholder setlist to prevent re-triggering
+        if (!existingSetlist) {
+          const placeholderId = await ctx.db.insert("setlists", {
+            showId: args.showId,
+            userId: undefined,
+            songs: [],
+            verified: false,
+            source: "user_submitted",
+            lastUpdated: now,
+            isOfficial: false,
+            confidence: 0.0,
+            upvotes: 0,
+            downvotes: 0,
+          });
+          console.log(`📝 Created placeholder setlist ${placeholderId}, catalog sync scheduled`);
+          return placeholderId;
+        }
+        
+        return existingSetlist._id;
+      } catch (error) {
+        console.error(`❌ Failed to schedule catalog import:`, error);
+        // Still create placeholder to prevent infinite retries
+        if (!existingSetlist) {
+          return await ctx.db.insert("setlists", {
+            showId: args.showId,
+            userId: undefined,
+            songs: [],
+            verified: false,
+            source: "user_submitted",
+            lastUpdated: now,
+            isOfficial: false,
+            confidence: 0.0,
+            upvotes: 0,
+            downvotes: 0,
+          });
+        }
+        return existingSetlist._id;
+      }
     }
 
     // Get the actual song records and filter out live/remix versions
@@ -750,7 +825,7 @@ export const refreshMissingAutoSetlists = internalMutation({
     scheduled: v.number(),
   }),
   handler: async (ctx, args) => {
-    const limit = args.limit ?? 60;
+    const limit = args.limit ?? 20; // Reduced default from 60 to 20
     
     // FIXED: Query upcoming AND completed shows if flag is set
     let shows;
@@ -767,7 +842,11 @@ export const refreshMissingAutoSetlists = internalMutation({
 
     let scheduled = 0;
 
-    for (const show of shows) {
+    // CRITICAL FIX: Add delays between scheduling to prevent write conflicts
+    // Instead of scheduling all at once, space them out over time
+    for (let i = 0; i < shows.length; i++) {
+      const show = shows[i];
+      
       // Skip shows without artist reference
       if (!show.artistId) {
         continue;
@@ -782,9 +861,13 @@ export const refreshMissingAutoSetlists = internalMutation({
         continue;
       }
 
-      // Schedule each setlist generation separately to avoid transaction conflicts
+      // Schedule each setlist generation with STAGGERED delays
+      // This prevents 60+ simultaneous updates to the same artist
+      // Delay = i * 10 seconds = max 200 seconds (3.3 minutes) for 20 shows
+      const delayMs = i * 10000; // 10 seconds between each job
+
       try {
-        void ctx.scheduler.runAfter(0, internal.setlists.autoGenerateSetlist, {
+        void ctx.scheduler.runAfter(delayMs, internal.setlists.autoGenerateSetlist, {
           showId: show._id,
           artistId: show.artistId,
         });
@@ -798,7 +881,7 @@ export const refreshMissingAutoSetlists = internalMutation({
       }
     }
 
-    console.log(`✅ Scheduled ${scheduled} setlist generations`);
+    console.log(`✅ Scheduled ${scheduled} setlist generations with staggered delays (prevents write conflicts)`);
     return { scheduled };
   },
 });
