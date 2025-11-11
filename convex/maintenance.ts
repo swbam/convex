@@ -486,7 +486,9 @@ export const syncTrendingDataWithLogging = internalAction({
 
       // Step 5: Optional Ticketmaster enrichment
       try {
-        const trendingArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 10 });
+        // Type cast to avoid deep instantiation errors
+        const getTrending = api.ticketmaster.getTrendingArtists as any;
+        const trendingArtists = await ctx.runAction(getTrending, { limit: 10 });
         let imported = 0;
         for (const tmArtist of trendingArtists) {
           try {
