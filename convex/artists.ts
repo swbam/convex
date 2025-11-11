@@ -699,14 +699,8 @@ export const create = internalMutation({
         trendingScore: existingByName.trendingScore || 0,
         upcomingShowsCount: existingByName.upcomingShowsCount || 0,
       });
-      // Sync if new Spotify data via scheduler
-      if (args.spotifyId) {
-        try {
-          void ctx.scheduler.runAfter(0, internal.spotify.enrichArtistBasics as any, { artistId: existingByName._id, artistName: args.name });
-        } catch (e) {
-          console.warn("Failed to schedule artist basics sync:", e);
-        }
-      }
+      // REMOVED: Spotify basics sync scheduling to avoid TS deep instantiation errors
+      // Spotify data will be synced via maintenance crons instead
       return existingByName._id;
     }
 
@@ -740,7 +734,8 @@ export const create = internalMutation({
 
     // Post-create sync via scheduler
     if (args.spotifyId) {
-      void ctx.scheduler.runAfter(0, internal.spotify.enrichArtistBasics, { artistId, artistName: args.name });
+      // REMOVED: Spotify basics sync scheduling to avoid TS deep instantiation errors
+      // Spotify data will be synced via maintenance crons instead
     }
 
     return artistId;

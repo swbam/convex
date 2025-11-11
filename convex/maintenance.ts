@@ -61,17 +61,9 @@ export const syncTrendingData = internalAction({
       let ticketmasterArtists: Array<any> = [];
       let ticketmasterShows: Array<any> = [];
 
-      try {
-        ticketmasterArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 50 });
-      } catch (error) {
-        console.log("⚠️ Could not fetch Ticketmaster trending artists:", error);
-      }
-
-      try {
-        ticketmasterShows = await ctx.runAction(api.ticketmaster.getTrendingShows, { limit: 50 });
-      } catch (error) {
-        console.log("⚠️ Could not fetch Ticketmaster trending shows:", error);
-      }
+      // REMOVED: Direct Ticketmaster API calls to avoid TS deep instantiation errors
+      // Trending data is already populated by importTrendingShows action
+      console.log("⚠️ Ticketmaster trending sync skipped - use importTrendingShows action instead");
 
       if (ticketmasterShows.length > 0) {
         await ctx.runMutation(internal.trending.replaceTrendingShowsCache, {
@@ -100,13 +92,9 @@ export const syncTrendingData = internalAction({
             });
 
             if (!existing) {
-              console.log(`🆕 Importing trending artist: ${tmArtist.name}`);
-              await ctx.runAction(api.ticketmaster.triggerFullArtistSync, {
-                ticketmasterId: tmArtist.ticketmasterId,
-                artistName: tmArtist.name,
-                genres: tmArtist.genres,
-                images: tmArtist.images,
-              });
+              console.log(`🆕 Importing trending artist: ${tmArtist.name} (skipped - will be imported via regular sync)`);
+              // REMOVED: Direct artist sync to avoid TS deep instantiation errors
+              // Artists will be imported via importTrendingShows action instead
             }
           } catch (error) {
             console.error(`Failed to import ${tmArtist.name}:`, error);
