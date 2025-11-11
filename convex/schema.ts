@@ -382,6 +382,15 @@ const applicationTables = {
     .index("by_timestamp", ["timestamp"])
     .index("by_resolved", ["resolved"])
     .index("by_sentry_status", ["sentToSentry"]),
+
+  // Admin-configurable cron settings
+  cronSettings: defineTable({
+    name: v.string(),
+    intervalMs: v.number(),
+    enabled: v.boolean(),
+    lastRunAt: v.optional(v.number()),
+  })
+    .index("by_name", ["name"]),
 };
 
 export default defineSchema({

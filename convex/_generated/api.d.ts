@@ -18,6 +18,7 @@ import type * as artists from "../artists.js";
 import type * as auth from "../auth.js";
 import type * as bulkCatalogSync from "../bulkCatalogSync.js";
 import type * as common from "../common.js";
+import type * as cronSettings from "../cronSettings.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
 import type * as deployment from "../deployment.js";
@@ -77,6 +78,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   bulkCatalogSync: typeof bulkCatalogSync;
   common: typeof common;
+  cronSettings: typeof cronSettings;
   crons: typeof crons;
   dashboard: typeof dashboard;
   deployment: typeof deployment;

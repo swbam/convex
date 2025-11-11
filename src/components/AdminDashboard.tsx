@@ -10,7 +10,7 @@ import { Badge } from "./ui/badge";
 import { ShimmerButton } from "./ui/shimmer-button";
 import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
-import { Activity, TrendingUp, Users, Music, Calendar, Flag, Database, Mic, CheckCircle, AlertCircle, Loader2, Shield, Lock, Search, Trash2, RefreshCw, UserCheck, BarChart3, FileText, Copy } from "lucide-react";
+import { Activity, TrendingUp, Users, Music, Calendar, Flag, Database, Mic, CheckCircle, AlertCircle, Loader2, Shield, Lock, Trash2, RefreshCw, UserCheck, BarChart3, FileText, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
@@ -32,29 +32,32 @@ import {
 
 export function AdminDashboard() {
   const navigate = useNavigate();
-  const { user: clerkUser } = useUser();
-  const isAdmin = useQuery(api.admin.isCurrentUserAdmin);
-  const logged = useQuery(api.auth.loggedInUser);
-  const stats = useQuery(api.admin.getAdminStats);
-  const health = useQuery(api.admin.getSystemHealth);
-  const flagged = useQuery(api.admin.getFlaggedContent, {});
-  const users = useQuery(api.admin.getAllUsers, { limit: 50 });
-  const recentActivity = useQuery(api.admin.getRecentActivity, { limit: 50 });
-  const verifySetlist = useMutation(api.admin.verifySetlist);
-  const bulkDeleteFlagged = useMutation(api.admin.bulkDeleteFlagged); // New mutation
-  const updateUserRole = useMutation(api.admin.updateUserRole); // New for roles
+  const { user: _clerkUser } = useUser();
+  const isAdmin = useQuery((api as any).admin.isCurrentUserAdmin);
+  const logged = useQuery((api as any).auth.loggedInUser);
+  const stats = useQuery((api as any).admin.getAdminStats);
+  const health = useQuery((api as any).admin.getSystemHealth);
+  const flagged = useQuery((api as any).admin.getFlaggedContent, {});
+  const users = useQuery((api as any).admin.getAllUsers, { limit: 50 });
+  const cronSettings = useQuery((api as any).admin.getCronSettings);
+  const recentActivity = useQuery((api as any).admin.getRecentActivity, { limit: 50 });
+  const bulkDeleteFlagged = useMutation((api as any).admin.bulkDeleteFlagged); // New mutation
+  const updateUserRole = useMutation((api as any).admin.updateUserRole); // New for roles
   
   // Trending sync actions
-  const syncTrending = useAction(api.admin.syncTrending);
-  const syncTrendingArtists = useAction(api.admin.syncTrendingArtists);
-  const syncTrendingShows = useAction(api.admin.syncTrendingShows);
+  const syncTrending = useAction((api as any).admin.syncTrending);
+  const syncTrendingArtists = useAction((api as any).admin.syncTrendingArtists);
+  const syncTrendingShows = useAction((api as any).admin.syncTrendingShows);
   
   // Setlist sync actions
-  const triggerSetlistSync = useAction(api.admin.testTriggerSetlistSync);
-  const cleanupSongs = useAction(api.admin.testCleanupNonStudioSongs);
-  const backfillSetlists = useAction(api.admin.testBackfillMissingSetlists);
-  const resyncCatalogs = useAction(api.admin.resyncArtistCatalogs);
-  const importTrending = useAction(api.admin.testImportTrendingFromTicketmaster);
+  const triggerSetlistSync = useAction((api as any).admin.testTriggerSetlistSync);
+  const cleanupSongs = useAction((api as any).admin.testCleanupNonStudioSongs);
+  const backfillSetlists = useAction((api as any).admin.testBackfillMissingSetlists);
+  const resyncCatalogs = useAction((api as any).admin.resyncArtistCatalogs);
+  const importTrending = useAction((api as any).admin.testImportTrendingFromTicketmaster);
+  const updateCron = useMutation((api as any).admin.updateCronSetting);
+  const promoteByEmail = useMutation((api as any).admin.promoteUserByEmail);
+  const setClerkRoleByEmail = useAction((api as any).admin.setClerkRoleByEmail);
   
   // Loading state
   const [trendingSyncing, setTrendingSyncing] = useState(false);
@@ -65,22 +68,23 @@ export function AdminDashboard() {
   const [backfillSyncing, setBackfillSyncing] = useState(false);
   const [catalogSyncing, setCatalogSyncing] = useState(false);
   const [importSyncing, setImportSyncing] = useState(false);
+  const [newAdminEmail, setNewAdminEmail] = useState("");
 
-  const pendingFlags = useMemo(() => (flagged || []).filter(f => f.status === "pending"), [flagged]);
+  const pendingFlags = useMemo(() => (flagged || []).filter((f: any) => f.status === "pending"), [flagged]);
 
   const [activeSection, setActiveSection] = useState('stats');
   const [selectedFlagged, setSelectedFlagged] = useState<Set<Id<'contentFlags'>>>(new Set());
   const [userSearch, setUserSearch] = useState('');
-  const [selectedUsers, setSelectedUsers] = useState<Set<Id<'users'>>>(new Set());
+  // removed unused selectedUsers state
 
   // Filtered flagged
   const filteredFlagged = useMemo(() => 
-    flagged?.filter(f => f.reason.toLowerCase().includes(userSearch.toLowerCase())) || []
+    flagged?.filter((f: any) => f.reason.toLowerCase().includes(userSearch.toLowerCase())) || []
   , [flagged, userSearch]);
 
   // Filtered users
   const filteredUsers = useMemo(() => 
-    users?.filter(u => u.email?.toLowerCase().includes(userSearch.toLowerCase())) || []
+    users?.filter((u: any) => u.email?.toLowerCase().includes(userSearch.toLowerCase())) || []
   , [users, userSearch]);
 
   const handleSyncTrending = async () => {
@@ -203,7 +207,7 @@ export function AdminDashboard() {
       await bulkDeleteFlagged({ ids: Array.from(selectedFlagged) });
       toast.success("Flagged content deleted");
       setSelectedFlagged(new Set());
-    } catch (e) {
+    } catch {
       toast.error("Bulk delete failed");
     }
   };
@@ -212,7 +216,7 @@ export function AdminDashboard() {
     try {
       await updateUserRole({ userId, role });
       toast.success("Role updated");
-    } catch (e) {
+    } catch {
       toast.error("Role update failed");
     }
   };
@@ -478,7 +482,7 @@ export function AdminDashboard() {
             />
           </div>
           <div className="space-y-4">
-            {filteredUsers.map(user => (
+            {filteredUsers.map((user: any) => (
               <div key={user._id} className="flex items-center justify-between p-4 bg-white/5 rounded">
                 <div>
                   <p className="text-white font-medium">{user.email}</p>
@@ -504,7 +508,7 @@ export function AdminDashboard() {
             </Button>
           </div>
           <div className="space-y-4">
-            {filteredFlagged.map(flag => (
+            {filteredFlagged.map((flag: any) => (
               <div key={flag._id} className="flex gap-2 items-start p-4 bg-white/5 rounded">
                 <Checkbox 
                   id={flag._id}
@@ -705,6 +709,116 @@ export function AdminDashboard() {
             </div>
           </div>
           
+          {/* Admin Users */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Admin Users
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <div className="text-sm text-gray-300 mb-2">Promote user by email</div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="user@example.com"
+                    value={newAdminEmail}
+                    onChange={(e) => setNewAdminEmail(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={() => { void (async () => {
+                      if (!newAdminEmail) return;
+                      try {
+                        const res = await promoteByEmail({ email: newAdminEmail });
+                        if (res.promoted) {
+                          toast.success("User promoted in database");
+                        } else {
+                          toast.info("No matching user; user must sign in first");
+                        }
+                        const r2 = await setClerkRoleByEmail({ email: newAdminEmail, role: "admin" });
+                        if (r2.clerkUpdated) {
+                          toast.success("Clerk role updated");
+                        } else {
+                          toast.message(r2.message || "Clerk not updated");
+                        }
+                      } catch (e: any) {
+                        toast.error(e?.message || "Promotion failed");
+                      } finally {
+                        setNewAdminEmail("");
+                      }
+                    })(); }}
+                  >
+                    Promote
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Note: Clerk role update requires CLERK_SECRET_KEY configured.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Cron Settings */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Cron Schedules
+            </h3>
+            {!cronSettings ? (
+              <div className="space-y-2">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-14 rounded-lg bg-white/5 animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {cronSettings.map((c: any) => (
+                  <div key={c._id} className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl p-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-white font-medium truncate">{c.name}</div>
+                      <div className="text-xs text-gray-400">
+                        Last run: {c.lastRunAt ? new Date(c.lastRunAt).toLocaleString() : "never"}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={1}
+                        defaultValue={Math.max(1, Math.round((c.intervalMs || 60000) / 60000))}
+                        className="w-24"
+                        onBlur={(e) => { void (async () => {
+                          const minutes = Math.max(1, Number(e.currentTarget.value || 1));
+                          try {
+                            await updateCron({ name: c.name, intervalMs: minutes * 60000, enabled: c.enabled !== false });
+                            toast.success("Interval updated");
+                          } catch {
+                            toast.error("Failed to update");
+                          }
+                        })(); }}
+                      />
+                      <span className="text-xs text-gray-400">min</span>
+                      <Checkbox
+                        checked={c.enabled !== false}
+                        onCheckedChange={(checked) => { void (async () => {
+                          try {
+                            await updateCron({ name: c.name, intervalMs: c.intervalMs || 60000, enabled: Boolean(checked) });
+                            toast.success("Cron " + (checked ? "enabled" : "disabled"));
+                          } catch {
+                            toast.error("Failed to update");
+                          }
+                        })(); }}
+                      />
+                      <span className="text-xs text-gray-400">Enabled</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-gray-500">
+              Orchestrator checks every 5 min; jobs adhere to these intervals.
+            </p>
+          </div>
+
           <div className="text-sm text-gray-400 px-2">
             <p className="mb-1">🔄 Trending rankings are automatically updated every 4 hours</p>
             <p>📊 Rankings are based on: popularity, followers, upcoming shows, and recent activity</p>

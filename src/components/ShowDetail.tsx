@@ -390,6 +390,24 @@ export function ShowDetail({
                   </div>
                 </div>
               </div>
+
+              {/* Tickets CTA - in header for both mobile and desktop */}
+              {isUpcoming && show?.ticketUrl && (
+                <div className="w-full sm:w-auto">
+                  <button
+                    onClick={() =>
+                      window.open(
+                        buildTicketmasterAffiliateUrl(show.ticketUrl || ""),
+                        "_blank"
+                      )
+                    }
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-white px-4 py-3 sm:px-5 sm:py-2.5 transition-colors"
+                  >
+                    <Ticket className="h-4 w-4" />
+                    <span className="text-sm sm:text-base font-medium">Get Tickets</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -836,23 +854,7 @@ export function ShowDetail({
           </div>
         </div>
 
-        {/* Sticky mobile CTA for primary action */}
-        {isUpcoming && (
-          <div className="sm:hidden fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-40 px-4 pb-3">
-            <button
-              onClick={() =>
-                window.open(
-                  buildTicketmasterAffiliateUrl(show?.ticketUrl || ""),
-                  "_blank"
-                )
-              }
-              className="w-full h-14 rounded-xl bg-white text-black font-bold shadow-2xl active:scale-[0.98] transition-transform duration-150 flex items-center justify-center gap-2"
-            >
-              <Ticket className="h-5 w-5" />
-              Get Tickets
-            </button>
-          </div>
-        )}
+        {/* Removed sticky mobile CTA; tickets button shown in header */}
       </motion.div>
 
       {/* Auth Modal for Unauth Limits */}

@@ -96,6 +96,66 @@ export const promoteUserByEmail = mutation({
   },
 });
 
+// Optionally update Clerk metadata role for a user by email (requires CLERK_SECRET_KEY)
+export const setClerkRoleByEmail = action({
+  args: { email: v.string(), role: v.union(v.literal("user"), v.literal("admin")) },
+  returns: v.object({ success: v.boolean(), clerkUpdated: v.boolean(), message: v.string() }),
+  handler: async (_ctx, args) => {
+    try {
+      const secret = process.env.CLERK_SECRET_KEY;
+      if (!secret) {
+        return { success: true, clerkUpdated: false, message: "CLERK_SECRET_KEY not configured" };
+      }
+      const base = "https://api.clerk.com/v1";
+      const search = await fetch(`${base}/users?email_address=${encodeURIComponent(args.email)}`, {
+        headers: { Authorization: `Bearer ${secret}` },
+      });
+      if (!search.ok) {
+        return { success: false, clerkUpdated: false, message: `Clerk search failed: ${search.status}` };
+      }
+      const users = await search.json() as Array<any>;
+      if (!Array.isArray(users) || users.length === 0) {
+        return { success: false, clerkUpdated: false, message: "No Clerk user found for email" };
+      }
+      const id = users[0].id;
+      const patch = await fetch(`${base}/users/${id}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ public_metadata: { role: args.role } }),
+      });
+      if (!patch.ok) {
+        return { success: false, clerkUpdated: false, message: `Clerk update failed: ${patch.status}` };
+      }
+      return { success: true, clerkUpdated: true, message: "Clerk role updated" };
+    } catch (e: any) {
+      return { success: false, clerkUpdated: false, message: e?.message || "Unknown error" };
+    }
+  },
+});
+
+// ===== CRON SETTINGS (Admin) =====
+export const getCronSettings = query({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    return await ctx.runQuery(internal.cronSettings.list, {});
+  },
+});
+
+export const updateCronSetting = mutation({
+  args: { name: v.string(), intervalMs: v.number(), enabled: v.boolean() },
+  returns: v.object({ success: v.boolean() }),
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    await ctx.runMutation(internal.cronSettings.update, args);
+    return { success: true };
+  },
+});
+
 // Internal: Ensure a user is admin by email (no auth required, for deploy scripts)
 export const ensureAdminByEmailInternal = internalMutation({
   args: { email: v.string() },
