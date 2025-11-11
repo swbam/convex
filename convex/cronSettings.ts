@@ -23,7 +23,7 @@ export const upsertInternal = internalMutation({
     if (existing) {
       const { name, ...rest } = args;
       await ctx.db.patch(existing._id, rest);
-      return { _id: existing._id, ...existing, ...rest };
+      return { ...existing, ...rest, _id: existing._id };
     }
     const id = await ctx.db.insert("cronSettings", {
       name: args.name,

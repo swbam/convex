@@ -2,7 +2,7 @@
 
 import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
 // Ticketmaster API integration for artist search
@@ -554,6 +554,28 @@ export const getTrendingShows = action({
   },
 });
 
+// Internal wrapper for getTrendingShows
+export const getTrendingShowsInternal = internalAction({
+  args: { limit: v.optional(v.number()) },
+  returns: v.array(v.object({
+    ticketmasterId: v.string(),
+    artistTicketmasterId: v.optional(v.string()),
+    artistName: v.string(),
+    venueName: v.string(),
+    venueCity: v.string(),
+    venueCountry: v.string(),
+    date: v.string(),
+    startTime: v.optional(v.string()),
+    artistImage: v.optional(v.string()),
+    ticketUrl: v.optional(v.string()),
+    priceRange: v.optional(v.string()),
+    status: v.string(),
+  })),
+  handler: async (ctx, args) => {
+    return await ctx.runAction(api.ticketmaster.getTrendingShows, args);
+  },
+});
+
 // Get trending artists from Ticketmaster API
 export const getTrendingArtists = action({
   args: { limit: v.optional(v.number()) },
@@ -616,6 +638,22 @@ export const getTrendingArtists = action({
       console.error("Failed to get trending artists:", error);
       return [];
     }
+  },
+});
+
+// Internal wrapper for getTrendingArtists
+export const getTrendingArtistsInternal = internalAction({
+  args: { limit: v.optional(v.number()) },
+  returns: v.array(v.object({
+    ticketmasterId: v.string(),
+    name: v.string(),
+    genres: v.array(v.string()),
+    images: v.array(v.string()),
+    upcomingEvents: v.number(),
+    url: v.optional(v.string()),
+  })),
+  handler: async (ctx, args) => {
+    return await ctx.runAction(api.ticketmaster.getTrendingArtists, args);
   },
 });
 
