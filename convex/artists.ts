@@ -699,8 +699,19 @@ export const create = internalMutation({
         trendingScore: existingByName.trendingScore || 0,
         upcomingShowsCount: existingByName.upcomingShowsCount || 0,
       });
-      // REMOVED: Spotify basics sync scheduling to avoid TS deep instantiation errors
-      // Spotify data will be synced via maintenance crons instead
+      // Schedule ONE catalog sync if this is a new artist from external source
+      // The spotify.ts has a 1-hour guard to prevent duplicate syncs
+      if (args.spotifyId) {
+        try {
+          // @ts-expect-error: Type instantiation depth workaround
+          void ctx.scheduler.runAfter(0, internal.spotify.enrichArtistBasics, {
+            artistId: existingByName._id,
+            artistName: args.name
+          });
+        } catch (e) {
+          console.warn("Failed to schedule artist basics sync:", e);
+        }
+      }
       return existingByName._id;
     }
 
@@ -732,10 +743,17 @@ export const create = internalMutation({
       lowerName,
     });
 
-    // Post-create sync via scheduler
+    // Post-create sync via scheduler - ONE catalog sync for new artist
+    // The spotify.ts has a 1-hour guard to prevent duplicate syncs
     if (args.spotifyId) {
-      // REMOVED: Spotify basics sync scheduling to avoid TS deep instantiation errors
-      // Spotify data will be synced via maintenance crons instead
+      try {
+        void ctx.scheduler.runAfter(0, internal.spotify.enrichArtistBasics, {
+          artistId,
+          artistName: args.name
+        });
+      } catch (e) {
+        console.warn("Failed to schedule artist basics sync:", e);
+      }
     }
 
     return artistId;
