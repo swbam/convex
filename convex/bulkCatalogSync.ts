@@ -18,9 +18,8 @@ export const syncAllMissingCatalogs = internalAction({
     console.log("🎵 Starting bulk catalog sync for artists without songs...");
     
     const limit = args.limit ?? 50;
-    // Type cast to avoid deep instantiation errors
-    const getAllArtists = internal.artists.getAllInternal as any;
-    const artists = await ctx.runQuery(getAllArtists, { limit: 200 });
+    // @ts-expect-error - Avoiding deep instantiation error
+    const artists = await ctx.runQuery(internal.artists.getAllInternal, { limit: 200 });
     
     let processed = 0;
     let synced = 0;
