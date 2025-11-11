@@ -62,13 +62,13 @@ export const syncTrendingData = internalAction({
       let ticketmasterShows: Array<any> = [];
 
       try {
-        ticketmasterArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 50 });
+        ticketmasterArtists = await ctx.runAction(internal.ticketmaster.getTrendingArtistsInternal, { limit: 50 });
       } catch (error) {
         console.log("⚠️ Could not fetch Ticketmaster trending artists:", error);
       }
 
       try {
-        ticketmasterShows = await ctx.runAction(api.ticketmaster.getTrendingShows, { limit: 50 });
+        ticketmasterShows = await ctx.runAction(internal.ticketmaster.getTrendingShowsInternal, { limit: 50 });
       } catch (error) {
         console.log("⚠️ Could not fetch Ticketmaster trending shows:", error);
       }

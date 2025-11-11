@@ -136,26 +136,6 @@ export const setClerkRoleByEmail = action({
   },
 });
 
-// ===== CRON SETTINGS (Admin) =====
-export const getCronSettings = query({
-  args: {},
-  returns: v.array(v.any()),
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
-    return await ctx.runQuery(internal.cronSettings.list, {});
-  },
-});
-
-export const updateCronSetting = mutation({
-  args: { name: v.string(), intervalMs: v.number(), enabled: v.boolean() },
-  returns: v.object({ success: v.boolean() }),
-  handler: async (ctx, args) => {
-    await requireAdmin(ctx);
-    await ctx.runMutation(internal.cronSettings.update, args);
-    return { success: true };
-  },
-});
-
 // Internal: Ensure a user is admin by email (no auth required, for deploy scripts)
 export const ensureAdminByEmailInternal = internalMutation({
   args: { email: v.string() },
@@ -698,9 +678,9 @@ export const cleanupNonStudioSongs = action({
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
-    
+
     try {
-      const result: { success: boolean; message: string; cleanedCount: number } = await ctx.runAction(internal.admin.cleanupNonStudioSongsInternal, {});
+      const result = await ctx.runAction(internal.admin.cleanupNonStudioSongsInternal, {});
       return result;
     } catch (error) {
       return {
@@ -743,7 +723,7 @@ export const testCleanupNonStudioSongs = action({
   returns: v.object({ success: v.boolean(), message: v.string(), cleanedCount: v.number() }),
   handler: async (ctx): Promise<{ success: boolean; message: string; cleanedCount: number }> => {
     try {
-      const result: { success: boolean; message: string; cleanedCount: number } = await ctx.runAction(internal.admin.cleanupNonStudioSongsInternal, {});
+      const result = await ctx.runAction(internal.admin.cleanupNonStudioSongsInternal, {});
       return result;
     } catch (error) {
       return {
