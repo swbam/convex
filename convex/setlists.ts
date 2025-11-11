@@ -429,25 +429,9 @@ export const autoGenerateSetlist = internalMutation({
       .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
       .collect();
 
-    // ENHANCED: If no songs found, schedule catalog import before failing
+    // FIXED: Don't schedule catalog sync here - let maintenance cron handle it
     if (artistSongs.length === 0) {
-      console.log(`⚠️ No songs found for artist ${args.artistId}, scheduling catalog import`);
-      
-      // Try to trigger catalog import for this artist
-      try {
-        // Get artist details to pass artist name
-        const artist = await ctx.db.get(args.artistId);
-        if (artist) {
-          void ctx.scheduler.runAfter(0, internal.spotify.syncArtistCatalog, {
-            artistId: args.artistId,
-            artistName: artist.name,
-          });
-          console.log(`📅 Scheduled catalog import for artist ${artist.name}`);
-        }
-      } catch (error) {
-        console.error(`❌ Failed to schedule catalog import for artist ${args.artistId}:`, error);
-      }
-      
+      console.log(`⚠️ No songs found for artist ${args.artistId}, skipping setlist generation`);
       return null;
     }
 
