@@ -554,27 +554,7 @@ export const getTrendingShows = action({
   },
 });
 
-// Internal wrapper for getTrendingShows
-export const getTrendingShowsInternal = internalAction({
-  args: { limit: v.optional(v.number()) },
-  returns: v.array(v.object({
-    ticketmasterId: v.string(),
-    artistTicketmasterId: v.optional(v.string()),
-    artistName: v.string(),
-    venueName: v.string(),
-    venueCity: v.string(),
-    venueCountry: v.string(),
-    date: v.string(),
-    startTime: v.optional(v.string()),
-    artistImage: v.optional(v.string()),
-    ticketUrl: v.optional(v.string()),
-    priceRange: v.optional(v.string()),
-    status: v.string(),
-  })),
-  handler: async (ctx, args) => {
-    return await ctx.runAction(api.ticketmaster.getTrendingShows, args);
-  },
-});
+// REMOVED: getTrendingShowsInternal - use public action directly to avoid circular type references
 
 // Get trending artists from Ticketmaster API
 export const getTrendingArtists = action({
@@ -642,20 +622,7 @@ export const getTrendingArtists = action({
 });
 
 // Internal wrapper for getTrendingArtists
-export const getTrendingArtistsInternal = internalAction({
-  args: { limit: v.optional(v.number()) },
-  returns: v.array(v.object({
-    ticketmasterId: v.string(),
-    name: v.string(),
-    genres: v.array(v.string()),
-    images: v.array(v.string()),
-    upcomingEvents: v.number(),
-    url: v.optional(v.string()),
-  })),
-  handler: async (ctx, args) => {
-    return await ctx.runAction(api.ticketmaster.getTrendingArtists, args);
-  },
-});
+// REMOVED: getTrendingArtistsInternal - use public action directly to avoid circular type references
 
 // Search shows by zip code with radius (for venue search page)
 export const searchShowsByZipCode = action({
