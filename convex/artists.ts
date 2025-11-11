@@ -699,9 +699,13 @@ export const create = internalMutation({
         trendingScore: existingByName.trendingScore || 0,
         upcomingShowsCount: existingByName.upcomingShowsCount || 0,
       });
-      // Sync if new Spotify data via scheduler (type cast to fix deep instantiation error)
+      // Sync if new Spotify data via scheduler
       if (args.spotifyId) {
-        void ctx.scheduler.runAfter(0, internal.spotify.enrichArtistBasics as any, { artistId: existingByName._id, artistName: args.name });
+        try {
+          void ctx.scheduler.runAfter(0, internal.spotify.enrichArtistBasics as any, { artistId: existingByName._id, artistName: args.name });
+        } catch (e) {
+          console.warn("Failed to schedule artist basics sync:", e);
+        }
       }
       return existingByName._id;
     }

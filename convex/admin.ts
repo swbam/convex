@@ -743,14 +743,39 @@ export const resyncArtistCatalogs = action({
   },
 });
 
-// Test versions
+// Test versions - execute directly to avoid type issues
 export const testCleanupNonStudioSongs = action({
   args: {},
   returns: v.object({ success: v.boolean(), message: v.string(), cleanedCount: v.number() }),
   handler: async (ctx): Promise<{ success: boolean; message: string; cleanedCount: number }> => {
+    console.log("🧹 Test: Starting cleanup of non-studio songs...");
+
+    let cleanedCount = 0;
+
     try {
-      const result = await ctx.runAction(api.admin.cleanupNonStudioSongs, {});
-      return result;
+      // Get songs in batches to avoid timeout
+      const songs = await ctx.runQuery(internal.songs.getAllForCleanup, {});
+      console.log(`📊 Checking ${songs.length} songs for cleanup...`);
+
+      for (const song of songs.slice(0, 100)) { // Limit for performance
+        const shouldRemove = isNonStudioSong(song.title, song.album || '');
+
+        if (shouldRemove) {
+          try {
+            await ctx.runMutation(internal.songs.deleteSong, { songId: song._id });
+            cleanedCount++;
+            console.log(`🗑️ Removed: ${song.title} (${song.album || 'Unknown Album'})`);
+          } catch (error) {
+            console.error(`❌ Failed to delete song ${song._id}:`, error);
+          }
+        }
+      }
+
+      return {
+        success: true,
+        message: `Test cleanup completed: ${cleanedCount} non-studio songs removed`,
+        cleanedCount
+      };
     } catch (error) {
       return {
         success: false,
