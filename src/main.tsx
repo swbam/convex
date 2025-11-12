@@ -33,7 +33,7 @@ if (!convexUrl || !publishableKey) {
   try {
     const convex = new ConvexReactClient(convexUrl);
     
-    // CRITICAL FIX: Custom useAuth that requests JWT with template name "setlistslive"
+    // CRITICAL FIX: Custom useAuth that requests JWT with template name "convex"
     const useAuth = () => {
       const auth = useClerkAuth();
       return React.useMemo(
@@ -41,7 +41,24 @@ if (!convexUrl || !publishableKey) {
           ...auth,
           getToken: async (args?: any) => {
             // Request JWT with default template name "convex"
-            return await auth.getToken({ ...args, template: "convex" });
+            console.log('🔐 Requesting Clerk JWT with template "convex"', { args });
+            try {
+              const token = await auth.getToken({ ...args, template: "convex" });
+              console.log('🔐 JWT received:', token ? '✅ Token exists (length: ' + token.length + ')' : '❌ No token');
+              if (token) {
+                // Decode JWT to inspect claims (for debugging only)
+                try {
+                  const payload = JSON.parse(atob(token.split('.')[1]));
+                  console.log('🔐 JWT payload:', payload);
+                } catch (e) {
+                  console.warn('Could not decode JWT for inspection');
+                }
+              }
+              return token;
+            } catch (error) {
+              console.error('🔐 JWT request failed:', error);
+              throw error;
+            }
           },
         }),
         [auth]
