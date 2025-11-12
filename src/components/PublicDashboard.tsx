@@ -197,7 +197,7 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
               </div>
             ) : (
               <div className="overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20 pb-4">
-                <div className="flex gap-4 w-max">
+                <div className="grid grid-rows-2 grid-flow-col gap-4 w-max">
                   {(trendingArtists as any[]).map((artist: any, index: number) => {
                     const artistId = artist?._id || artist?.artistId;
                     const slug = artist?.slug 
@@ -262,7 +262,7 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
               </div>
             ) : (
               <div className="overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20 pb-4">
-                <div className="flex gap-4 w-max">
+                <div className="grid grid-rows-2 grid-flow-col gap-4 w-max">
                   {(trendingShows as any[]).map((show: any, index: number) => {
                     return (
                       <motion.div
