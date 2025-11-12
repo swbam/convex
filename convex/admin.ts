@@ -1058,6 +1058,80 @@ export const testImportTrendingFromTicketmaster = action({
   },
 });
 
+// Cleanup non-concert artists (children's music, orchestras, musicals, etc.)
+export const cleanupNonConcertArtists = action({
+  args: {},
+  returns: v.object({
+    success: v.boolean(),
+    message: v.string(),
+    deletedCount: v.number(),
+  }),
+  handler: async (ctx) => {
+    try {
+      console.log("🧹 [CLEANUP] Starting cleanup of non-concert artists...");
+      
+      // Get all artists
+      const artists = await ctx.runQuery(internal.artists.getAllInternal, {});
+      console.log(`📊 Found ${artists.length} total artists to check`);
+      
+      const excludedGenres = [
+        'children\'s music', 'childrens music', 'kids', 'family',
+        'classical', 'orchestra', 'symphony', 'chamber', 'opera',
+        'musical', 'theatre', 'broadway', 'show tunes',
+        'spoken word', 'comedy', 'podcast',
+      ];
+      
+      let deletedCount = 0;
+      
+      for (const artist of artists) {
+        const genres = (artist.genres || []).map((g: string) => g.toLowerCase());
+        const hasExcludedGenre = genres.some((genre: string) => 
+          excludedGenres.some((excluded: string) => genre.includes(excluded))
+        );
+        
+        if (hasExcludedGenre) {
+          console.log(`🗑️ Deleting non-concert artist: ${artist.name} (genres: ${genres.join(', ')})`);
+          
+          try {
+            // Delete artist's shows first
+            const shows = await ctx.runQuery(internal.shows.getAllByArtistInternal, { 
+              artistId: artist._id 
+            });
+            for (const show of shows) {
+              await ctx.runMutation(internal.shows.deleteShowInternal, { showId: show._id });
+            }
+            
+            // Delete artist's songs
+            await ctx.runMutation(internal.songs.deleteByArtist, { artistId: artist._id });
+            
+            // Delete the artist
+            await ctx.runMutation(internal.artists.deleteArtistInternal, { artistId: artist._id });
+            
+            deletedCount++;
+          } catch (error) {
+            console.error(`❌ Failed to delete artist ${artist.name}:`, error);
+          }
+        }
+      }
+      
+      console.log(`✅ Cleanup complete: deleted ${deletedCount} non-concert artists`);
+      
+      return {
+        success: true,
+        message: `Successfully deleted ${deletedCount} non-concert artists`,
+        deletedCount,
+      };
+    } catch (error) {
+      console.error("❌ Cleanup failed:", error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error occurred",
+        deletedCount: 0,
+      };
+    }
+  },
+});
+
 // Internal cleanup functions
 export const cleanupNonStudioSongsInternal = internalAction({
   args: {},

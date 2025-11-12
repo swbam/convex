@@ -272,6 +272,36 @@ export const createFromTicketmaster = internalMutation({
   handler: async (ctx, args) => {
     const lowerName = args.name.toLowerCase();
     
+    // CRITICAL: Only allow actual CONCERT genres (rock/pop/country/hip-hop/electronic/metal/indie/etc)
+    const concertGenres = [
+      'rock', 'pop', 'country', 'hip-hop', 'rap', 'r&b', 'soul', 'funk',
+      'electronic', 'edm', 'techno', 'house', 'indie', 'alternative',
+      'metal', 'punk', 'hardcore', 'folk', 'bluegrass', 'americana',
+      'blues', 'jazz', 'reggae', 'ska', 'latin', 'world',
+      'singer-songwriter', 'adult contemporary', 'dance',
+    ];
+    
+    const excludedGenres = [
+      'children\'s music', 'childrens music', 'kids', 'family',
+      'classical', 'orchestra', 'symphony', 'chamber', 'opera',
+      'musical', 'theatre', 'broadway', 'show tunes',
+      'spoken word', 'comedy', 'podcast',
+    ];
+    
+    // Check if artist has at least ONE valid concert genre
+    const genres = (args.genres || []).map(g => g.toLowerCase());
+    const hasValidGenre = genres.some(genre => 
+      concertGenres.some(valid => genre.includes(valid))
+    );
+    const hasExcludedGenre = genres.some(genre => 
+      excludedGenres.some(excluded => genre.includes(excluded))
+    );
+    
+    if (!hasValidGenre || hasExcludedGenre) {
+      console.log(`⏭️ Skipping non-concert artist: ${args.name} (genres: ${genres.join(', ')})`);
+      throw new Error(`Not a musical artist: ${args.name}`);
+    }
+    
     // CRITICAL: Filter out non-musical artists (festivals, theater, plays)
     const skipKeywords = [
       'festival',
@@ -289,7 +319,14 @@ export const createFromTicketmaster = internalMutation({
       'lions king',
       'in concert', // Excludes "Movie in Concert" type shows
       'live in concert',
-      'symphony orchestra', // Excludes orchestras playing movie scores
+      'documentary',
+      'film with',
+      'movie',
+      'picture show',
+      'christmas', // Often holiday shows, not concerts
+      'quartet', // Usually classical
+      'philharmonic',
+      'chamber',
     ];
     
     if (skipKeywords.some(keyword => lowerName.includes(keyword))) {
@@ -426,28 +463,58 @@ export const updateSpotifyData = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    // WRITE CONFLICT FIX: Read current artist data first to minimize patch conflicts
+    const artist = await ctx.db.get(args.artistId);
+    if (!artist) {
+      console.warn(`⚠️ Artist ${args.artistId} not found for Spotify data update`);
+      return null;
+    }
+
     const updates: any = {
       lastSynced: Date.now(), // CRITICAL: Always update sync timestamp
       lastTrendingUpdate: Date.now(), // Update trending timestamp when Spotify data changes
     };
     
-    if (args.spotifyId !== undefined) updates.spotifyId = args.spotifyId;
+    // WRITE CONFLICT FIX: Only update fields that actually changed
+    // This reduces unnecessary patches and write conflicts
+    if (args.spotifyId !== undefined && args.spotifyId !== artist.spotifyId) {
+      updates.spotifyId = args.spotifyId;
+    }
     // ENHANCED: Validate numeric fields and filter out NaN/Infinity
     if (args.followers !== undefined && Number.isFinite(args.followers)) {
-      updates.followers = Math.max(0, args.followers);
+      const validFollowers = Math.max(0, args.followers);
+      if (validFollowers !== artist.followers) {
+        updates.followers = validFollowers;
+      }
     }
     if (args.popularity !== undefined && Number.isFinite(args.popularity)) {
-      updates.popularity = Math.max(0, Math.min(100, args.popularity)); // Clamp to 0-100
+      const validPopularity = Math.max(0, Math.min(100, args.popularity)); // Clamp to 0-100
+      if (validPopularity !== artist.popularity) {
+        updates.popularity = validPopularity;
+      }
     }
     if (args.genres !== undefined && Array.isArray(args.genres)) {
-      updates.genres = args.genres.filter(g => typeof g === 'string' && g.trim().length > 0);
+      const validGenres = args.genres.filter(g => typeof g === 'string' && g.trim().length > 0);
+      // Only update if genres actually changed (simple comparison)
+      if (JSON.stringify(validGenres) !== JSON.stringify(artist.genres || [])) {
+        updates.genres = validGenres;
+      }
     }
     if (args.images !== undefined && Array.isArray(args.images)) {
-      updates.images = args.images.filter(img => typeof img === 'string' && img.startsWith('http'));
+      const validImages = args.images.filter(img => typeof img === 'string' && img.startsWith('http'));
+      // Only update if images actually changed
+      if (JSON.stringify(validImages) !== JSON.stringify(artist.images || [])) {
+        updates.images = validImages;
+      }
     }
     
-    await ctx.db.patch(args.artistId, updates);
-    console.log(`✅ Updated Spotify data for artist ${args.artistId}`);
+    // Only patch if we have actual changes (reduces write conflicts)
+    if (Object.keys(updates).length > 2) { // More than just timestamps
+      await ctx.db.patch(args.artistId, updates);
+      console.log(`✅ Updated Spotify data for artist ${args.artistId} (${Object.keys(updates).length} fields)`);
+    } else {
+      console.log(`⏭️ No Spotify data changes for artist ${args.artistId} - skipped patch`);
+    }
     return null;
   },
 });
@@ -484,6 +551,10 @@ export const updateSyncStatus = internalMutation({
       v.literal("completed"),
       v.literal("failed")
     )),
+    // Circuit breaker fields
+    catalogSyncFailureCount: v.optional(v.number()),
+    catalogSyncLastFailure: v.optional(v.number()),
+    catalogSyncBackoffUntil: v.optional(v.number()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -494,9 +565,19 @@ export const updateSyncStatus = internalMutation({
     if (args.catalogSyncStatus !== undefined) {
       updates.catalogSyncStatus = args.catalogSyncStatus;
     }
+    // Circuit breaker updates
+    if (args.catalogSyncFailureCount !== undefined) {
+      updates.catalogSyncFailureCount = args.catalogSyncFailureCount;
+    }
+    if (args.catalogSyncLastFailure !== undefined) {
+      updates.catalogSyncLastFailure = args.catalogSyncLastFailure;
+    }
+    if (args.catalogSyncBackoffUntil !== undefined) {
+      updates.catalogSyncBackoffUntil = args.catalogSyncBackoffUntil;
+    }
     if (Object.keys(updates).length > 0) {
       await ctx.db.patch(args.artistId, updates);
-      console.log(`✅ Updated sync status for artist ${args.artistId}: ${args.catalogSyncStatus}`);
+      console.log(`✅ Updated sync status for artist ${args.artistId}: ${args.catalogSyncStatus || 'no status change'}`);
     }
     return null;
   },
@@ -796,6 +877,16 @@ export const setTicketmasterId = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.patch(args.artistId, { ticketmasterId: args.ticketmasterId, lastSynced: Date.now() });
+    return null;
+  },
+});
+
+// Delete artist by ID (for cleanup operations)
+export const deleteArtistInternal = internalMutation({
+  args: { artistId: v.id("artists") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.artistId);
     return null;
   },
 });

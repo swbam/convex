@@ -528,10 +528,9 @@ export const subscribeToUserActivity = query({
   args: { userId: v.id("users") },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
-    return await ctx.db
-      .query("activity")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .order("desc")
-      .take(50);
+    // Activity table removed from schema - activity is computed from other tables
+    // Use getUserActivityFeed instead for comprehensive activity tracking
+    console.warn("subscribeToUserActivity is deprecated - use getUserActivityFeed instead");
+    return [];
   },
 });

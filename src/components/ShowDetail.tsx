@@ -184,13 +184,12 @@ export function ShowDetail({
   // Ensure a 5-song initial setlist exists (no-op if already present)
   React.useEffect(() => {
     if (!showId) return;
-    if (!songs || songs.length === 0) return; // wait for catalog
     if (!setlists) return; // wait for load
     const hasSongs = !!predictionSetlist && Array.isArray(predictionSetlist.songs) && predictionSetlist.songs.length > 0;
     if (!hasSongs) {
       void ensureAutoSetlist({ showId });
     }
-  }, [showId, songs, setlists, predictionSetlist, ensureAutoSetlist]);
+  }, [showId, setlists, predictionSetlist, ensureAutoSetlist]);
 
   const handleVoteAction = () => {
     if (hasVoted) {

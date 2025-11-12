@@ -184,6 +184,22 @@ export const syncArtistCatalog = internalAction({
 
     const now = Date.now();
     const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+    const SEVENTY_TWO_HOURS = 72 * 60 * 60 * 1000;
+    const MAX_CONSECUTIVE_FAILURES = 3;
+
+    // CIRCUIT BREAKER: Check if artist is in backoff period due to repeated failures
+    if (artist.catalogSyncBackoffUntil && now < artist.catalogSyncBackoffUntil) {
+      const hoursRemaining = Math.round((artist.catalogSyncBackoffUntil - now) / 1000 / 60 / 60);
+      console.log(`🚫 Circuit breaker active for ${args.artistName} - ${artist.catalogSyncFailureCount || 0} consecutive failures. Backoff for ${hoursRemaining} more hours.`);
+      return null;
+    }
+
+    // CRITICAL: Check catalogSyncStatus to prevent race conditions
+    // Don't sync if already syncing or pending (prevents duplicate concurrent syncs)
+    if (artist.catalogSyncStatus === "syncing" || artist.catalogSyncStatus === "pending") {
+      console.log(`⏭️ Skipping catalog sync for ${args.artistName} - sync already ${artist.catalogSyncStatus}`);
+      return null;
+    }
 
     // CRITICAL: Check both lastSynced AND catalogSyncAttemptedAt
     // This prevents infinite loops even if sync fails
@@ -397,52 +413,47 @@ export const syncArtistCatalog = internalAction({
         catalogSyncStatus: songsImported > 0 ? "completed" : "failed",
       });
 
-      // Auto-generate setlists for shows without them (only if songs were imported)
+      // CRITICAL FIX: Removed post-sync setlist generation to prevent infinite cascade
+      // The cron job 'refresh-auto-setlists' will handle setlist generation separately
+      // This prevents: catalog sync → auto-generate setlists → trigger more syncs → infinite loop
+      // 
+      // Previously this code auto-generated setlists for ALL artist shows after sync,
+      // which would trigger NEW catalog syncs if those shows also had no songs.
+      // This created exponential growth: 1 sync → 20 setlists → 20 syncs → 400 setlists...
+      //
+      // Setlist generation now happens ONLY via:
+      // 1. Cron: 'refresh-auto-setlists' (every 12h, batch of 20)
+      // 2. Manual: admin triggers via dashboard
+      console.log(`✅ Catalog sync complete for ${args.artistName}: ${songsImported} songs imported`);
+      console.log(`ℹ️  Setlist generation will be handled by cron job (refresh-auto-setlists)`)
+      
+      // CIRCUIT BREAKER: Reset failure count on success
       if (songsImported > 0) {
-        try {
-          const artistShows = await ctx.runQuery(internal.shows.getAllByArtistInternal, { artistId: args.artistId });
-          
-          // CRITICAL: Limit to prevent cascading updates
-          const showsNeedingSetlists = [];
-          for (const show of artistShows.slice(0, 10)) { // Max 10 shows at a time
-            const existingSetlists = await ctx.runQuery(api.setlists.getByShow, { showId: show._id });
-            
-            if (!existingSetlists || existingSetlists.length === 0) {
-              showsNeedingSetlists.push(show);
-            }
-          }
-
-          // Schedule with delays to prevent write conflicts
-          for (let i = 0; i < showsNeedingSetlists.length; i++) {
-            const show = showsNeedingSetlists[i];
-            await ctx.scheduler.runAfter(i * 5000, internal.setlists.autoGenerateSetlist, {
-              showId: show._id,
-              artistId: args.artistId,
-            });
-          }
-          
-          console.log(`📅 Scheduled ${showsNeedingSetlists.length} setlist generations after catalog import`);
-        } catch (e) {
-          console.error('Failed to auto-generate setlists after catalog import:', e);
-          await ctx.runMutation(internal.errorTracking.logError, {
-            operation: "spotify_auto_setlist_generation",
-            error: e instanceof Error ? e.message : String(e),
-            context: {
-              artistId: args.artistId,
-              artistName: args.artistName,
-            },
-            severity: "warning",
-          });
-        }
+        await ctx.runMutation(internal.artists.updateSyncStatus, {
+          artistId: args.artistId,
+          catalogSyncFailureCount: 0,
+          catalogSyncLastFailure: undefined,
+          catalogSyncBackoffUntil: undefined,
+        });
       }
 
     } catch (error) {
       console.error("Failed to sync Spotify catalog:", error);
       
-      // Mark as failed
+      // CIRCUIT BREAKER: Increment failure count and apply backoff
+      const currentFailures = (artist.catalogSyncFailureCount || 0) + 1;
+      const backoffHours = currentFailures >= 3 ? 72 : 0; // 72h backoff after 3 failures
+      const backoffUntil = backoffHours > 0 ? now + (backoffHours * 60 * 60 * 1000) : undefined;
+      
+      console.error(`❌ Catalog sync failure ${currentFailures} for ${args.artistName}${backoffHours > 0 ? ` - applying ${backoffHours}h backoff` : ''}`);
+      
+      // Mark as failed and update circuit breaker state
       await ctx.runMutation(internal.artists.updateSyncStatus, {
         artistId: args.artistId,
         catalogSyncStatus: "failed",
+        catalogSyncFailureCount: currentFailures,
+        catalogSyncLastFailure: now,
+        catalogSyncBackoffUntil: backoffUntil,
       });
       
       // Track critical catalog sync failure

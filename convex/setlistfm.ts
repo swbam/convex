@@ -312,37 +312,34 @@ export const scanPendingImports = internalAction({
     console.log("🔍 Scanning for pending Setlist.fm imports...");
     const pendingShows = await ctx.runQuery(internal.setlistfm.getPendingImports, {});
 
-    let successCount = 0;
+    let queuedCount = 0;
     for (const show of pendingShows) {
       try {
-        await ctx.runMutation(internal.shows.updateImportStatus, { showId: show._id, status: "importing" });
-
         const artist = await ctx.runQuery(internal.artists.getByIdInternal, { id: show.artistId });
         const venue = await ctx.runQuery(internal.venues.getByIdInternal, { id: show.venueId });
 
         if (artist && venue) {
-          const setlistId = await ctx.runAction(internal.setlistfm.syncActualSetlist, {
+          // Queue the import job instead of processing directly
+          // This provides retry logic and better error handling
+          await ctx.runMutation(internal.syncJobs.queueSetlistImport, {
             showId: show._id,
             artistName: artist.name,
             venueCity: venue.city,
             showDate: show.date,
           });
-
-          if (setlistId) {
-            successCount++;
-          }
+          queuedCount++;
+          console.log(`✅ Queued setlist import for ${artist.name} at ${venue.city} on ${show.date}`);
         } else {
           await ctx.runMutation(internal.shows.updateImportStatus, { showId: show._id, status: "failed" });
+          console.warn(`⚠️ Missing artist or venue for show ${show._id}`);
         }
-
-        await new Promise(resolve => setTimeout(resolve, 2000));
       } catch (error) {
-        console.error(`Failed to import for show ${show._id}:`, error);
+        console.error(`Failed to queue import for show ${show._id}:`, error);
         await ctx.runMutation(internal.shows.updateImportStatus, { showId: show._id, status: "failed" });
       }
     }
 
-    console.log(`Import scan complete: ${successCount} successful`);
+    console.log(`✅ Import scan complete: ${queuedCount} jobs queued (will be processed by process-setlist-queue cron)`);
     return null;
   },
 });

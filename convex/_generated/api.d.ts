@@ -28,12 +28,14 @@ import type * as health from "../health.js";
 import type * as http from "../http.js";
 import type * as importTrendingShows from "../importTrendingShows.js";
 import type * as leaderboard from "../leaderboard.js";
+import type * as lib_artistLocks from "../lib/artistLocks.js";
 import type * as logger from "../logger.js";
 import type * as maintenance from "../maintenance.js";
 import type * as massivenessFilter from "../massivenessFilter.js";
 import type * as media from "../media.js";
 import type * as migrations_20240929_add_shows_fields from "../migrations/20240929_add_shows_fields.js";
 import type * as migrations_fixUserFieldsMismatch from "../migrations/fixUserFieldsMismatch.js";
+import type * as migrations_initializeSyncStatus from "../migrations/initializeSyncStatus.js";
 import type * as setlistfm from "../setlistfm.js";
 import type * as setlists from "../setlists.js";
 import type * as shows from "../shows.js";
@@ -52,6 +54,7 @@ import type * as validators from "../validators.js";
 import type * as venues from "../venues.js";
 import type * as votes from "../votes.js";
 import type * as webhooks from "../webhooks.js";
+import type * as wipeDatabase from "../wipeDatabase.js";
 
 import type {
   ApiFromModules,
@@ -80,12 +83,14 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   importTrendingShows: typeof importTrendingShows;
   leaderboard: typeof leaderboard;
+  "lib/artistLocks": typeof lib_artistLocks;
   logger: typeof logger;
   maintenance: typeof maintenance;
   massivenessFilter: typeof massivenessFilter;
   media: typeof media;
   "migrations/20240929_add_shows_fields": typeof migrations_20240929_add_shows_fields;
   "migrations/fixUserFieldsMismatch": typeof migrations_fixUserFieldsMismatch;
+  "migrations/initializeSyncStatus": typeof migrations_initializeSyncStatus;
   setlistfm: typeof setlistfm;
   setlists: typeof setlists;
   shows: typeof shows;
@@ -104,6 +109,7 @@ declare const fullApi: ApiFromModules<{
   venues: typeof venues;
   votes: typeof votes;
   webhooks: typeof webhooks;
+  wipeDatabase: typeof wipeDatabase;
 }>;
 
 /**

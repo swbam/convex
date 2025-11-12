@@ -17,8 +17,11 @@ crons.interval("check-completed-shows", { hours: 2 }, internal.setlistfm.checkCo
 // Daily cleanup: Once per day (sufficient for orphaned records)
 crons.interval("daily-cleanup", { hours: 24 }, internal.maintenance.cleanupOrphanedRecords, {});
 
-// Pending setlist scan: Every 30 minutes (balanced between responsiveness and API limits)
+// Pending setlist scan: Every 30 minutes (queues setlist imports for processing)
 crons.interval("setlistfm-scan", { minutes: 30 }, internal.setlistfm.scanPendingImports, {});
+
+// Process setlist import queue: Every 30 minutes (processes queued jobs with retry logic)
+crons.interval("process-setlist-queue", { minutes: 30 }, internal.syncJobs.processSetlistImportQueue, { maxJobs: 5 });
 
 // Engagement counts sync: Every hour (sufficient for vote/setlist count accuracy)
 crons.interval("sync-engagement-counts", { hours: 1 }, internal.trending.updateEngagementCounts, {});

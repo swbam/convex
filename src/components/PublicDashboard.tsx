@@ -7,7 +7,6 @@ import { SearchBar } from "./SearchBar";
 import { Id } from "../../convex/_generated/dataModel";
 import { ArtistCardSkeleton, ShowCardSkeleton } from "./LoadingSkeleton";
 import { motion } from "framer-motion";
-import MarqueeRows from "./MarqueeRows";
 
 interface PublicDashboardProps {
   onArtistClick: (artistKey: Id<"artists"> | string) => void;
@@ -197,30 +196,35 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
                 <p className="text-gray-600 text-sm mt-2">Artists will appear here once data is synced</p>
               </div>
             ) : (
-              <MarqueeRows
-                items={(trendingArtists as any[])}
-                rows={3}
-                baseDurationSec={70}
-                renderItem={(artist: any) => {
-                  // CRITICAL FIX: Extract both ID and slug properly from cache or main table
-                  const artistId = artist?._id || artist?.artistId;
-                  const slug = artist?.slug 
-                    || artist?.cachedTrending?.slug 
-                    || (typeof artist.name === 'string' && artist.name.length > 0 
-                        ? artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-                        : undefined);
-                  
-                  return (
-                    <ArtistCard 
-                      artist={artist} 
-                      onClick={() => {
-                        // Use the proper callback instead of direct navigation
-                        onArtistClick(artistId || slug || artist.ticketmasterId);
-                      }} 
-                    />
-                  );
-                }}
-              />
+              <div className="overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20 pb-4">
+                <div className="flex gap-4 w-max">
+                  {(trendingArtists as any[]).map((artist: any, index: number) => {
+                    const artistId = artist?._id || artist?.artistId;
+                    const slug = artist?.slug 
+                      || artist?.cachedTrending?.slug 
+                      || (typeof artist.name === 'string' && artist.name.length > 0 
+                          ? artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+                          : undefined);
+                    
+                    return (
+                      <motion.div
+                        key={`${artistId}-${index}`}
+                        variants={cardVariants}
+                        initial="hidden"
+                        whileInView="show"
+                        viewport={{ once: true, margin: "-50px" }}
+                      >
+                        <ArtistCard 
+                          artist={artist} 
+                          onClick={() => {
+                            onArtistClick(artistId || slug || artist.ticketmasterId);
+                          }} 
+                        />
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </motion.div>
         </motion.section>
@@ -257,22 +261,30 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
                 <p className="text-gray-600 text-sm mt-2">Check back soon</p>
               </div>
             ) : (
-              <MarqueeRows
-                items={(trendingShows as any[])}
-                rows={3}
-                baseDurationSec={80}
-                renderItem={(show: any) => {
-                  return (
-                    <ShowCard
-                      show={show}
-                      onClick={(id, slug) => {
-                        // CRITICAL: Pass through the validated ID and slug from ShowCard
-                        onShowClick(id, slug);
-                      }}
-                    />
-                  );
-                }}
-              />
+              <div className="overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20 pb-4">
+                <div className="flex gap-4 w-max">
+                  {(trendingShows as any[]).map((show: any, index: number) => {
+                    return (
+                      <motion.div
+                        key={`${show._id || show.showId}-${index}`}
+                        variants={cardVariants}
+                        initial="hidden"
+                        whileInView="show"
+                        viewport={{ once: true, margin: "-50px" }}
+                      >
+                        <ShowCard
+                          show={show}
+                          onClick={() => {
+                            const showId = show._id || show.showId;
+                            const slug = show.slug || show.cachedTrending?.showSlug;
+                            onShowClick(showId || slug || show.ticketmasterId, slug);
+                          }}
+                        />
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </motion.div>
         </motion.section>

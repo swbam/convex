@@ -51,6 +51,10 @@ const applicationTables = {
       v.literal("completed"),
       v.literal("failed")
     )),
+    // CIRCUIT BREAKER: Track consecutive failures to prevent infinite retries
+    catalogSyncFailureCount: v.optional(v.number()), // Consecutive failures
+    catalogSyncLastFailure: v.optional(v.number()), // Timestamp of last failure
+    catalogSyncBackoffUntil: v.optional(v.number()), // Block syncs until this timestamp
     // Optional per-user flags occasionally patched in legacy code paths
     isTopArtist: v.optional(v.boolean()),
     topArtistRank: v.optional(v.number()),
@@ -287,16 +291,8 @@ const applicationTables = {
   })
     .index("by_status", ["status"]),
 
-  // Activity feed items (global/anonymized)
-  activity: defineTable({
-    userId: v.id("users"),
-    type: v.string(),
-    createdAt: v.number(),
-    data: v.optional(v.any()),
-  })
-    .index("by_user", ["userId"]),
-
-
+  // Activity feed is computed from songVotes, setlists, follows (no dedicated table needed)
+  // See convex/activity.ts:getUserActivityFeed for implementation
 
   userFollows: defineTable({
     userId: v.id("users"),

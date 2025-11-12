@@ -750,6 +750,27 @@ export const cleanupOldShows = internalMutation({
   },
 });
 
+// Delete show by ID (for cleanup operations)
+export const deleteShowInternal = internalMutation({
+  args: { showId: v.id("shows") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Delete associated setlists first
+    const setlists = await ctx.db
+      .query("setlists")
+      .withIndex("by_show", (q) => q.eq("showId", args.showId))
+      .collect();
+    
+    for (const setlist of setlists) {
+      await ctx.db.delete(setlist._id);
+    }
+    
+    // Delete the show
+    await ctx.db.delete(args.showId);
+    return null;
+  },
+});
+
 export const getByIdInternal = internalQuery({
   args: { id: v.id("shows") },
   handler: async (ctx, args) => {
