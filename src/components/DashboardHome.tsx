@@ -5,6 +5,7 @@ import { Search, Music, Calendar, MapPin, TrendingUp, Users } from "lucide-react
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useUser } from "@clerk/clerk-react";
 
 interface DashboardHomeProps {
   onArtistClick: (artistId: Id<"artists">) => void;
@@ -18,6 +19,9 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   
+  // Check Clerk auth state to avoid showing "Sign In" to already-signed-in users
+  const { isSignedIn: isClerkSignedIn, isLoaded: isClerkLoaded } = useUser();
+  
   const trendingArtistsResult = useQuery(api.trending.getTrendingArtists, { limit: 24 });
   const trendingShowsResult = useQuery(api.trending.getTrendingShows, { limit: 18 });
   const trendingArtists = trendingArtistsResult?.page || null;
@@ -26,6 +30,11 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
   
   const triggerArtistSync = useAction(api.ticketmaster.triggerFullArtistSync);
   const searchTicketmasterArtists = useAction(api.ticketmaster.searchArtists);
+
+  // CRITICAL FIX: Don't show "Sign In" button if user is signed into Clerk
+  // Even if Convex user hasn't been created yet (AuthGuard handles that)
+  const shouldShowSignInPrompt = isClerkLoaded && !isClerkSignedIn && !user;
+
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
@@ -465,7 +474,7 @@ export function DashboardHome({ onArtistClick, onShowClick, onSignInRequired }: 
       </div>
 
       {/* Call to Action for Anonymous Users */}
-      {!user && (
+      {shouldShowSignInPrompt && (
         <div className="bg-card rounded-2xl p-6 border border-white/10 text-center">
           <Users className="h-12 w-12 mx-auto mb-4 text-primary" />
           <h3 className="text-xl font-bold mb-2">Join the Community</h3>
