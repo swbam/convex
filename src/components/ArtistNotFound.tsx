@@ -24,10 +24,10 @@ export function ArtistNotFound({ error, resetErrorBoundary }: ArtistNotFoundProp
 
   return (
     <div className="container mx-auto px-4 py-8 min-h-screen flex items-center justify-center">
-      <MagicCard className="relative overflow-hidden rounded-2xl p-8 max-w-md w-full text-center bg-black border-0">
+      <MagicCard className="relative overflow-hidden rounded-2xl p-8 max-w-md w-full text-center bg-card border-0">
         <BorderBeam size={200} duration={12} className="opacity-20" />
         <div className="relative z-10 space-y-4">
-          <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
             <Search className="h-8 w-8 text-gray-400" />
           </div>
           <h1 className="text-2xl font-bold text-white">Artist Not Found</h1>

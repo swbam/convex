@@ -10,7 +10,7 @@ export function DiagnosticApp() {
         <h1 className="text-3xl font-bold mb-8">App Diagnostic</h1>
         
         <div className="space-y-6">
-          <div className="bg-black rounded-2xl p-6 border border-white/10 p-6">
+          <div className="bg-card rounded-2xl p-6 border border-white/10 p-6">
             <h2 className="text-xl font-semibold mb-4">Environment Variables</h2>
             <div className="space-y-2 text-sm">
               <div>
@@ -28,7 +28,7 @@ export function DiagnosticApp() {
             </div>
           </div>
           
-          <div className="bg-black rounded-2xl p-6 border border-white/10 p-6">
+          <div className="bg-card rounded-2xl p-6 border border-white/10 p-6">
             <h2 className="text-xl font-semibold mb-4">Browser Info</h2>
             <div className="space-y-2 text-sm">
               <div>User Agent: {typeof navigator !== 'undefined' ? navigator.userAgent : 'Not available'}</div>
@@ -37,14 +37,14 @@ export function DiagnosticApp() {
             </div>
           </div>
           
-          <div className="bg-black rounded-2xl p-6 border border-white/10 p-6">
+          <div className="bg-card rounded-2xl p-6 border border-white/10 p-6">
             <h2 className="text-xl font-semibold mb-4">App Status</h2>
             <div className="text-green-400">
               ✅ App is loading and rendering successfully
             </div>
           </div>
           
-          <div className="bg-black rounded-2xl p-6 border border-white/10 p-6 border-red-500">
+          <div className="bg-card rounded-2xl p-6 border border-white/10 p-6 border-red-500">
             <h2 className="text-xl font-semibold mb-4 text-red-400">Action Required</h2>
             <div className="space-y-2 text-sm">
               <p className="text-red-400 font-medium">Environment variables are missing!</p>

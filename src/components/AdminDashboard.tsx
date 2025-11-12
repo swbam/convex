@@ -233,7 +233,7 @@ export function AdminDashboard() {
   if (!isAdmin) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-red-500/20 bg-black">
+        <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-red-500/20 bg-card">
           <div className="relative z-10 p-8 text-center">
             <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Lock className="h-8 w-8 text-red-400" />
@@ -348,7 +348,7 @@ export function AdminDashboard() {
             {activeSection === 'stats' && (
               <div className="space-y-6">
           {/* Header */}
-          <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 bg-black">
+          <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 bg-card">
             <div className="relative z-10 p-4 sm:p-6 lg:p-8">
               <div className="flex items-center gap-4 justify-between flex-wrap">
               <div className="flex items-center gap-4">
@@ -370,7 +370,7 @@ export function AdminDashboard() {
           </MagicCard>
 
           {/* Stats Overview */}
-          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
+          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-card">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-8 h-8 bg-blue-500/20 rounded-xl flex items-center justify-center">
@@ -400,7 +400,7 @@ export function AdminDashboard() {
           </MagicCard>
 
           {/* Auth Diagnostics */}
-          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
+          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-card">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-8 h-8 bg-primary/20 rounded-xl flex items-center justify-center">
@@ -420,7 +420,7 @@ export function AdminDashboard() {
           </MagicCard>
 
           {/* Health */}
-          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
+          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-card">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-8 h-8 bg-green-500/20 rounded-xl flex items-center justify-center">
@@ -848,7 +848,7 @@ export function AdminDashboard() {
 
             {activeSection === 'logs' && (
               <div className="space-y-6">
-          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-black">
+          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-card">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-8 h-8 bg-blue-500/20 rounded-xl flex items-center justify-center">

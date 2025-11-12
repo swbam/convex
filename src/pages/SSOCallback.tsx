@@ -182,7 +182,7 @@ export function SSOCallback() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <MagicCard className="p-8 max-w-md text-center border border-red-500/20">
           <div className="w-12 h-12 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">❌</span>
@@ -196,7 +196,7 @@ export function SSOCallback() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <MagicCard className="p-8 max-w-md text-center">
         <div className="w-16 h-16 bg-[#1DB954]/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <Music className="h-8 w-8 text-[#1DB954]" />

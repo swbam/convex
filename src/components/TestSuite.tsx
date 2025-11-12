@@ -96,7 +96,7 @@ export function TestSuite() {
             <div className="text-lg font-medium mb-2">
               Results: {passedCount}/{testCount} tests passed
             </div>
-            <div className="w-full bg-black rounded-full h-2">
+            <div className="w-full bg-card rounded-full h-2">
               <div 
                 className="h-2 rounded-full bg-primary transition-all duration-300"
                 style={{ width: `${(passedCount / testCount) * 100}%` }}

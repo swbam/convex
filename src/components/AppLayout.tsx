@@ -49,7 +49,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm lg:hidden animate-in fade-in-0 duration-300"
+          className="fixed inset-0 z-50 bg-card/80 backdrop-blur-sm lg:hidden animate-in fade-in-0 duration-300"
           onClick={() => setSidebarOpen(false)}
         />
       )}

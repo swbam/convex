@@ -240,7 +240,7 @@ function App() {
           
           return (
             <div className="container mx-auto px-4 sm:px-6 py-8">
-              <MagicCard className="p-6 rounded-2xl border-0 bg-black">
+              <MagicCard className="p-6 rounded-2xl border-0 bg-card">
                 <div className="animate-pulse space-y-6">
                   <div className="flex items-center gap-4">
                     <div className="w-32 h-32 bg-white/10 rounded-xl"></div>
@@ -269,7 +269,7 @@ function App() {
           
           return (
             <div className="container mx-auto px-4 sm:px-6 py-8">
-              <MagicCard className="p-6 rounded-2xl border-0 bg-black">
+              <MagicCard className="p-6 rounded-2xl border-0 bg-card">
                 <div className="text-center space-y-4">
                   <div className="w-20 h-20 mx-auto bg-red-500/20 rounded-full flex items-center justify-center">
                     <Music className="h-10 w-10 text-red-400" />
@@ -403,7 +403,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden">
+    <div className="min-h-screen bg-background text-white overflow-x-hidden">
       {/* Backend error monitoring - sends Convex errors to Sentry */}
       <BackendErrorMonitor />
       
@@ -413,7 +413,7 @@ function App() {
       <div className="relative z-10 overflow-x-hidden w-full">
         <ErrorBoundary
           fallback={
-            <div className="min-h-screen bg-black flex items-center justify-center p-4">
+            <div className="min-h-screen bg-background flex items-center justify-center p-4">
               <div className="text-center max-w-md">
                 <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
                   <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

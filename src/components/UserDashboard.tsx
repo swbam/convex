@@ -78,21 +78,21 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
 
         {/* Compact Stats */}
         <div className="grid grid-cols-3 gap-3">
-          <MagicCard className="p-0 rounded-xl border-0 bg-black/50">
+          <MagicCard className="p-0 rounded-xl border-0 bg-card/50">
             <div className="p-4 text-center">
               <div className="text-2xl font-bold text-white">{userVotes?.length || 0}</div>
               <div className="text-xs text-gray-400">Total Votes</div>
             </div>
           </MagicCard>
           
-          <MagicCard className="p-0 rounded-xl border-0 bg-black/50">
+          <MagicCard className="p-0 rounded-xl border-0 bg-card/50">
             <div className="p-4 text-center">
               <div className="text-2xl font-bold text-white">{showsVotedOn}</div>
               <div className="text-xs text-gray-400">Shows Voted On</div>
             </div>
           </MagicCard>
           
-          <MagicCard className="p-0 rounded-xl border-0 bg-black/50">
+          <MagicCard className="p-0 rounded-xl border-0 bg-card/50">
             <div className="p-4 text-center">
               <div className="text-2xl font-bold text-white">{accuracy}</div>
               <div className="text-xs text-gray-400">Accuracy</div>
@@ -146,7 +146,7 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.2 }}
         >
-          <MagicCard className="p-0 rounded-xl border-0 bg-black/50">
+          <MagicCard className="p-0 rounded-xl border-0 bg-card/50">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
@@ -200,7 +200,7 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.2 }}
         >
-          <MagicCard className="p-0 rounded-xl border-0 bg-black/50">
+          <MagicCard className="p-0 rounded-xl border-0 bg-card/50">
             <div className="p-8 text-center">
               <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <TrendingUp className="h-8 w-8 text-primary" />

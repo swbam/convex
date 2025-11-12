@@ -79,7 +79,7 @@ export function AddToSetlistModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center sm:p-4 safe-area-bottom">
+    <div className="fixed inset-0 bg-card/50 z-50 flex items-end sm:items-center justify-center sm:p-4 safe-area-bottom">
       <div className="bg-card border rounded-t-2xl sm:rounded-2xl shadow-lg w-full sm:max-w-md max-h-[85vh] sm:max-h-[80vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom-5 sm:slide-in-from-bottom-0 duration-300">
         <div className="flex items-center justify-between p-3 sm:p-4 border-b sticky top-0 bg-card z-10">
           <h2 className="text-responsive-base sm:text-responsive-lg font-semibold">Add to Setlist</h2>
@@ -141,7 +141,7 @@ export function AddToSetlistModal({
           )}
 
           {!user && (
-            <div className="mt-3 sm:mt-4 p-2.5 sm:p-3 bg-black/50 rounded-lg text-center">
+            <div className="mt-3 sm:mt-4 p-2.5 sm:p-3 bg-card/50 rounded-lg text-center">
               <p className="text-responsive-xs sm:text-responsive-sm text-muted-foreground mb-1.5 sm:mb-2">
                 Sign in to create setlist predictions
               </p>

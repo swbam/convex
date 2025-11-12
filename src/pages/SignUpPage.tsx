@@ -45,7 +45,7 @@ export function SignUpPage() {
   // Show loading state while Clerk initializes with error handling
   if (!isLoaded || !signUp) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center max-w-md">
           {authError ? (
             <>
@@ -253,7 +253,7 @@ export function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       {/* Simple black gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-black via-gray-950 to-black" />
       
@@ -353,7 +353,7 @@ export function SignUpPage() {
                     <div className="w-full border-t border-white/10"></div>
                   </div>
                   <div className="relative flex justify-center text-sm">
-                    <span className="px-4 bg-black text-gray-400">Or continue with</span>
+                    <span className="px-4 bg-background text-gray-400">Or continue with</span>
                   </div>
                 </div>
 

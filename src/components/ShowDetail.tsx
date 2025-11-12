@@ -320,7 +320,7 @@ export function ShowDetail({
         <SEOHead />
 
         {/* Hero Header - Full Width without causing horizontal overflow */}
-        <div className="relative w-full overflow-hidden bg-black min-h-[320px] sm:min-h-[420px] max-w-[100vw]">
+        <div className="relative w-full overflow-hidden bg-card min-h-[320px] sm:min-h-[420px] max-w-[100vw]">
           {heroImage && (
             <div className="absolute inset-0 z-0">
               <img src={heroImage} alt="" className="w-full h-full object-cover opacity-40" />
@@ -342,7 +342,7 @@ export function ShowDetail({
                   >
                     <img src={avatarImage || heroImage} alt={show?.artist?.name} className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10" />
                     {spotifyLink && (
-                      <span className="absolute -bottom-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full bg-black/60 text-white text-[10px] sm:text-xs shadow">
+                      <span className="absolute -bottom-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full bg-card/60 text-white text-[10px] sm:text-xs shadow">
                         <svg viewBox="0 0 168 168" className="h-3 w-3 fill-[#1DB954]" aria-hidden>
                           <path d="M84 0a84 84 0 1 0 0 168A84 84 0 0 0 84 0zm38.5 120.2a6.3 6.3 0 0 1-8.7 2c-24-14.7-54.3-18-89.9-9.7a6.3 6.3 0 1 1-2.8-12.3c38.7-9 72.9-5.2 99.1 10.8a6.3 6.3 0 0 1 2.3 9.2zm12.4-22.5a7.9 7.9 0 0 1-10.9 2.5c-27.6-17-69.7-22-102.4-11.8a7.9 7.9 0 0 1-4.7-15.1c37.6-11.7 83.6-6.1 114.8 13.4a7.9 7.9 0 0 1 3.2 11zm1.1-23.8C105 54.3 58.7 49.2 27.4 59a9.4 9.4 0 1 1-5.6-18c36-11.1 87.1-5.5 123.8 16.8a9.4 9.4 0 0 1-9.2 16z"/>
                         </svg>
@@ -709,7 +709,7 @@ export function ShowDetail({
           <div className="space-y-0 sm:space-y-6">
             {/* Venue Details */}
             <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border">
-              <div className="px-4 py-4 sm:p-6 bg-black">
+              <div className="px-4 py-4 sm:p-6 bg-card">
                 <h3 className="text-lg sm:text-xl font-bold mb-4 text-white">
                   Venue Details
                 </h3>
@@ -744,7 +744,7 @@ export function ShowDetail({
 
             {/* Show Stats */}
             <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border">
-              <div className="px-4 py-4 sm:p-6 bg-black">
+              <div className="px-4 py-4 sm:p-6 bg-card">
                 <h3 className="text-lg sm:text-xl font-bold mb-4 text-white">
                   Show Stats
                 </h3>
@@ -827,7 +827,7 @@ export function ShowDetail({
             {/* Call to Action - Only for upcoming shows */}
             {!user && isUpcoming && (
               <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border">
-                <div className="px-4 py-6 sm:p-6 text-center bg-black">
+                <div className="px-4 py-6 sm:p-6 text-center bg-card">
                   <div className="flex items-center justify-center gap-3 mb-4">
                     <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
                       <Vote className="h-5 w-5 text-primary" />

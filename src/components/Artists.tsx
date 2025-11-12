@@ -72,7 +72,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
   return (
     <div className="space-y-0 sm:space-y-6 lg:space-y-8 relative z-10">
       {/* Clean Apple-Style Artists Header */}
-      <MagicCard className="relative overflow-hidden rounded-none sm:rounded-xl p-0 border-0 border-t border-b border-white/5 sm:border bg-black">
+      <MagicCard className="relative overflow-hidden rounded-none sm:rounded-xl p-0 border-0 border-t border-b border-white/5 sm:border bg-card">
         <div className="relative z-10 px-4 py-4 sm:p-4">
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/10 rounded-xl flex items-center justify-center">
@@ -87,7 +87,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
       </MagicCard>
 
       {/* Simple Artist Search */}
-      <MagicCard className="p-0 rounded-none sm:rounded-xl border-0 border-t border-b border-white/5 sm:border bg-black">
+      <MagicCard className="p-0 rounded-none sm:rounded-xl border-0 border-t border-b border-white/5 sm:border bg-card">
         <div className="px-4 py-4 sm:p-4">
           <div className="max-w-md">
             <div className="relative">
@@ -105,7 +105,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
       </MagicCard>
 
       {/* Results */}
-      <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border bg-black">
+      <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border bg-card">
         <div className="px-0 py-4 sm:p-6">
         {isLoading ? (
           // Loading state

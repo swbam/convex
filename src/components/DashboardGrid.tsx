@@ -69,7 +69,7 @@ export function DashboardGrid({ onViewChange }: DashboardGridProps) {
               Explore Artists
             </button>
             <button 
-              className="px-6 py-3 border border-gray-700 text-gray-200 hover:bg-gray-900 rounded-lg font-medium transition-colors flex items-center gap-2"
+              className="px-6 py-3 border border-gray-700 text-gray-200 hover:bg-accent rounded-lg font-medium transition-colors flex items-center gap-2"
               onClick={() => onViewChange('shows')}
             >
               Browse Shows

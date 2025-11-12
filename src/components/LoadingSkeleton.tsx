@@ -6,7 +6,7 @@ export function ArtistCardSkeleton() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex-shrink-0 w-72 overflow-hidden bg-black min-h-[192px] flex flex-col rounded-lg"
+      className="flex-shrink-0 w-72 overflow-hidden bg-card min-h-[192px] flex flex-col rounded-lg"
       style={{
         borderTop: '1px solid rgba(255, 255, 255, 0.05)',
         borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
@@ -30,7 +30,7 @@ export function ShowCardSkeleton() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex-shrink-0 w-72 overflow-hidden bg-black min-h-[192px] flex flex-col rounded-lg"
+      className="flex-shrink-0 w-72 overflow-hidden bg-card min-h-[192px] flex flex-col rounded-lg"
       style={{
         borderTop: '1px solid rgba(255, 255, 255, 0.05)',
         borderBottom: '1px solid rgba(255, 255, 255, 0.05)',

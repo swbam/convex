@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 // Fallback component for error boundary
 function ErrorFallback({ error, resetError }: { error: Error; resetError: () => void }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black text-white">
+    <div className="min-h-screen flex items-center justify-center bg-background text-white">
       <div className="text-center space-y-4 max-w-md p-6">
         <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

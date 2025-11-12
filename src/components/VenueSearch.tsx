@@ -103,7 +103,7 @@ function ShowCard({ show }: { show: any }) {
   };
 
   return (
-    <div className="rounded-xl border border-white/10 bg-black/50 p-4 hover:bg-white/5 transition-all duration-200 cursor-pointer">
+    <div className="rounded-xl border border-white/10 bg-card/50 p-4 hover:bg-white/5 transition-all duration-200 cursor-pointer">
       <div className="flex gap-4">
         {/* Artist Image */}
         {show.artistImage && (

@@ -20,7 +20,7 @@ export function DocsPage() {
   if (!appUser?.appUser || appUser.appUser.role !== "admin") {
     return (
       <div className="container mx-auto px-4 sm:px-6 py-12">
-        <MagicCard className="p-0 rounded-2xl border-0 bg-black">
+        <MagicCard className="p-0 rounded-2xl border-0 bg-card">
           <div className="p-6 sm:p-8 text-center">
             <div className="mx-auto w-14 h-14 rounded-2xl bg-red-500/20 flex items-center justify-center mb-4">
               <span className="text-red-400 text-2xl">⛔</span>
@@ -62,7 +62,7 @@ export function DocsPage() {
       </div>
 
       {/* HTTP Endpoints */}
-      <MagicCard className="p-0 rounded-2xl border-0 bg-black">
+      <MagicCard className="p-0 rounded-2xl border-0 bg-card">
         <div className="p-6 sm:p-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-white">HTTP Endpoints (Convex)</h2>
@@ -113,7 +113,7 @@ export function DocsPage() {
       </MagicCard>
 
       {/* Notes */}
-      <MagicCard className="p-0 rounded-2xl border-0 bg-black">
+      <MagicCard className="p-0 rounded-2xl border-0 bg-card">
         <div className="p-6 sm:p-8">
           <h3 className="text-lg font-semibold mb-3 text-white">Notes</h3>
           <ul className="list-disc list-inside text-sm text-gray-400 space-y-2">

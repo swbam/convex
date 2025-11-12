@@ -115,7 +115,7 @@ export function UserProfilePage() {
     <AppLayout>
       <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 relative z-10">
       {/* Header */}
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 bg-black">
+      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 bg-card">
         <div className="relative z-10 p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -142,7 +142,7 @@ export function UserProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Profile Settings */}
         <div className="lg:col-span-2">
-          <MagicCard className="p-0 rounded-2xl border-0 bg-black">
+          <MagicCard className="p-0 rounded-2xl border-0 bg-card">
             <div className="p-4 sm:p-6">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="flex flex-wrap w-full bg-white/5 rounded-lg p-1 gap-2 h-auto">
@@ -188,7 +188,7 @@ export function UserProfilePage() {
                           },
                           elements: {
                             rootBox: 'w-full',
-                            card: 'bg-black border border-white/10 shadow-none',
+                            card: 'bg-card border border-white/10 shadow-none',
                             headerTitle: 'text-white',
                             headerSubtitle: 'text-gray-400',
                             socialButtonsBlockButton: 'border-white/10 text-white hover:bg-white/5',
@@ -330,7 +330,7 @@ export function UserProfilePage() {
         {/* Activity Sidebar */}
         <div className="space-y-6">
           {/* Voting Activity */}
-          <MagicCard className="p-0 rounded-2xl border-0 bg-black">
+          <MagicCard className="p-0 rounded-2xl border-0 bg-card">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-8 h-8 bg-green-500/20 rounded-xl flex items-center justify-center">
@@ -346,7 +346,7 @@ export function UserProfilePage() {
 
           {/* Quick Stats */}
           {appUser?.appUser && (
-            <MagicCard className="p-0 rounded-2xl border-0 bg-black">
+            <MagicCard className="p-0 rounded-2xl border-0 bg-card">
               <div className="p-4 sm:p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-8 h-8 bg-purple-500/20 rounded-xl flex items-center justify-center">

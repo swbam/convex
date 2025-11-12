@@ -236,7 +236,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
             <div className="space-y-0">
               {Object.entries(groupedActivity).map(([date, items]) => (
                 <div key={date}>
-                  <div className="sticky top-0 bg-black/80 backdrop-blur-sm z-10 py-3 px-4 border-b border-white/5">
+                  <div className="sticky top-0 bg-card/80 backdrop-blur-sm z-10 py-3 px-4 border-b border-white/5">
                     <h3 className="text-sm font-medium text-gray-300">{date}</h3>
                   </div>
                   {items.map((activity: any) => (

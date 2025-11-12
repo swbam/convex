@@ -58,10 +58,10 @@ export function AdminTest() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-background text-white">
       
       <div className="relative z-10 container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6">
-      <MagicCard className="p-0 rounded-2xl border-0 bg-black">
+      <MagicCard className="p-0 rounded-2xl border-0 bg-card">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-8 h-8 bg-red-500/20 rounded-xl flex items-center justify-center">
@@ -161,7 +161,7 @@ export function AdminTest() {
         <BorderBeam size={120} duration={10} className="opacity-30" />
       </MagicCard>
 
-      <MagicCard className="p-0 rounded-2xl border-0 bg-black">
+      <MagicCard className="p-0 rounded-2xl border-0 bg-card">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-8 h-8 bg-yellow-500/20 rounded-xl flex items-center justify-center">
@@ -181,7 +181,7 @@ export function AdminTest() {
                 <li>Navigate to "JWT Templates"</li>
                 <li>Click "New template"</li>
                 <li>Select "Convex" from the list</li>
-                <li>Name it exactly: <code className="bg-gray-800 px-1 rounded">convex</code></li>
+                <li>Name it exactly: <code className="bg-muted px-1 rounded">convex</code></li>
                 <li>Save the template</li>
               </ol>
             </div>
