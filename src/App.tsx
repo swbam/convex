@@ -44,6 +44,18 @@ function App() {
 
   const user = useQuery(api.auth.loggedInUser);
 
+  // Log user auth state for debugging
+  useEffect(() => {
+    console.log('🔍 App.tsx: User auth state', {
+      convexUser: user,
+      hasIdentity: !!user?.identity,
+      hasAppUser: !!user?.appUser,
+      needsSetup: user?.needsSetup,
+      currentPath: location.pathname,
+      timestamp: new Date().toISOString()
+    });
+  }, [user, location.pathname]);
+
   // Note: User creation is now handled by AuthGuard component
   // This prevents duplicate creation attempts and race conditions
 

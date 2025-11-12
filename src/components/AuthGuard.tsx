@@ -19,6 +19,20 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const [creationAttempts, setCreationAttempts] = useState(0);
 
   useEffect(() => {
+    console.log('🔍 AuthGuard: User state check', {
+      hasUser: !!user,
+      needsSetup: user?.needsSetup,
+      hasAppUser: !!user?.appUser,
+      identity: user?.identity ? {
+        subject: user.identity.subject,
+        email: user.identity.email
+      } : null,
+      isCreatingUser,
+      hasTriedCreation,
+      creationAttempts,
+      timestamp: new Date().toISOString()
+    });
+    
     // If user is logged in but app user doesn't exist, auto-create in background
     if (
       user &&
@@ -27,14 +41,20 @@ export function AuthGuard({ children }: AuthGuardProps) {
       !isCreatingUser &&
       creationAttempts < MAX_CREATION_ATTEMPTS
     ) {
-      console.log('🔧 Auto-creating app user in background...');
+      console.log('🔧 AuthGuard: Auto-creating app user in background...', {
+        attempt: creationAttempts + 1,
+        maxAttempts: MAX_CREATION_ATTEMPTS
+      });
       setIsCreatingUser(true);
       setHasTriedCreation(true);
       setCreationAttempts((prev) => prev + 1);
 
       ensureUser()
         .then((userId) => {
-          console.log('✅ App user created:', userId);
+          console.log('✅ AuthGuard: App user created successfully', {
+            userId,
+            timestamp: new Date().toISOString()
+          });
           toast.success('Welcome! Your account is ready.', {
             description: 'You can now vote on setlists and follow artists.',
             duration: 3000,
@@ -42,7 +62,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
           setCreationAttempts(0);
         })
         .catch((error) => {
-          console.error('❌ Failed to create app user:', error);
+          console.error('❌ AuthGuard: Failed to create app user:', error);
           toast.error('Account setup failed', {
             description: 'Please refresh the page to try again.',
           });

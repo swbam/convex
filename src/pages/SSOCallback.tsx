@@ -31,7 +31,10 @@ export function SSOCallback() {
 
     async function handleCallback() {
       try {
-        console.log('🔄 Handling OAuth callback...');
+        console.log('🔄 SSOCallback: Starting OAuth callback handling', {
+          url: window.location.href,
+          timestamp: new Date().toISOString()
+        });
         
         // Handle the OAuth callback
         await handleRedirectCallback({
@@ -42,7 +45,11 @@ export function SSOCallback() {
         // Ensure Clerk has the latest session data before inspecting accounts
         await clerk.load();
         
-        console.log('✅ OAuth callback handled successfully');
+        console.log('✅ SSOCallback: OAuth callback handled successfully', {
+          userId: clerk.user?.id,
+          userEmail: clerk.user?.emailAddresses?.[0]?.emailAddress,
+          isSignedIn: !!clerk.user
+        });
         
         // Check if this was a Spotify OAuth flow
         // We'll check user metadata after a short delay to ensure Clerk has updated
@@ -156,6 +163,11 @@ export function SSOCallback() {
           }
           
           // FIXED: Redirect to home (/) after OAuth processing
+          console.log('🏠 SSOCallback: Redirecting to home page', {
+            timestamp: new Date().toISOString(),
+            finalUserId: clerk.user?.id,
+            finalUserEmail: clerk.user?.emailAddresses?.[0]?.emailAddress
+          });
           navigate('/');
         }, 1000); // Short delay to ensure Clerk state updates
         

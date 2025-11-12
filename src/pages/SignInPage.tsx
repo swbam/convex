@@ -43,10 +43,19 @@ export function SignInPage() {
 
   // Redirect to dashboard if already signed in
   useEffect(() => {
+    console.log('🔍 SignInPage: Auth state check', {
+      isUserLoaded,
+      isSignedIn,
+      userEmail: user?.emailAddresses?.[0]?.emailAddress,
+      userId: user?.id,
+      timestamp: new Date().toISOString()
+    });
+    
     if (isUserLoaded && isSignedIn) {
+      console.log('✅ SignInPage: User is signed in, redirecting to home');
       navigate('/', { replace: true });
     }
-  }, [isUserLoaded, isSignedIn, navigate]);
+  }, [isUserLoaded, isSignedIn, navigate, user]);
 
   if (isImporting) {
     return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /> Importing Spotify...</div>;
@@ -131,7 +140,12 @@ export function SignInPage() {
     }
     
     setIsGoogleLoading(true);
-    console.log('🔍 Starting Google OAuth flow...');
+    console.log('🔍 SignInPage: Starting Google OAuth flow...', {
+      redirectUrl: `${window.location.origin}/sso-callback`,
+      redirectUrlComplete: `${window.location.origin}/`,
+      currentUrl: window.location.href,
+      timestamp: new Date().toISOString()
+    });
     
     try {
       await signIn.authenticateWithRedirect({
@@ -139,8 +153,9 @@ export function SignInPage() {
         redirectUrl: `${window.location.origin}/sso-callback`,
         redirectUrlComplete: `${window.location.origin}/`, // After OAuth, go to home
       });
+      console.log('✅ SignInPage: OAuth redirect initiated');
     } catch (error: any) {
-      console.error('❌ Google sign in error:', error);
+      console.error('❌ SignInPage: Google sign in error:', error);
       console.error('Error details:', {
         message: error?.message,
         errors: error?.errors,
