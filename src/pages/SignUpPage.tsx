@@ -152,7 +152,10 @@ export function SignUpPage() {
     }
 
     setIsSubmitting(true);
-    console.log('📧 Starting email sign up...');
+    console.log('📧 SignUpPage: Starting email sign up...', {
+      email,
+      timestamp: new Date().toISOString()
+    });
     
     try {
       // CRITICAL: Create with CAPTCHA support
@@ -161,19 +164,27 @@ export function SignUpPage() {
         password,
       });
 
-      console.log('Sign up result status:', result.status);
+      console.log('📧 SignUpPage: Sign up result', {
+        status: result.status,
+        createdSessionId: result.createdSessionId,
+        userId: result.createdUserId,
+        timestamp: new Date().toISOString()
+      });
 
       if (result.status === "complete") {
         if (result.createdSessionId) {
+          console.log('📧 SignUpPage: Setting active session...', {
+            sessionId: result.createdSessionId
+          });
           await setActive({ session: result.createdSessionId });
         }
         toast.success("Account created successfully!");
         
-        console.log('✅ Sign up successful, redirecting to home...');
+        console.log('✅ SignUpPage: Sign up successful, redirecting to home...');
         // FIXED: Redirect to home (/) - AuthGuard will handle user creation
         navigate('/');
       } else {
-        console.log('Sign up requires verification');
+        console.log('📧 SignUpPage: Sign up requires verification');
         await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
         setVerificationStep(true);
         toast.success("Please check your email for verification code.");

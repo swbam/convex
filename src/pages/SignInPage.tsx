@@ -177,7 +177,10 @@ export function SignInPage() {
     }
 
     setIsSubmitting(true);
-    console.log('📧 Starting email sign in...');
+    console.log('📧 SignInPage: Starting email/password sign in...', {
+      email,
+      timestamp: new Date().toISOString()
+    });
     
     try {
       const result = await signIn.create({
@@ -185,19 +188,27 @@ export function SignInPage() {
         password,
       });
 
-      console.log('Sign in result status:', result.status);
+      console.log('📧 SignInPage: Sign in result', {
+        status: result.status,
+        createdSessionId: result.createdSessionId,
+        userId: result.createdUserId,
+        timestamp: new Date().toISOString()
+      });
 
       if (result.status === "complete") {
         if (result.createdSessionId) {
+          console.log('📧 SignInPage: Setting active session...', {
+            sessionId: result.createdSessionId
+          });
           await setActive({ session: result.createdSessionId });
         }
         toast.success("Welcome back!");
         
-        console.log('✅ Sign in successful, redirecting to home...');
+        console.log('✅ SignInPage: Email sign in successful, redirecting to home...');
         // FIXED: Redirect to home (/) - AppLayout will show appropriate dashboard
         navigate('/');
       } else {
-        console.warn('Sign in incomplete:', result.status);
+        console.warn('⚠️ SignInPage: Sign in incomplete:', result.status);
         toast.error("Sign in incomplete. Please check your email for verification.");
       }
     } catch (error: any) {
