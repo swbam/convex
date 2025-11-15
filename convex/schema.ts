@@ -18,7 +18,6 @@ const applicationTables = {
     spotifyId: v.optional(v.string()),
     googleId: v.optional(v.string()),
     createdAt: v.number(),
-    bio: v.optional(v.string()),
   })
     .index("by_auth_id", ["authId"]) 
     .index("by_email", ["email"])

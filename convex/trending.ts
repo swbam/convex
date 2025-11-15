@@ -579,19 +579,59 @@ export const updateArtistShowCounts = internalMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    const artists = await ctx.db.query("artists").collect();
-    for (const artist of artists) {
-      const upcomingShows = await ctx.db
-        .query("shows")
-        .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
-        .filter((q) => q.eq(q.field("status"), "upcoming"))
-        .collect();
+    // Build a map of upcoming show counts per artist from a single paginated scan
+    const artistShowCounts = new Map<string, number>();
+    const SHOW_BATCH_SIZE = 200;
+    let showCursor: string | null = null;
 
-      await ctx.db.patch(artist._id, {
-        upcomingShowsCount: upcomingShows.length,
-        lastTrendingUpdate: Date.now(),
-      });
+    while (true) {
+      const page = await ctx.db
+        .query("shows")
+        .withIndex("by_status", (q) => q.eq("status", "upcoming"))
+        .paginate({ cursor: showCursor, numItems: SHOW_BATCH_SIZE });
+
+      for (const show of page.page) {
+        const artistKey = show.artistId.toString();
+        artistShowCounts.set(
+          artistKey,
+          (artistShowCounts.get(artistKey) || 0) + 1
+        );
+      }
+
+      if (page.isDone) break;
+      showCursor = page.continueCursor;
     }
+
+    // Now scan artists and update counts where they differ
+    const ARTIST_BATCH_SIZE = 200;
+    let artistCursor: string | null = null;
+    const now = Date.now();
+
+    while (true) {
+      const page = await ctx.db
+        .query("artists")
+        .paginate({ cursor: artistCursor, numItems: ARTIST_BATCH_SIZE });
+
+      for (const artist of page.page) {
+        const key = artist._id.toString();
+        const newCount = artistShowCounts.get(key) || 0;
+        const currentCount =
+          typeof artist.upcomingShowsCount === "number"
+            ? artist.upcomingShowsCount
+            : 0;
+
+        if (currentCount !== newCount) {
+          await ctx.db.patch(artist._id, {
+            upcomingShowsCount: newCount,
+            lastTrendingUpdate: now,
+          });
+        }
+      }
+
+      if (page.isDone) break;
+      artistCursor = page.continueCursor;
+    }
+
     return null;
   },
 });
@@ -709,56 +749,102 @@ export const updateEngagementCounts = internalMutation({
   returns: v.null(),
   handler: async (ctx) => {
     console.log("🔄 Updating show engagement counts...");
-    
-    // Update setlistCount: count setlists per show
-    const setlists = await ctx.db.query("setlists").collect();
+
+    // Update setlistCount: count setlists per show using a paginated scan
     const setlistCounts = new Map<string, number>();
     const setlistIdToShowId = new Map<string, string>();
-    for (const setlist of setlists) {
-      if (setlist.showId) {
-        const showKey = setlist.showId.toString();
-        setlistCounts.set(showKey, (setlistCounts.get(showKey) || 0) + 1);
-        setlistIdToShowId.set((setlist as any)._id.toString(), showKey);
+    const SETLIST_BATCH_SIZE = 200;
+    let setlistCursor: string | null = null;
+
+    while (true) {
+      const page = await ctx.db
+        .query("setlists")
+        .paginate({ cursor: setlistCursor, numItems: SETLIST_BATCH_SIZE });
+
+      for (const setlist of page.page) {
+        if (setlist.showId) {
+          const showKey = setlist.showId.toString();
+          setlistCounts.set(
+            showKey,
+            (setlistCounts.get(showKey) || 0) + 1
+          );
+          setlistIdToShowId.set((setlist as any)._id.toString(), showKey);
+        }
       }
+
+      if (page.isDone) break;
+      setlistCursor = page.continueCursor;
     }
 
-    // Update voteCount: count votes per show via cached setlist->show mapping
-    const votes = await ctx.db.query("votes").collect();
+    // Update voteCount: count votes per show via cached setlist->show mapping,
+    // also using a paginated scan to avoid unbounded .collect()
     const voteCounts = new Map<string, number>();
-    // Cache for setlists not in the initial setlist query (defensive)
     const setlistCache = new Map<string, string | null>();
-    for (const vote of votes) {
-      if (!vote.setlistId) continue;
-      const setlistKey = vote.setlistId.toString();
-      let showKey = setlistIdToShowId.get(setlistKey);
-      if (!showKey) {
-        // Fallback: fetch once and memoize
-        if (!setlistCache.has(setlistKey)) {
-          const s = await ctx.db.get(vote.setlistId);
-          setlistCache.set(setlistKey, s?.showId ? s.showId.toString() : null);
+    const VOTE_BATCH_SIZE = 200;
+    let voteCursor: string | null = null;
+
+    while (true) {
+      const page = await ctx.db
+        .query("votes")
+        .paginate({ cursor: voteCursor, numItems: VOTE_BATCH_SIZE });
+
+      for (const vote of page.page) {
+        if (!vote.setlistId) continue;
+        const setlistKey = vote.setlistId.toString();
+        let showKey = setlistIdToShowId.get(setlistKey);
+        if (!showKey) {
+          // Fallback: fetch once and memoize
+          if (!setlistCache.has(setlistKey)) {
+            const s = await ctx.db.get(vote.setlistId);
+            setlistCache.set(
+              setlistKey,
+              s?.showId ? s.showId.toString() : null
+            );
+          }
+          showKey = setlistCache.get(setlistKey) || undefined;
         }
-        showKey = setlistCache.get(setlistKey) || undefined;
+        if (showKey) {
+          voteCounts.set(
+            showKey,
+            (voteCounts.get(showKey) || 0) + 1
+          );
+        }
       }
-      if (showKey) {
-        voteCounts.set(showKey, (voteCounts.get(showKey) || 0) + 1);
-      }
+
+      if (page.isDone) break;
+      voteCursor = page.continueCursor;
     }
-    
-    // Apply updates to shows
-    const shows = await ctx.db.query("shows").collect();
+
+    // Apply updates to shows using a paginated scan to keep memory bounded
+    const SHOW_BATCH_SIZE = 200;
     let updated = 0;
-    for (const show of shows) {
-      const newSetlistCount = setlistCounts.get(show._id.toString()) || 0;
-      const newVoteCount = voteCounts.get(show._id.toString()) || 0;
-      if (show.setlistCount !== newSetlistCount || show.voteCount !== newVoteCount) {
-        await ctx.db.patch(show._id, {
-          setlistCount: newSetlistCount,
-          voteCount: newVoteCount,
-        });
-        updated++;
+    let showCursor: string | null = null;
+
+    while (true) {
+      const page = await ctx.db
+        .query("shows")
+        .paginate({ cursor: showCursor, numItems: SHOW_BATCH_SIZE });
+
+      for (const show of page.page) {
+        const key = show._id.toString();
+        const newSetlistCount = setlistCounts.get(key) || 0;
+        const newVoteCount = voteCounts.get(key) || 0;
+        if (
+          show.setlistCount !== newSetlistCount ||
+          show.voteCount !== newVoteCount
+        ) {
+          await ctx.db.patch(show._id, {
+            setlistCount: newSetlistCount,
+            voteCount: newVoteCount,
+          });
+          updated++;
+        }
       }
+
+      if (page.isDone) break;
+      showCursor = page.continueCursor;
     }
-    
+
     console.log(`✅ Updated engagement counts for ${updated} shows`);
     return null;
   },

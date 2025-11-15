@@ -17,6 +17,9 @@ crons.interval("check-completed-shows", { hours: 2 }, internal.setlistfm.checkCo
 // Daily cleanup: Once per day (sufficient for orphaned records)
 crons.interval("daily-cleanup", { hours: 24 }, internal.maintenance.cleanupOrphanedRecords, {});
 
+// Old jobs and error logs cleanup: Once per day to keep tables lean
+crons.interval("cleanup-old-jobs-and-errors", { hours: 24 }, internal.maintenance.cleanupOldJobsAndErrors, {});
+
 // Pending setlist scan: Every 30 minutes (queues setlist imports for processing)
 crons.interval("setlistfm-scan", { minutes: 30 }, internal.setlistfm.scanPendingImports, {});
 

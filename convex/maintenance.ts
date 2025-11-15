@@ -666,3 +666,70 @@ export const updateArtistCounts = internalAction({
     return null;
   },
 });
+
+// Periodic cleanup of old sync jobs and error logs to keep the database lean
+export const cleanupOldJobsAndErrors = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    console.log("🧹 Cleaning up old sync jobs and error logs...");
+
+    const now = Date.now();
+    const RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+    const cutoff = now - RETENTION_MS;
+
+    // 1) Delete old error logs by timestamp index
+    const LOG_BATCH = 100;
+    let logCursor: string | null = null;
+    let logsDeleted = 0;
+
+    while (true) {
+      const page = await ctx.db
+        .query("errorLogs")
+        .withIndex("by_timestamp", (q) => q.lt("timestamp", cutoff))
+        .paginate({ cursor: logCursor, numItems: LOG_BATCH });
+
+      for (const log of page.page) {
+        await ctx.db.delete(log._id);
+        logsDeleted++;
+      }
+
+      if (page.isDone) break;
+      logCursor = page.continueCursor;
+    }
+
+    // 2) Delete old completed/failed sync jobs
+    const JOB_BATCH = 100;
+    let jobsDeleted = 0;
+    const jobStatuses: Array<"completed" | "failed"> = ["completed", "failed"];
+
+    for (const status of jobStatuses) {
+      let jobCursor: string | null = null;
+
+      while (true) {
+        const page = await ctx.db
+          .query("syncJobs")
+          .withIndex("by_status", (q) => q.eq("status", status))
+          .paginate({ cursor: jobCursor, numItems: JOB_BATCH });
+
+        for (const job of page.page) {
+          const completedAt =
+            (job as any).completedAt ??
+            (job as any).startedAt ??
+            (job as any)._creationTime;
+
+          if (typeof completedAt === "number" && completedAt < cutoff) {
+            await ctx.db.delete(job._id);
+            jobsDeleted++;
+          }
+        }
+
+        if (page.isDone) break;
+        jobCursor = page.continueCursor;
+      }
+    }
+
+    console.log(`✅ Cleanup complete. Deleted ${logsDeleted} error logs and ${jobsDeleted} sync jobs older than 30 days.`);
+    return null;
+  },
+});

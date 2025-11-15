@@ -4,17 +4,62 @@ import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 
+const SPOTIFY_HTTP_TIMEOUT_MS = 30_000;
+const SPOTIFY_MAX_ATTEMPTS = 3;
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit = {},
+  timeoutMs: number = SPOTIFY_HTTP_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit = {},
+  maxAttempts: number = SPOTIFY_MAX_ATTEMPTS
+): Promise<Response> {
+  let attempt = 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let lastError: any;
+  while (attempt < maxAttempts) {
+    try {
+      return await fetchWithTimeout(url, init);
+    } catch (error) {
+      lastError = error;
+      attempt += 1;
+      if (attempt >= maxAttempts) {
+        console.error(`Spotify fetch failed after ${attempt} attempts for ${url}:`, error);
+        throw error;
+      }
+      const backoffMs = 500 * attempt;
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    }
+  }
+  throw lastError ?? new Error("Spotify fetchWithRetry failed");
+}
+
 // GENIUS Spotify API helpers
 async function fetchAllSpotifyPages<T>(initialUrl: string, accessToken: string): Promise<T[]> {
   const allItems: T[] = [];
   let nextUrl: string | null = initialUrl;
 
   while (nextUrl) {
-    const response = await fetch(nextUrl, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
-    });
+    const response = await fetchWithRetry(
+      nextUrl,
+      {
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+        },
+      }
+    );
 
     if (!response.ok) {
       console.log(`Spotify API error: ${response.status} ${response.statusText}`);
@@ -100,14 +145,17 @@ export const enrichArtistBasics = internalAction({
 
     try {
       // Get access token
-      const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
-        },
-        body: 'grant_type=client_credentials',
-      });
+      const tokenResponse = await fetchWithRetry(
+        "https://accounts.spotify.com/api/token",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+          },
+          body: "grant_type=client_credentials",
+        }
+      );
 
       if (!tokenResponse.ok) {
         console.warn('Failed to get Spotify access token for basics');
@@ -118,11 +166,11 @@ export const enrichArtistBasics = internalAction({
       const accessToken = tokenData.access_token;
 
       // Search for artist (lightweight call)
-      const searchResponse = await fetch(
+      const searchResponse = await fetchWithRetry(
         `https://api.spotify.com/v1/search?q=${encodeURIComponent(args.artistName)}&type=artist&limit=1`,
         {
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
+            "Authorization": `Bearer ${accessToken}`,
           },
         }
       );
@@ -225,14 +273,17 @@ export const syncArtistCatalog = internalAction({
 
     try {
       // Get access token
-      const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
-        },
-        body: 'grant_type=client_credentials',
-      });
+      const tokenResponse = await fetchWithRetry(
+        "https://accounts.spotify.com/api/token",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+          },
+          body: "grant_type=client_credentials",
+        }
+      );
 
       if (!tokenResponse.ok) {
         throw new Error('Failed to get Spotify access token');
@@ -242,11 +293,11 @@ export const syncArtistCatalog = internalAction({
       const accessToken = tokenData.access_token;
 
       // Search for artist
-      const searchResponse = await fetch(
+      const searchResponse = await fetchWithRetry(
         `https://api.spotify.com/v1/search?q=${encodeURIComponent(args.artistName)}&type=artist&limit=1`,
         {
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
+            "Authorization": `Bearer ${accessToken}`,
           },
         }
       );

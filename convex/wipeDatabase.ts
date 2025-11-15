@@ -1,46 +1,39 @@
-import { mutation } from "./_generated/server";
+import { internalMutation } from "./_generated/server";
 
 /**
- * DANGEROUS: Wipes all tables except users
- * Use this to reset the database to a clean state while preserving user accounts
- * 
- * This uses pagination to handle large tables without hitting Convex's 32K read limit
+ * DANGEROUS: Wipes all application tables except `users`.
+ *
+ * This is intentionally exposed only as an internal mutation so it can be invoked
+ * from trusted tooling (e.g. scripts or Convex CLI) and never from the client.
+ * It uses pagination to handle large tables without hitting Convex's 32K read limit.
  */
-export const wipeAllTablesExceptUsers = mutation({
+export const wipeAllTablesExceptUsers = internalMutation({
   args: {},
   handler: async (ctx) => {
     console.log("🗑️  Starting database wipe (preserving users)...");
     
     const tablesToWipe = [
-      // "activity" - REMOVED: Table deleted from schema, activity computed from other tables
-      "artistSongs",
       "artists",
-      "contentFlags",
-      "cronSettings",
-      "errorLogs",
-      "follows",
-      "jobs",
-      "maintenanceLocks",
-      "setlistSongs",
-      "setlistVotes",
-      "setlists",
+      "venues",
       "shows",
-      "songVotes",
       "songs",
-      "spotifyTokens",
-      "syncJobs",
-      "syncProgress",
-      "syncStatus",
-      "trending",
+      "artistSongs",
+      "setlists",
+      "votes",
+      "songVotes",
+      "userSpotifyArtists",
+      "userActions",
       "trendingArtists",
       "trendingShows",
-      "userAchievements",
-      "userActions",
+      "contentFlags",
       "userFollows",
-      "userSpotifyArtists",
-      "venues",
-      "votes",
-    ];
+      "syncStatus",
+      "syncJobs",
+      "maintenanceLocks",
+      "spotifyTokens",
+      "errorLogs",
+      "cronSettings",
+    ] as const;
 
     let totalDeleted = 0;
 

@@ -3,6 +3,22 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
+const SETLISTFM_HTTP_TIMEOUT_MS = 30_000;
+
+async function setlistFetchWithTimeout(
+  url: string,
+  init: RequestInit = {},
+  timeoutMs: number = SETLISTFM_HTTP_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 export const syncActualSetlist = internalAction({
   args: {
     showId: v.id("shows"),
@@ -56,12 +72,12 @@ export const syncActualSetlist = internalAction({
 
       console.log(`🔍 Searching setlist.fm: ${artist.name} @ ${venue.city} on ${setlistfmDate}`);
 
-      // Exponential backoff with jitter for 429/5xx
+      // Exponential backoff with jitter for 429/5xx and hard timeout per attempt
       const fetchWithRetry = async (url: string, maxAttempts = 4) => {
         let attempt = 0;
         let delay = 1000; // 1s
         while (attempt < maxAttempts) {
-          const response = await fetch(url, {
+          const response = await setlistFetchWithTimeout(url, {
             headers: {
               'x-api-key': apiKey,
               'Accept': 'application/json',
@@ -79,7 +95,7 @@ export const syncActualSetlist = internalAction({
           }
           return response;
         }
-        return await fetch(url, {
+        return await setlistFetchWithTimeout(url, {
           headers: {
             'x-api-key': apiKey,
             'Accept': 'application/json',
@@ -221,7 +237,7 @@ export const syncSpecificSetlist = internalAction({
       const setlistUrl = `https://api.setlist.fm/rest/1.0/setlist/${args.setlistfmId}`;
       console.log(`🔍 Fetching specific setlist: ${args.setlistfmId}`);
 
-      const response = await fetch(setlistUrl, {
+      const response = await setlistFetchWithTimeout(setlistUrl, {
         headers: {
           'x-api-key': apiKey,
           'Accept': 'application/json',

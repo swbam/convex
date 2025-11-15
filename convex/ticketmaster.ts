@@ -5,6 +5,48 @@ import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
+const TICKETMASTER_HTTP_TIMEOUT_MS = 30_000;
+const TICKETMASTER_MAX_ATTEMPTS = 3;
+
+async function tmFetchWithTimeout(
+  url: string,
+  init: RequestInit = {},
+  timeoutMs: number = TICKETMASTER_HTTP_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+async function tmFetchWithRetry(
+  url: string,
+  init: RequestInit = {},
+  maxAttempts: number = TICKETMASTER_MAX_ATTEMPTS
+): Promise<Response> {
+  let attempt = 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let lastError: any;
+  while (attempt < maxAttempts) {
+    try {
+      return await tmFetchWithTimeout(url, init);
+    } catch (error) {
+      lastError = error;
+      attempt += 1;
+      if (attempt >= maxAttempts) {
+        console.error(`Ticketmaster fetch failed after ${attempt} attempts for ${url}:`, error);
+        throw error;
+      }
+      const backoffMs = 500 * attempt;
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    }
+  }
+  throw lastError ?? new Error("Ticketmaster tmFetchWithRetry failed");
+}
+
 // Ticketmaster API integration for artist search
 export const searchArtists = action({
   args: { 
@@ -29,7 +71,7 @@ export const searchArtists = action({
     const url = `https://app.ticketmaster.com/discovery/v2/attractions.json?keyword=${encodeURIComponent(args.query)}&classificationName=music&size=${limit}&apikey=${apiKey}`;
 
     try {
-      const response = await fetch(url);
+      const response = await tmFetchWithRetry(url);
       if (!response.ok) {
         throw new Error(`Ticketmaster API error: ${response.status}`);
       }
@@ -418,13 +460,13 @@ export const getTrendingShows = action({
 
     try {
       console.log(`🎫 Fetching trending shows from Ticketmaster...`);
-      const response = await fetch(url);
+      const response = await tmFetchWithRetry(url);
       if (!response.ok) {
         console.error("Ticketmaster API error:", response.status, response.statusText);
         
         // FALLBACK: Try simpler query if detailed one fails
         const fallbackUrl = `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=${limit}&sort=date,asc&apikey=${apiKey}`;
-        const fallbackResponse = await fetch(fallbackUrl);
+        const fallbackResponse = await tmFetchWithRetry(fallbackUrl);
         if (!fallbackResponse.ok) return [];
         const fallbackData = await fallbackResponse.json();
         const events = fallbackData._embedded?.events || [];
@@ -579,7 +621,7 @@ export const getTrendingArtists = action({
     const url = `https://app.ticketmaster.com/discovery/v2/attractions.json?classificationName=music&size=${limit}&apikey=${apiKey}`;
 
     try {
-      const response = await fetch(url);
+      const response = await tmFetchWithRetry(url);
       if (!response.ok) {
         console.error("Ticketmaster API error:", response.status, response.statusText);
         return [];
@@ -664,8 +706,8 @@ export const searchShowsByZipCode = action({
 
     try {
       console.log(`🔍 Searching shows near ${args.zipCode} within ${radius} miles...`);
-      const response = await fetch(url);
-      
+      const response = await tmFetchWithRetry(url);
+
       if (!response.ok) {
         console.error("Ticketmaster API error:", response.status);
         return [];
