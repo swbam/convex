@@ -40,7 +40,7 @@ if (!convexUrl || !publishableKey) {
         () => ({
           ...auth,
           getToken: async (args?: any) => {
-            // Request JWT with default template name "convex"
+            // Request JWT with template name "convex" (matches Clerk template name)
             console.log('🔐 Requesting Clerk JWT with template "convex"', { args });
             try {
               const token = await auth.getToken({ ...args, template: "convex" });

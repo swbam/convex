@@ -33,7 +33,10 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
     );
   }
 
-  if (appUser === null || !user) {
+  // If Clerk user is not present, show sign-in prompt.
+  // If Clerk user exists but Convex app user is missing, show a setup state instead
+  // (AuthGuard is responsible for creating the Convex user record).
+  if (!user) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -44,6 +47,23 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
         <Button onClick={() => void navigate('/signin')} className="bg-primary hover:bg-primary/90 text-primary-foreground">
           Get Started
         </Button>
+      </div>
+    );
+  }
+
+  if (appUser === null) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+        <h1 className="text-2xl font-bold text-white mb-2">Finishing account setup…</h1>
+        <p className="text-gray-400 mb-4 max-w-md mx-auto">
+          You’re signed in with Clerk. We’re linking your account to Convex so you can vote and track activity.
+        </p>
+        <p className="text-xs text-gray-500">
+          If this message doesn’t go away after a few seconds, try refreshing the page.
+        </p>
       </div>
     );
   }
