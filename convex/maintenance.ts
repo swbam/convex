@@ -231,6 +231,89 @@ export const backfillMissingSetlists = action({
   },
 });
 
+// CRITICAL: Regenerate all empty setlists (songs: [])
+export const regenerateEmptySetlists = internalMutation({
+  args: { limit: v.optional(v.number()) },
+  returns: v.object({ found: v.number(), deleted: v.number(), scheduled: v.number() }),
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 100;
+    console.log(`🔍 Finding setlists with empty songs arrays (limit: ${limit})...`);
+    
+    // Get all setlists
+    const allSetlists = await ctx.db.query("setlists").take(limit * 2); // Get more to filter
+    
+    // Filter for empty setlists (songs: [] or no songs)
+    const emptySetlists = allSetlists.filter(s => 
+      !s.isOfficial && // Don't touch official setlists
+      (!s.songs || s.songs.length === 0) // Empty or missing songs
+    );
+    
+    console.log(`📊 Found ${emptySetlists.length} empty setlists out of ${allSetlists.length} total`);
+    
+    let deleted = 0;
+    let scheduled = 0;
+    const showsToRegenerate = new Set<string>();
+    
+    // Delete empty placeholders and collect shows that need regeneration
+    for (const setlist of emptySetlists.slice(0, limit)) {
+      try {
+        await ctx.db.delete(setlist._id);
+        deleted++;
+        showsToRegenerate.add(setlist.showId);
+        console.log(`🗑️ Deleted empty setlist ${setlist._id} for show ${setlist.showId}`);
+      } catch (error) {
+        console.error(`❌ Failed to delete setlist ${setlist._id}:`, error);
+      }
+    }
+    
+    // Schedule regeneration for each show with staggered delays
+    const showIds = Array.from(showsToRegenerate);
+    for (let i = 0; i < showIds.length; i++) {
+      const showIdStr = showIds[i];
+      
+      try {
+        // Get show to find artistId - need to query since we only have string ID
+        const shows = await ctx.db.query("shows").collect();
+        const show = shows.find(s => s._id === showIdStr);
+        
+        if (!show || !show.artistId) {
+          console.log(`⚠️ Show ${showIdStr} not found or missing artistId, skipping`);
+          continue;
+        }
+        
+        // Schedule with staggered delay (10 seconds apart)
+        const delayMs = i * 10000;
+        void ctx.scheduler.runAfter(delayMs, internal.setlists.autoGenerateSetlist, {
+          showId: show._id,
+          artistId: show.artistId,
+        });
+        scheduled++;
+        console.log(`📅 Scheduled setlist regeneration for show ${showIdStr} (delay: ${delayMs}ms)`);
+      } catch (error) {
+        console.error(`❌ Failed to schedule regeneration for show ${showIdStr}:`, error);
+      }
+    }
+    
+    console.log(`✅ Regeneration complete: ${deleted} empty setlists deleted, ${scheduled} regenerations scheduled`);
+    
+    return {
+      found: emptySetlists.length,
+      deleted,
+      scheduled,
+    };
+  },
+});
+
+// Public action to trigger empty setlist regeneration
+export const triggerEmptySetlistRegeneration = action({
+  args: { limit: v.optional(v.number()) },
+  returns: v.object({ found: v.number(), deleted: v.number(), scheduled: v.number() }),
+  handler: async (ctx, args): Promise<{ found: number; deleted: number; scheduled: number }> => {
+    const result = await ctx.runMutation(internal.maintenance.regenerateEmptySetlists, { limit: args.limit ?? 100 });
+    return result;
+  },
+});
+
 // CRITICAL: Import trending shows from cache into main database
 export const importTrendingShows = internalMutation({
   args: { limit: v.optional(v.number()) },

@@ -48,12 +48,12 @@ crons.interval("populate-missing-fields", { hours: 1 }, internal.maintenance.pop
 crons.interval("spotify-refresh", { hours: 12 }, internal.spotifyAuth.refreshUserTokens, {});
 
 // Ensure prediction setlists are always seeded for active shows (upcoming only)
-// REDUCED frequency and limit to prevent usage spikes
+// Increased frequency to regenerate empty setlists after catalog sync
 crons.interval(
   "refresh-auto-setlists",
-  { hours: 12 }, // Reduced from 6 to 12 hours
+  { hours: 6 }, // Run every 6 hours to catch newly synced catalogs
   internal.setlists.refreshMissingAutoSetlists,
-  { limit: 20 } // Reduced from 60 to 20 to prevent bulk scheduling
+  { limit: 20 } // Process 20 shows at a time with staggered delays
 );
 
 // DISABLED: Weekly backfill was causing infinite loops and usage spikes

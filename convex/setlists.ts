@@ -429,7 +429,7 @@ export const autoGenerateSetlist = internalMutation({
       .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
       .collect();
 
-    // CRITICAL FIX: If no songs exist, check if we recently attempted catalog sync
+    // CRITICAL FIX: If no songs exist, DON'T create placeholder - return null instead
     if (artistSongs.length === 0) {
       console.log(`⚠️ No songs found for artist ${args.artistId}`);
 
@@ -440,37 +440,19 @@ export const autoGenerateSetlist = internalMutation({
       }
 
       const now = Date.now();
-      const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+      const SIX_HOURS = 6 * 60 * 60 * 1000;
       
       // Check if we've attempted sync recently
       const recentlySynced = artist.catalogSyncAttemptedAt && 
-                              (now - artist.catalogSyncAttemptedAt) < TWENTY_FOUR_HOURS;
+                              (now - artist.catalogSyncAttemptedAt) < SIX_HOURS;
 
       if (recentlySynced) {
-        console.log(`⏭️ Catalog sync already attempted within 24 hours for ${artist.name}, skipping`);
-        
-        // CRITICAL: Create a PLACEHOLDER setlist to prevent infinite re-triggering
-        // This breaks the infinite loop by ensuring a setlist exists
-        if (!existingSetlist) {
-          const placeholderId = await ctx.db.insert("setlists", {
-            showId: args.showId,
-            userId: undefined,
-            songs: [], // Empty songs array indicates "waiting for catalog"
-            verified: false,
-            source: "user_submitted",
-            lastUpdated: now,
-            isOfficial: false,
-            confidence: 0.0, // Zero confidence for placeholder
-            upvotes: 0,
-            downvotes: 0,
-          });
-          console.log(`📝 Created placeholder setlist ${placeholderId} for show ${args.showId} (catalog sync pending)`);
-          return placeholderId;
-        }
-        return existingSetlist._id;
+        console.log(`⏭️ Catalog sync already attempted within 6 hours for ${artist.name}, will retry later`);
+        // DON'T create placeholder - return null so cron can retry later
+        return null;
       }
 
-      // First time or after 24 hours - schedule catalog sync
+      // First time or after 6 hours - schedule catalog sync
       console.log(`📅 Scheduling catalog import for artist ${artist.name}`);
       
       try {
@@ -480,49 +462,18 @@ export const autoGenerateSetlist = internalMutation({
           catalogSyncStatus: "pending",
         });
 
-        // Schedule ONE catalog sync with delay to prevent write conflicts
+        // Schedule catalog sync with delay to prevent write conflicts
         void ctx.scheduler.runAfter(5000, internal.spotify.syncArtistCatalog, {
           artistId: args.artistId,
           artistName: artist.name,
         });
 
-        // Create placeholder setlist to prevent re-triggering
-        if (!existingSetlist) {
-          const placeholderId = await ctx.db.insert("setlists", {
-            showId: args.showId,
-            userId: undefined,
-            songs: [],
-            verified: false,
-            source: "user_submitted",
-            lastUpdated: now,
-            isOfficial: false,
-            confidence: 0.0,
-            upvotes: 0,
-            downvotes: 0,
-          });
-          console.log(`📝 Created placeholder setlist ${placeholderId}, catalog sync scheduled`);
-          return placeholderId;
-        }
-        
-        return existingSetlist._id;
+        console.log(`📅 Catalog sync scheduled for ${artist.name}, will generate setlist after sync completes`);
+        // Return null - cron will retry after catalog sync completes
+        return null;
       } catch (error) {
         console.error(`❌ Failed to schedule catalog import:`, error);
-        // Still create placeholder to prevent infinite retries
-        if (!existingSetlist) {
-          return await ctx.db.insert("setlists", {
-            showId: args.showId,
-            userId: undefined,
-            songs: [],
-            verified: false,
-            source: "user_submitted",
-            lastUpdated: now,
-            isOfficial: false,
-            confidence: 0.0,
-            upvotes: 0,
-            downvotes: 0,
-          });
-        }
-        return existingSetlist._id;
+        return null;
       }
     }
 
