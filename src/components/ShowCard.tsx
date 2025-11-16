@@ -1,8 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Id } from "../../convex/_generated/dataModel";
-import { Calendar, MapPin, Ticket } from "lucide-react";
-import { Button } from "./ui/button";
+import { Calendar, MapPin, ChevronRight, Ticket } from "lucide-react";
 
 interface ShowCardProps {
   show: any;
@@ -18,19 +17,18 @@ function ShowCardComponent({
   compact = false 
 }: ShowCardProps) {
   const handleClick = () => {
-    // Extract showId
     const showId = show._id || show.showId || '';
-    
-    // Extract slug - ENSURE it's a string, not an object
     const rawSlug = show.slug || show.showSlug || show.cachedTrending?.showSlug;
     const slug = typeof rawSlug === 'string' ? rawSlug : undefined;
-    
     onClick(showId as Id<"shows">, slug);
   };
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const month = date.toLocaleDateString('en-US', { month: 'short' });
+    const day = date.getDate();
+    const weekday = date.toLocaleDateString('en-US', { weekday: 'short' });
+    return { month, day, weekday, full: `${weekday}, ${month} ${day}` };
   };
 
   const getTime = () => {
@@ -42,87 +40,80 @@ function ShowCardComponent({
     return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   };
 
-  if (compact) {
-    return (
-      <motion.div
-        onClick={handleClick}
-        className="group cursor-pointer relative overflow-hidden touch-manipulation bg-black px-4 py-4 border-b border-white/5 active:bg-white/10 transition-all duration-150 active:scale-[0.98] min-h-[56px] flex items-center"
-      >
-        <div className="flex items-center justify-between w-full">
-          <div className="flex-1 min-w-0">
-            <p className="text-white font-bold text-base leading-tight line-clamp-1">{show.artist?.name}</p>
-            <p className="text-gray-400 text-sm mt-0.5">{formatDate(show.date)}</p>
-          </div>
-          {show.venue && (
-            <div className="ml-3 text-right flex-shrink-0">
-              <p className="text-gray-300 text-sm font-medium">{show.venue.name}</p>
-              <p className="text-muted-foreground text-xs">{show.venue.city}</p>
-            </div>
-          )}
-        </div>
-      </motion.div>
-    );
-  }
+  const handleTicketClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (show.ticketUrl) {
+      window.open(show.ticketUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const dateInfo = formatDate(show.date);
+  const time = getTime();
 
   return (
     <motion.div
       onClick={handleClick}
-      whileHover={{ scale: 1.02, y: -4 }}
       whileTap={{ scale: 0.98 }}
-      transition={{ duration: 0.15 }}
-      className="group relative overflow-hidden rounded-xl bg-card shadow-apple hover:shadow-apple-hover cursor-pointer transform-gpu will-change-transform min-h-[200px]"
+      className="group relative overflow-hidden touch-manipulation bg-card border-b border-white/5 last:border-b-0 sm:border sm:border-white/10 sm:rounded-xl cursor-pointer active:bg-white/5 transition-all duration-150"
     >
-      {/* Image */}
-      {showArtist && show.artist?.images?.[0] && (
-        <img
-          src={show.artist.images[0]}
-          alt={show.artist?.name || 'Show'}
-          className="w-full h-48 object-cover transform-gpu will-change-transform group-hover:scale-105 transition-transform duration-500"
-        />
-      )}
-
-      {/* Overlay gradient */}
-      <div className="absolute inset-0 bg-gradient-to-t from-background/85 via-background/20 to-transparent" />
-
-      {/* Content overlay */}
-      <div className="absolute bottom-3 left-4 right-4">
-        {showArtist && (
-          <h3 className="text-lg font-bold text-foreground line-clamp-1">
-            {show.artist?.name}
-          </h3>
-        )}
-        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5" />
-            <span>{formatDate(show.date)}</span>
+      <div className="flex items-center gap-3 p-3 sm:p-4 min-h-[72px]">
+        {/* Date Badge - Compact */}
+        <div className="flex-shrink-0">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-white/5 ring-1 ring-white/10 flex flex-col items-center justify-center">
+            <span className="text-[10px] sm:text-xs text-gray-400 font-medium uppercase leading-none">
+              {dateInfo.month}
+            </span>
+            <span className="text-lg sm:text-xl text-white font-bold leading-none mt-0.5">
+              {dateInfo.day}
+            </span>
           </div>
-          {getTime() && <span>• {getTime()}</span>}
-          {show.venue && (
-            <div className="flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5" />
-              <span className="line-clamp-1">{show.venue.name}, {show.venue.city}</span>
-            </div>
+        </div>
+
+        {/* Content - Compact Info */}
+        <div className="flex-1 min-w-0">
+          {showArtist && show.artist?.name && (
+            <h3 className="text-white font-semibold text-base leading-tight line-clamp-1 mb-0.5">
+              {show.artist.name}
+            </h3>
           )}
+          
+          <div className="flex flex-col gap-0.5 text-xs text-gray-400">
+            {/* Venue */}
+            {show.venue && (
+              <div className="flex items-center gap-1.5 line-clamp-1">
+                <MapPin className="h-3 w-3 flex-shrink-0 text-gray-500" />
+                <span className="line-clamp-1">
+                  {show.venue.name}
+                  {show.venue.city && `, ${show.venue.city}`}
+                </span>
+              </div>
+            )}
+            
+            {/* Date & Time */}
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-3 w-3 flex-shrink-0 text-gray-500" />
+              <span>
+                {dateInfo.weekday}
+                {time && ` • ${time}`}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions - Compact Right Side */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {show.ticketUrl && (
+            <button
+              onClick={handleTicketClick}
+              className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 transition-colors text-xs font-medium text-white flex items-center gap-1.5 touch-manipulation"
+            >
+              <Ticket className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Tickets</span>
+            </button>
+          )}
+          <ChevronRight className="h-5 w-5 text-gray-600 group-hover:text-gray-400 transition-colors" />
         </div>
       </div>
-
-      {/* Ticket CTA */}
-      {show.ticketUrl && (
-        <div className="absolute top-3 right-3">
-          <Button
-            variant="secondary"
-            size="sm"
-            asChild
-            className="rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <a href={show.ticketUrl} target="_blank" rel="noopener noreferrer">
-              <Ticket className="h-4 w-4 mr-1.5" />
-              Tickets
-            </a>
-          </Button>
-        </div>
-      )}
     </motion.div>
   );
 }

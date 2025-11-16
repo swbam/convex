@@ -3,10 +3,8 @@ import { motion } from 'framer-motion';
 import { Id } from "../../convex/_generated/dataModel";
 import { api } from "../../convex/_generated/api";
 import { useMutation } from "convex/react";
-import { Button } from "./ui/button";
-import { Heart } from "lucide-react";
+import { Heart, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
-import { Card } from "./ui/card"; // New shared
 
 interface ArtistCardProps {
   artist: any;
@@ -18,7 +16,7 @@ function ArtistCardComponent({
   artist, 
   onClick,
   showFollowButton = true,
-}: ArtistCardProps & { showFollowButton?: boolean }) {
+}: ArtistCardProps) {
   const followArtist = useMutation(api.artists.followArtist);
   const isFollowing = artist.isFollowing;
 
@@ -26,7 +24,8 @@ function ArtistCardComponent({
     onClick(artist._id, artist.slug);
   };
 
-  const handleFollow = async () => {
+  const handleFollow = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     try {
       await followArtist({ artistId: artist._id });
       toast.success(isFollowing ? "Unfollowed" : "Following");
@@ -37,31 +36,68 @@ function ArtistCardComponent({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-      whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
+      onClick={handleClick}
       whileTap={{ scale: 0.98 }}
+      className="group relative overflow-hidden touch-manipulation bg-card border-b border-white/5 last:border-b-0 sm:border sm:border-white/10 sm:rounded-xl cursor-pointer active:bg-white/5 transition-all duration-150"
     >
-      <Card 
-        variant="artist"
-        onClick={handleClick}
-        imageSrc={artist.images?.[0]}
-        title={artist.name}
-        subtitle={artist.genres?.[0]}
-      >
-        <p className="text-gray-400 text-sm">{artist.upcomingShowsCount || 0} shows</p>
-        {showFollowButton && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={(e) => { e.stopPropagation(); handleFollow(); }}
-            className="mt-2 p-1 h-auto self-end"
-          >
-            <Heart className={`h-4 w-4 ${isFollowing ? 'fill-red-500 text-red-500' : ''}`} />
-          </Button>
-        )}
-      </Card>
+      <div className="flex items-center gap-3 p-3 sm:p-4 min-h-[72px]">
+        {/* Artist Image - Compact Circle */}
+        <div className="relative flex-shrink-0">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden bg-white/5 ring-1 ring-white/10">
+            {artist.images?.[0] ? (
+              <img 
+                src={artist.images[0]} 
+                alt={artist.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-white/40 text-xl font-bold">
+                {artist.name?.[0]?.toUpperCase()}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Content - Compact Info */}
+        <div className="flex-1 min-w-0">
+          <h3 className="text-white font-semibold text-base leading-tight line-clamp-1 mb-0.5">
+            {artist.name}
+          </h3>
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            {artist.genres?.[0] && (
+              <span className="line-clamp-1">{artist.genres[0]}</span>
+            )}
+            {artist.genres?.[0] && artist.upcomingShowsCount > 0 && (
+              <span className="text-white/20">•</span>
+            )}
+            {artist.upcomingShowsCount > 0 && (
+              <span className="font-medium text-white/60">
+                {artist.upcomingShowsCount} {artist.upcomingShowsCount === 1 ? 'show' : 'shows'}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Actions - Compact Right Side */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {showFollowButton && (
+            <button
+              onClick={handleFollow}
+              className="p-2 rounded-full hover:bg-white/10 active:bg-white/20 transition-colors touch-manipulation"
+              aria-label={isFollowing ? "Unfollow" : "Follow"}
+            >
+              <Heart 
+                className={`h-5 w-5 transition-colors ${
+                  isFollowing 
+                    ? 'fill-red-500 text-red-500' 
+                    : 'text-gray-400 hover:text-white'
+                }`} 
+              />
+            </button>
+          )}
+          <ChevronRight className="h-5 w-5 text-gray-600 group-hover:text-gray-400 transition-colors" />
+        </div>
+      </div>
     </motion.div>
   );
 }
