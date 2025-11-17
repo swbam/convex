@@ -58,6 +58,7 @@ export function AdminDashboard() {
   const updateCron = useMutation((api as any).admin.updateCronSetting);
   const promoteByEmail = useMutation((api as any).admin.promoteUserByEmail);
   const setClerkRoleByEmail = useAction((api as any).admin.setClerkRoleByEmail);
+  const testSpotifyClient = useAction((api as any).admin.testSpotifyClientCredentials);
   
   // Loading state
   const [trendingSyncing, setTrendingSyncing] = useState(false);
@@ -69,6 +70,7 @@ export function AdminDashboard() {
   const [catalogSyncing, setCatalogSyncing] = useState(false);
   const [importSyncing, setImportSyncing] = useState(false);
   const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [spotifyTesting, setSpotifyTesting] = useState(false);
 
   const pendingFlags = useMemo(() => (flagged || []).filter((f: any) => f.status === "pending"), [flagged]);
 
@@ -411,9 +413,45 @@ export function AdminDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <DiagItem label="Clerk subject" value={logged?.identity?.subject} />
                 <DiagItem label="JWT issuer" value={logged?.identity?.issuer} />
-                <DiagItem label="DB user id" value={logged?.appUser?._id} />
-                <DiagItem label="Role" value={logged?.appUser?.role || 'user'} />
-                <DiagItem label="Email" value={logged?.appUser?.email || logged?.identity?.email} />
+                <DiagItem label="JWT audience" value={logged?.identity?.audience} />
+                <DiagItem label="App user id" value={logged?.appUser?._id} />
+                <DiagItem label="App user role" value={logged?.appUser?.role || 'user'} />
+                <DiagItem label="Has Spotify ID" value={logged?.appUser?.spotifyId ? 'yes' : 'no'} />
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={spotifyTesting}
+                  onClick={() => {
+                    setSpotifyTesting(true);
+                    void (async () => {
+                      try {
+                        const result = await testSpotifyClient();
+                        if (result.success) {
+                          toast.success(result.message);
+                        } else {
+                          toast.error("Spotify client test failed", {
+                            description: result.message,
+                          });
+                        }
+                      } catch (e) {
+                        toast.error("Spotify client test failed", {
+                          description:
+                            e instanceof Error ? e.message : "Unknown error",
+                        });
+                      } finally {
+                        setSpotifyTesting(false);
+                      }
+                    })();
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${spotifyTesting ? "animate-spin" : ""}`}
+                  />
+                  <span>Test Spotify client credentials</span>
+                </Button>
               </div>
             </div>
             <BorderBeam size={80} duration={8} className="opacity-10" />

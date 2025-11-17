@@ -232,7 +232,19 @@ export const syncArtistCatalogWithTracking = internalAction({
         songCount: songs,
         phase: "enriching",
       });
-      
+
+      // After catalog import, ensure all upcoming shows have a prediction setlist
+      try {
+        await ctx.runMutation(internal.setlists.ensurePredictionsForArtistShows, {
+          artistId: args.artistId,
+        });
+      } catch (e) {
+        console.error(
+          `⚠️ Failed to ensure prediction setlists for ${args.artistName}:`,
+          e,
+        );
+      }
+
       console.log(`✅ Catalog imported for ${args.artistName}: ${songs} songs`);
     } catch (error) {
       console.error(`❌ Failed to sync catalog for ${args.artistName}:`, error);
@@ -283,6 +295,105 @@ export const enrichArtistBasicsWithTracking = internalAction({
   },
 });
 
+// Internal helper: search Ticketmaster by name and sync shows for an artist.
+// Used when new artists are imported from Spotify.
+export const searchAndSyncArtistShows = internalAction({
+  args: {
+    artistId: v.id("artists"),
+    artistName: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const apiKey = process.env.TICKETMASTER_API_KEY;
+    if (!apiKey) {
+      console.warn("⚠️ TICKETMASTER_API_KEY not configured – skipping searchAndSyncArtistShows");
+      return null;
+    }
+
+    const searchUrl = `https://app.ticketmaster.com/discovery/v2/attractions.json?keyword=${encodeURIComponent(
+      args.artistName,
+    )}&classificationName=music&size=10&apikey=${apiKey}`;
+
+    try {
+      const response = await tmFetchWithRetry(searchUrl);
+      if (!response.ok) {
+        console.error(
+          `❌ Ticketmaster search error for "${args.artistName}": ${response.status}`,
+        );
+        return null;
+      }
+
+      const data = await response.json();
+      const attractions = data._embedded?.attractions || [];
+      if (!attractions.length) {
+        console.log(
+          `ℹ️ No Ticketmaster attractions found for "${args.artistName}"`,
+        );
+        return null;
+      }
+
+      // Simple best‑match: case‑insensitive name match, then highest upcoming events
+      const normalizedTarget = args.artistName.toLowerCase();
+      let best = attractions[0];
+      let bestScore = 0;
+
+      for (const attraction of attractions) {
+        const name = String(attraction.name || "");
+        const norm = name.toLowerCase();
+        let score = 0;
+
+        if (norm === normalizedTarget) score += 3;
+        else if (norm.includes(normalizedTarget) || normalizedTarget.includes(norm)) score += 2;
+
+        const events = Number(attraction.upcomingEvents?._total || 0);
+        if (Number.isFinite(events)) score += Math.min(events, 10) / 10;
+
+        if (score > bestScore) {
+          bestScore = score;
+          best = attraction;
+        }
+      }
+
+      const ticketmasterId = String(best.id || "");
+      if (!ticketmasterId) {
+        console.log(
+          `ℹ️ Best Ticketmaster match for "${args.artistName}" has no id`,
+        );
+        return null;
+      }
+
+      console.log(
+        `🎫 Matched "${args.artistName}" to Ticketmaster attraction "${best.name}" (${ticketmasterId}) with score ${bestScore}`,
+      );
+
+      // Persist Ticketmaster ID on artist for future syncs
+      try {
+        await ctx.runMutation(internal.artists.setTicketmasterId, {
+          artistId: args.artistId,
+          ticketmasterId,
+        });
+      } catch (e) {
+        console.warn("⚠️ Failed to set Ticketmaster ID on artist:", e);
+      }
+
+      // Reuse the tracked show sync wrapper so syncStatus is updated
+      await ctx.runAction(internal.ticketmaster.syncArtistShowsWithTracking, {
+        artistId: args.artistId,
+        ticketmasterId,
+        artistName: args.artistName,
+      });
+
+      return null;
+    } catch (error) {
+      console.error(
+        `❌ searchAndSyncArtistShows failed for "${args.artistName}":`,
+        error,
+      );
+      return null;
+    }
+  },
+});
+
 export const syncArtistShows = internalAction({
   args: {
     artistId: v.id("artists"),
@@ -300,7 +411,7 @@ export const syncArtistShows = internalAction({
 
     try {
       console.log(`🔍 Fetching shows for Ticketmaster ID: ${args.ticketmasterId}`);
-      const response = await fetch(url);
+      const response = await tmFetchWithRetry(url);
 
       if (!response.ok) {
         const errorMsg = `Ticketmaster API error: ${response.status}`;
@@ -771,53 +882,5 @@ export const searchShowsByZipCode = action({
       console.error("Failed to search shows by zip code:", error);
       return [];
     }
-  },
-});
-
-// Search and sync artist shows (internal action for Spotify import)
-export const searchAndSyncArtistShows = internalAction({
-  args: {
-    artistId: v.id("artists"),
-    artistName: v.string(),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const apiKey = process.env.TICKETMASTER_API_KEY;
-    if (!apiKey) return null;
-    
-    try {
-      // Search for artist in Ticketmaster
-      const searchUrl = `https://app.ticketmaster.com/discovery/v2/attractions.json?keyword=${encodeURIComponent(args.artistName)}&classificationName=music&apikey=${apiKey}`;
-      const searchResponse = await fetch(searchUrl);
-      
-      if (!searchResponse.ok) return null;
-      
-      const searchData = await searchResponse.json();
-      const attractions = searchData._embedded?.attractions || [];
-      
-      // Find best match
-      const match = attractions.find((a: any) => 
-        a.name.toLowerCase() === args.artistName.toLowerCase()
-      ) || attractions[0];
-      
-      if (!match) return null;
-      
-      // Update artist with Ticketmaster ID
-      await ctx.runMutation(internal.artists.setTicketmasterId, {
-        artistId: args.artistId,
-        ticketmasterId: match.id,
-      });
-      
-      // Sync shows
-      await ctx.runAction(internal.ticketmaster.syncArtistShows, {
-        artistId: args.artistId,
-        ticketmasterId: match.id,
-      });
-      
-    } catch (error) {
-      console.error(`Failed to search and sync shows for ${args.artistName}:`, error);
-    }
-    
-    return null;
   },
 });

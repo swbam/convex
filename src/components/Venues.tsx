@@ -14,7 +14,7 @@ export function Venues({ onVenueClick }: VenuesProps) {
   const [selectedTab, setSelectedTab] = useState<'search' | 'all'>('search');
 
   // Get venues for "all" tab - we'll need to add a venues.getAll query
-  const allVenues = useQuery(api.venues.search, { query: '', limit: 100 });
+  const allVenues = useQuery(api.venues.getAll, { limit: 100 });
 
   const filteredVenues = React.useMemo(() => {
     if (!allVenues || !searchQuery) return allVenues || [];
@@ -194,10 +194,15 @@ function VenueListCard({ venue, onClick }: { venue: any; onClick: () => void }) 
               </div>
             )}
             
-            {/* TODO: Add show count when venue shows query is implemented */}
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              <span className="font-medium">View shows</span>
+              {typeof venue.showsCount === "number" ? (
+                <span className="font-medium">
+                  {venue.showsCount} {venue.showsCount === 1 ? "show" : "shows"}
+                </span>
+              ) : (
+                <span className="font-medium">View shows</span>
+              )}
             </div>
           </div>
         </div>

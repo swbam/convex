@@ -9,13 +9,27 @@ const ENCRYPTION_SECRET = process.env.SPOTIFY_TOKEN_ENC_KEY;
 
 const getEncryptionKey = () => {
   if (!ENCRYPTION_SECRET) {
-    throw new Error("Missing SPOTIFY_TOKEN_ENC_KEY environment variable for token encryption");
+    // Fallback: no encryption key configured, caller should store tokens as-is.
+    return null;
   }
   return createHash("sha256").update(ENCRYPTION_SECRET).digest();
 };
 
 const encryptToken = (token: string) => {
   const key = getEncryptionKey();
+  if (!key) {
+    if (process.env.NODE_ENV === "production") {
+      console.warn(
+        "SPOTIFY_TOKEN_ENC_KEY not set; storing Spotify token unencrypted in production.",
+      );
+    } else {
+      console.warn(
+        "SPOTIFY_TOKEN_ENC_KEY not set; storing Spotify token unencrypted (development).",
+      );
+    }
+    return token;
+  }
+
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, iv);
   const encrypted = Buffer.concat([cipher.update(token, "utf8"), cipher.final()]);
@@ -26,22 +40,17 @@ const encryptToken = (token: string) => {
 const decryptToken = (token?: string | null) => {
   if (!token) return undefined;
   try {
-    if (!ENCRYPTION_SECRET) {
-      if (process.env.NODE_ENV === 'production') {
-        console.error("SPOTIFY_TOKEN_ENC_KEY missing in production; cannot decrypt token.");
-        throw new Error("ENCRYPTION_KEY_MISSING");
-      } else {
-        console.warn("SPOTIFY_TOKEN_ENC_KEY is not set; returning stored token as-is (development only).");
-        return token;
-      }
+    const key = getEncryptionKey();
+    // If no key, or token doesn't look like an encrypted payload, treat as plain text.
+    if (!key || token.split(":").length !== 3) {
+      return token;
     }
 
     const [ivB64, authTagB64, payloadB64] = token.split(":");
     if (!ivB64 || !authTagB64 || !payloadB64) {
-      return undefined;
+      return token;
     }
 
-    const key = getEncryptionKey();
     const iv = Buffer.from(ivB64, "base64");
     const authTag = Buffer.from(authTagB64, "base64");
     const payload = Buffer.from(payloadB64, "base64");

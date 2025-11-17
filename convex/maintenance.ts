@@ -532,6 +532,46 @@ export const fixNaNValues = internalAction({
   },
 });
 
+// Cleanup old operational data (logs, webhook events) to keep DB lean
+export const cleanupOldOperationalData = internalAction({
+  args: {
+    olderThanMs: v.optional(v.number()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+    const cutoff = args.olderThanMs ?? now - THIRTY_DAYS;
+
+    console.log("🧹 Cleaning up operational data older than", new Date(cutoff).toISOString());
+
+    // Delete old error logs
+    const oldErrors = await (ctx as any).db
+      .query("errorLogs")
+      .withIndex("by_timestamp", (q: any) => q.lt("timestamp", cutoff))
+      .take(500);
+
+    for (const log of oldErrors) {
+      await (ctx as any).db.delete(log._id);
+    }
+
+    // Delete old Clerk webhook events
+    const webhookEvents = await (ctx as any).db
+      .query("clerkWebhookEvents")
+      .filter((q: any) => q.lt(q.field("processedAt"), cutoff))
+      .take(500);
+
+    for (const evt of webhookEvents) {
+      await (ctx as any).db.delete(evt._id);
+    }
+
+    console.log(
+      `✅ cleanupOldOperationalData complete. Deleted ${oldErrors.length} errorLogs and ${webhookEvents.length} clerkWebhookEvents`,
+    );
+    return null;
+  },
+});
+
 // Public action to trigger NaN fix
 export const triggerNaNFix = action({
   args: {},

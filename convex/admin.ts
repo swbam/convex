@@ -1,3 +1,5 @@
+'use node';
+
 import { action, mutation, query, internalAction, internalMutation, internalQuery, QueryCtx, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
@@ -132,6 +134,65 @@ export const setClerkRoleByEmail = action({
       return { success: true, clerkUpdated: true, message: "Clerk role updated" };
     } catch (e: any) {
       return { success: false, clerkUpdated: false, message: e?.message || "Unknown error" };
+    }
+  },
+});
+
+// Test Spotify client credentials from admin dashboard
+export const testSpotifyClientCredentials = action({
+  args: {},
+  returns: v.object({
+    success: v.boolean(),
+    message: v.string(),
+  }),
+  handler: async (_ctx) => {
+    const clientId = process.env.SPOTIFY_CLIENT_ID;
+    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      return {
+        success: false,
+        message: "Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET in environment",
+      };
+    }
+
+    try {
+      const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString(
+        "base64",
+      );
+      const response = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${authHeader}`,
+        },
+        body: "grant_type=client_credentials",
+      } as RequestInit);
+
+      if (!response.ok) {
+        const body = await response.text();
+        return {
+          success: false,
+          message: `Spotify token request failed: ${response.status} ${body.slice(
+            0,
+            200,
+          )}`,
+        };
+      }
+
+      const data = (await response.json()) as any;
+      const expiresIn = data?.expires_in;
+      return {
+        success: true,
+        message: `Spotify client credentials OK (access token received, expires in ${expiresIn}s)`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Spotify client credentials test failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      };
     }
   },
 });

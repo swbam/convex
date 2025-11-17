@@ -67,6 +67,21 @@ export const handleClerkWebhook = internalAction({
     const event = args.event as WebhookEvent;
     console.log('🔵 Processing Clerk webhook:', event.type);
 
+    // Idempotency: skip if we've already processed this Clerk event id
+    const eventId = (event as any).id as string | undefined;
+    if (eventId) {
+      const existing = await (ctx as any).db
+        .query("clerkWebhookEvents")
+        .withIndex("by_event_id", (q: any) => q.eq("eventId", eventId))
+        .first();
+      if (existing) {
+        console.log(
+          `⏭️ Duplicate Clerk webhook ${event.type} (${eventId}) – already processed`,
+        );
+        return null;
+      }
+    }
+
     switch (event.type) {
       case "user.created":
       case "user.updated":
@@ -87,7 +102,14 @@ export const handleClerkWebhook = internalAction({
         console.log(`Ignored Clerk webhook event: ${event.type}`);
     }
 
+    if (eventId) {
+      await (ctx as any).db.insert("clerkWebhookEvents", {
+        eventId,
+        eventType: event.type,
+        processedAt: Date.now(),
+      });
+    }
+
     return null;
   },
 });
-

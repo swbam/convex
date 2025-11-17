@@ -662,12 +662,27 @@ export function ShowDetail({
                   predictionSetlist.songs.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg font-medium">
-                      No songs in the setlist yet
-                    </p>
-                    <p className="text-sm mt-1">
-                      Use the dropdown above to add the first song!
-                    </p>
+                    {catalogCount === 0 ? (
+                      <>
+                        <p className="text-lg font-medium">
+                          Importing this artist&apos;s catalog…
+                        </p>
+                        <p className="text-sm mt-1">
+                          We&apos;re fetching studio tracks in the background.
+                          Your prediction setlist will appear here shortly.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-lg font-medium">
+                          Generating a prediction setlist…
+                        </p>
+                        <p className="text-sm mt-1">
+                          We&apos;re seeding a 5‑song set from the catalog.
+                          Try again in a moment if this doesn&apos;t update.
+                        </p>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <div className="mt-6 touch-manipulation">

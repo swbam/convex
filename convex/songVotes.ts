@@ -71,6 +71,24 @@ export const voteOnSong = mutation({
       }
     }
 
+    // For authenticated users, enforce a soft per-day cap to prevent spam
+    if (typeof effectiveUserId !== "string") {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const dayStartMs = startOfDay.getTime();
+
+      const todaysVotes = await ctx.db
+        .query("songVotes")
+        .withIndex("by_user", (q) => q.eq("userId", effectiveUserId))
+        .filter((q) => q.gte(q.field("createdAt"), dayStartMs))
+        .take(50);
+
+      const DAILY_LIMIT = 50;
+      if (todaysVotes.length >= DAILY_LIMIT) {
+        throw new Error("Daily vote limit reached. Please come back tomorrow!");
+      }
+    }
+
     // Create new vote
     await ctx.db.insert("songVotes", {
       userId: effectiveUserId,

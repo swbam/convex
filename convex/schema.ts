@@ -395,6 +395,14 @@ const applicationTables = {
     lastRunAt: v.optional(v.number()),
   })
     .index("by_name", ["name"]),
+
+  // Idempotency tracking for Clerk webhooks
+  clerkWebhookEvents: defineTable({
+    eventId: v.string(),
+    eventType: v.string(),
+    processedAt: v.number(),
+  })
+    .index("by_event_id", ["eventId"]),
 };
 
 export default defineSchema({

@@ -429,52 +429,12 @@ export const autoGenerateSetlist = internalMutation({
       .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
       .collect();
 
-    // CRITICAL FIX: If no songs exist, DON'T create placeholder - return null instead
+    // If no songs exist yet, don't try to generate a prediction setlist here.
+    // Catalog sync for this artist is orchestrated elsewhere (Ticketmaster + Spotify flows),
+    // so we simply skip for now and let callers/cron retry once songs are available.
     if (artistSongs.length === 0) {
-      console.log(`⚠️ No songs found for artist ${args.artistId}`);
-
-      const artist = await ctx.db.get(args.artistId);
-      if (!artist) {
-        console.error(`❌ Artist ${args.artistId} not found`);
-        return null;
-      }
-
-      const now = Date.now();
-      const SIX_HOURS = 6 * 60 * 60 * 1000;
-      
-      // Check if we've attempted sync recently
-      const recentlySynced = artist.catalogSyncAttemptedAt && 
-                              (now - artist.catalogSyncAttemptedAt) < SIX_HOURS;
-
-      if (recentlySynced) {
-        console.log(`⏭️ Catalog sync already attempted within 6 hours for ${artist.name}, will retry later`);
-        // DON'T create placeholder - return null so cron can retry later
-        return null;
-      }
-
-      // First time or after 6 hours - schedule catalog sync
-      console.log(`📅 Scheduling catalog import for artist ${artist.name}`);
-      
-      try {
-        // Mark that we're attempting a sync to prevent duplicate scheduling
-        await ctx.db.patch(args.artistId, {
-          catalogSyncAttemptedAt: now,
-          catalogSyncStatus: "pending",
-        });
-
-        // Schedule catalog sync with delay to prevent write conflicts
-        void ctx.scheduler.runAfter(5000, internal.spotify.syncArtistCatalog, {
-          artistId: args.artistId,
-          artistName: artist.name,
-        });
-
-        console.log(`📅 Catalog sync scheduled for ${artist.name}, will generate setlist after sync completes`);
-        // Return null - cron will retry after catalog sync completes
-        return null;
-      } catch (error) {
-        console.error(`❌ Failed to schedule catalog import:`, error);
-        return null;
-      }
+      console.log(`⚠️ No songs found for artist ${args.artistId}, skipping autoGenerateSetlist for now`);
+      return null;
     }
 
     // Get the actual song records and filter out live/remix versions
@@ -561,6 +521,81 @@ export const autoGenerateSetlist = internalMutation({
 
     console.log(`Auto-generated setlist for show ${args.showId} with ${selectedSongs.length} songs`);
     return setlistId;
+  },
+});
+
+// Internal helper: ensure all upcoming shows for an artist have a prediction setlist
+export const ensurePredictionsForArtistShows = internalMutation({
+  args: {
+    artistId: v.id("artists"),
+  },
+  returns: v.object({
+    showsChecked: v.number(),
+    setlistsCreated: v.number(),
+    skippedExisting: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const shows = await ctx.db
+      .query("shows")
+      .withIndex("by_artist_and_status", (q) =>
+        q.eq("artistId", args.artistId).eq("status", "upcoming"),
+      )
+      .collect();
+
+    let created = 0;
+    let skipped = 0;
+
+    for (const show of shows) {
+      try {
+        // Check for an existing non-official, system prediction setlist with songs
+        const existing = await ctx.db
+          .query("setlists")
+          .withIndex("by_show", (q) => q.eq("showId", show._id))
+          .collect();
+
+        const hasPrediction = existing.some(
+          (s: any) =>
+            !s.isOfficial &&
+            !s.userId &&
+            Array.isArray(s.songs) &&
+            s.songs.length > 0,
+        );
+
+        if (hasPrediction) {
+          skipped += 1;
+          continue;
+        }
+
+        const setlistId = await ctx.runMutation(
+          internal.setlists.autoGenerateSetlist,
+          {
+            showId: show._id,
+            artistId: show.artistId,
+          },
+        );
+
+        if (setlistId) {
+          created += 1;
+        } else {
+          skipped += 1;
+        }
+      } catch (error) {
+        await trackError(ctx, "ensurePredictionsForArtistShows", error, {
+          artistId: args.artistId,
+          showId: show._id,
+        });
+      }
+    }
+
+    console.log(
+      `✅ ensurePredictionsForArtistShows: checked ${shows.length} shows, created ${created}, skipped ${skipped}`,
+    );
+
+    return {
+      showsChecked: shows.length,
+      setlistsCreated: created,
+      skippedExisting: skipped,
+    };
   },
 });
 
