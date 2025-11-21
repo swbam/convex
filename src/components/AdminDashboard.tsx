@@ -41,7 +41,7 @@ export function AdminDashboard() {
   const users = useQuery((api as any).admin.getAllUsers, { limit: 50 });
   const cronSettings = useQuery((api as any).cronSettings.list);
   const recentActivity = useQuery((api as any).admin.getRecentActivity, { limit: 50 });
-  const bulkDeleteFlagged = useMutation((api as any).admin.bulkDeleteFlagged); // New mutation
+  const bulkDeleteFlagged = useAction((api as any).admin.bulkDeleteFlagged);
   const updateUserRole = useMutation((api as any).admin.updateUserRole); // New for roles
   const resolveFlag = useMutation((api as any).admin.resolveFlag);
   const dismissFlag = useMutation((api as any).admin.dismissFlag);

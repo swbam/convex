@@ -1,5 +1,3 @@
-'use node';
-
 import { action, mutation, query, internalAction, internalMutation, internalQuery, QueryCtx, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
@@ -1382,12 +1380,22 @@ function isNonStudioSong(songTitle: string, albumName: string): boolean {
   );
 }
 
-export const bulkDeleteFlagged = mutation({
+export const bulkDeleteFlaggedInternal = internalMutation({
+  args: { id: v.id("contentFlags") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.id);
+    return null;
+  },
+});
+
+export const bulkDeleteFlagged = action({
   args: { ids: v.array(v.id("contentFlags")) },
   returns: v.object({ deleted: v.number() }),
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     for (const id of args.ids) {
-      await ctx.db.delete(id);
+      await ctx.runMutation(internal.admin.bulkDeleteFlaggedInternal, { id });
     }
     return { deleted: args.ids.length };
   },
