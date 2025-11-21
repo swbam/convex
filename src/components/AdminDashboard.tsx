@@ -43,11 +43,19 @@ export function AdminDashboard() {
   const recentActivity = useQuery((api as any).admin.getRecentActivity, { limit: 50 });
   const bulkDeleteFlagged = useMutation((api as any).admin.bulkDeleteFlagged); // New mutation
   const updateUserRole = useMutation((api as any).admin.updateUserRole); // New for roles
+  const resolveFlag = useMutation((api as any).admin.resolveFlag);
+  const dismissFlag = useMutation((api as any).admin.dismissFlag);
+  const deleteFlaggedContent = useMutation((api as any).admin.deleteFlaggedContent);
+  const recomputeEngagementCounts = useAction((api as any).admin.recomputeEngagementCounts);
+  const forceCatalogSync = useAction((api as any).admin.forceArtistCatalogSync);
   
   // Trending sync actions
   const syncTrending = useAction((api as any).admin.syncTrending);
   const syncTrendingArtists = useAction((api as any).admin.syncTrendingArtists);
   const syncTrendingShows = useAction((api as any).admin.syncTrendingShows);
+  const activeSyncJobs = useQuery((api as any).syncJobs.getActive, {});
+  const recentErrors = useQuery((api as any).admin.errorMonitoring.getRecentErrors, { limit: 5, onlyUnresolved: true });
+  const errorStats = useQuery((api as any).admin.errorMonitoring.getErrorStats);
   
   // Setlist sync actions
   const triggerSetlistSync = useAction((api as any).admin.testTriggerSetlistSync);
@@ -71,6 +79,10 @@ export function AdminDashboard() {
   const [importSyncing, setImportSyncing] = useState(false);
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [spotifyTesting, setSpotifyTesting] = useState(false);
+  const [forceArtistId, setForceArtistId] = useState("");
+  const [flagActionLoading, setFlagActionLoading] = useState<Id<'contentFlags'> | null>(null);
+  const [forceCatalogRunning, setForceCatalogRunning] = useState(false);
+  const [engagementRunning, setEngagementRunning] = useState(false);
 
   const pendingFlags = useMemo(() => (flagged || []).filter((f: any) => f.status === "pending"), [flagged]);
 
@@ -220,6 +232,64 @@ export function AdminDashboard() {
       toast.success("Role updated");
     } catch {
       toast.error("Role update failed");
+    }
+  };
+
+  const handleFlagAction = async (flagId: Id<'contentFlags'>, action: "resolve" | "dismiss" | "delete") => {
+    setFlagActionLoading(flagId);
+    try {
+      if (action === "resolve") {
+        await resolveFlag({ flagId });
+        toast.success("Flag resolved");
+      } else if (action === "dismiss") {
+        await dismissFlag({ flagId });
+        toast.success("Flag dismissed");
+      } else {
+        await deleteFlaggedContent({ flagId });
+        toast.success("Content deleted");
+      }
+    } catch (error) {
+      toast.error("Flag action failed", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      setFlagActionLoading(null);
+    }
+  };
+
+  const handleForceCatalog = async () => {
+    if (!forceArtistId) {
+      toast.error("Enter an artist ID");
+      return;
+    }
+    setForceCatalogRunning(true);
+    try {
+      const res = await forceCatalogSync({ artistId: forceArtistId as any });
+      if (res.success) {
+        toast.success(res.message);
+      } else {
+        toast.error(res.message);
+      }
+    } catch (error) {
+      toast.error("Force sync failed", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      setForceCatalogRunning(false);
+    }
+  };
+
+  const handleRecomputeEngagement = async () => {
+    setEngagementRunning(true);
+    try {
+      await recomputeEngagementCounts();
+      toast.success("Engagement backfill queued");
+    } catch (error) {
+      toast.error("Failed to recompute engagement", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      setEngagementRunning(false);
     }
   };
 
@@ -506,6 +576,63 @@ export function AdminDashboard() {
             </div>
             <BorderBeam size={80} duration={8} className="opacity-20" />
           </MagicCard>
+
+          <div className="bg-white/5 rounded-2xl border border-white/10 p-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-400" />
+              <div>
+                <h3 className="text-white font-semibold">Error Monitoring</h3>
+                <p className="text-xs text-gray-400">Pulled from admin/errorMonitoring</p>
+              </div>
+            </div>
+            {!errorStats ? (
+              <div className="grid grid-cols-2 gap-3">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-14 bg-white/5 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-gray-300">
+                <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                  <div className="text-xs text-gray-400">Total</div>
+                  <div className="text-white font-semibold">{errorStats.total}</div>
+                </div>
+                <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                  <div className="text-xs text-gray-400">Unresolved</div>
+                  <div className="text-white font-semibold">{errorStats.unresolved}</div>
+                </div>
+                <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                  <div className="text-xs text-gray-400">Last 24h</div>
+                  <div className="text-white font-semibold">{errorStats.last24Hours}</div>
+                </div>
+                <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                  <div className="text-xs text-gray-400">Errors</div>
+                  <div className="text-white font-semibold">{errorStats.bySeverity.error}</div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {!recentErrors ? (
+                <div className="space-y-2">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="h-12 rounded-lg bg-white/5 animate-pulse" />
+                  ))}
+                </div>
+              ) : recentErrors.length === 0 ? (
+                <p className="text-gray-400 text-sm">No unresolved errors 🎉</p>
+              ) : recentErrors.map((err: any) => (
+                <div key={err._id} className="p-3 bg-white/5 rounded-lg border border-white/10">
+                  <div className="flex justify-between text-sm text-white">
+                    <span>{err.operation}</span>
+                    <span className="text-xs text-gray-400">{new Date(err.timestamp).toLocaleString()}</span>
+                  </div>
+                  <p className="text-xs text-gray-300 mt-1 truncate">{err.error}</p>
+                  <p className="text-[11px] text-gray-500 mt-1">Severity: {err.severity} • Resolved: {err.resolved ? "yes" : "no"}</p>
+                </div>
+              ))}
+            </div>
+          </div>
               </div>
             )}
 
@@ -563,8 +690,29 @@ export function AdminDashboard() {
                   <p className="text-gray-400 text-sm">Reporter: {flag.reporterId}, Date: {new Date(flag.createdAt).toLocaleString()}</p>
                   <p className="text-gray-400 text-sm">Content: {flag.contentType} - {flag.contentId}</p>
                 </div>
-                <Button size="sm" onClick={() => { toast.info("Flag review coming soon"); }}>Review</Button>
-                <Button size="sm" variant="destructive" onClick={() => { toast.info("Flag deletion coming soon"); }}>Delete</Button>
+                <Button 
+                  size="sm" 
+                  onClick={() => { void handleFlagAction(flag._id, "resolve"); }}
+                  disabled={flagActionLoading === flag._id}
+                >
+                  {flagActionLoading === flag._id ? "Working..." : "Review"}
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="destructive" 
+                  onClick={() => { void handleFlagAction(flag._id, "delete"); }}
+                  disabled={flagActionLoading === flag._id}
+                >
+                  Delete
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => { void handleFlagAction(flag._id, "dismiss"); }}
+                  disabled={flagActionLoading === flag._id}
+                >
+                  Dismiss
+                </Button>
               </div>
             ))}
           </div>
@@ -702,6 +850,28 @@ export function AdminDashboard() {
           </div>
 
           {/* Data Import Section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-white/5 rounded-xl space-y-2">
+              <p className="text-sm text-gray-300">Force catalog sync by Artist ID</p>
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Artist ID" 
+                  value={forceArtistId} 
+                  onChange={(e) => setForceArtistId(e.target.value)} 
+                />
+                <Button onClick={() => { void handleForceCatalog(); }} disabled={forceCatalogRunning}>
+                  {forceCatalogRunning ? "Syncing..." : "Force Sync"}
+                </Button>
+              </div>
+            </div>
+            <div className="p-4 bg-white/5 rounded-xl space-y-2">
+              <p className="text-sm text-gray-300">One-time engagement backfill</p>
+              <Button onClick={() => { void handleRecomputeEngagement(); }} disabled={engagementRunning}>
+                {engagementRunning ? "Recomputing..." : "Recompute counts"}
+              </Button>
+            </div>
+          </div>
+
           <div className="space-y-3">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <Database className="h-5 w-5" />
@@ -794,6 +964,37 @@ export function AdminDashboard() {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Cron Settings */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <RefreshCw className="h-5 w-5" />
+              Active Sync Jobs
+            </h3>
+            {!activeSyncJobs ? (
+              <div className="space-y-2">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-14 rounded-lg bg-white/5 animate-pulse" />
+                ))}
+              </div>
+            ) : activeSyncJobs.length === 0 ? (
+              <p className="text-sm text-gray-400">No running sync jobs.</p>
+            ) : (
+              <div className="space-y-2">
+                {activeSyncJobs.map((job: any) => (
+                  <div key={job._id} className="flex justify-between items-center bg-white/5 border border-white/10 rounded-xl p-3">
+                    <div>
+                      <div className="text-sm text-white font-medium">{job.type}</div>
+                      <div className="text-xs text-gray-400">Step: {job.currentStep || "n/a"}</div>
+                    </div>
+                    <div className="text-xs text-gray-300">
+                      {job.progressPercentage ?? 0}% • Retries: {job.retryCount}/{job.maxRetries}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Cron Settings */}

@@ -40,8 +40,16 @@ export const submitVote = mutation({
         createdAt: Date.now(),
       });
 
-      // NOTE: Do not increment show.voteCount here.
-      // voteCount is derived by trending.updateEngagementCounts to avoid drift.
+      // Increment the parent show's voteCount on first vote insert
+      const setlist = await ctx.db.get(args.setlistId);
+      if (setlist?.showId) {
+        const show = await ctx.db.get(setlist.showId);
+        if (show) {
+          await ctx.db.patch(setlist.showId, {
+            voteCount: (show.voteCount || 0) + 1,
+          });
+        }
+      }
     }
 
     return { success: true };

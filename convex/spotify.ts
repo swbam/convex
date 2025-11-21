@@ -6,6 +6,7 @@ import { internal, api } from "./_generated/api";
 
 const SPOTIFY_HTTP_TIMEOUT_MS = 30_000;
 const SPOTIFY_MAX_ATTEMPTS = 3;
+const STRICT_ALBUM_FILTER = process.env.SPOTIFY_STRICT_MODE !== "false";
 
 async function fetchWithTimeout(
   url: string,
@@ -529,49 +530,75 @@ function isStudioSong(songName: string, albumName: string): boolean {
   const songLower = songName.toLowerCase().trim();
   const albumLower = albumName.toLowerCase().trim();
 
-  // Exclude non-studio indicators in SONG title
-  const songExcludes = [
-    // Live versions
-    '(live)', '[live]', ' - live', 'live at', 'live from', 'live version', 'live recording',
-    // Remixes and variations
-    'remix', 'rmx', '(remix)', '[remix]', 'edit', 'radio edit', 'extended', 'extended version',
-    'acoustic', 'acoustic version', 'stripped', 'unplugged',
-    // Demos and alternates
-    'demo', '(demo)', '[demo]', 'alternate', 'alternative version', 'alternate take',
-    'outtake', 'rough mix', 'work in progress',
-    // Instrumentals
-    'instrumental', 'karaoke', 'backing track', 'acapella', 'a cappella',
-    // Commentary/extras
-    'commentary', 'interview', 'spoken word', 'voice memo',
-  ];
-
-  // Exclude non-studio indicators in ALBUM title (extra safety)
-  const albumExcludes = [
-    'live', 'concert', 'tour', 'mtv unplugged',
-    'acoustic', 'stripped',
-    'remix', 'remixes', 'remixed',
-    'demo', 'demos',
-  ];
-
   // Skip pure intro/outro/interlude tracks
-  if (['intro', 'outro', 'interlude', 'skit', 'prelude', 'segue'].includes(songLower)) {
+  if (["intro", "outro", "interlude", "skit", "prelude", "segue"].includes(songLower)) {
     return false;
   }
 
-  // Check song title for exclusions
-  for (const word of songExcludes) {
-    if (songLower.includes(word)) {
-      console.log(`🚫 Excluded song (title): ${songName} (contains: ${word})`);
-      return false;
-    }
+  // Regex-based word-boundary filtering to avoid accidental matches (e.g., "Alive")
+  const songRejectPatterns: RegExp[] = [
+    /\blive\b/i,
+    /\blive\s+at\b/i,
+    /\blive\s+from\b/i,
+    /\blive\s+version\b/i,
+    /\bremix\b/i,
+    /\brmx\b/i,
+    /\bedit\b/i,
+    /\bradio\s+edit\b/i,
+    /\bextended(\s+version)?\b/i,
+    /\bacoustic\b/i,
+    /\bunplugged\b/i,
+    /\bstripped\b/i,
+    /\bdemo\b/i,
+    /\balternate(\s+take|\s+version)?\b/i,
+    /\bouttake\b/i,
+    /\brough\s+mix\b/i,
+    /\bwork\s+in\s+progress\b/i,
+    /\binstrumental\b/i,
+    /\bkaraoke\b/i,
+    /\bbacking\s+track\b/i,
+    /\b(acapella|a cappella)\b/i,
+    /\bcommentary\b/i,
+    /\binterview\b/i,
+    /\bspoken\s+word\b/i,
+    /\bvoice\s+memo\b/i,
+  ];
+
+  const albumRejectPatterns: RegExp[] = [
+    /\blive\b/i,
+    /\bconcert\b/i,
+    /\btour\b/i,
+    /\bunplugged\b/i,
+    /\bacoustic\b/i,
+    /\bstripped\b/i,
+    /\bremix(es|ed)?\b/i,
+    /\bdemo(s)?\b/i,
+  ];
+
+  const strictAlbumPatterns: RegExp[] = [
+    /\bdeluxe\b/i,
+    /\bexpanded\b/i,
+    /\btour\s+edition\b/i,
+    /\banniversary\b/i,
+    /\bspecial\s+edition\b/i,
+    /\bsuper\s+deluxe\b/i,
+    /\bbonus\s+track\b/i,
+    /\bremaster(ed)?\b/i,
+  ];
+
+  if (songRejectPatterns.some((pattern) => pattern.test(songName))) {
+    console.log(`🚫 Excluded song (title): ${songName}`);
+    return false;
   }
 
-  // Check album title for exclusions (extra safety layer)
-  for (const word of albumExcludes) {
-    if (albumLower.includes(word)) {
-      console.log(`🚫 Excluded song (album): ${songName} from ${albumName} (album contains: ${word})`);
-      return false;
-    }
+  if (albumRejectPatterns.some((pattern) => pattern.test(albumName))) {
+    console.log(`🚫 Excluded song (album contains non-studio keyword): ${songName} from ${albumName}`);
+    return false;
+  }
+
+  if (STRICT_ALBUM_FILTER && strictAlbumPatterns.some((pattern) => pattern.test(albumName))) {
+    console.log(`🚫 Excluded song (strict album filter): ${songName} from ${albumName}`);
+    return false;
   }
 
   // Validate length

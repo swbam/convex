@@ -296,13 +296,30 @@ export const verifySetlist = mutation({
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     await requireAdmin(ctx); // ENHANCED: Require admin access
-    
+
+    const setlist = await ctx.db.get(args.setlistId);
     await ctx.db.patch(args.setlistId, { 
       verified: args.verified,
       lastUpdated: Date.now(), // Update timestamp
     });
     
     console.log(`✅ Setlist ${args.setlistId} verification: ${args.verified}`);
+
+    if (args.verified && setlist?.showId) {
+      const existing = await ctx.db.get(args.setlistId);
+      if (!existing?.notificationSentAt && !existing?.notificationScheduledAt) {
+        await ctx.db.patch(args.setlistId, { notificationScheduledAt: Date.now() });
+        try {
+          await ctx.scheduler.runAfter(0, internal.notifications.sendSetlistNotifications, {
+            setlistId: args.setlistId,
+            showId: setlist.showId,
+          });
+        } catch (error) {
+          console.error("Failed to schedule notifications after verification", error);
+        }
+      }
+    }
+
     return { success: true };
   },
 });
@@ -343,6 +360,76 @@ export const resolveFlag = mutation({
     });
     
     console.log(`✅ Flag ${args.flagId} resolved by admin ${adminId}`);
+    return { success: true };
+  },
+});
+
+// Delete flagged content (setlist/vote) and mark the flag reviewed
+export const deleteFlaggedContent = mutation({
+  args: {
+    flagId: v.id("contentFlags"),
+  },
+  returns: v.object({ success: v.boolean() }),
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const flag = await ctx.db.get(args.flagId);
+    if (!flag) {
+      throw new Error("Flag not found");
+    }
+
+    if (flag.contentType === "setlist") {
+      const setlistId = flag.contentId as Id<"setlists">;
+      const setlist = await ctx.db.get(setlistId);
+      if (setlist?.showId) {
+        const show = await ctx.db.get(setlist.showId);
+        if (show) {
+          await ctx.db.patch(setlist.showId, {
+            setlistCount: Math.max(0, (show.setlistCount || 0) - 1),
+          });
+        }
+      }
+
+      // Remove votes tied to this setlist to keep counts consistent
+      const relatedVotes = await ctx.db
+        .query("votes")
+        .withIndex("by_setlist", (q) => q.eq("setlistId", setlistId))
+        .collect();
+      for (const vote of relatedVotes) {
+        await ctx.db.delete(vote._id);
+        if (setlist?.showId) {
+          const show = await ctx.db.get(setlist.showId);
+          if (show) {
+            await ctx.db.patch(setlist.showId, {
+              voteCount: Math.max(0, (show.voteCount || 0) - 1),
+            });
+          }
+        }
+      }
+
+      await ctx.db.delete(setlistId);
+    } else if (flag.contentType === "vote") {
+      const voteId = flag.contentId as Id<"votes">;
+      const vote = await ctx.db.get(voteId);
+      if (vote?.setlistId) {
+        const setlist = await ctx.db.get(vote.setlistId);
+        if (setlist?.showId) {
+          const show = await ctx.db.get(setlist.showId);
+          if (show) {
+            await ctx.db.patch(setlist.showId, {
+              voteCount: Math.max(0, (show.voteCount || 0) - 1),
+            });
+          }
+        }
+      }
+      await ctx.db.delete(voteId);
+    }
+
+    await ctx.db.patch(args.flagId, {
+      status: "reviewed",
+      reviewedBy: adminId,
+      reviewedAt: Date.now(),
+    });
+
     return { success: true };
   },
 });
@@ -909,6 +996,37 @@ export const testResyncArtistCatalog = action({
         message: error instanceof Error ? error.message : "Unknown error"
       };
     }
+  },
+});
+
+// Recompute engagement counts once after switching to on-write counters
+export const recomputeEngagementCounts = action({
+  args: {},
+  returns: v.object({ success: v.boolean() }),
+  handler: async (ctx): Promise<{ success: boolean }> => {
+    await requireAdmin(ctx);
+    await ctx.runMutation(internal.trending.updateEngagementCounts, {});
+    return { success: true };
+  },
+});
+
+// Admin: force a catalog sync for a single artist by ID
+export const forceArtistCatalogSync = action({
+  args: { artistId: v.id("artists") },
+  returns: v.object({ success: v.boolean(), message: v.string() }),
+  handler: async (ctx, args): Promise<{ success: boolean; message: string }> => {
+    await requireAdmin(ctx);
+    const artist: any = await ctx.runQuery(api.artists.getById, { id: args.artistId });
+    if (!artist) {
+      return { success: false, message: "Artist not found" };
+    }
+
+    await ctx.runAction(internal.spotify.syncArtistCatalog, {
+      artistId: args.artistId,
+      artistName: artist.name,
+    });
+
+    return { success: true, message: `Triggered catalog sync for ${artist.name}` };
   },
 });
 

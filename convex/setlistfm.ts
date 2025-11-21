@@ -60,17 +60,18 @@ export const syncActualSetlist = internalAction({
         throw new Error("SETLISTFM_API_KEY not configured");
       }
 
-      const dateMatch = args.showDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (!dateMatch) {
+      const baseDate = new Date(args.showDate);
+      if (Number.isNaN(baseDate.getTime())) {
         console.error(`❌ Invalid date format: ${args.showDate}`);
         throw new Error("Invalid date format");
       }
-      const [, year, month, day] = dateMatch;
-      const setlistfmDate = `${day}-${month}-${year}`;
 
-      const searchUrl = `https://api.setlist.fm/rest/1.0/search/setlists?artistName=${encodeURIComponent(artist.name)}&cityName=${encodeURIComponent(venue.city)}&date=${setlistfmDate}`;
-
-      console.log(`🔍 Searching setlist.fm: ${artist.name} @ ${venue.city} on ${setlistfmDate}`);
+      const formatDate = (date: Date) => {
+        const yyyy = date.getUTCFullYear();
+        const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+        const dd = String(date.getUTCDate()).padStart(2, "0");
+        return { api: `${dd}-${mm}-${yyyy}`, iso: `${yyyy}-${mm}-${dd}` };
+      };
 
       // Exponential backoff with jitter for 429/5xx and hard timeout per attempt
       const fetchWithRetry = async (url: string, maxAttempts = 4) => {
@@ -79,17 +80,17 @@ export const syncActualSetlist = internalAction({
         while (attempt < maxAttempts) {
           const response = await setlistFetchWithTimeout(url, {
             headers: {
-              'x-api-key': apiKey,
-              'Accept': 'application/json',
-              'User-Agent': 'setlists.live/1.0'
-            }
+              "x-api-key": apiKey,
+              Accept: "application/json",
+              "User-Agent": "setlists.live/1.0",
+            },
           });
           if (response.ok) return response;
           if (response.status === 429 || response.status >= 500) {
             attempt += 1;
             if (attempt >= maxAttempts) return response;
             const jitter = Math.floor(Math.random() * 250);
-            await new Promise(r => setTimeout(r, delay + jitter));
+            await new Promise((r) => setTimeout(r, delay + jitter));
             delay *= 2; // backoff
             continue;
           }
@@ -97,65 +98,72 @@ export const syncActualSetlist = internalAction({
         }
         return await setlistFetchWithTimeout(url, {
           headers: {
-            'x-api-key': apiKey,
-            'Accept': 'application/json',
-            'User-Agent': 'setlists.live/1.0'
-          }
+            "x-api-key": apiKey,
+            Accept: "application/json",
+            "User-Agent": "setlists.live/1.0",
+          },
         });
       };
 
-      const apiResponse = await fetchWithRetry(searchUrl);
-      if (!apiResponse.ok) {
-        const errorMsg = `Setlist.fm API error: ${apiResponse.status}`;
-        console.error(`❌ ${errorMsg}`);
-        throw new Error(errorMsg);
-      }
+      const offsets = [0, -1, 1];
+      for (const offset of offsets) {
+        const tryDate = new Date(baseDate);
+        tryDate.setUTCDate(baseDate.getUTCDate() + offset);
+        const { api: setlistfmDate, iso } = formatDate(tryDate);
+        const searchUrl = `https://api.setlist.fm/rest/1.0/search/setlists?artistName=${encodeURIComponent(
+          artist.name,
+        )}&cityName=${encodeURIComponent(venue.city)}&date=${setlistfmDate}`;
 
-      const data = await apiResponse.json();
-      const response = data.setlist?.[0] ? { setlist: data.setlist[0] } : null;
+        console.log(`🔍 Searching setlist.fm (${offset}d): ${artist.name} @ ${venue.city} on ${setlistfmDate}`);
 
-      if (response && response.setlist) {
-        // Insert setlist and songs
-        const setlistId = await ctx.runMutation(internal.setlists.createFromApi, {
-          showId: args.showId,
-          data: response.setlist,
-        });
-        await ctx.runMutation(internal.shows.updateImportStatus, {
-          showId: args.showId,
-          status: "completed",
-        });
-        console.log(`✅ Synced setlist for ${artist.name} (${setlistId})`);
-        return setlistId;
-      } else {
-        // No setlist found - check if show is actually in the past
-        const showDate = new Date(args.showDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        showDate.setHours(0, 0, 0, 0);
-        
-        if (showDate >= today) {
-          // Show hasn't happened yet - keep as pending
-          console.log(`ℹ️  Show hasn't occurred yet: ${artist.name} @ ${venue.city} on ${args.showDate}`);
+        const apiResponse = await fetchWithRetry(searchUrl);
+        if (!apiResponse.ok) {
+          const errorMsg = `Setlist.fm API error: ${apiResponse.status}`;
+          console.error(`❌ ${errorMsg}`);
+          throw new Error(errorMsg);
+        }
+
+        const data = await apiResponse.json();
+        const response = data.setlist?.[0] ? { setlist: data.setlist[0] } : null;
+
+        if (response && response.setlist) {
+          const setlistId = await ctx.runMutation(internal.setlists.createFromApi, {
+            showId: args.showId,
+            data: response.setlist,
+          });
           await ctx.runMutation(internal.shows.updateImportStatus, {
             showId: args.showId,
-            status: "pending" as const,
+            status: "completed",
           });
-        } else {
-          // Show is past but no setlist available on setlist.fm
-          console.log(`⚠️  No setlist found on setlist.fm for ${artist.name} @ ${venue.city} (${args.showDate})`);
-        await ctx.runMutation(internal.shows.updateImportStatus, {
-          showId: args.showId,
-          status: "failed" as const,
-        });
+          console.log(`✅ Synced setlist for ${artist.name} (${setlistId}) using date ${iso}`);
+          return setlistId;
         }
-        return null;
       }
+
+      // No setlist found after all attempts - keep pending for retries
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      baseDate.setHours(0, 0, 0, 0);
+
+      if (baseDate >= today) {
+        console.log(`ℹ️  Show hasn't occurred yet: ${artist.name} @ ${venue.city} on ${args.showDate}`);
+      } else {
+        console.log(
+          `⚠️  No setlist found (±1 day attempts) for ${artist.name} @ ${venue.city} (${args.showDate}); keeping pending`,
+        );
+      }
+
+      await ctx.runMutation(internal.shows.updateImportStatus, {
+        showId: args.showId,
+        status: "pending" as const,
+      });
+      return null;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
       console.error(`❌ Setlist sync failed for show ${args.showId}: ${errorMsg}`);
       await ctx.runMutation(internal.shows.updateImportStatus, {
         showId: args.showId,
-        status: "failed" as const,
+        status: "pending" as const,
       });
       // Let the job queue (syncJobs.ts) handle retries with proper exponential backoff
       return null;

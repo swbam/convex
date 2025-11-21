@@ -31,9 +31,6 @@ crons.interval("setlistfm-scan", { minutes: 30 }, internal.setlistfm.scanPending
 // Process setlist import queue: Every 30 minutes (processes queued jobs with retry logic)
 crons.interval("process-setlist-queue", { minutes: 30 }, internal.syncJobs.processSetlistImportQueue, { maxJobs: 5 });
 
-// Engagement counts sync: Every hour (sufficient for vote/setlist count accuracy)
-crons.interval("sync-engagement-counts", { hours: 1 }, internal.trending.updateEngagementCounts, {});
-
 // Artist show counts update: Every 2 hours (keeps artist stats current)
 crons.interval("update-artist-show-counts", { hours: 2 }, internal.trending.updateArtistShowCounts, {});
 

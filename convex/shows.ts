@@ -26,6 +26,8 @@ function createShowSlug(artistName: string, venueName: string, venueCity: string
   return `${createSEOSlug(artistName)}-${createSEOSlug(venueName)}-${createSEOSlug(venueCity)}-${datePart}`;
 }
 
+const parseDate = (dateString?: string) => new Date(dateString || "");
+
 export const getRecentlyUpdated = query({
   args: { limit: v.optional(v.number()) },
   returns: v.array(v.any()),
@@ -33,8 +35,8 @@ export const getRecentlyUpdated = query({
     const limit = args.limit || 10;
     const shows = await ctx.db
       .query("shows")
-      .order("desc") // Order by creation time descending for most recent
-      .take(limit);
+      .order("desc") // initial order, will sort by date below
+      .take(limit * 3);
     
       // Populate artist and venue data
   const enrichedShows = await Promise.all(
@@ -51,8 +53,11 @@ export const getRecentlyUpdated = query({
     })
   );
   
-  // Filter out null values
-  return enrichedShows.filter(show => show !== null);
+  // Filter out null values and sort by show date (newest first)
+  return enrichedShows
+    .filter(show => show !== null)
+    .sort((a: any, b: any) => parseDate(b.date).getTime() - parseDate(a.date).getTime())
+    .slice(0, limit);
   },
 });
 
@@ -65,7 +70,7 @@ export const getUpcoming = query({
       .query("shows")
       .withIndex("by_status", (q) => q.eq("status", "upcoming"))
       .order("asc")
-      .take(limit);
+      .take(limit * 3);
     
       // Populate artist and venue data
   const enrichedShows = await Promise.all(
@@ -82,8 +87,11 @@ export const getUpcoming = query({
     })
   );
   
-  // Filter out null values
-  return enrichedShows.filter(show => show !== null);
+  // Filter out null values and sort by date ascending
+  return enrichedShows
+    .filter(show => show !== null)
+    .sort((a: any, b: any) => parseDate(a.date).getTime() - parseDate(b.date).getTime())
+    .slice(0, limit);
   },
 });
 
@@ -96,7 +104,7 @@ export const getRecent = query({
       .query("shows")
       .withIndex("by_status", (q) => q.eq("status", "completed"))
       .order("desc")
-      .take(limit);
+      .take(limit * 3);
     
       // Populate artist and venue data
   const enrichedShows = await Promise.all(
@@ -113,8 +121,11 @@ export const getRecent = query({
     })
   );
   
-  // Filter out null values
-  return enrichedShows.filter(show => show !== null);
+  // Filter out null values and sort by date descending (most recent completed)
+  return enrichedShows
+    .filter(show => show !== null)
+    .sort((a: any, b: any) => parseDate(b.date).getTime() - parseDate(a.date).getTime())
+    .slice(0, limit);
   },
 });
 

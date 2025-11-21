@@ -180,6 +180,8 @@ const applicationTables = {
     setlistfmData: v.optional(v.any()),
     accuracy: v.optional(v.number()),
     comparedAt: v.optional(v.number()),
+    notificationSentAt: v.optional(v.number()),
+    notificationScheduledAt: v.optional(v.number()),
   })
     .index("by_show", ["showId"])
     .index("by_user", ["userId"])

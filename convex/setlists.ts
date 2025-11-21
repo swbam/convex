@@ -19,6 +19,12 @@ async function trackError(ctx: any, operation: string, error: unknown, context?:
   }
 }
 
+async function incrementShowSetlistCount(ctx: any, showId: Id<"shows">) {
+  const show = await ctx.db.get(showId);
+  if (!show) return;
+  await ctx.db.patch(showId, { setlistCount: (show.setlistCount || 0) + 1 });
+}
+
 export const create = mutation({
   args: {
     showId: v.id("shows"),
@@ -52,7 +58,7 @@ export const create = mutation({
       }
     }
     
-    return await ctx.db.insert("setlists", {
+    const setlistId = await ctx.db.insert("setlists", {
       showId: args.showId,
       userId: userId || undefined,
       songs: args.songs,
@@ -64,6 +70,9 @@ export const create = mutation({
       upvotes: 0,
       downvotes: 0,
     });
+
+    await incrementShowSetlistCount(ctx, args.showId);
+    return setlistId;
   },
 });
 
@@ -146,6 +155,7 @@ export const addSongToSetlist = mutation({
         upvotes: 0,
         downvotes: 0,
       });
+      await incrementShowSetlistCount(ctx, args.showId);
     }
 
     // Log the action for anonymous users (authenticated don't need limit tracking)
@@ -198,7 +208,7 @@ export const createOfficial = internalMutation({
       return existing._id;
     }
 
-    return await ctx.db.insert("setlists", {
+    const setlistId = await ctx.db.insert("setlists", {
       showId: args.showId,
       userId: undefined,
       songs: args.songs,
@@ -211,6 +221,8 @@ export const createOfficial = internalMutation({
       downvotes: 0,
       setlistfmId: args.setlistfmId,
     });
+    await incrementShowSetlistCount(ctx, args.showId);
+    return setlistId;
   },
 });
 
@@ -351,6 +363,12 @@ export const vote = mutation({
     if (existingVote) {
       // Toggle off if already upvoted
       await ctx.db.delete(existingVote._id);
+      const show = await ctx.db.get(setlist.showId);
+      if (show) {
+        await ctx.db.patch(setlist.showId, {
+          voteCount: Math.max(0, (show.voteCount || 0) - 1),
+        });
+      }
       await ctx.db.patch(args.setlistId, {
         upvotes: Math.max(0, (setlist.upvotes || 0) - 1),
       });
@@ -364,6 +382,12 @@ export const vote = mutation({
       voteType: "accurate",
       createdAt: Date.now(),
     });
+    const show = await ctx.db.get(setlist.showId);
+    if (show) {
+      await ctx.db.patch(setlist.showId, {
+        voteCount: (show.voteCount || 0) + 1,
+      });
+    }
     await ctx.db.patch(args.setlistId, {
       upvotes: (setlist.upvotes || 0) + 1,
     });
@@ -519,6 +543,7 @@ export const autoGenerateSetlist = internalMutation({
       downvotes: 0,
     });
 
+    await incrementShowSetlistCount(ctx, args.showId);
     console.log(`Auto-generated setlist for show ${args.showId} with ${selectedSongs.length} songs`);
     return setlistId;
   },
@@ -625,6 +650,7 @@ export const updateWithActualSetlist = internalMutation({
       ?? null;
 
     const officialSetlist = setlistsForShow.find((setlist: any) => setlist.isOfficial) ?? null;
+    let notificationTargetId: Id<"setlists"> | null = officialSetlist?._id ?? null;
 
     const predictedSongLookup = new Map<string, any>();
     if (predictionSetlist?.songs) {
@@ -673,11 +699,10 @@ export const updateWithActualSetlist = internalMutation({
         setlistfmId: args.setlistfmId,
         setlistfmData: args.setlistfmData,
         lastUpdated: Date.now(),
-
       });
     } else {
       // Create new official setlist with actual setlist data
-      await ctx.db.insert("setlists", {
+      notificationTargetId = await ctx.db.insert("setlists", {
         showId: args.showId,
         userId: undefined,
         songs: [], // Empty predictions (this is the official setlist)
@@ -692,6 +717,7 @@ export const updateWithActualSetlist = internalMutation({
         setlistfmId: args.setlistfmId,
         setlistfmData: args.setlistfmData,
       });
+      await incrementShowSetlistCount(ctx, args.showId);
     }
 
     await ctx.db.patch(args.showId, {
@@ -699,6 +725,23 @@ export const updateWithActualSetlist = internalMutation({
       setlistfmId: args.setlistfmId,
       lastSynced: Date.now(),
     });
+
+    // Schedule voter notifications once per official setlist
+    if (notificationTargetId) {
+      const notificationTarget = await ctx.db.get(notificationTargetId);
+      if (!notificationTarget?.notificationSentAt && !notificationTarget?.notificationScheduledAt) {
+        await ctx.db.patch(notificationTargetId, { notificationScheduledAt: Date.now() });
+        try {
+          await ctx.scheduler.runAfter(
+            0,
+            internal.notifications.sendSetlistNotifications,
+            { setlistId: notificationTargetId, showId: args.showId },
+          );
+        } catch (error) {
+          console.error("Failed to schedule setlist notifications", error);
+        }
+      }
+    }
 
     return null;
   },
@@ -944,6 +987,7 @@ export const createFromApi = internalMutation({
       source: "setlistfm" as const,
       lastUpdated: Date.now(),
     });
+    await incrementShowSetlistCount(ctx, args.showId);
     return setlistId;
   },
 });
