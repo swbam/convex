@@ -2,6 +2,10 @@ import { internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = internal as any;
+
 // One-time fix: Delete all empty setlists and regenerate
 export const deleteEmptySetlistsAndRegenerate = internalMutation({
   args: { limit: v.optional(v.number()) },
@@ -58,7 +62,7 @@ export const deleteEmptySetlistsAndRegenerate = internalMutation({
         
         // Schedule with 10 second delays
         const delayMs = i * 10000;
-        void ctx.scheduler.runAfter(delayMs, internal.setlists.autoGenerateSetlist, {
+        void ctx.scheduler.runAfter(delayMs, internalRef.setlists.autoGenerateSetlist, {
           showId: show._id,
           artistId: show.artistId,
         });

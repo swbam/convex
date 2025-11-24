@@ -4,6 +4,10 @@ import { api } from "./_generated/api";
 import { internal } from "./_generated/api";
 import { isMassiveArtist } from "./massivenessFilter";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = internal as any;
+
 const slugify = (value: string) =>
   value
     .toLowerCase()
@@ -575,63 +579,53 @@ export const replaceTrendingArtistsCache = internalMutation({
 });
 
 // Calculate and cache supporting fields used for trending.
+// FIXED: Use .collect() instead of .paginate() to avoid "multiple paginated queries" error
+// Convex only supports a single paginated query per function
 export const updateArtistShowCounts = internalMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    // Build a map of upcoming show counts per artist from a single paginated scan
+    console.log("🔄 Updating artist show counts...");
+    
+    // Build a map of upcoming show counts per artist
+    // Using .collect() with reasonable limits instead of pagination
+    const upcomingShows = await ctx.db
+      .query("shows")
+      .withIndex("by_status", (q) => q.eq("status", "upcoming"))
+      .collect();
+
     const artistShowCounts = new Map<string, number>();
-    const SHOW_BATCH_SIZE = 200;
-    let showCursor: string | null = null;
-
-    while (true) {
-      const page = await ctx.db
-        .query("shows")
-        .withIndex("by_status", (q) => q.eq("status", "upcoming"))
-        .paginate({ cursor: showCursor, numItems: SHOW_BATCH_SIZE });
-
-      for (const show of page.page) {
-        const artistKey = show.artistId.toString();
-        artistShowCounts.set(
-          artistKey,
-          (artistShowCounts.get(artistKey) || 0) + 1
-        );
-      }
-
-      if (page.isDone) break;
-      showCursor = page.continueCursor;
+    for (const show of upcomingShows) {
+      const artistKey = show.artistId.toString();
+      artistShowCounts.set(
+        artistKey,
+        (artistShowCounts.get(artistKey) || 0) + 1
+      );
     }
 
-    // Now scan artists and update counts where they differ
-    const ARTIST_BATCH_SIZE = 200;
-    let artistCursor: string | null = null;
+    // Get all artists and update counts where they differ
+    const artists = await ctx.db.query("artists").collect();
     const now = Date.now();
+    let updated = 0;
 
-    while (true) {
-      const page = await ctx.db
-        .query("artists")
-        .paginate({ cursor: artistCursor, numItems: ARTIST_BATCH_SIZE });
+    for (const artist of artists) {
+      const key = artist._id.toString();
+      const newCount = artistShowCounts.get(key) || 0;
+      const currentCount =
+        typeof artist.upcomingShowsCount === "number"
+          ? artist.upcomingShowsCount
+          : 0;
 
-      for (const artist of page.page) {
-        const key = artist._id.toString();
-        const newCount = artistShowCounts.get(key) || 0;
-        const currentCount =
-          typeof artist.upcomingShowsCount === "number"
-            ? artist.upcomingShowsCount
-            : 0;
-
-        if (currentCount !== newCount) {
-          await ctx.db.patch(artist._id, {
-            upcomingShowsCount: newCount,
-            lastTrendingUpdate: now,
-          });
-        }
+      if (currentCount !== newCount) {
+        await ctx.db.patch(artist._id, {
+          upcomingShowsCount: newCount,
+          lastTrendingUpdate: now,
+        });
+        updated++;
       }
-
-      if (page.isDone) break;
-      artistCursor = page.continueCursor;
     }
 
+    console.log(`✅ Updated show counts for ${updated} artists (${upcomingShows.length} upcoming shows)`);
     return null;
   },
 });
@@ -744,108 +738,81 @@ export const getTopRankedShows = internalQuery({
 });
 
 // Update engagement counts (voteCount and setlistCount) for shows
+// FIXED: Use .collect() instead of .paginate() to avoid "multiple paginated queries" error
+// Convex only supports a single paginated query per function
 export const updateEngagementCounts = internalMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
     console.log("🔄 Updating show engagement counts...");
 
-    // Update setlistCount: count setlists per show using a paginated scan
+    // Count setlists per show
+    const allSetlists = await ctx.db.query("setlists").collect();
     const setlistCounts = new Map<string, number>();
     const setlistIdToShowId = new Map<string, string>();
-    const SETLIST_BATCH_SIZE = 200;
-    let setlistCursor: string | null = null;
 
-    while (true) {
-      const page = await ctx.db
-        .query("setlists")
-        .paginate({ cursor: setlistCursor, numItems: SETLIST_BATCH_SIZE });
-
-      for (const setlist of page.page) {
-        if (setlist.showId) {
-          const showKey = setlist.showId.toString();
-          setlistCounts.set(
-            showKey,
-            (setlistCounts.get(showKey) || 0) + 1
-          );
-          setlistIdToShowId.set((setlist as any)._id.toString(), showKey);
-        }
+    for (const setlist of allSetlists) {
+      if (setlist.showId) {
+        const showKey = setlist.showId.toString();
+        setlistCounts.set(
+          showKey,
+          (setlistCounts.get(showKey) || 0) + 1
+        );
+        setlistIdToShowId.set((setlist as any)._id.toString(), showKey);
       }
-
-      if (page.isDone) break;
-      setlistCursor = page.continueCursor;
     }
 
-    // Update voteCount: count votes per show via cached setlist->show mapping,
-    // also using a paginated scan to avoid unbounded .collect()
+    // Count votes per show via setlist->show mapping
+    const allVotes = await ctx.db.query("votes").collect();
     const voteCounts = new Map<string, number>();
-    const setlistCache = new Map<string, string | null>();
-    const VOTE_BATCH_SIZE = 200;
-    let voteCursor: string | null = null;
 
-    while (true) {
-      const page = await ctx.db
-        .query("votes")
-        .paginate({ cursor: voteCursor, numItems: VOTE_BATCH_SIZE });
-
-      for (const vote of page.page) {
-        if (!vote.setlistId) continue;
-        const setlistKey = vote.setlistId.toString();
-        let showKey = setlistIdToShowId.get(setlistKey);
-        if (!showKey) {
-          // Fallback: fetch once and memoize
-          if (!setlistCache.has(setlistKey)) {
-            const s = await ctx.db.get(vote.setlistId);
-            setlistCache.set(
-              setlistKey,
-              s?.showId ? s.showId.toString() : null
-            );
-          }
-          showKey = setlistCache.get(setlistKey) || undefined;
-        }
-        if (showKey) {
-          voteCounts.set(
-            showKey,
-            (voteCounts.get(showKey) || 0) + 1
-          );
-        }
+    for (const vote of allVotes) {
+      if (!vote.setlistId) continue;
+      const setlistKey = vote.setlistId.toString();
+      const showKey = setlistIdToShowId.get(setlistKey);
+      if (showKey) {
+        voteCounts.set(
+          showKey,
+          (voteCounts.get(showKey) || 0) + 1
+        );
       }
-
-      if (page.isDone) break;
-      voteCursor = page.continueCursor;
     }
 
-    // Apply updates to shows using a paginated scan to keep memory bounded
-    const SHOW_BATCH_SIZE = 200;
+    // Also count songVotes for shows
+    const allSongVotes = await ctx.db.query("songVotes").collect();
+    for (const sv of allSongVotes) {
+      if (!sv.setlistId) continue;
+      const setlistKey = sv.setlistId.toString();
+      const showKey = setlistIdToShowId.get(setlistKey);
+      if (showKey) {
+        voteCounts.set(
+          showKey,
+          (voteCounts.get(showKey) || 0) + 1
+        );
+      }
+    }
+
+    // Apply updates to shows
+    const allShows = await ctx.db.query("shows").collect();
     let updated = 0;
-    let showCursor: string | null = null;
 
-    while (true) {
-      const page = await ctx.db
-        .query("shows")
-        .paginate({ cursor: showCursor, numItems: SHOW_BATCH_SIZE });
-
-      for (const show of page.page) {
-        const key = show._id.toString();
-        const newSetlistCount = setlistCounts.get(key) || 0;
-        const newVoteCount = voteCounts.get(key) || 0;
-        if (
-          show.setlistCount !== newSetlistCount ||
-          show.voteCount !== newVoteCount
-        ) {
-          await ctx.db.patch(show._id, {
-            setlistCount: newSetlistCount,
-            voteCount: newVoteCount,
-          });
-          updated++;
-        }
+    for (const show of allShows) {
+      const key = show._id.toString();
+      const newSetlistCount = setlistCounts.get(key) || 0;
+      const newVoteCount = voteCounts.get(key) || 0;
+      if (
+        show.setlistCount !== newSetlistCount ||
+        show.voteCount !== newVoteCount
+      ) {
+        await ctx.db.patch(show._id, {
+          setlistCount: newSetlistCount,
+          voteCount: newVoteCount,
+        });
+        updated++;
       }
-
-      if (page.isDone) break;
-      showCursor = page.continueCursor;
     }
 
-    console.log(`✅ Updated engagement counts for ${updated} shows`);
+    console.log(`✅ Updated engagement counts for ${updated} shows (${allSetlists.length} setlists, ${allVotes.length + allSongVotes.length} total votes)`);
     return null;
   },
 });
@@ -863,25 +830,25 @@ export const updateAll = internalAction({
       const updated = [];
       for (let i = 0; i < artists.length; i++) {
         const tmArtist = artists[i];
-        let artist = await ctx.runQuery(internal.artists.getByTicketmasterIdInternal, { ticketmasterId: tmArtist.id });
+        let artist = await ctx.runQuery(internalRef.artists.getByTicketmasterIdInternal, { ticketmasterId: tmArtist.id });
 
         if (!artist) {
-          const newArtistId = await ctx.runMutation(internal.artists.createFromTicketmaster, {
+          const newArtistId = await ctx.runMutation(internalRef.artists.createFromTicketmaster, {
             ticketmasterId: tmArtist.id,
             name: tmArtist.name,
             genres: tmArtist.genres,
             images: tmArtist.images,
           });
-          artist = await ctx.runQuery(internal.artists.getByIdInternal, { id: newArtistId });
+          artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: newArtistId });
         }
 
         if (!artist) continue; // Skip if creation failed
 
-        const upcomingCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId: artist._id });
+        const upcomingCount = await ctx.runQuery(internalRef.shows.getUpcomingCountByArtist, { artistId: artist._id });
         const score = (tmArtist.popularity || 0) * (upcomingCount || 1) * (artist.followers || 1) / 1000000;
 
         // Update via mutations
-        await ctx.runMutation(internal.trending.updateTrendingArtist, {
+        await ctx.runMutation(internalRef.trending.updateTrendingArtist, {
           artistId: artist._id,
           ticketmasterId: tmArtist.id,
           name: tmArtist.name,

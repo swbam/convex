@@ -6,6 +6,10 @@ import { internal } from "./_generated/api";
 import { Webhook } from "svix";
 import type { WebhookEvent } from "@clerk/backend";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = internal as any;
+
 export const handleClerkWebhook = internalAction({
   args: { 
     event: v.any(),
@@ -85,7 +89,7 @@ export const handleClerkWebhook = internalAction({
     switch (event.type) {
       case "user.created":
       case "user.updated":
-        await ctx.runMutation(internal.users.upsertFromClerk, {
+        await ctx.runMutation(internalRef.users.upsertFromClerk, {
           clerkUser: event.data,
         });
         break;
@@ -93,7 +97,7 @@ export const handleClerkWebhook = internalAction({
       case "user.deleted": {
         const clerkUserId = event.data.id;
         if (clerkUserId) {
-          await ctx.runMutation(internal.users.deleteFromClerk, { clerkUserId });
+          await ctx.runMutation(internalRef.users.deleteFromClerk, { clerkUserId });
         }
         break;
       }

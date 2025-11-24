@@ -2,6 +2,10 @@ import { httpAction } from "./_generated/server";
 import { httpRouter } from "convex/server";
 import { internal } from "./_generated/api";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = internal as any;
+
 const http = httpRouter();
 
 // Health check endpoint
@@ -37,7 +41,7 @@ http.route({
       
       // Call internal action for verification and processing (per-plan verification happens inside the action)
       try {
-        await ctx.runAction(internal.webhooks.handleClerkWebhook, { 
+        await ctx.runAction(internalRef.webhooks.handleClerkWebhook, { 
           event,
           svixId: svixId || undefined,
           svixTimestamp: svixTimestamp || undefined,

@@ -7,6 +7,10 @@ import { internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = internal as any;
+
 // Export as public mutation for now (can be made internal later with proper API routing)
 export const logError = internalMutation({
   args: {
@@ -51,7 +55,7 @@ export const logError = internalMutation({
     // Forward to Sentry via scheduler (mutations can't call actions directly)
     try {
       if (process.env.SENTRY_DSN) {
-        void ctx.scheduler.runAfter(0, internal.admin.sentryForward.forward, {
+        void ctx.scheduler.runAfter(0, internalRef.admin.sentryForward.forward, {
           operation: args.operation,
           error: args.error,
           context: args.context,

@@ -2,6 +2,10 @@ import { action, internalAction, internalQuery, internalMutation } from "./_gene
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = internal as any;
+
 // Simplified trending sync - just update scores in main tables
 export const syncTrendingData = internalAction({
   args: {},
@@ -12,7 +16,7 @@ export const syncTrendingData = internalAction({
     // Acquire lock to prevent overlapping runs
     const lockName = "trending";
     const STALE_MS = 60 * 60 * 1000; // 60 minutes
-    const acquired = await ctx.runMutation(internal.maintenance.acquireLock, { name: lockName, staleMs: STALE_MS });
+    const acquired = await ctx.runMutation(internalRef.maintenance.acquireLock, { name: lockName, staleMs: STALE_MS });
     if (!acquired) {
       console.warn("⏳ Trending sync already running, skipping this invocation");
       return null;
@@ -20,25 +24,25 @@ export const syncTrendingData = internalAction({
     
     try {
       // Step 0: Ensure engagement counts are up-to-date before ranking
-      await ctx.runMutation(internal.trending.updateEngagementCounts, {});
+      await ctx.runMutation(internalRef.trending.updateEngagementCounts, {});
       console.log("✅ Engagement counts updated");
 
       // Step 1: Update artist show counts (cached)
-      await ctx.runMutation(internal.trending.updateArtistShowCounts, {});
+      await ctx.runMutation(internalRef.trending.updateArtistShowCounts, {});
       console.log("✅ Updated artist show counts");
       
       // Step 2: Update artist trending scores and ranks
-      await ctx.runMutation(internal.trending.updateArtistTrending, {});
+      await ctx.runMutation(internalRef.trending.updateArtistTrending, {});
       console.log("✅ Updated artist trending ranks");
       
       // Step 3: Update show trending scores and ranks
-      await ctx.runMutation(internal.trending.updateShowTrending, {});
+      await ctx.runMutation(internalRef.trending.updateShowTrending, {});
       console.log("✅ Updated show trending ranks");
 
       // Step 4: Refresh cached trending collections so UI has rich fallback
       try {
-        const artistsTop = await ctx.runQuery(internal.trending.getTopRankedArtists, { limit: 50 });
-        await ctx.runMutation(internal.trending.replaceTrendingArtistsCache, {
+        const artistsTop = await ctx.runQuery(internalRef.trending.getTopRankedArtists, { limit: 50 });
+        await ctx.runMutation(internalRef.trending.replaceTrendingArtistsCache, {
           fetchedAt: Date.now(),
           artists: artistsTop
             .filter((a: any) => typeof a.ticketmasterId === "string" && a.ticketmasterId.length > 0)
@@ -66,7 +70,7 @@ export const syncTrendingData = internalAction({
       console.log("⚠️ Ticketmaster trending sync skipped - use importTrendingShows action instead");
 
       if (ticketmasterShows.length > 0) {
-        await ctx.runMutation(internal.trending.replaceTrendingShowsCache, {
+        await ctx.runMutation(internalRef.trending.replaceTrendingShowsCache, {
           fetchedAt,
           shows: ticketmasterShows.map((show, index) => ({
             ...show,
@@ -76,7 +80,7 @@ export const syncTrendingData = internalAction({
       }
 
       if (ticketmasterArtists.length > 0) {
-        await ctx.runMutation(internal.trending.replaceTrendingArtistsCache, {
+        await ctx.runMutation(internalRef.trending.replaceTrendingArtistsCache, {
           fetchedAt,
           artists: ticketmasterArtists.map((artist, index) => ({
             ...artist,
@@ -87,7 +91,7 @@ export const syncTrendingData = internalAction({
         for (const tmArtist of ticketmasterArtists) {
           try {
             if (!tmArtist.ticketmasterId) continue;
-            const existing = await ctx.runQuery(internal.artists.getByTicketmasterIdInternal, {
+            const existing = await ctx.runQuery(internalRef.artists.getByTicketmasterIdInternal, {
               ticketmasterId: tmArtist.ticketmasterId,
             });
 
@@ -106,7 +110,7 @@ export const syncTrendingData = internalAction({
     } catch (error) {
       console.error("❌ Trending sync failed:", error);
     } finally {
-      await ctx.runMutation(internal.maintenance.releaseLock, { name: lockName });
+      await ctx.runMutation(internalRef.maintenance.releaseLock, { name: lockName });
     }
     
     return null;
@@ -155,7 +159,7 @@ export const triggerTrendingSync = action({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    await ctx.runAction(internal.maintenance.syncTrendingData, {});
+    await ctx.runAction(internalRef.maintenance.syncTrendingData, {});
     return null;
   },
 });
@@ -165,7 +169,7 @@ export const normalizeShowSlugs = action({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ processed: v.number(), updated: v.number() }),
   handler: async (ctx, args): Promise<{ processed: number; updated: number }> => {
-    const result = await ctx.runMutation(internal.shows.normalizeSlugsInternal, { limit: args.limit ?? 1000 });
+    const result = await ctx.runMutation(internalRef.shows.normalizeSlugsInternal, { limit: args.limit ?? 1000 });
     return result as { processed: number; updated: number };
   },
 });
@@ -179,7 +183,7 @@ export const fixArtistsWithNoSongs = action({
     console.log(`🔍 Finding artists with 0 songs (limit: ${limit})...`);
     
     // Get all artists
-    const artists = await ctx.runQuery(internal.artists.getAllInternal, { limit });
+    const artists = await ctx.runQuery(internalRef.artists.getAllInternal, { limit });
     let processed = 0;
     let imported = 0;
     let failed = 0;
@@ -188,12 +192,12 @@ export const fixArtistsWithNoSongs = action({
       processed++;
       
       // Check if artist has any songs
-      const artistSongs = await ctx.runQuery(internal.artistSongs.getByArtist, { artistId: artist._id });
+      const artistSongs = await ctx.runQuery(internalRef.artistSongs.getByArtist, { artistId: artist._id });
       
       if (!artistSongs || artistSongs.length === 0) {
         console.log(`📥 Importing catalog for ${artist.name} (0 songs)...`);
         try {
-          await ctx.runAction(internal.spotify.syncArtistCatalog, {
+          await ctx.runAction(internalRef.spotify.syncArtistCatalog, {
             artistId: artist._id,
             artistName: artist.name,
           });
@@ -212,7 +216,7 @@ export const fixArtistsWithNoSongs = action({
     
     // Now regenerate setlists for shows that don't have them
     console.log(`🎵 Regenerating missing setlists...`);
-    const setlistResult = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, { limit: 100 });
+    const setlistResult = await ctx.runMutation(internalRef.setlists.refreshMissingAutoSetlists, { limit: 100 });
     console.log(`✅ Setlist generation: ${setlistResult.scheduled} setlist generations scheduled`);
     
     return { processed, imported, failed };
@@ -225,7 +229,7 @@ export const backfillMissingSetlists = action({
   returns: v.null(),
   handler: async (ctx, args) => {
     const limit = args.limit ?? 100;
-    const result = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, { limit });
+    const result = await ctx.runMutation(internalRef.setlists.refreshMissingAutoSetlists, { limit });
     console.log(`Backfill scheduled: ${result.scheduled} setlist generations queued`);
     return null;
   },
@@ -283,7 +287,7 @@ export const regenerateEmptySetlists = internalMutation({
         
         // Schedule with staggered delay (10 seconds apart)
         const delayMs = i * 10000;
-        void ctx.scheduler.runAfter(delayMs, internal.setlists.autoGenerateSetlist, {
+        void ctx.scheduler.runAfter(delayMs, internalRef.setlists.autoGenerateSetlist, {
           showId: show._id,
           artistId: show.artistId,
         });
@@ -309,7 +313,7 @@ export const triggerEmptySetlistRegeneration = action({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ found: v.number(), deleted: v.number(), scheduled: v.number() }),
   handler: async (ctx, args): Promise<{ found: number; deleted: number; scheduled: number }> => {
-    const result = await ctx.runMutation(internal.maintenance.regenerateEmptySetlists, { limit: args.limit ?? 100 });
+    const result = await ctx.runMutation(internalRef.maintenance.regenerateEmptySetlists, { limit: args.limit ?? 100 });
     return result;
   },
 });
@@ -387,7 +391,7 @@ export const triggerShowImport = action({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ processed: v.number(), imported: v.number(), errors: v.number() }),
   handler: async (ctx, args): Promise<{processed: number; imported: number; errors: number}> => {
-    return await ctx.runMutation(internal.maintenance.importTrendingShows, { limit: args.limit ?? 50 });
+    return await ctx.runMutation(internalRef.maintenance.importTrendingShows, { limit: args.limit ?? 50 });
   },
 });
 
@@ -399,7 +403,7 @@ export const fixMissingArtistData = internalAction({
     console.log("🔧 Starting data integrity maintenance...");
     
     try {
-      const incompleteArtists = await ctx.runQuery(internal.artists.getAllForMaintenance, {});
+      const incompleteArtists = await ctx.runQuery(internalRef.artists.getAllForMaintenance, {});
       
       console.log(`📊 Found ${incompleteArtists.length} artists to check`);
       
@@ -410,7 +414,7 @@ export const fixMissingArtistData = internalAction({
           if (!artist.spotifyId && artist.name) {
             console.log(`🔍 Fixing Spotify data for: ${artist.name}`);
             
-            await ctx.runAction(internal.spotify.syncArtistCatalog, {
+            await ctx.runAction(internalRef.spotify.syncArtistCatalog, {
               artistId: artist._id,
               artistName: artist.name,
             });
@@ -444,12 +448,12 @@ export const cleanupOrphanedRecords = internalAction({
     
     try {
       // Clean up shows with invalid artist references
-      await ctx.runMutation(internal.shows.cleanupOrphanedShows, {});
+      await ctx.runMutation(internalRef.shows.cleanupOrphanedShows, {});
       console.log("✅ Shows cleanup completed");
       
       // Clean up orphaned songs (skip if it fails)
       try {
-        await ctx.runMutation(internal.songs.cleanupOrphanedSongs, {});
+        await ctx.runMutation(internalRef.songs.cleanupOrphanedSongs, {});
         console.log("✅ Songs cleanup completed");
       } catch (songError) {
         console.log("⚠️ Songs cleanup skipped:", songError);
@@ -473,7 +477,7 @@ export const fixNaNValues = internalAction({
     
     try {
       // Fix artists with NaN trending scores
-      const artists = await ctx.runQuery(internal.artists.getAllForMaintenance, {});
+      const artists = await ctx.runQuery(internalRef.artists.getAllForMaintenance, {});
       let fixedArtists = 0;
       
       for (const artist of artists) {
@@ -486,7 +490,7 @@ export const fixNaNValues = internalAction({
         
         // Fix NaN popularity
         if (typeof artist.popularity === 'number' && !Number.isFinite(artist.popularity)) {
-          await ctx.runMutation(internal.artists.updateSpotifyData, {
+          await ctx.runMutation(internalRef.artists.updateSpotifyData, {
             artistId: artist._id,
             spotifyId: artist.spotifyId || "",
             followers: artist.followers,
@@ -499,7 +503,7 @@ export const fixNaNValues = internalAction({
         
         // Fix NaN followers
         if (typeof artist.followers === 'number' && !Number.isFinite(artist.followers)) {
-          await ctx.runMutation(internal.artists.updateSpotifyData, {
+          await ctx.runMutation(internalRef.artists.updateSpotifyData, {
             artistId: artist._id,
             spotifyId: artist.spotifyId || "",
             followers: undefined, // Reset NaN followers
@@ -518,9 +522,9 @@ export const fixNaNValues = internalAction({
       console.log(`✅ Fixed ${fixedArtists} artists with NaN values`);
       
       // Recalculate trending scores with proper NaN handling
-      await ctx.runMutation(internal.trending.updateArtistShowCounts, {});
-      await ctx.runMutation(internal.trending.updateArtistTrending, {});
-      await ctx.runMutation(internal.trending.updateShowTrending, {});
+      await ctx.runMutation(internalRef.trending.updateArtistShowCounts, {});
+      await ctx.runMutation(internalRef.trending.updateArtistTrending, {});
+      await ctx.runMutation(internalRef.trending.updateShowTrending, {});
       
       console.log("✅ Recalculated trending scores");
       
@@ -533,6 +537,7 @@ export const fixNaNValues = internalAction({
 });
 
 // Cleanup old operational data (logs, webhook events) to keep DB lean
+// FIXED: Use proper mutation calls instead of (ctx as any).db hack
 export const cleanupOldOperationalData = internalAction({
   args: {
     olderThanMs: v.optional(v.number()),
@@ -545,28 +550,20 @@ export const cleanupOldOperationalData = internalAction({
 
     console.log("🧹 Cleaning up operational data older than", new Date(cutoff).toISOString());
 
-    // Delete old error logs
-    const oldErrors = await (ctx as any).db
-      .query("errorLogs")
-      .withIndex("by_timestamp", (q: any) => q.lt("timestamp", cutoff))
-      .take(500);
+    // Delete old error logs via mutation
+    const logsDeleted = await ctx.runMutation(internalRef.maintenance.deleteOldErrorLogs, {
+      cutoff,
+      limit: 500,
+    });
 
-    for (const log of oldErrors) {
-      await (ctx as any).db.delete(log._id);
-    }
-
-    // Delete old Clerk webhook events
-    const webhookEvents = await (ctx as any).db
-      .query("clerkWebhookEvents")
-      .filter((q: any) => q.lt(q.field("processedAt"), cutoff))
-      .take(500);
-
-    for (const evt of webhookEvents) {
-      await (ctx as any).db.delete(evt._id);
-    }
+    // Delete old Clerk webhook events via mutation
+    const webhooksDeleted = await ctx.runMutation(internalRef.maintenance.deleteOldWebhookEvents, {
+      cutoff,
+      limit: 500,
+    });
 
     console.log(
-      `✅ cleanupOldOperationalData complete. Deleted ${oldErrors.length} errorLogs and ${webhookEvents.length} clerkWebhookEvents`,
+      `✅ cleanupOldOperationalData complete. Deleted ${logsDeleted} errorLogs and ${webhooksDeleted} clerkWebhookEvents`,
     );
     return null;
   },
@@ -577,7 +574,7 @@ export const triggerNaNFix = action({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    await ctx.runAction(internal.maintenance.fixNaNValues, {});
+    await ctx.runAction(internalRef.maintenance.fixNaNValues, {});
     return null;
   },
 });
@@ -592,19 +589,19 @@ export const syncTrendingDataWithLogging = internalAction({
     
     try {
       // Step 1: Update engagement counts first (new)
-      await ctx.runMutation(internal.trending.updateEngagementCounts, {});
+      await ctx.runMutation(internalRef.trending.updateEngagementCounts, {});
       console.log("✅ Engagement counts updated");
 
       // Step 2: Update artist show counts
-      await ctx.runMutation(internal.trending.updateArtistShowCounts, {});
+      await ctx.runMutation(internalRef.trending.updateArtistShowCounts, {});
       console.log("✅ Artist show counts updated");
 
       // Step 3: Update artist trending
-      await ctx.runMutation(internal.trending.updateArtistTrending, {});
+      await ctx.runMutation(internalRef.trending.updateArtistTrending, {});
       console.log("✅ Artist trending updated");
 
       // Step 4: Update show trending with new weighting
-      await ctx.runMutation(internal.trending.updateShowTrending, {});
+      await ctx.runMutation(internalRef.trending.updateShowTrending, {});
       console.log("✅ Show trending updated");
 
       // Step 5: Optional Ticketmaster enrichment
@@ -614,7 +611,7 @@ export const syncTrendingDataWithLogging = internalAction({
         let imported = 0;
         for (const tmArtist of trendingArtists) {
           try {
-            const existing = await ctx.runQuery(internal.artists.getByTicketmasterIdInternal, {
+            const existing = await ctx.runQuery(internalRef.artists.getByTicketmasterIdInternal, {
               ticketmasterId: tmArtist.ticketmasterId
             });
             
@@ -658,22 +655,22 @@ export const populateMissingFields = internalAction({
     const staleThreshold = now - 24 * 60 * 60 * 1000; // 24h
 
     // Scan artists: missing counts or stale
-    const incompleteArtists = await ctx.runQuery(internal.maintenance.getIncompleteArtists, { staleThreshold });
+    const incompleteArtists = await ctx.runQuery(internalRef.maintenance.getIncompleteArtists, { staleThreshold });
 
     for (const artist of incompleteArtists.slice(0, 10)) { // Limit to 10 per run
       try {
         if (artist.ticketmasterId) {
-          await ctx.runAction(internal.ticketmaster.syncArtistShows, {
+          await ctx.runAction(internalRef.ticketmaster.syncArtistShows, {
             artistId: artist._id,
             ticketmasterId: artist.ticketmasterId,
           });
-          await ctx.runAction(internal.spotify.enrichArtistBasics, {
+          await ctx.runAction(internalRef.spotify.enrichArtistBasics, {
             artistId: artist._id,
             artistName: artist.name,
           });
         }
-        const showCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId: artist._id });
-        await ctx.runMutation(internal.maintenance.updateArtistFields, {
+        const showCount = await ctx.runQuery(internalRef.shows.getUpcomingCountByArtist, { artistId: artist._id });
+        await ctx.runMutation(internalRef.maintenance.updateArtistFields, {
           artistId: artist._id,
           upcomingShowsCount: showCount,
           lastSynced: now,
@@ -685,16 +682,16 @@ export const populateMissingFields = internalAction({
     }
 
     // Scan shows: missing artist/venue embeds or importStatus
-    const incompleteShows = await ctx.runQuery(internal.maintenance.getIncompleteShows, {});
+    const incompleteShows = await ctx.runQuery(internalRef.maintenance.getIncompleteShows, {});
 
     for (const show of incompleteShows) {
       try {
         if (show.artistId) {
-          const artist = await ctx.runQuery(internal.artists.getByIdInternal, { id: show.artistId });
-          const venue = await ctx.runQuery(internal.venues.getByIdInternal, { id: show.venueId });
+          const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: show.artistId });
+          const venue = await ctx.runQuery(internalRef.venues.getByIdInternal, { id: show.venueId });
           
           if (artist || venue) {
-            await ctx.runMutation(internal.maintenance.updateShowEmbeds, {
+            await ctx.runMutation(internalRef.maintenance.updateShowEmbeds, {
               showId: show._id,
               artist: artist ? { name: artist.name, slug: artist.slug, images: artist.images } : undefined,
               venue: venue ? { name: venue.name, city: venue.city, state: venue.state, country: venue.country } : undefined,
@@ -702,11 +699,11 @@ export const populateMissingFields = internalAction({
           }
         }
         // Trigger setlist if completed and pending
-        const artist = await ctx.runQuery(internal.artists.getByIdInternal, { id: show.artistId });
-        const venue = await ctx.runQuery(internal.venues.getByIdInternal, { id: show.venueId });
+        const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: show.artistId });
+        const venue = await ctx.runQuery(internalRef.venues.getByIdInternal, { id: show.venueId });
         
         if (show.status === "completed" && (show.importStatus === "pending" || !show.importStatus) && artist && venue) {
-          await ctx.scheduler.runAfter(0, internal.setlistfm.syncActualSetlist, {
+          await ctx.scheduler.runAfter(0, internalRef.setlistfm.syncActualSetlist, {
             showId: show._id,
             artistName: artist.name,
             venueCity: venue.city,
@@ -780,8 +777,8 @@ export const updateArtistCounts = internalAction({
   args: { artistId: v.id("artists") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const showCount = await ctx.runQuery(internal.shows.getUpcomingCountByArtist, { artistId: args.artistId });
-    await ctx.runMutation(internal.maintenance.updateArtistFields, {
+    const showCount = await ctx.runQuery(internalRef.shows.getUpcomingCountByArtist, { artistId: args.artistId });
+    await ctx.runMutation(internalRef.maintenance.updateArtistFields, {
       artistId: args.artistId,
       upcomingShowsCount: showCount,
       lastSynced: Date.now(),
@@ -805,6 +802,24 @@ export const deleteOldErrorLogs = internalMutation({
     }
     
     return logs.length;
+  },
+});
+
+// Helper mutation to delete old webhook events
+export const deleteOldWebhookEvents = internalMutation({
+  args: { cutoff: v.number(), limit: v.number() },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const events = await ctx.db
+      .query("clerkWebhookEvents")
+      .filter((q) => q.lt(q.field("processedAt"), args.cutoff))
+      .take(args.limit);
+    
+    for (const evt of events) {
+      await ctx.db.delete(evt._id);
+    }
+    
+    return events.length;
   },
 });
 
@@ -853,7 +868,7 @@ export const cleanupOldJobsAndErrors = internalAction({
     let batch = 0;
     
     do {
-      batch = await ctx.runMutation(internal.maintenance.deleteOldErrorLogs, {
+      batch = await ctx.runMutation(internalRef.maintenance.deleteOldErrorLogs, {
         cutoff,
         limit: LOG_BATCH,
       });
@@ -868,7 +883,7 @@ export const cleanupOldJobsAndErrors = internalAction({
     for (const status of jobStatuses) {
       let batch = 0;
       do {
-        batch = await ctx.runMutation(internal.maintenance.deleteOldSyncJobs, {
+        batch = await ctx.runMutation(internalRef.maintenance.deleteOldSyncJobs, {
           status,
           cutoff,
           limit: JOB_BATCH,

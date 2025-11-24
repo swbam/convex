@@ -2,6 +2,10 @@ import { query, internalMutation, internalAction, internalQuery } from "./_gener
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = internal as any;
+
 // Add missing internals at top:
 
 // Internal: Get pending setlist import jobs
@@ -126,7 +130,7 @@ export const processSetlistImportQueue = internalAction({
     // Single-runner lock to prevent overlapping processors
     const lockName = "setlist_import_queue";
     const STALE_MS = 10 * 60 * 1000; // 10 minutes
-    const acquired = await ctx.runMutation(internal.maintenance.acquireLock as any, { name: lockName, staleMs: STALE_MS });
+    const acquired = await ctx.runMutation(internalRef.maintenance.acquireLock as any, { name: lockName, staleMs: STALE_MS });
     if (!acquired) {
       console.warn("⏳ Setlist import queue is already being processed; skipping this run");
       return null;
@@ -134,13 +138,13 @@ export const processSetlistImportQueue = internalAction({
 
     try {
       // Get pending jobs
-      const pendingJobs = await ctx.runQuery(internal.syncJobs.getPendingJobs, {});
+      const pendingJobs = await ctx.runQuery(internalRef.syncJobs.getPendingJobs, {});
 
       let processed = 0;
       for (const job of pendingJobs) {
         try {
         // Mark as running
-        await ctx.runMutation(internal.syncJobs.updateJobStatus, {
+        await ctx.runMutation(internalRef.syncJobs.updateJobStatus, {
           jobId: job._id,
           status: "running",
           progress: 33, // 1/3 done
@@ -150,14 +154,14 @@ export const processSetlistImportQueue = internalAction({
         if (!job.entityId) {
           throw new Error("No entityId for job");
         }
-        const show = await ctx.runQuery(internal.syncJobs.getShowByIdInternal, { id: job.entityId as any });
+        const show = await ctx.runQuery(internalRef.syncJobs.getShowByIdInternal, { id: job.entityId as any });
         if (!show) {
           throw new Error("Show not found for job");
         }
 
         const [artist, venue] = await Promise.all([
-          ctx.runQuery(internal.syncJobs.getArtistByIdInternal, { id: show.artistId }),
-          ctx.runQuery(internal.syncJobs.getVenueByIdInternal, { id: show.venueId }),
+          ctx.runQuery(internalRef.syncJobs.getArtistByIdInternal, { id: show.artistId }),
+          ctx.runQuery(internalRef.syncJobs.getVenueByIdInternal, { id: show.venueId }),
         ]);
 
         if (!artist || !venue) {
@@ -165,7 +169,7 @@ export const processSetlistImportQueue = internalAction({
         }
 
         // Perform the sync
-        const setlistId = await ctx.runAction(internal.setlistfm.syncActualSetlist, {
+        const setlistId = await ctx.runAction(internalRef.setlistfm.syncActualSetlist, {
           showId: show._id,
           artistName: artist.name,
           venueCity: venue.city,
@@ -174,47 +178,47 @@ export const processSetlistImportQueue = internalAction({
 
         if (setlistId) {
           // Success
-          await ctx.runMutation(internal.syncJobs.updateJobStatus, {
+          await ctx.runMutation(internalRef.syncJobs.updateJobStatus, {
             jobId: job._id,
             status: "completed",
             progress: 100,
           });
           // Use mutation to update job fields (actions can't access db directly)
-          await ctx.runMutation(internal.syncJobs.completeJob, {
+          await ctx.runMutation(internalRef.syncJobs.completeJob, {
             jobId: job._id,
           });
 
           // Alert: Update show status
-          await ctx.runMutation(internal.shows.updateImportStatus, { showId: show._id, status: "completed" });
+          await ctx.runMutation(internalRef.shows.updateImportStatus, { showId: show._id, status: "completed" });
 
           console.log(`✅ Completed setlist import job ${job._id} for show ${show._id}`);
         } else {
           // Failure - increment retry
           const newRetry = job.retryCount + 1;
           if (newRetry >= job.maxRetries) {
-            await ctx.runMutation(internal.syncJobs.updateJobStatus, {
+            await ctx.runMutation(internalRef.syncJobs.updateJobStatus, {
               jobId: job._id,
               status: "failed",
               errorMessage: "Sync failed after max retries",
               progress: 100,
             });
             // Use mutation to mark as failed
-            await ctx.runMutation(internal.syncJobs.failJob, {
+            await ctx.runMutation(internalRef.syncJobs.failJob, {
               jobId: job._id,
               errorMessage: "Sync failed after max retries",
             });
 
             // Alert: Mark show as failed
-            await ctx.runMutation(internal.shows.updateImportStatus, { showId: show._id, status: "failed" });
+            await ctx.runMutation(internalRef.shows.updateImportStatus, { showId: show._id, status: "failed" });
             console.log(`❌ Failed setlist import job ${job._id} after ${job.maxRetries} retries`);
           } else {
-            await ctx.runMutation(internal.syncJobs.updateJobStatus, {
+            await ctx.runMutation(internalRef.syncJobs.updateJobStatus, {
               jobId: job._id,
               status: "pending",
               progress: 0,
             });
             // Use mutation to update retry count
-            await ctx.runMutation(internal.syncJobs.retryJob, {
+            await ctx.runMutation(internalRef.syncJobs.retryJob, {
               jobId: job._id,
               retryCount: newRetry,
             });
@@ -225,7 +229,7 @@ export const processSetlistImportQueue = internalAction({
           processed++;
         } catch (error) {
           console.error(`Error processing job ${job._id}:`, error);
-          await ctx.runMutation(internal.syncJobs.updateJobStatus, {
+          await ctx.runMutation(internalRef.syncJobs.updateJobStatus, {
             jobId: job._id,
             status: "failed",
             errorMessage: error instanceof Error ? error.message : "Unknown error",
@@ -238,7 +242,7 @@ export const processSetlistImportQueue = internalAction({
       console.log(`Processed ${processed} setlist import jobs`);
       return null;
     } finally {
-      await ctx.runMutation(internal.maintenance.releaseLock as any, { name: lockName });
+      await ctx.runMutation(internalRef.maintenance.releaseLock as any, { name: lockName });
     }
   },
 });

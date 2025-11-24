@@ -5,6 +5,10 @@ import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = internal as any;
+
 const TICKETMASTER_HTTP_TIMEOUT_MS = 30_000;
 const TICKETMASTER_MAX_ATTEMPTS = 3;
 
@@ -119,7 +123,7 @@ export const triggerFullArtistSync = action({
     } as const;
 
     // Phase 1: Create basic artist (FAST - < 1 second)
-    const artistId: Id<"artists"> = await ctx.runMutation(internal.artists.createFromTicketmaster, {
+    const artistId: Id<"artists"> = await ctx.runMutation(internalRef.artists.createFromTicketmaster, {
       ticketmasterId: args.ticketmasterId,
       name: args.artistName,
       genres: args.genres || [],
@@ -127,7 +131,7 @@ export const triggerFullArtistSync = action({
     });
 
     // Initialize sync status
-    await ctx.runMutation(internal.artistSync.initializeSyncStatus, {
+    await ctx.runMutation(internalRef.artistSync.initializeSyncStatus, {
       artistId,
     });
 
@@ -135,26 +139,26 @@ export const triggerFullArtistSync = action({
     // Background imports scheduled below (non-blocking)
     
     // Priority 1: Shows (user sees these first) - starts immediately
-    void ctx.scheduler.runAfter(SCHEDULER_DELAYS.shows, internal.ticketmaster.syncArtistShowsWithTracking, {
+    void ctx.scheduler.runAfter(SCHEDULER_DELAYS.shows, internalRef.ticketmaster.syncArtistShowsWithTracking, {
       artistId,
       ticketmasterId: args.ticketmasterId,
       artistName: args.artistName,
     });
     
     // Priority 2: Catalog (for setlist generation) - starts after 3 seconds
-    void ctx.scheduler.runAfter(SCHEDULER_DELAYS.catalog, internal.ticketmaster.syncArtistCatalogWithTracking, {
+    void ctx.scheduler.runAfter(SCHEDULER_DELAYS.catalog, internalRef.ticketmaster.syncArtistCatalogWithTracking, {
       artistId,
       artistName: args.artistName,
     });
     
     // Priority 3: Metadata enrichment (nice to have) - starts after 6 seconds
-    void ctx.scheduler.runAfter(SCHEDULER_DELAYS.basics, internal.ticketmaster.enrichArtistBasicsWithTracking, {
+    void ctx.scheduler.runAfter(SCHEDULER_DELAYS.basics, internalRef.ticketmaster.enrichArtistBasicsWithTracking, {
       artistId,
       artistName: args.artistName,
     });
     
     // Priority 4: Update counts (after everything else) - starts after 10 seconds
-    void ctx.scheduler.runAfter(SCHEDULER_DELAYS.counts, internal.maintenance.updateArtistCounts, { artistId });
+    void ctx.scheduler.runAfter(SCHEDULER_DELAYS.counts, internalRef.maintenance.updateArtistCounts, { artistId });
 
     console.log(`✅ Artist ${artistId} created, background sync scheduled`);
     return artistId; // Returns in < 1 second!
@@ -174,18 +178,18 @@ export const syncArtistShowsWithTracking = internalAction({
       console.log(`📅 Starting show sync with tracking for ${args.artistName}...`);
       
       // Call existing sync logic
-      await ctx.runAction(internal.ticketmaster.syncArtistShows, {
+      await ctx.runAction(internalRef.ticketmaster.syncArtistShows, {
         artistId: args.artistId,
         ticketmasterId: args.ticketmasterId,
       });
       
       // Get count of shows imported
-      const showCount = await ctx.runQuery(internal.shows.countByArtist, {
+      const showCount = await ctx.runQuery(internalRef.shows.countByArtist, {
         artistId: args.artistId,
       });
       
       // Mark shows as imported
-      await ctx.runMutation(internal.artistSync.updateSyncStatus, {
+      await ctx.runMutation(internalRef.artistSync.updateSyncStatus, {
         artistId: args.artistId,
         showsImported: true,
         showCount,
@@ -195,7 +199,7 @@ export const syncArtistShowsWithTracking = internalAction({
       console.log(`✅ Shows imported for ${args.artistName}: ${showCount} shows`);
     } catch (error) {
       console.error(`❌ Failed to sync shows for ${args.artistName}:`, error);
-      await ctx.runMutation(internal.artistSync.updateSyncStatus, {
+      await ctx.runMutation(internalRef.artistSync.updateSyncStatus, {
         artistId: args.artistId,
         error: "Failed to import shows",
         phase: "error",
@@ -216,17 +220,17 @@ export const syncArtistCatalogWithTracking = internalAction({
     try {
       console.log(`🎧 Starting catalog sync with tracking for ${args.artistName}...`);
       
-      await ctx.runAction(internal.spotify.syncArtistCatalog, {
+      await ctx.runAction(internalRef.spotify.syncArtistCatalog, {
         artistId: args.artistId,
         artistName: args.artistName,
       });
       
       // Get count of songs imported
-      const songs = await ctx.runQuery(internal.songs.countByArtist, {
+      const songs = await ctx.runQuery(internalRef.songs.countByArtist, {
         artistId: args.artistId,
       });
       
-      await ctx.runMutation(internal.artistSync.updateSyncStatus, {
+      await ctx.runMutation(internalRef.artistSync.updateSyncStatus, {
         artistId: args.artistId,
         catalogImported: true,
         songCount: songs,
@@ -235,7 +239,7 @@ export const syncArtistCatalogWithTracking = internalAction({
 
       // After catalog import, ensure all upcoming shows have a prediction setlist
       try {
-        await ctx.runMutation(internal.setlists.ensurePredictionsForArtistShows, {
+        await ctx.runMutation(internalRef.setlists.ensurePredictionsForArtistShows, {
           artistId: args.artistId,
         });
       } catch (e) {
@@ -249,7 +253,7 @@ export const syncArtistCatalogWithTracking = internalAction({
     } catch (error) {
       console.error(`❌ Failed to sync catalog for ${args.artistName}:`, error);
       // Don't mark as error - shows still work without catalog
-      await ctx.runMutation(internal.artistSync.updateSyncStatus, {
+      await ctx.runMutation(internalRef.artistSync.updateSyncStatus, {
         artistId: args.artistId,
         catalogImported: false,
         phase: "enriching", // Continue to next phase
@@ -269,13 +273,12 @@ export const enrichArtistBasicsWithTracking = internalAction({
   handler: async (ctx, args) => {
     try {
       console.log(`🎵 Starting basics enrichment with tracking for ${args.artistName}...`);
-      
-      await ctx.runAction(internal.spotify.enrichArtistBasics, {
+      await ctx.runAction(internalRef.spotify.enrichArtistBasics, {
         artistId: args.artistId,
         artistName: args.artistName,
       });
       
-      await ctx.runMutation(internal.artistSync.updateSyncStatus, {
+      await ctx.runMutation(internalRef.artistSync.updateSyncStatus, {
         artistId: args.artistId,
         basicsEnriched: true,
         phase: "complete",
@@ -285,7 +288,7 @@ export const enrichArtistBasicsWithTracking = internalAction({
     } catch (error) {
       console.error(`❌ Failed to enrich basics for ${args.artistName}:`, error);
       // Mark as complete anyway - shows and catalog are the important parts
-      await ctx.runMutation(internal.artistSync.updateSyncStatus, {
+      await ctx.runMutation(internalRef.artistSync.updateSyncStatus, {
         artistId: args.artistId,
         basicsEnriched: false,
         phase: "complete",
@@ -368,7 +371,7 @@ export const searchAndSyncArtistShows = internalAction({
 
       // Persist Ticketmaster ID on artist for future syncs
       try {
-        await ctx.runMutation(internal.artists.setTicketmasterId, {
+        await ctx.runMutation(internalRef.artists.setTicketmasterId, {
           artistId: args.artistId,
           ticketmasterId,
         });
@@ -377,7 +380,7 @@ export const searchAndSyncArtistShows = internalAction({
       }
 
       // Reuse the tracked show sync wrapper so syncStatus is updated
-      await ctx.runAction(internal.ticketmaster.syncArtistShowsWithTracking, {
+      await ctx.runAction(internalRef.ticketmaster.syncArtistShowsWithTracking, {
         artistId: args.artistId,
         ticketmasterId,
         artistName: args.artistName,
@@ -431,7 +434,7 @@ export const syncArtistShows = internalAction({
         // Create or get venue
         const venue = event._embedded?.venues?.[0];
         // CRITICAL: Ensure all venue fields are properly populated
-        const venueId = await ctx.runMutation(internal.venues.createFromTicketmaster, {
+        const venueId = await ctx.runMutation(internalRef.venues.createFromTicketmaster, {
           ticketmasterId: venue?.id ? String(venue.id) : undefined,
           name: venue?.name ? String(venue.name) : "Unknown Venue",
           city: venue?.city?.name ? String(venue.city.name) : "Unknown City",
@@ -463,7 +466,7 @@ export const syncArtistShows = internalAction({
           ? `$${event.priceRanges[0].min || 0}-${event.priceRanges[0].max || 0}` 
           : undefined;
 
-        const showId = await ctx.runMutation(internal.shows.createFromTicketmaster, {
+        const showId = await ctx.runMutation(internalRef.shows.createFromTicketmaster, {
           artistId: args.artistId,
           venueId,
           ticketmasterId: String(event.id || ''),
@@ -493,7 +496,7 @@ export const syncArtistShows = internalAction({
         
         // NEW: Patch show with priceRange after creation (since createFromTicketmaster doesn't accept it)
         if (priceRange) {
-          await ctx.runMutation(internal.shows.updatePriceRange, {
+          await ctx.runMutation(internalRef.shows.updatePriceRange, {
             showId,
             priceRange,
           });
@@ -508,8 +511,8 @@ export const syncArtistShows = internalAction({
       console.log(`✅ Synced ${events.length} shows for artist (ID: ${args.artistId})`);
       
       // CRITICAL: Update artist's upcomingShowsCount after syncing shows
-      const upcomingShows = await ctx.runQuery(internal.shows.countUpcomingByArtist, { artistId: args.artistId });
-      await ctx.runMutation(internal.artists.updateShowCount, {
+      const upcomingShows = await ctx.runQuery(internalRef.shows.countUpcomingByArtist, { artistId: args.artistId });
+      await ctx.runMutation(internalRef.artists.updateShowCount, {
         artistId: args.artistId,
         upcomingShowsCount: upcomingShows,
       });
@@ -517,7 +520,7 @@ export const syncArtistShows = internalAction({
       
       // FIXED: Await scheduler call to prevent dangling promise warning
       try {
-        await ctx.scheduler.runAfter(0, internal.trending.updateShowTrending, {});
+        await ctx.scheduler.runAfter(0, internalRef.trending.updateShowTrending, {});
       } catch (e) {
         console.log('⚠️ Failed to schedule trending refresh after sync', e);
       }

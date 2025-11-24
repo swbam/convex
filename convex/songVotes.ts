@@ -4,6 +4,10 @@ import { internal } from "./_generated/api";
 import { getAuthUserId } from "./auth";
 import { Id } from "./_generated/dataModel";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = internal as any;
+
 // Vote on individual songs within setlists
 export const voteOnSong = mutation({
   args: {
@@ -101,7 +105,7 @@ export const voteOnSong = mutation({
     return null;
     } catch (error) {
       // Track voting errors
-      await ctx.runMutation(internal.errorTracking.logError, {
+      await ctx.runMutation(internalRef.errorTracking.logError, {
         operation: "song_vote",
         error: error instanceof Error ? error.message : String(error),
         context: {

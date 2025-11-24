@@ -3,6 +3,10 @@ import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = internal as any;
+
 /**
  * SIMPLE, ATOMIC APPROACH: Import trending shows in a single mutation
  * No complex action/query chains - just pure mutation logic
@@ -192,7 +196,7 @@ export const runImport = action({
     errors: v.array(v.string()),
   }),
   handler: async (ctx, args): Promise<{processed: number; imported: number; skipped: number; errors: string[]}> => {
-    return await ctx.runMutation(internal.importTrendingShows.importTrendingShowsBatch, {
+    return await ctx.runMutation(internalRef.importTrendingShows.importTrendingShowsBatch, {
       limit: args.limit ?? 50,
     });
   },

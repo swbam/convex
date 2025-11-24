@@ -3,6 +3,10 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = internal as any;
+
 const SETLISTFM_HTTP_TIMEOUT_MS = 30_000;
 
 async function setlistFetchWithTimeout(
@@ -29,9 +33,9 @@ export const syncActualSetlist = internalAction({
   returns: v.union(v.string(), v.null()),
   handler: async (ctx, args): Promise<string | null> => {
     try {
-      const show = await ctx.runQuery(internal.shows.getByIdInternal, { id: args.showId });
+      const show = await ctx.runQuery(internalRef.shows.getByIdInternal, { id: args.showId });
       if (!show || !show.artistId || !show.venueId) {
-        await ctx.runMutation(internal.shows.updateImportStatus, {
+        await ctx.runMutation(internalRef.shows.updateImportStatus, {
           showId: args.showId,
           status: "failed" as const,
         });
@@ -40,12 +44,12 @@ export const syncActualSetlist = internalAction({
       }
 
       const [artist, venue] = await Promise.all([
-        ctx.runQuery(internal.artists.getByIdInternal, { id: show.artistId }),
-        ctx.runQuery(internal.venues.getByIdInternal, { id: show.venueId }),
+        ctx.runQuery(internalRef.artists.getByIdInternal, { id: show.artistId }),
+        ctx.runQuery(internalRef.venues.getByIdInternal, { id: show.venueId }),
       ]);
 
       if (!artist || !venue) {
-        await ctx.runMutation(internal.shows.updateImportStatus, {
+        await ctx.runMutation(internalRef.shows.updateImportStatus, {
           showId: args.showId,
           status: "failed" as const,
         });
@@ -127,11 +131,11 @@ export const syncActualSetlist = internalAction({
         const response = data.setlist?.[0] ? { setlist: data.setlist[0] } : null;
 
         if (response && response.setlist) {
-          const setlistId = await ctx.runMutation(internal.setlists.createFromApi, {
+          const setlistId = await ctx.runMutation(internalRef.setlists.createFromApi, {
             showId: args.showId,
             data: response.setlist,
           });
-          await ctx.runMutation(internal.shows.updateImportStatus, {
+          await ctx.runMutation(internalRef.shows.updateImportStatus, {
             showId: args.showId,
             status: "completed",
           });
@@ -153,7 +157,7 @@ export const syncActualSetlist = internalAction({
         );
       }
 
-      await ctx.runMutation(internal.shows.updateImportStatus, {
+      await ctx.runMutation(internalRef.shows.updateImportStatus, {
         showId: args.showId,
         status: "pending" as const,
       });
@@ -161,7 +165,7 @@ export const syncActualSetlist = internalAction({
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
       console.error(`❌ Setlist sync failed for show ${args.showId}: ${errorMsg}`);
-      await ctx.runMutation(internal.shows.updateImportStatus, {
+      await ctx.runMutation(internalRef.shows.updateImportStatus, {
         showId: args.showId,
         status: "pending" as const,
       });
@@ -176,20 +180,20 @@ export const checkCompletedShows = internalAction({
   returns: v.null(),
   handler: async (ctx) => {
     console.log("🔍 Checking for completed shows needing setlist import...");
-    const completedShows = await ctx.runQuery(internal.setlistfm.getCompletedShowsNeedingImport, {}); 
+    const completedShows = await ctx.runQuery(internalRef.setlistfm.getCompletedShowsNeedingImport, {}); 
     let setlistsSynced = 0;
     for (const show of completedShows) {
       try {
-        await ctx.runMutation(internal.shows.updateImportStatus, {
+        await ctx.runMutation(internalRef.shows.updateImportStatus, {
           showId: show._id,
           status: "importing",
         });
 
-        const artist = await ctx.runQuery(internal.artists.getByIdInternal, { id: show.artistId });
-        const venue = await ctx.runQuery(internal.venues.getByIdInternal, { id: show.venueId });
+        const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: show.artistId });
+        const venue = await ctx.runQuery(internalRef.venues.getByIdInternal, { id: show.venueId });
         
         if (artist && venue) {
-          const setlistId = await ctx.runAction(internal.setlistfm.syncActualSetlist, {
+          const setlistId = await ctx.runAction(internalRef.setlistfm.syncActualSetlist, {
             showId: show._id,
             artistName: artist.name,
             venueCity: venue.city,
@@ -223,7 +227,7 @@ export const triggerSetlistSync = action({
   },
   returns: v.union(v.string(), v.null()),
   handler: async (ctx, args): Promise<string | null> => {
-    return await ctx.runAction(internal.setlistfm.syncActualSetlist, args);
+    return await ctx.runAction(internalRef.setlistfm.syncActualSetlist, args);
   },
 });
 
@@ -302,7 +306,7 @@ export const syncSpecificSetlist = internalAction({
       }
 
       // Update setlist with actual data
-      await ctx.runMutation(internal.setlists.updateWithActualSetlist, {
+      await ctx.runMutation(internalRef.setlists.updateWithActualSetlist, {
         showId: args.showId,
         actualSetlist: songs,
         setlistfmId: args.setlistfmId,
@@ -324,7 +328,7 @@ export const triggerCompletedShowsCheck = action({
   args: {},
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx): Promise<{ success: boolean; message: string }> => {
-    await ctx.runAction(internal.setlistfm.checkCompletedShows, {});
+    await ctx.runAction(internalRef.setlistfm.checkCompletedShows, {});
     return { success: true, message: "Completed shows check triggered successfully" };
   },
 });
@@ -334,18 +338,18 @@ export const scanPendingImports = internalAction({
   returns: v.null(),
   handler: async (ctx) => {
     console.log("🔍 Scanning for pending Setlist.fm imports...");
-    const pendingShows = await ctx.runQuery(internal.setlistfm.getPendingImports, {});
+    const pendingShows = await ctx.runQuery(internalRef.setlistfm.getPendingImports, {});
 
     let queuedCount = 0;
     for (const show of pendingShows) {
       try {
-        const artist = await ctx.runQuery(internal.artists.getByIdInternal, { id: show.artistId });
-        const venue = await ctx.runQuery(internal.venues.getByIdInternal, { id: show.venueId });
+        const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: show.artistId });
+        const venue = await ctx.runQuery(internalRef.venues.getByIdInternal, { id: show.venueId });
 
         if (artist && venue) {
           // Queue the import job instead of processing directly
           // This provides retry logic and better error handling
-          await ctx.runMutation(internal.syncJobs.queueSetlistImport, {
+          await ctx.runMutation(internalRef.syncJobs.queueSetlistImport, {
             showId: show._id,
             artistName: artist.name,
             venueCity: venue.city,
@@ -354,12 +358,12 @@ export const scanPendingImports = internalAction({
           queuedCount++;
           console.log(`✅ Queued setlist import for ${artist.name} at ${venue.city} on ${show.date}`);
         } else {
-          await ctx.runMutation(internal.shows.updateImportStatus, { showId: show._id, status: "failed" });
+          await ctx.runMutation(internalRef.shows.updateImportStatus, { showId: show._id, status: "failed" });
           console.warn(`⚠️ Missing artist or venue for show ${show._id}`);
         }
       } catch (error) {
         console.error(`Failed to queue import for show ${show._id}:`, error);
-        await ctx.runMutation(internal.shows.updateImportStatus, { showId: show._id, status: "failed" });
+        await ctx.runMutation(internalRef.shows.updateImportStatus, { showId: show._id, status: "failed" });
       }
     }
 

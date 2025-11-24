@@ -1,9 +1,13 @@
-import { action, mutation, query, internalAction, internalMutation, internalQuery, QueryCtx, MutationCtx } from "./_generated/server";
+import { action, mutation, query, internalAction, internalMutation, internalQuery, QueryCtx, MutationCtx, ActionCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
-// Helper function to check if user is admin
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = internal as any;
+
+// Helper function to check if user is admin (for queries/mutations)
 export const requireAdmin = async (ctx: QueryCtx | MutationCtx): Promise<Id<"users">> => {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {
@@ -24,6 +28,32 @@ export const requireAdmin = async (ctx: QueryCtx | MutationCtx): Promise<Id<"use
   }
   
   return user._id;
+};
+
+// Internal query to check if user is admin (for use in actions)
+export const checkAdminInternal = internalQuery({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return false;
+    
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
+      .first();
+    
+    return user?.role === "admin" || false;
+  },
+});
+
+// Helper for actions to require admin
+const requireAdminForAction = async (ctx: ActionCtx): Promise<void> => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isAdmin: boolean = await ctx.runQuery(internalRef.admin.checkAdminInternal as any, {});
+  if (!isAdmin) {
+    throw new Error("Admin access required");
+  }
 };
 
 // Check if current user is admin (for frontend)
@@ -200,10 +230,10 @@ export const ensureAdminByEmailInternal = internalMutation({
   args: { email: v.string() },
   returns: v.object({ success: v.boolean(), updated: v.boolean() }),
   handler: async (ctx, args) => {
-    const existing = await ctx.runQuery(internal.users.getByEmailCaseInsensitive, { email: args.email });
+    const existing = await ctx.runQuery(internalRef.users.getByEmailCaseInsensitive, { email: args.email });
     if (!existing) return { success: true, updated: false };
     if (existing.role !== "admin") {
-      await ctx.runMutation(internal.users.setUserRoleById, { userId: existing._id, role: "admin" });
+      await ctx.runMutation(internalRef.users.setUserRoleById, { userId: existing._id, role: "admin" });
       return { success: true, updated: true };
     }
     return { success: true, updated: false };
@@ -295,28 +325,12 @@ export const verifySetlist = mutation({
   handler: async (ctx, args) => {
     await requireAdmin(ctx); // ENHANCED: Require admin access
 
-    const setlist = await ctx.db.get(args.setlistId);
     await ctx.db.patch(args.setlistId, { 
       verified: args.verified,
-      lastUpdated: Date.now(), // Update timestamp
+      lastUpdated: Date.now(),
     });
     
     console.log(`✅ Setlist ${args.setlistId} verification: ${args.verified}`);
-
-    if (args.verified && setlist?.showId) {
-      const existing = await ctx.db.get(args.setlistId);
-      if (!existing?.notificationSentAt && !existing?.notificationScheduledAt) {
-        await ctx.db.patch(args.setlistId, { notificationScheduledAt: Date.now() });
-        try {
-          await ctx.scheduler.runAfter(0, internal.notifications.sendSetlistNotifications, {
-            setlistId: args.setlistId,
-            showId: setlist.showId,
-          });
-        } catch (error) {
-          console.error("Failed to schedule notifications after verification", error);
-        }
-      }
-    }
 
     return { success: true };
   },
@@ -539,7 +553,7 @@ export const syncTrending = action({
       console.log("📊 Admin triggered trending sync...");
       
       // Use the optimized maintenance action to sync trending data
-      await ctx.runAction(internal.maintenance.syncTrendingData, {});
+      await ctx.runAction(internalRef.maintenance.syncTrendingData, {});
       
       return {
         success: true,
@@ -565,8 +579,8 @@ export const syncTrendingArtists = action({
       throw new Error("Admin access required");
     }
     try {
-      await ctx.runMutation(internal.trending.updateArtistShowCounts, {});
-      await ctx.runMutation(internal.trending.updateArtistTrending, {});
+      await ctx.runMutation(internalRef.trending.updateArtistShowCounts, {});
+      await ctx.runMutation(internalRef.trending.updateArtistTrending, {});
       return { success: true, message: "Artists trending updated" };
     } catch (e) {
       return { success: false, message: e instanceof Error ? e.message : "Unknown error" };
@@ -583,7 +597,7 @@ export const syncTrendingShows = action({
       throw new Error("Admin access required");
     }
     try {
-      await ctx.runMutation(internal.trending.updateShowTrending, {});
+      await ctx.runMutation(internalRef.trending.updateShowTrending, {});
       return { success: true, message: "Shows trending updated" };
     } catch (e) {
       return { success: false, message: e instanceof Error ? e.message : "Unknown error" };
@@ -602,7 +616,7 @@ export const testSyncTrending = action({
   handler: async (ctx) => {
     try {
       console.log("📊 Test triggered trending sync...");
-      await ctx.runAction(internal.maintenance.syncTrendingData, {});
+      await ctx.runAction(internalRef.maintenance.syncTrendingData, {});
       return {
         success: true,
         message: "Successfully updated trending rankings for artists and shows",
@@ -622,8 +636,8 @@ export const testSyncTrendingArtists = action({
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx) => {
     try {
-      await ctx.runMutation(internal.trending.updateArtistShowCounts, {});
-      await ctx.runMutation(internal.trending.updateArtistTrending, {});
+      await ctx.runMutation(internalRef.trending.updateArtistShowCounts, {});
+      await ctx.runMutation(internalRef.trending.updateArtistTrending, {});
       return { success: true, message: "Artists trending updated" };
     } catch (e) {
       return { success: false, message: e instanceof Error ? e.message : "Unknown error" };
@@ -636,7 +650,7 @@ export const testSyncTrendingShows = action({
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx) => {
     try {
-      await ctx.runMutation(internal.trending.updateShowTrending, {});
+      await ctx.runMutation(internalRef.trending.updateShowTrending, {});
       return { success: true, message: "Shows trending updated" };
     } catch (e) {
       return { success: false, message: e instanceof Error ? e.message : "Unknown error" };
@@ -661,7 +675,7 @@ export const syncSetlistForShow = action({
     }
     
     try {
-      const result: string | null = await ctx.runAction(internal.setlistfm.syncActualSetlist, args);
+      const result: string | null = await ctx.runAction(internalRef.setlistfm.syncActualSetlist, args);
       return {
         success: !!result,
         message: result ? `Setlist synced with ID: ${result}` : "No setlist found for this show"
@@ -685,7 +699,7 @@ export const triggerSetlistSync = action({
     }
     
     try {
-      await ctx.runAction(internal.setlistfm.checkCompletedShows, {});
+      await ctx.runAction(internalRef.setlistfm.checkCompletedShows, {});
       return {
         success: true,
         message: "Setlist sync for completed shows triggered successfully"
@@ -710,7 +724,7 @@ export const testSyncSetlistForShow = action({
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx, args): Promise<{ success: boolean; message: string }> => {
     try {
-      const result: string | null = await ctx.runAction(internal.setlistfm.syncActualSetlist, args);
+      const result: string | null = await ctx.runAction(internalRef.setlistfm.syncActualSetlist, args);
       return {
         success: !!result,
         message: result ? `Setlist synced with ID: ${result}` : "No setlist found for this show"
@@ -733,7 +747,7 @@ export const testSyncSpecificSetlist = action({
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx, args): Promise<{ success: boolean; message: string }> => {
     try {
-      const result: string | null = await ctx.runAction(internal.setlistfm.syncSpecificSetlist, args);
+      const result: string | null = await ctx.runAction(internalRef.setlistfm.syncSpecificSetlist, args);
       return {
         success: !!result,
         message: result ? `Setlist synced with ID: ${result}` : "Failed to sync specific setlist"
@@ -752,7 +766,7 @@ export const testTriggerSetlistSync = action({
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx) => {
     try {
-      await ctx.runAction(internal.setlistfm.checkCompletedShows, {});
+      await ctx.runAction(internalRef.setlistfm.checkCompletedShows, {});
       return {
         success: true,
         message: "Setlist sync for completed shows triggered successfully"
@@ -771,7 +785,7 @@ export const normalizeShowSlugs = action({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ processed: v.number(), updated: v.number() }),
   handler: async (ctx, args): Promise<{ processed: number; updated: number }> => {
-    const result = await ctx.runMutation(internal.shows.normalizeSlugsInternal, { limit: args.limit });
+    const result = await ctx.runMutation(internalRef.shows.normalizeSlugsInternal, { limit: args.limit });
     return result as { processed: number; updated: number };
   },
 });
@@ -780,7 +794,7 @@ export const ensureAutoSetlistsBulk = action({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ scheduled: v.number() }),
   handler: async (ctx, args): Promise<{ scheduled: number }> => {
-    const result = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, { limit: args.limit });
+    const result = await ctx.runMutation(internalRef.setlists.refreshMissingAutoSetlists, { limit: args.limit });
     return result as { scheduled: number };
   },
 });
@@ -790,7 +804,7 @@ export const triggerSetlistSyncManual = action({
   args: {},
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx) => {
-    await ctx.runAction(internal.setlistfm.checkCompletedShows, {});
+    await ctx.runAction(internalRef.setlistfm.checkCompletedShows, {});
     return { success: true, message: "Manual setlist sync triggered" };
   },
 });
@@ -806,7 +820,7 @@ export const cleanupOrphanedShows = action({
     }
 
     try {
-      await ctx.runMutation(internal.shows.cleanupOrphanedShows, {});
+      await ctx.runMutation(internalRef.shows.cleanupOrphanedShows, {});
       return { success: true, message: "Orphaned shows cleanup invoked" };
     } catch (error) {
       return { success: false, message: error instanceof Error ? error.message : "Unknown error" };
@@ -832,7 +846,7 @@ export const cleanupNonStudioSongs = action({
 
     try {
       // Get songs in batches to avoid timeout
-      const songs = await ctx.runQuery(internal.songs.getAllForCleanup, {});
+      const songs = await ctx.runQuery(internalRef.songs.getAllForCleanup, {});
       console.log(`📊 Checking ${songs.length} songs for cleanup...`);
 
       for (const song of songs.slice(0, 100)) { // Limit for performance
@@ -840,7 +854,7 @@ export const cleanupNonStudioSongs = action({
 
         if (shouldRemove) {
           try {
-            await ctx.runMutation(internal.songs.deleteSong, { songId: song._id });
+            await ctx.runMutation(internalRef.songs.deleteSong, { songId: song._id });
             cleanedCount++;
             console.log(`🗑️ Removed: ${song.title} (${song.album || 'Unknown Album'})`);
           } catch (error) {
@@ -875,7 +889,7 @@ export const resyncArtistCatalogs = action({
     
     try {
       // Trigger maintenance to fix missing artist data with improved filtering
-      await ctx.runAction(internal.maintenance.fixMissingArtistData, {});
+      await ctx.runAction(internalRef.maintenance.fixMissingArtistData, {});
       return {
         success: true,
         message: `Triggered catalog re-sync for artists with improved filtering`
@@ -900,7 +914,7 @@ export const testCleanupNonStudioSongs = action({
 
     try {
       // Get songs in batches to avoid timeout
-      const songs = await ctx.runQuery(internal.songs.getAllForCleanup, {});
+      const songs = await ctx.runQuery(internalRef.songs.getAllForCleanup, {});
       console.log(`📊 Checking ${songs.length} songs for cleanup...`);
 
       for (const song of songs.slice(0, 100)) { // Limit for performance
@@ -908,7 +922,7 @@ export const testCleanupNonStudioSongs = action({
 
         if (shouldRemove) {
           try {
-            await ctx.runMutation(internal.songs.deleteSong, { songId: song._id });
+            await ctx.runMutation(internalRef.songs.deleteSong, { songId: song._id });
             cleanedCount++;
             console.log(`🗑️ Removed: ${song.title} (${song.album || 'Unknown Album'})`);
           } catch (error) {
@@ -950,7 +964,7 @@ export const resyncArtistCatalog = action({
       }
       
       // Re-sync with improved filtering
-      await ctx.runAction(internal.spotify.syncArtistCatalog, {
+      await ctx.runAction(internalRef.spotify.syncArtistCatalog, {
         artistId: args.artistId,
         artistName: artist.name,
       });
@@ -979,7 +993,7 @@ export const testResyncArtistCatalog = action({
       }
       
       // Re-sync with improved filtering
-      await ctx.runAction(internal.spotify.syncArtistCatalog, {
+      await ctx.runAction(internalRef.spotify.syncArtistCatalog, {
         artistId: args.artistId,
         artistName: artist.name,
       });
@@ -1002,8 +1016,8 @@ export const recomputeEngagementCounts = action({
   args: {},
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx): Promise<{ success: boolean }> => {
-    await requireAdmin(ctx);
-    await ctx.runMutation(internal.trending.updateEngagementCounts, {});
+    await requireAdminForAction(ctx);
+    await ctx.runMutation(internalRef.trending.updateEngagementCounts, {});
     return { success: true };
   },
 });
@@ -1013,13 +1027,13 @@ export const forceArtistCatalogSync = action({
   args: { artistId: v.id("artists") },
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx, args): Promise<{ success: boolean; message: string }> => {
-    await requireAdmin(ctx);
+    await requireAdminForAction(ctx);
     const artist: any = await ctx.runQuery(api.artists.getById, { id: args.artistId });
     if (!artist) {
       return { success: false, message: "Artist not found" };
     }
 
-    await ctx.runAction(internal.spotify.syncArtistCatalog, {
+    await ctx.runAction(internalRef.spotify.syncArtistCatalog, {
       artistId: args.artistId,
       artistName: artist.name,
     });
@@ -1127,7 +1141,7 @@ export const importTrendingFromTicketmaster = action({
       // Import artists that don't exist yet
       for (const artist of trendingArtists) {
         try {
-          const existing = await ctx.runQuery(internal.artists.getByTicketmasterIdInternal, { 
+          const existing = await ctx.runQuery(internalRef.artists.getByTicketmasterIdInternal, { 
             ticketmasterId: artist.ticketmasterId 
           });
           
@@ -1148,7 +1162,7 @@ export const importTrendingFromTicketmaster = action({
       
       // After importing, trigger trending sync
       if (imported > 0) {
-        await ctx.runAction(internal.maintenance.syncTrendingData, {});
+        await ctx.runAction(internalRef.maintenance.syncTrendingData, {});
       }
       
       return {
@@ -1195,7 +1209,7 @@ export const testImportTrendingFromTicketmaster = action({
       // Import artists that don't exist yet
       for (const artist of trendingArtists) {
         try {
-          const existing = await ctx.runQuery(internal.artists.getByTicketmasterIdInternal, { 
+          const existing = await ctx.runQuery(internalRef.artists.getByTicketmasterIdInternal, { 
             ticketmasterId: artist.ticketmasterId 
           });
           
@@ -1216,7 +1230,7 @@ export const testImportTrendingFromTicketmaster = action({
       
       // After importing, trigger trending sync
       if (imported > 0) {
-        await ctx.runAction(internal.maintenance.syncTrendingData, {});
+        await ctx.runAction(internalRef.maintenance.syncTrendingData, {});
       }
       
       return {
@@ -1248,7 +1262,7 @@ export const cleanupNonConcertArtists = action({
       console.log("🧹 [CLEANUP] Starting cleanup of non-concert artists...");
       
       // Get all artists
-      const artists = await ctx.runQuery(internal.artists.getAllInternal, {});
+      const artists = await ctx.runQuery(internalRef.artists.getAllInternal, {});
       console.log(`📊 Found ${artists.length} total artists to check`);
       
       const excludedGenres = [
@@ -1271,18 +1285,18 @@ export const cleanupNonConcertArtists = action({
           
           try {
             // Delete artist's shows first
-            const shows = await ctx.runQuery(internal.shows.getAllByArtistInternal, { 
+            const shows = await ctx.runQuery(internalRef.shows.getAllByArtistInternal, { 
               artistId: artist._id 
             });
             for (const show of shows) {
-              await ctx.runMutation(internal.shows.deleteShowInternal, { showId: show._id });
+              await ctx.runMutation(internalRef.shows.deleteShowInternal, { showId: show._id });
             }
             
             // Delete artist's songs
-            await ctx.runMutation(internal.songs.deleteByArtist, { artistId: artist._id });
+            await ctx.runMutation(internalRef.songs.deleteByArtist, { artistId: artist._id });
             
             // Delete the artist
-            await ctx.runMutation(internal.artists.deleteArtistInternal, { artistId: artist._id });
+            await ctx.runMutation(internalRef.artists.deleteArtistInternal, { artistId: artist._id });
             
             deletedCount++;
           } catch (error) {
@@ -1320,7 +1334,7 @@ export const cleanupNonStudioSongsInternal = internalAction({
     
     try {
       // Get songs in batches to avoid timeout
-      const songs = await ctx.runQuery(internal.songs.getAllForCleanup, {});
+      const songs = await ctx.runQuery(internalRef.songs.getAllForCleanup, {});
       console.log(`📊 Checking ${songs.length} songs for cleanup...`);
       
       for (const song of songs.slice(0, 100)) { // Limit for performance
@@ -1329,7 +1343,7 @@ export const cleanupNonStudioSongsInternal = internalAction({
         if (shouldRemove) {
           try {
             // Remove song
-            await ctx.runMutation(internal.songs.deleteSong, { songId: song._id });
+            await ctx.runMutation(internalRef.songs.deleteSong, { songId: song._id });
             cleanedCount++;
             console.log(`🗑️ Removed: "${song.title}" from "${song.album}"`);
           } catch (error) {
@@ -1393,9 +1407,10 @@ export const bulkDeleteFlagged = action({
   args: { ids: v.array(v.id("contentFlags")) },
   returns: v.object({ deleted: v.number() }),
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireAdminForAction(ctx);
     for (const id of args.ids) {
-      await ctx.runMutation(internal.admin.bulkDeleteFlaggedInternal, { id });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await ctx.runMutation(internalRef.admin.bulkDeleteFlaggedInternal as any, { id });
     }
     return { deleted: args.ids.length };
   },
@@ -1590,7 +1605,7 @@ export const backfillMissingSetlists = action({
     
     try {
       console.log("🔄 Admin triggered backfill for missing setlists...");
-      const result = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, {
+      const result = await ctx.runMutation(internalRef.setlists.refreshMissingAutoSetlists, {
         limit: args.limit || 500,
         includeCompleted: true, // Scan ALL shows (including legacy/completed)
       });
@@ -1618,7 +1633,7 @@ export const testBackfillMissingSetlists = action({
   handler: async (ctx, args): Promise<{ success: boolean; message: string; scheduled: number }> => {
     try {
       console.log("🔄 [TEST] Backfill for missing setlists...");
-      const result = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, {
+      const result = await ctx.runMutation(internalRef.setlists.refreshMissingAutoSetlists, {
         limit: args.limit || 500,
         includeCompleted: true,
       });

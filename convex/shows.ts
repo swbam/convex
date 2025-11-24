@@ -3,6 +3,10 @@ import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = internal as any;
+
 // Helper function to create SEO-friendly slugs
 function createSEOSlug(name: string): string {
   return name
@@ -231,7 +235,7 @@ export const normalizeShowSlugs = action({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ processed: v.number(), updated: v.number() }),
   handler: async (ctx, args): Promise<{ processed: number; updated: number }> => {
-    const result = await ctx.runMutation(internal.shows.normalizeSlugsInternal, { limit: args.limit });
+    const result = await ctx.runMutation(internalRef.shows.normalizeSlugsInternal, { limit: args.limit });
     return result as { processed: number; updated: number };
   },
 });
@@ -580,7 +584,7 @@ export const createInternal = internalMutation({
     console.log(`✅ Created internal show ${showId} with slug: ${slug}`);
     // FIXED: Single attempt to generate setlist, let cron handle retries
     try {
-      await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+      await ctx.runMutation(internalRef.setlists.autoGenerateSetlist, {
         showId,
         artistId: args.artistId,
       });
@@ -637,7 +641,7 @@ export const createFromTicketmaster = internalMutation({
         const needsSeed = !existingSetlist || !Array.isArray(existingSetlist.songs) || (existingSetlist.songs?.length ?? 0) < 5;
 
         if (needsSeed) {
-          await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+          await ctx.runMutation(internalRef.setlists.autoGenerateSetlist, {
             showId: existing._id,
             artistId: args.artistId,
           });
@@ -687,7 +691,7 @@ export const createFromTicketmaster = internalMutation({
 
     // FIXED: Single attempt to generate setlist, let cron handle retries
     try {
-      await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+      await ctx.runMutation(internalRef.setlists.autoGenerateSetlist, {
         showId,
         artistId: args.artistId,
       });

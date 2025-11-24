@@ -8,7 +8,7 @@ import { MagicCard } from '../components/ui/magic-card';
 import { BorderBeam } from '../components/ui/border-beam';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { ArrowLeft, User, Settings, Activity, Vote, Shield, Bell, Star, Music, RefreshCw, Calendar, Loader2 } from 'lucide-react';
+import { ArrowLeft, User, Settings, Activity, Vote, Shield, Star, Music, RefreshCw, Calendar, Loader2 } from 'lucide-react';
 import { useSpotifyAuth } from '../hooks/useSpotifyAuth';
 import { ArtistCard } from '../components/ArtistCard';
 import { AppLayout } from '../components/AppLayout';
@@ -160,10 +160,6 @@ export function UserProfilePage() {
                     <Shield className="h-4 w-4 mr-2" />
                     <span className="text-sm">Security</span>
                   </TabsTrigger>
-                  <TabsTrigger value="notifications" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-white/10 py-2.5">
-                    <Bell className="h-4 w-4 mr-2" />
-                    <span className="text-sm">Alerts</span>
-                  </TabsTrigger>
                   <TabsTrigger value="activity" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-white/10 py-2.5 lg:hidden">
                     <Activity className="h-4 w-4 mr-2" />
                     <span className="text-sm">Activity</span>
@@ -209,17 +205,6 @@ export function UserProfilePage() {
                     <h3 className="text-lg font-semibold text-white mb-4">Security Settings</h3>
                     <div className="clerk-profile-container">
                       <UserProfile.Page path="security" />
-                    </div>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="notifications" className="mt-6 space-y-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-white mb-4">Notification Preferences</h3>
-                    <div className="space-y-4">
-                      <div className="bg-white/5 border border-white/10 rounded-lg p-4">
-                        <p className="text-gray-400">Notification settings coming soon...</p>
-                      </div>
                     </div>
                   </div>
                 </TabsContent>

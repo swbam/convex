@@ -5,6 +5,10 @@ import { action, internalMutation, internalAction, internalQuery } from "./_gene
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = internal as any;
+
 const ENCRYPTION_SECRET = process.env.SPOTIFY_TOKEN_ENC_KEY;
 
 const getEncryptionKey = () => {
@@ -83,7 +87,7 @@ export const storeSpotifyTokens = action({
     const user: any = await ctx.runQuery(api.auth.loggedInUser, {});
     if (!user?.appUser) throw new Error("User not found");
     
-    await ctx.runMutation(internal.spotifyAuthQueries.setUserSpotifyId, {
+    await ctx.runMutation(internalRef.spotifyAuthQueries.setUserSpotifyId, {
       userId: user.appUser._id,
       spotifyId: args.spotifyId,
     });
@@ -92,12 +96,12 @@ export const storeSpotifyTokens = action({
     const encryptedRefreshToken = args.refreshToken ? encryptToken(args.refreshToken) : undefined;
 
     const now = Date.now();
-    const existingRecord = await ctx.runQuery(internal.spotifyAuthQueries.getStoredSpotifyToken, {
+    const existingRecord = await ctx.runQuery(internalRef.spotifyAuthQueries.getStoredSpotifyToken, {
       userId: user.appUser._id,
     });
 
     if (existingRecord) {
-      await ctx.runMutation(internal.spotifyAuthQueries.updateStoredSpotifyToken, {
+      await ctx.runMutation(internalRef.spotifyAuthQueries.updateStoredSpotifyToken, {
         tokenId: existingRecord._id,
         userId: user.appUser._id,
         accessToken: encryptedAccessToken,
@@ -108,7 +112,7 @@ export const storeSpotifyTokens = action({
         updatedAt: now,
       });
     } else {
-      await ctx.runMutation(internal.spotifyAuthQueries.insertStoredSpotifyToken, {
+      await ctx.runMutation(internalRef.spotifyAuthQueries.insertStoredSpotifyToken, {
         userId: user.appUser._id,
         accessToken: encryptedAccessToken,
         refreshToken: encryptedRefreshToken,
@@ -236,7 +240,7 @@ export const importUserSpotifyArtistsWithToken = action({
             
             if (byName) {
               // Update existing artist with Spotify data
-              await ctx.runMutation(internal.artists.updateSpotifyData, {
+              await ctx.runMutation(internalRef.artists.updateSpotifyData, {
                 artistId: byName._id,
                 spotifyId: spotifyArtist.spotifyId,
                 followers: spotifyArtist.followers,
@@ -248,7 +252,7 @@ export const importUserSpotifyArtistsWithToken = action({
               correlated++;
             } else {
               // Create new artist
-              artistId = await ctx.runMutation(internal.artists.create, {
+              artistId = await ctx.runMutation(internalRef.artists.create, {
                 name: spotifyArtist.name,
                 spotifyId: spotifyArtist.spotifyId,
                 image: spotifyArtist.images[0] || undefined,
@@ -260,13 +264,13 @@ export const importUserSpotifyArtistsWithToken = action({
               imported++;
               
               // Schedule background sync for shows and full catalog (don't await)
-              void ctx.scheduler.runAfter(0, internal.spotify.syncArtistCatalog, {
+              void ctx.scheduler.runAfter(0, internalRef.spotify.syncArtistCatalog, {
                 artistId,
                 artistName: spotifyArtist.name,
               });
               
               // Try to find and sync shows from Ticketmaster (don't await)
-              void ctx.scheduler.runAfter(1000, internal.ticketmaster.searchAndSyncArtistShows, {
+              void ctx.scheduler.runAfter(1000, internalRef.ticketmaster.searchAndSyncArtistShows, {
                 artistId,
                 artistName: spotifyArtist.name,
               });
@@ -277,7 +281,7 @@ export const importUserSpotifyArtistsWithToken = action({
           
           // Track this artist for the user
           if (artistId) {
-            await ctx.runMutation(internal.spotifyAuthQueries.trackUserArtist, {
+            await ctx.runMutation(internalRef.spotifyAuthQueries.trackUserArtist, {
               userId: user.appUser._id,
               artistId,
               isFollowed: spotifyArtist.isFollowed,
@@ -320,7 +324,7 @@ export const refreshUserTokens = internalAction({
     }
 
     const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-    const tokenRecords = await ctx.runQuery(internal.spotifyAuthQueries.listStoredSpotifyTokens, {});
+    const tokenRecords = await ctx.runQuery(internalRef.spotifyAuthQueries.listStoredSpotifyTokens, {});
 
     let refreshed = 0;
     for (const record of tokenRecords) {
@@ -355,7 +359,7 @@ export const refreshUserTokens = internalAction({
             continue;
           }
 
-          await ctx.runMutation(internal.spotifyAuthQueries.updateStoredSpotifyToken, {
+          await ctx.runMutation(internalRef.spotifyAuthQueries.updateStoredSpotifyToken, {
             tokenId: record._id,
             userId: record.userId,
             accessToken: encryptToken(newAccessToken),

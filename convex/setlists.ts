@@ -4,10 +4,14 @@ import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { getAuthUserId } from "./auth";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = internal as any;
+
 // Helper to safely track errors in mutations
 async function trackError(ctx: any, operation: string, error: unknown, context?: any) {
   try {
-    await ctx.runMutation(internal.errorTracking.logError, {
+    await ctx.runMutation(internalRef.errorTracking.logError, {
       operation,
       error: error instanceof Error ? error.message : String(error),
       context,
@@ -592,7 +596,7 @@ export const ensurePredictionsForArtistShows = internalMutation({
         }
 
         const setlistId = await ctx.runMutation(
-          internal.setlists.autoGenerateSetlist,
+          internalRef.setlists.autoGenerateSetlist,
           {
             showId: show._id,
             artistId: show.artistId,
@@ -725,23 +729,6 @@ export const updateWithActualSetlist = internalMutation({
       setlistfmId: args.setlistfmId,
       lastSynced: Date.now(),
     });
-
-    // Schedule voter notifications once per official setlist
-    if (notificationTargetId) {
-      const notificationTarget = await ctx.db.get(notificationTargetId);
-      if (!notificationTarget?.notificationSentAt && !notificationTarget?.notificationScheduledAt) {
-        await ctx.db.patch(notificationTargetId, { notificationScheduledAt: Date.now() });
-        try {
-          await ctx.scheduler.runAfter(
-            0,
-            internal.notifications.sendSetlistNotifications,
-            { setlistId: notificationTargetId, showId: args.showId },
-          );
-        } catch (error) {
-          console.error("Failed to schedule setlist notifications", error);
-        }
-      }
-    }
 
     return null;
   },
@@ -896,7 +883,7 @@ export const refreshMissingAutoSetlists = internalMutation({
       const delayMs = i * 10000; // 10 seconds between each job
 
       try {
-        void ctx.scheduler.runAfter(delayMs, internal.setlists.autoGenerateSetlist, {
+        void ctx.scheduler.runAfter(delayMs, internalRef.setlists.autoGenerateSetlist, {
           showId: show._id,
           artistId: show.artistId,
         });
@@ -940,7 +927,7 @@ export const ensureAutoSetlistForShow = action({
     console.log(`🎵 Creating auto-generated setlist for show ${args.showId}, artist ${show.artistId}...`);
 
     try {
-      const setlistId = await ctx.runMutation(internal.setlists.autoGenerateSetlist, {
+      const setlistId = await ctx.runMutation(internalRef.setlists.autoGenerateSetlist, {
         showId: args.showId,
         artistId: show.artistId,
       });
@@ -964,7 +951,7 @@ export const refreshMissingAutoSetlistsAction = action({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ scheduled: v.number() }),
   handler: async (ctx, args): Promise<{ scheduled: number }> => {
-    const result = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, { limit: args.limit });
+    const result = await ctx.runMutation(internalRef.setlists.refreshMissingAutoSetlists, { limit: args.limit });
     return result as { scheduled: number };
   },
 });

@@ -17,8 +17,10 @@ export const syncAllMissingCatalogs = internalAction({
   handler: async (ctx, args) => {
     console.log("🎵 Starting bulk catalog sync for artists without songs...");
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const internalRef = internal as any;
     const limit = args.limit ?? 50;
-    const artists = await ctx.runQuery(internal.artists.getAllInternal, { limit: 200 });
+    const artists = await ctx.runQuery(internalRef.artists.getAllInternal, { limit: 200 });
     
     let processed = 0;
     let synced = 0;
@@ -35,7 +37,7 @@ export const syncAllMissingCatalogs = internalAction({
       }
       
       // Check if artist already has songs
-      const artistSongs = await ctx.runQuery(internal.artistSongs.getByArtist, {
+      const artistSongs = await ctx.runQuery(internalRef.artistSongs.getByArtist, {
         artistId: artist._id,
       });
       const songCount = artistSongs.length;
@@ -49,7 +51,7 @@ export const syncAllMissingCatalogs = internalAction({
       // Sync catalog
       try {
         console.log(`📥 Syncing catalog for ${artist.name}...`);
-        await ctx.runAction(internal.spotify.syncArtistCatalog, {
+        await ctx.runAction(internalRef.spotify.syncArtistCatalog, {
           artistId: artist._id,
           artistName: artist.name,
         });
@@ -71,4 +73,3 @@ export const syncAllMissingCatalogs = internalAction({
     };
   },
 });
-

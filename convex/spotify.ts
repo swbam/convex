@@ -4,6 +4,10 @@ import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = internal as any;
+
 const SPOTIFY_HTTP_TIMEOUT_MS = 30_000;
 const SPOTIFY_MAX_ATTEMPTS = 3;
 const STRICT_ALBUM_FILTER = process.env.SPOTIFY_STRICT_MODE !== "false";
@@ -120,7 +124,7 @@ export const enrichArtistData = action({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.runAction(internal.spotify.syncArtistCatalog, {
+    await ctx.runAction(internalRef.spotify.syncArtistCatalog, {
       artistId: args.artistId,
       artistName: args.artistName,
     });
@@ -189,7 +193,7 @@ export const enrichArtistBasics = internalAction({
       const spotifyArtist = artists[0];
       
       // Update artist with JUST the basics (not full catalog)
-      await ctx.runMutation(internal.artists.updateSpotifyData, {
+      await ctx.runMutation(internalRef.artists.updateSpotifyData, {
         artistId: args.artistId,
         spotifyId: spotifyArtist.id,
         followers: spotifyArtist.followers?.total,
@@ -224,7 +228,7 @@ export const syncArtistCatalog = internalAction({
     }
 
     // CRITICAL FIX: Enhanced deduplication with catalogSyncAttemptedAt
-    const artist = await ctx.runQuery(internal.artists.getByIdInternal, { id: args.artistId });
+    const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: args.artistId });
 
     if (!artist) {
       console.log(`❌ Artist not found: ${args.artistId}`);
@@ -250,21 +254,19 @@ export const syncArtistCatalog = internalAction({
       return null;
     }
 
-    // CRITICAL: Check both lastSynced AND catalogSyncAttemptedAt
-    // This prevents infinite loops even if sync fails
-    const recentlySynced = artist.lastSynced && (now - artist.lastSynced) < TWENTY_FOUR_HOURS;
+    // CRITICAL: Check catalogSyncAttemptedAt (NOT lastSynced) to prevent duplicate syncs
+    // The lastSynced field is for general artist metadata, not catalog sync specifically.
+    // Using lastSynced here would incorrectly skip catalog sync for newly created artists.
     const recentlyAttempted = artist.catalogSyncAttemptedAt && (now - artist.catalogSyncAttemptedAt) < TWENTY_FOUR_HOURS;
 
-    if (recentlySynced || recentlyAttempted) {
-      const lastAction = recentlySynced ? artist.lastSynced : artist.catalogSyncAttemptedAt;
-      const actionType = recentlySynced ? "synced" : "attempted";
-      const minutesAgo = Math.round((now - (lastAction || 0)) / 1000 / 60);
-      console.log(`⏭️ Skipping catalog sync for ${args.artistName} - ${actionType} ${minutesAgo} minutes ago`);
+    if (recentlyAttempted) {
+      const minutesAgo = Math.round((now - (artist.catalogSyncAttemptedAt || 0)) / 1000 / 60);
+      console.log(`⏭️ Skipping catalog sync for ${args.artistName} - attempted ${minutesAgo} minutes ago`);
       return null;
     }
 
     // Mark sync as in progress BEFORE starting
-    await ctx.runMutation(internal.artists.updateSyncStatus, {
+    await ctx.runMutation(internalRef.artists.updateSyncStatus, {
       artistId: args.artistId,
       catalogSyncAttemptedAt: now,
       catalogSyncStatus: "syncing",
@@ -316,7 +318,7 @@ export const syncArtistCatalog = internalAction({
       const spotifyArtist = artists[0];
       
       // Update artist with Spotify data - THIS IS CRITICAL FOR DATA INTEGRITY
-      await ctx.runMutation(internal.artists.updateSpotifyData, {
+      await ctx.runMutation(internalRef.artists.updateSpotifyData, {
         artistId: args.artistId,
         spotifyId: spotifyArtist.id,
         followers: (() => {
@@ -417,7 +419,7 @@ export const syncArtistCatalog = internalAction({
 
         try {
           // Create song with full metadata
-          const songId = await ctx.runMutation(internal.songs.create, {
+          const songId = await ctx.runMutation(internalRef.songs.create, {
             title: track.name,
             album: track.album_info.name,
             spotifyId: track.id,
@@ -429,7 +431,7 @@ export const syncArtistCatalog = internalAction({
           });
 
           // Link artist to song (with duplicate prevention)
-          await ctx.runMutation(internal.artistSongs.create, {
+          await ctx.runMutation(internalRef.artistSongs.create, {
             artistId: args.artistId,
             songId,
             isPrimaryArtist: true,
@@ -444,7 +446,7 @@ export const syncArtistCatalog = internalAction({
         } catch (error) {
           console.error(`❌ Failed to import song ${track.name}:`, error);
           // Track error for monitoring
-          await ctx.runMutation(internal.errorTracking.logError, {
+          await ctx.runMutation(internalRef.errorTracking.logError, {
             operation: "spotify_song_import",
             error: error instanceof Error ? error.message : String(error),
             context: {
@@ -460,7 +462,7 @@ export const syncArtistCatalog = internalAction({
       console.log(`✅ Catalog sync completed for ${args.artistName}: ${songsImported}/${originalTracks.length} songs imported successfully`);
 
       // Mark catalog sync as completed
-      await ctx.runMutation(internal.artists.updateSyncStatus, {
+      await ctx.runMutation(internalRef.artists.updateSyncStatus, {
         artistId: args.artistId,
         catalogSyncStatus: songsImported > 0 ? "completed" : "failed",
       });
@@ -481,7 +483,7 @@ export const syncArtistCatalog = internalAction({
       
       // CIRCUIT BREAKER: Reset failure count on success
       if (songsImported > 0) {
-        await ctx.runMutation(internal.artists.updateSyncStatus, {
+        await ctx.runMutation(internalRef.artists.updateSyncStatus, {
           artistId: args.artistId,
           catalogSyncFailureCount: 0,
           catalogSyncLastFailure: undefined,
@@ -500,7 +502,7 @@ export const syncArtistCatalog = internalAction({
       console.error(`❌ Catalog sync failure ${currentFailures} for ${args.artistName}${backoffHours > 0 ? ` - applying ${backoffHours}h backoff` : ''}`);
       
       // Mark as failed and update circuit breaker state
-      await ctx.runMutation(internal.artists.updateSyncStatus, {
+      await ctx.runMutation(internalRef.artists.updateSyncStatus, {
         artistId: args.artistId,
         catalogSyncStatus: "failed",
         catalogSyncFailureCount: currentFailures,
@@ -509,7 +511,7 @@ export const syncArtistCatalog = internalAction({
       });
       
       // Track critical catalog sync failure
-      await ctx.runMutation(internal.errorTracking.logError, {
+      await ctx.runMutation(internalRef.errorTracking.logError, {
         operation: "spotify_catalog_sync",
         error: error instanceof Error ? error.message : String(error),
         context: {

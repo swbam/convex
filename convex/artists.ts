@@ -814,8 +814,9 @@ export const create = internalMutation({
       // The spotify.ts has a 1-hour guard to prevent duplicate syncs
       if (args.spotifyId) {
         try {
-          // @ts-expect-error: Type instantiation depth workaround
-          void ctx.scheduler.runAfter(0, internal.spotify.enrichArtistBasics, {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const internalAny = internal as any;
+          void ctx.scheduler.runAfter(0, internalAny.spotify.enrichArtistBasics, {
             artistId: existingByName._id,
             artistName: args.name
           });
@@ -858,7 +859,9 @@ export const create = internalMutation({
     // The spotify.ts has a 1-hour guard to prevent duplicate syncs
     if (args.spotifyId) {
       try {
-        void ctx.scheduler.runAfter(0, internal.spotify.enrichArtistBasics, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const internalRef = internal as any;
+        void ctx.scheduler.runAfter(0, internalRef.spotify.enrichArtistBasics, {
           artistId,
           artistName: args.name
         });

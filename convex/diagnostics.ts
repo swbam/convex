@@ -2,6 +2,10 @@ import { internalQuery, action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = internal as any;
+
 /**
  * Diagnostic tools for finding and fixing missing setlists
  */
@@ -61,7 +65,7 @@ export const backfillMissingSetlists = action({
   returns: v.object({ scheduled: v.number() }),
   handler: async (ctx, args): Promise<{ scheduled: number }> => {
     console.log("🔄 Starting backfill for missing setlists...");
-    const result = await ctx.runMutation(internal.setlists.refreshMissingAutoSetlists, {
+    const result = await ctx.runMutation(internalRef.setlists.refreshMissingAutoSetlists, {
       limit: args.limit || 500,
       includeCompleted: true, // CRITICAL: Scan ALL shows, not just upcoming
     });
@@ -107,4 +111,3 @@ export const findArtistsWithoutSongs = internalQuery({
     return missing;
   },
 });
-
