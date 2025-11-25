@@ -3,8 +3,16 @@ import { api } from "../../convex/_generated/api";
 import { Activity, CheckCircle, AlertCircle, Clock } from "lucide-react";
 
 export function SyncStatus() {
+  // Check admin status first
+  const isAdmin = useQuery((api as any).admin.isCurrentUserAdmin);
+  
   const syncStatus = useQuery(api.syncStatus.getStatus);
-  const activeJobs = useQuery(api.syncJobs.getActive);
+  
+  // Only fetch active jobs if user is admin
+  const activeJobs = useQuery(
+    (api as any).syncJobs.getActive,
+    isAdmin === true ? {} : "skip"
+  );
 
   if (!syncStatus) return null;
 

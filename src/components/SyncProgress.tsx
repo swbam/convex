@@ -4,10 +4,17 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 export function SyncProgress() {
-  const activeJobs = useQuery(api.syncJobs.getActive);
+  // Only admins can see sync progress - check admin first
+  const isAdmin = useQuery((api as any).admin.isCurrentUserAdmin);
   
-  // Don't show anything if no active jobs
-  if (!activeJobs || activeJobs.length === 0) {
+  // Only fetch sync jobs if user is admin
+  const activeJobs = useQuery(
+    (api as any).syncJobs.getActive,
+    isAdmin === true ? {} : "skip"
+  );
+  
+  // Don't show anything if not admin or no active jobs
+  if (!isAdmin || !activeJobs || activeJobs.length === 0) {
     return null;
   }
 
