@@ -438,3 +438,31 @@ export const syncCurrentUser = mutation({
     return userId;
   },
 });
+
+// ONE-TIME FIX: Promote user by Clerk auth ID (no auth required, DELETE AFTER USE)
+export const fixAdminByAuthId = mutation({
+  args: { authId: v.string(), secretKey: v.string() },
+  returns: v.object({ success: v.boolean(), message: v.string() }),
+  handler: async (ctx, args) => {
+    // Simple secret to prevent random calls
+    if (args.secretKey !== "setlists-admin-fix-2024") {
+      return { success: false, message: "Invalid secret" };
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth_id", (q) => q.eq("authId", args.authId))
+      .first();
+
+    if (!user) {
+      return { success: false, message: "User not found with that authId" };
+    }
+
+    if (user.role === "admin") {
+      return { success: true, message: `User ${user.email} is already admin` };
+    }
+
+    await ctx.db.patch(user._id, { role: "admin" });
+    return { success: true, message: `User ${user.email} promoted to admin` };
+  },
+});
