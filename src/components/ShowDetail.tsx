@@ -181,6 +181,43 @@ export function ShowDetail({
     ? Math.round((predictedCount / catalogCount) * 100)
     : 0;
 
+  // Memoize song items for combobox (moved from JSX to fix hooks rules violation)
+  const songComboboxItems = useMemo(() => {
+    if (!songs || songs.length === 0) return [];
+    const seen = new Set<string>();
+    return (songs || [])
+      .filter(Boolean)
+      // Exclude remixes and live variants
+      .filter((s: any) => !s?.isRemix && !s?.isLive)
+      // Deduplicate by normalized title
+      .filter((s: any) => {
+        const t = (s?.title || "").toString();
+        const norm = t
+          .toLowerCase()
+          .replace(/\s*\(.*?\)\s*/g, " ")
+          .replace(/\s+-\s+.*$/, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        if (seen.has(norm)) return false;
+        seen.add(norm);
+        return true;
+      })
+      .map((s: any) => {
+        const title = s.title as string;
+        const disabled =
+          predictedSongTitleSet.has(
+            (title || "").toLowerCase().trim()
+          ) || false;
+        return {
+          id: s._id,
+          title,
+          album: s.album || null,
+          disabled,
+        };
+      })
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [songs, predictedSongTitleSet]);
+
   // Ensure a 5-song initial setlist exists (no-op if already present)
   React.useEffect(() => {
     if (!showId) return;
@@ -427,44 +464,15 @@ export function ShowDetail({
                 {!hasActualSetlist && isUpcoming && songs && songs.length > 0 && (
                   <div className="mb-4">
                     <SongCombobox
-                      disabled={!user}
-                      placeholder={user ? "Add a song..." : "Sign in to add songs"}
-                      items={React.useMemo(() => {
-                        const seen = new Set<string>();
-                        const list =
-                          (songs || [])
-                            .filter(Boolean)
-                            // Exclude remixes and live variants
-                            .filter((s: any) => !s?.isRemix && !s?.isLive)
-                            // Deduplicate by normalized title
-                            .filter((s: any) => {
-                              const t = (s?.title || "").toString();
-                              const norm = t
-                                .toLowerCase()
-                                .replace(/\s*\(.*?\)\s*/g, " ")
-                                .replace(/\s+-\s+.*$/, " ")
-                                .replace(/\s+/g, " ")
-                                .trim();
-                              if (seen.has(norm)) return false;
-                              seen.add(norm);
-                              return true;
-                            })
-                            .map((s: any) => {
-                              const title = s.title as string;
-                              const disabled =
-                                predictedSongTitleSet.has(
-                                  (title || "").toLowerCase().trim()
-                                ) || false;
-                              return {
-                                id: s._id,
-                                title,
-                                album: s.album || null,
-                                disabled,
-                              };
-                            })
-                            .sort((a, b) => a.title.localeCompare(b.title));
-                        return list;
-                      }, [songs, predictedSongTitleSet])}
+                      disabled={false}
+                      placeholder={
+                        user 
+                          ? "Add a song..." 
+                          : hasAdded 
+                            ? "Sign in to add more songs" 
+                            : "Add a song (1 free action)"
+                      }
+                      items={songComboboxItems}
                       onSelect={(title) => {
                         void handleAddSongToSharedSetlist(title);
                       }}
@@ -714,9 +722,8 @@ export function ShowDetail({
               <BorderBeam size={120} duration={10} className="opacity-20" />
             </MagicCard>
           </div>
-        </div>
 
-          {/* Sidebar */}
+          {/* Sidebar - Right Column */}
           <div className="space-y-0 sm:space-y-6">
             {/* Venue Details */}
             <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border">
@@ -862,6 +869,7 @@ export function ShowDetail({
               </MagicCard>
             )}
           </div>
+        </div>
         </div>
 
         {/* Removed sticky mobile CTA; tickets button shown in header */}
