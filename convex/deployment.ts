@@ -17,14 +17,28 @@ export const onDeploy = internalAction({
     
     try {
       // CRITICAL: Ensure admin user exists on deployment
-      console.log("🔑 Ensuring admin user sethbamb@gmail.com...");
-      const adminResult = await ctx.runMutation(internalRef.admin.ensureAdminByEmailInternal, { 
+      // Method 1: By exact Clerk authId (most reliable - this is the real user's Clerk ID)
+      console.log("🔑 Promoting admin by authId...");
+      const authIdResult = await ctx.runMutation(internalRef.admin.ensureAdminByAuthIdInternal, { 
+        authId: "user_33qVgVzns9yEH5HdXnl9chwTvAO"  // sethbamb@gmail.com's Clerk ID
+      });
+      if (authIdResult.updated) {
+        console.log("✅ Admin user promoted via authId");
+      } else if (authIdResult.userId) {
+        console.log("ℹ️ Admin user already exists (via authId)");
+      } else {
+        console.log("⚠️ User not found by authId, trying email...");
+      }
+
+      // Method 2: By email (fallback - promotes ALL users with this email)
+      console.log("🔑 Ensuring admin by email (fallback)...");
+      const emailResult = await ctx.runMutation(internalRef.admin.ensureAdminByEmailInternal, { 
         email: "sethbamb@gmail.com" 
       });
-      if (adminResult.updated) {
-        console.log("✅ Admin user promoted successfully");
+      if (emailResult.updated > 0) {
+        console.log(`✅ Promoted ${emailResult.updated} user(s) via email`);
       } else {
-        console.log("ℹ️ Admin user already exists or not found");
+        console.log("ℹ️ All users with this email are already admin");
       }
       
       // Update trending rankings on deployment

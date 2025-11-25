@@ -226,17 +226,60 @@ export const testSpotifyClientCredentials = action({
 });
 
 // Internal: Ensure a user is admin by email (no auth required, for deploy scripts)
+// IMPORTANT: This updates ALL users with the given email to handle duplicates
 export const ensureAdminByEmailInternal = internalMutation({
   args: { email: v.string() },
-  returns: v.object({ success: v.boolean(), updated: v.boolean() }),
+  returns: v.object({ success: v.boolean(), updated: v.number(), userIds: v.array(v.id("users")) }),
   handler: async (ctx, args) => {
-    const existing = await ctx.runQuery(internalRef.users.getByEmailCaseInsensitive, { email: args.email });
-    if (!existing) return { success: true, updated: false };
-    if (existing.role !== "admin") {
-      await ctx.runMutation(internalRef.users.setUserRoleById, { userId: existing._id, role: "admin" });
-      return { success: true, updated: true };
+    // Find ALL users with this email (case-insensitive)
+    const users = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email.toLowerCase()))
+      .collect();
+
+    if (users.length === 0) {
+      console.log(`⚠️ No users found with email ${args.email}`);
+      return { success: true, updated: 0, userIds: [] };
     }
-    return { success: true, updated: false };
+
+    const updatedIds: Id<"users">[] = [];
+    for (const user of users) {
+      if (user.role !== "admin") {
+        await ctx.db.patch(user._id, { role: "admin" });
+        console.log(`✅ Promoted user ${user._id} (authId: ${user.authId}) to admin`);
+        updatedIds.push(user._id);
+      } else {
+        console.log(`ℹ️ User ${user._id} (authId: ${user.authId}) is already admin`);
+      }
+    }
+
+    return { success: true, updated: updatedIds.length, userIds: updatedIds };
+  },
+});
+
+// Internal: Ensure a user is admin by Clerk authId (most precise method)
+export const ensureAdminByAuthIdInternal = internalMutation({
+  args: { authId: v.string() },
+  returns: v.object({ success: v.boolean(), updated: v.boolean(), userId: v.optional(v.id("users")) }),
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth_id", (q) => q.eq("authId", args.authId))
+      .first();
+
+    if (!user) {
+      console.log(`⚠️ No user found with authId ${args.authId}`);
+      return { success: true, updated: false };
+    }
+
+    if (user.role === "admin") {
+      console.log(`ℹ️ User ${user.email} (${user._id}) is already admin`);
+      return { success: true, updated: false, userId: user._id };
+    }
+
+    await ctx.db.patch(user._id, { role: "admin" });
+    console.log(`✅ Promoted user ${user.email} (${user._id}) to admin via authId`);
+    return { success: true, updated: true, userId: user._id };
   },
 });
 
@@ -544,7 +587,7 @@ export const syncTrending = action({
   }),
   handler: async (ctx) => {
     // Check admin permissions
-    const user = await ctx.runQuery(api.auth.loggedInUser);
+    const user: any = await ctx.runQuery(api.auth.loggedInUser);
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
