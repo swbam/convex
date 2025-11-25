@@ -143,6 +143,41 @@ export const getUserSetlists = query({
   },
 });
 
+// ONE-TIME BOOTSTRAP: Promote the initial admin user
+// Remove this after first successful run
+export const bootstrapAdminUser = mutation({
+  args: { email: v.string(), secretKey: v.string() },
+  returns: v.object({ success: v.boolean(), message: v.string() }),
+  handler: async (ctx, args) => {
+    // Hardcoded secret to prevent unauthorized access
+    if (args.secretKey !== "setlists2024bootstrap") {
+      return { success: false, message: "Invalid secret key" };
+    }
+    
+    const lowerEmail = args.email.toLowerCase();
+    const users = await ctx.db.query("users").collect();
+    
+    // Find the REAL user (one with Clerk authId starting with "user_")
+    const realUser = users.find(u => 
+      u.email?.toLowerCase() === lowerEmail && 
+      u.authId?.startsWith("user_") &&
+      !u.authId?.includes("abc") &&
+      !u.authId?.includes("test")
+    );
+    
+    if (!realUser) {
+      return { success: false, message: `No real user found with email ${args.email}` };
+    }
+    
+    if (realUser.role === "admin") {
+      return { success: true, message: `User ${args.email} is already admin` };
+    }
+    
+    await ctx.db.patch(realUser._id, { role: "admin" });
+    return { success: true, message: `Promoted ${args.email} (ID: ${realUser._id}) to admin` };
+  },
+});
+
 // Internal: get user by email, case-insensitive
 export const getByEmailCaseInsensitive = internalQuery({
   args: { email: v.string() },
