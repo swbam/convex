@@ -33,16 +33,39 @@ import {
 export function AdminDashboard() {
   const navigate = useNavigate();
   const { user: _clerkUser } = useUser();
+  
+  // CRITICAL: Check admin status FIRST - this query doesn't require admin access
   const isAdmin = useQuery((api as any).admin.isCurrentUserAdmin);
   const logged = useQuery((api as any).auth.loggedInUser);
-  const stats = useQuery((api as any).admin.getAdminStats);
-  const health = useQuery((api as any).admin.getSystemHealth);
-  const flagged = useQuery((api as any).admin.getFlaggedContent, {});
-  const users = useQuery((api as any).admin.getAllUsers, { limit: 50 });
-  const cronSettings = useQuery((api as any).cronSettings.list);
-  const recentActivity = useQuery((api as any).admin.getRecentActivity, { limit: 50 });
+  
+  // CRITICAL: Only fetch admin data AFTER confirming user is admin
+  // Use "skip" to conditionally run these queries
+  const stats = useQuery(
+    (api as any).admin.getAdminStats,
+    isAdmin === true ? {} : "skip"
+  );
+  const health = useQuery(
+    (api as any).admin.getSystemHealth,
+    isAdmin === true ? {} : "skip"
+  );
+  const flagged = useQuery(
+    (api as any).admin.getFlaggedContent,
+    isAdmin === true ? {} : "skip"
+  );
+  const users = useQuery(
+    (api as any).admin.getAllUsers,
+    isAdmin === true ? { limit: 50 } : "skip"
+  );
+  const cronSettings = useQuery(
+    (api as any).cronSettings.list,
+    isAdmin === true ? {} : "skip"
+  );
+  const recentActivity = useQuery(
+    (api as any).admin.getRecentActivity,
+    isAdmin === true ? { limit: 50 } : "skip"
+  );
   const bulkDeleteFlagged = useAction((api as any).admin.bulkDeleteFlagged);
-  const updateUserRole = useMutation((api as any).admin.updateUserRole); // New for roles
+  const updateUserRole = useMutation((api as any).admin.updateUserRole);
   const resolveFlag = useMutation((api as any).admin.resolveFlag);
   const dismissFlag = useMutation((api as any).admin.dismissFlag);
   const deleteFlaggedContent = useMutation((api as any).admin.deleteFlaggedContent);
@@ -53,9 +76,18 @@ export function AdminDashboard() {
   const syncTrending = useAction((api as any).admin.syncTrending);
   const syncTrendingArtists = useAction((api as any).admin.syncTrendingArtists);
   const syncTrendingShows = useAction((api as any).admin.syncTrendingShows);
-  const activeSyncJobs = useQuery((api as any).syncJobs.getActive, {});
-  const recentErrors = useQuery((api as any).admin.errorMonitoring.getRecentErrors, { limit: 5, onlyUnresolved: true });
-  const errorStats = useQuery((api as any).admin.errorMonitoring.getErrorStats);
+  const activeSyncJobs = useQuery(
+    (api as any).syncJobs.getActive,
+    isAdmin === true ? {} : "skip"
+  );
+  const recentErrors = useQuery(
+    (api as any).admin.errorMonitoring.getRecentErrors,
+    isAdmin === true ? { limit: 5, onlyUnresolved: true } : "skip"
+  );
+  const errorStats = useQuery(
+    (api as any).admin.errorMonitoring.getErrorStats,
+    isAdmin === true ? {} : "skip"
+  );
   
   // Setlist sync actions
   const triggerSetlistSync = useAction((api as any).admin.testTriggerSetlistSync);
