@@ -301,6 +301,7 @@ export const getFailedImports = query({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx) => {
+    await requireAdmin(ctx); // SECURITY: Admin-only access to failed imports
     return await ctx.db
       .query("syncJobs")
       .withIndex("by_status", (q) => q.eq("status", "failed"))
