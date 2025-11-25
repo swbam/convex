@@ -6,6 +6,7 @@
 
 import { query, mutation } from "../_generated/server";
 import { v } from "convex/values";
+import { requireAdmin } from "../admin";
 
 export const getRecentErrors = query({
   args: {
@@ -26,6 +27,7 @@ export const getRecentErrors = query({
     sentToSentry: v.optional(v.boolean()),
   })),
   handler: async (ctx, args) => {
+    await requireAdmin(ctx); // SECURITY: Admin-only access to error logs
     const limit = args.limit || 100;
     
     let query = ctx.db
@@ -66,6 +68,7 @@ export const getErrorStats = query({
     last24Hours: v.number(),
   }),
   handler: async (ctx) => {
+    await requireAdmin(ctx); // SECURITY: Admin-only access to error stats
     const allErrors = await ctx.db
       .query("errorLogs")
       .collect();
@@ -111,6 +114,7 @@ export const markResolved = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdmin(ctx); // SECURITY: Admin-only
     await ctx.db.patch(args.errorId, {
       resolved: true,
     });
@@ -124,6 +128,7 @@ export const markSentToSentry = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdmin(ctx); // SECURITY: Admin-only
     await ctx.db.patch(args.errorId, {
       sentToSentry: true,
     });
@@ -137,6 +142,7 @@ export const deleteError = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdmin(ctx); // SECURITY: Admin-only
     await ctx.db.delete(args.errorId);
     return null;
   },

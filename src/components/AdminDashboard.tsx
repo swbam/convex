@@ -95,7 +95,7 @@ export function AdminDashboard() {
   const backfillSetlists = useAction((api as any).admin.testBackfillMissingSetlists);
   const resyncCatalogs = useAction((api as any).admin.resyncArtistCatalogs);
   const importTrending = useAction((api as any).admin.testImportTrendingFromTicketmaster);
-  const updateCron = useMutation((api as any).admin.updateCronSetting);
+  const updateCron = useMutation((api as any).cronSettings.update);
   const promoteByEmail = useMutation((api as any).admin.promoteUserByEmail);
   const setClerkRoleByEmail = useAction((api as any).admin.setClerkRoleByEmail);
   const testSpotifyClient = useAction((api as any).admin.testSpotifyClientCredentials);

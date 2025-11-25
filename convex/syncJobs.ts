@@ -1,6 +1,7 @@
 import { query, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { requireAdmin } from "./admin";
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -50,11 +51,12 @@ export const getVenueByIdInternal = internalQuery({
   },
 });
 
-// Get active sync jobs for progress display
+// Get active sync jobs for progress display (admin-only)
 export const getActive = query({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx) => {
+    await requireAdmin(ctx); // SECURITY: Admin-only access to sync jobs
     const activeJobs = await ctx.db
       .query("syncJobs")
       .withIndex("by_status", (q) => q.eq("status", "running"))
