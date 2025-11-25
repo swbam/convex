@@ -16,6 +16,17 @@ export const onDeploy = internalAction({
     console.log("🚀 Running deployment tasks...");
     
     try {
+      // CRITICAL: Ensure admin user exists on deployment
+      console.log("🔑 Ensuring admin user sethbamb@gmail.com...");
+      const adminResult = await ctx.runMutation(internalRef.admin.ensureAdminByEmailInternal, { 
+        email: "sethbamb@gmail.com" 
+      });
+      if (adminResult.updated) {
+        console.log("✅ Admin user promoted successfully");
+      } else {
+        console.log("ℹ️ Admin user already exists or not found");
+      }
+      
       // Update trending rankings on deployment
       console.log("📊 Updating trending rankings...");
       await ctx.runAction(internalRef.maintenance.syncTrendingData, {});
