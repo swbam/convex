@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, Users, MapPin, Music, Sparkles } from "lucide-react";
+import { TrendingUp, Users, MapPin, Music } from "lucide-react";
 import { SearchBar } from "./SearchBar";
 import { Id } from "../../convex/_generated/dataModel";
 import { ArtistCardSkeleton, ShowCardSkeleton } from "./LoadingSkeleton";
@@ -15,26 +15,27 @@ interface PublicDashboardProps {
   navigate: (path: string) => void;
 }
 
-export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, navigate }: PublicDashboardProps) {
+export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardProps) {
   const navigateTo = useNavigate();
 
-  // Load trending data directly from the optimized trending system
+  // Load trending data
   const dbTrendingShowsResult = useQuery(api.trending.getTrendingShows, { limit: 20 });
   const dbTrendingArtistsResult = useQuery(api.trending.getTrendingArtists, { limit: 20 });
   
-  // Extract page arrays from paginated results with robust guards
+  // Extract page arrays with robust guards
   const dbTrendingShows = React.useMemo(() => {
-    if (dbTrendingShowsResult === undefined) return undefined; // loading
+    if (dbTrendingShowsResult === undefined) return undefined;
     if (dbTrendingShowsResult === null) return [];
     return Array.isArray(dbTrendingShowsResult.page) ? dbTrendingShowsResult.page : [];
   }, [dbTrendingShowsResult]);
+  
   const dbTrendingArtists = React.useMemo(() => {
-    if (dbTrendingArtistsResult === undefined) return undefined; // loading
+    if (dbTrendingArtistsResult === undefined) return undefined;
     if (dbTrendingArtistsResult === null) return [];
     return Array.isArray(dbTrendingArtistsResult.page) ? dbTrendingArtistsResult.page : [];
   }, [dbTrendingArtistsResult]);
 
-  // Extra safety: lightweight dedupe on the client
+  // Dedupe utility
   const dedupe = (arr: any[], keyFn: (x: any) => string) => {
     const seen = new Set<string>();
     const out: any[] = [];
@@ -59,15 +60,12 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
 
   const isLoading = dbTrendingShows === undefined || dbTrendingArtists === undefined;
 
-  // Animation variants for stagger effect
+  // Animation variants
   const heroVariants = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.15,
-        delayChildren: 0.1,
-      }
+      transition: { staggerChildren: 0.15, delayChildren: 0.1 }
     }
   };
 
@@ -76,10 +74,7 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
     show: { 
       opacity: 1, 
       y: 0,
-      transition: {
-        duration: 0.6,
-        ease: [0.16, 1, 0.3, 1]
-      }
+      transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
     }
   };
 
@@ -87,9 +82,7 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.08,
-      }
+      transition: { staggerChildren: 0.08 }
     }
   };
 
@@ -98,106 +91,91 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
     show: { 
       opacity: 1, 
       y: 0,
-      transition: {
-        duration: 0.5,
-        ease: [0.16, 1, 0.3, 1]
-      }
+      transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] }
     }
   };
 
   return (
     <div className="w-full">
-      {/* Hero Section with Search - Premium Dark Landing Page */}
+      {/* Hero Section with Search */}
       <motion.section 
-        className="relative w-full py-16 md:py-24 overflow-hidden"
+        className="relative w-full pt-8 pb-10 md:pt-12 md:pb-14"
         initial="hidden"
         animate="show"
         variants={heroVariants}
       >
-        {/* Subtle monochrome gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] via-transparent to-transparent pointer-events-none" />
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto text-center space-y-4">
+            <motion.h1 
+              variants={itemVariants}
+              className="text-2xl md:text-3xl lg:text-4xl font-bold leading-tight gradient-text"
+            >
+              Crowdsourced Concert Setlists
+            </motion.h1>
+            
+            <motion.p 
+              variants={itemVariants}
+              className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto"
+            >
+              Search artists, explore upcoming concerts, and vote on predicted setlists
+            </motion.p>
         
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-4xl mx-auto text-center space-y-6">
-            {/* Headline with stagger animation */}
-            <div className="space-y-4">
-           
-              
-              <motion.h1 
-                variants={itemVariants}
-                className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight gradient-text"
-              >
-                Crowdsourced Concert Setlists
-          
-              </motion.h1>
-              
-              <motion.p 
-                variants={itemVariants}
-                className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto"
-              >
-                Search trending artists, explore upcoming concerts, and vote on predicted setlists
-              </motion.p>
-          </div>
-          
-            {/* Search Bar - Centered with glass effect */}
+            {/* Search Bar */}
             <motion.div 
               variants={itemVariants}
-              className="max-w-2xl mx-auto pt-4 relative z-[100]"
+              className="max-w-md mx-auto pt-2 relative z-[100]"
             >
-              <div className="glass-card rounded-2xl p-1 shadow-elevated">
-                <SearchBar 
-                  onResultClick={(type, id, slug) => {
-                    if (type === 'artist') {
-                      navigateTo(`/artists/${slug || id}`);
-                    } else if (type === 'show') {
-                      navigateTo(`/shows/${slug || id}`);
-                    } else if (type === 'venue') {
-                      navigateTo(`/venues/${slug || id}`);
-                    }
-                  }}
-                />
-              </div>
+              <SearchBar 
+                onResultClick={(type, id, slug) => {
+                  if (type === 'artist') {
+                    navigateTo(`/artists/${slug || id}`);
+                  } else if (type === 'show') {
+                    navigateTo(`/shows/${slug || id}`);
+                  } else if (type === 'venue') {
+                    navigateTo(`/venues/${slug || id}`);
+                  }
+                }}
+              />
             </motion.div>
           </div>
         </div>
       </motion.section>
 
       {/* Content Sections */}
-      <div className="container mx-auto px-4 space-y-16 pb-16">
+      <div className="container mx-auto px-4 space-y-12 pb-16">
         
-        {/* Trending Artists Section */}
+        {/* Trending Artists */}
         <motion.section
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, margin: "-100px" }}
           variants={containerVariants}
         >
-          <motion.div variants={itemVariants} className="flex items-center justify-between mb-8">
+          <motion.div variants={itemVariants} className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-2xl bg-secondary flex items-center justify-center border border-border">
-                <Users className="h-6 w-6 text-foreground/80" />
-            </div>
-            <div>
-                <h2 className="text-2xl md:text-3xl font-bold text-foreground">Trending Artists</h2>
-                <p className="text-sm text-muted-foreground">Most popular artists with upcoming shows</p>
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-secondary flex items-center justify-center border border-border">
+                <Users className="h-5 w-5 sm:h-6 sm:w-6 text-foreground/80" />
+              </div>
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-foreground">Trending Artists</h2>
+                <p className="text-xs sm:text-sm text-muted-foreground">Popular artists with upcoming shows</p>
               </div>
             </div>
           </motion.div>
           
-          <motion.div variants={containerVariants} className="relative">
+          <motion.div variants={containerVariants}>
             {isLoading ? (
-              <div className="grid grid-cols-2 gap-3">
-                {[...Array(6)].map((_, i) => <ArtistCardSkeleton key={i} />)}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+                {[...Array(5)].map((_, i) => <ArtistCardSkeleton key={i} />)}
               </div>
             ) : (trendingArtists as any[])?.length === 0 ? (
-              <div className="col-span-2 w-full flex flex-col items-center justify-center py-16 text-center min-h-[300px]">
-                <Music className="h-16 w-16 text-gray-800 mb-4" />
-                <p className="text-muted-foreground text-lg">No trending artists yet</p>
-                <p className="text-muted-foreground text-sm mt-2">Artists will appear here once data is synced</p>
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Music className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground">No trending artists yet</p>
               </div>
             ) : (
-              <div className="overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20 pb-4">
-                <div className="grid grid-rows-2 grid-flow-col gap-4 w-max">
+              <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border pb-2">
+                <div className="grid grid-rows-2 grid-flow-col gap-3 sm:gap-4 w-max">
                   {(trendingArtists as any[]).map((artist: any, index: number) => {
                     const artistId = artist?._id || artist?.artistId;
                     const slug = artist?.slug 
@@ -210,15 +188,10 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
                       <motion.div
                         key={`${artistId}-${index}`}
                         variants={cardVariants}
-                        initial="hidden"
-                        whileInView="show"
-                        viewport={{ once: true, margin: "-50px" }}
                       >
                         <ArtistCard 
                           artist={artist} 
-                          onClick={() => {
-                            onArtistClick(artistId || slug || artist.ticketmasterId);
-                          }} 
+                          onClick={() => onArtistClick(artistId || slug || artist.ticketmasterId)} 
                         />
                       </motion.div>
                     );
@@ -229,60 +202,53 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
           </motion.div>
         </motion.section>
 
-        {/* Trending Shows Section */}
+        {/* Upcoming Shows */}
         <motion.section
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, margin: "-100px" }}
           variants={containerVariants}
         >
-          <motion.div variants={itemVariants} className="flex items-center justify-between mb-8">
+          <motion.div variants={itemVariants} className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-2xl bg-secondary flex items-center justify-center border border-border">
-                <TrendingUp className="h-6 w-6 text-foreground/80" />
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-secondary flex items-center justify-center border border-border">
+                <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-foreground/80" />
               </div>
-          <div>
-                <h2 className="text-2xl md:text-3xl font-bold text-foreground">Top Shows</h2>
-                <p className="text-sm text-muted-foreground">Most popular upcoming concerts</p>
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-foreground">Upcoming Shows</h2>
+                <p className="text-xs sm:text-sm text-muted-foreground">Popular upcoming concerts</p>
               </div>
             </div>
           </motion.div>
 
-          {/* Shows Grid with stagger animation */}
           <motion.div variants={containerVariants}>
             {isLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {[...Array(8)].map((_, i) => <ShowCardSkeleton key={i} />)}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+                {[...Array(5)].map((_, i) => <ShowCardSkeleton key={i} />)}
               </div>
             ) : (trendingShows as any[])?.length === 0 ? (
-              <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
-                <Music className="h-16 w-16 text-gray-800 mb-4" />
-                <p className="text-muted-foreground text-lg">No shows available</p>
-                <p className="text-muted-foreground text-sm mt-2">Check back soon</p>
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Music className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground">No shows available</p>
               </div>
             ) : (
-              <div className="overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20 pb-4">
-                <div className="grid grid-rows-2 grid-flow-col gap-4 w-max">
-                  {(trendingShows as any[]).map((show: any, index: number) => {
-                    return (
-                      <motion.div
-                        key={`${show._id || show.showId}-${index}`}
-                        variants={cardVariants}
-                        initial="hidden"
-                        whileInView="show"
-                        viewport={{ once: true, margin: "-50px" }}
-                      >
-                        <ShowCard
-                          show={show}
-                          onClick={() => {
-                            const showId = show._id || show.showId;
-                            const slug = show.slug || show.cachedTrending?.showSlug;
-                            onShowClick(showId || slug || show.ticketmasterId, slug);
-                          }}
-                        />
-                      </motion.div>
-                    );
-                  })}
+              <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border pb-2">
+                <div className="grid grid-rows-2 grid-flow-col gap-3 sm:gap-4 w-max">
+                  {(trendingShows as any[]).map((show: any, index: number) => (
+                    <motion.div
+                      key={`${show._id || show.showId}-${index}`}
+                      variants={cardVariants}
+                    >
+                      <ShowCard
+                        show={show}
+                        onClick={() => {
+                          const showId = show._id || show.showId;
+                          const slug = show.slug || show.cachedTrending?.showSlug;
+                          onShowClick(showId || slug || show.ticketmasterId, slug);
+                        }}
+                      />
+                    </motion.div>
+                  ))}
                 </div>
               </div>
             )}
@@ -293,51 +259,42 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
   );
 }
 
-// Premium Artist Card - Fully Clickable with Glass Morphism (Mobile Optimized)
-function ArtistCard({ artist, onClick }: {
-  artist: any;
-  onClick: () => void;
-}) {
+// Artist Card - Compact and consistent
+function ArtistCard({ artist, onClick }: { artist: any; onClick: () => void }) {
   return (
     <motion.div 
-      className="w-40 sm:w-44 md:w-48 lg:w-56 xl:w-64 flex-shrink-0 snap-start cursor-pointer transform-gpu will-change-transform"
+      className="w-36 sm:w-40 md:w-44 flex-shrink-0 cursor-pointer"
       onClick={onClick}
-      whileHover={{ y: -6, transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } }}
+      whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="glass-card glass-card-hover rounded-xl sm:rounded-2xl overflow-hidden card-lift shadow-elevated shadow-elevated-hover">
-        {/* Artist Image - Square aspect ratio */}
+      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated">
         <div className="relative w-full aspect-square overflow-hidden">
           {artist.images?.[0] ? (
-            <motion.img 
+            <img 
               src={artist.images[0]} 
               alt={artist.name}
-              className="w-full h-full object-cover transform-gpu will-change-transform"
-              whileHover={{ scale: 1.05 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-white/10 dark:to-white/5 flex items-center justify-center">
-              <span className="text-muted-foreground dark:text-foreground/80 font-bold text-xl sm:text-2xl md:text-3xl">
+            <div className="w-full h-full bg-gradient-to-br from-secondary to-secondary/50 flex items-center justify-center">
+              <span className="text-foreground/60 font-bold text-xl">
                 {(typeof artist?.name === 'string' && artist.name.length > 0 ? artist.name : '??').slice(0, 2).toUpperCase()}
               </span>
             </div>
           )}
-          {/* Gradient overlay for text readability */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
         </div>
-
-        {/* Content */}
-        <div className="p-2.5 sm:p-3 md:p-4 space-y-0.5 sm:space-y-1">
-          <h3 className="text-foreground font-bold text-xs sm:text-sm md:text-base leading-tight line-clamp-1 group-hover:shimmer-text transition-all">
+        <div className="p-2.5 sm:p-3">
+          <h3 className="text-foreground font-semibold text-xs sm:text-sm line-clamp-1">
             {artist.name}
           </h3>
-          <div className="flex items-center justify-between gap-1">
+          <div className="flex items-center justify-between mt-1">
             <p className="text-muted-foreground text-[10px] sm:text-xs">
               {artist.upcomingShowsCount || 0} shows
             </p>
             {artist.genres?.[0] && (
-              <span className="text-[9px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground border border-border truncate max-w-[60px] sm:max-w-none">
+              <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full bg-secondary/50 text-muted-foreground truncate max-w-[50px]">
                 {artist.genres[0]}
               </span>
             )}
@@ -348,69 +305,56 @@ function ArtistCard({ artist, onClick }: {
   );
 }
 
-// Premium Show Card - Fully Clickable with Glass Morphism (Mobile Optimized)
-function ShowCard({
-  show,
-  onClick,
-}: {
-  show: any;
-  onClick: () => void;
-}) {
+// Show Card - Compact and consistent
+function ShowCard({ show, onClick }: { show: any; onClick: () => void }) {
   const showDate = new Date(show.date);
 
   return (
     <motion.div 
-      className="w-40 sm:w-44 md:w-48 lg:w-56 xl:w-64 flex-shrink-0 snap-start cursor-pointer transform-gpu will-change-transform"
+      className="w-36 sm:w-40 md:w-44 flex-shrink-0 cursor-pointer"
       onClick={onClick}
-      whileHover={{ y: -6, transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } }}
+      whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="glass-card glass-card-hover rounded-xl sm:rounded-2xl overflow-hidden card-lift shadow-elevated shadow-elevated-hover">
-        {/* Show Image - Square aspect ratio */}
+      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated">
         <div className="relative w-full aspect-square overflow-hidden">
           {(() => {
             const imgSrc = show?.artist?.images?.[0] || show?.artistImage || show?.cachedTrending?.artistImage;
             return imgSrc ? (
-            <motion.img
-              src={imgSrc}
-              alt={show.artist?.name || show.artistName}
-              className="w-full h-full object-cover transform-gpu will-change-transform"
-              whileHover={{ scale: 1.05 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-white/10 dark:to-white/5 flex items-center justify-center">
-              <span className="text-muted-foreground dark:text-foreground/80 font-bold text-xl sm:text-2xl md:text-3xl">
-                {((show?.artist?.name || show?.artistName || '??') as string).slice(0, 2).toUpperCase()}
-              </span>
-            </div>
-          );})()}
-          {/* Gradient overlay for text readability */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+              <img
+                src={imgSrc}
+                alt={show.artist?.name || show.artistName}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-secondary to-secondary/50 flex items-center justify-center">
+                <span className="text-foreground/60 font-bold text-xl">
+                  {((show?.artist?.name || show?.artistName || '??') as string).slice(0, 2).toUpperCase()}
+                </span>
+              </div>
+            );
+          })()}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
           
-          {/* Date Badge with glass effect */}
-          <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
-            <div className="glass-card rounded-md sm:rounded-lg px-1.5 py-0.5 sm:px-2 sm:py-1">
-              <p className="text-foreground text-[10px] sm:text-xs font-bold">
+          {/* Date Badge */}
+          <div className="absolute top-1.5 right-1.5">
+            <div className="bg-background/90 backdrop-blur-sm rounded-md px-1.5 py-0.5 border border-border/50">
+              <p className="text-foreground text-[10px] font-semibold">
                 {showDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-2.5 sm:p-3 md:p-4 space-y-0.5 sm:space-y-1">
-          <h3 className="text-foreground font-bold text-xs sm:text-sm md:text-base leading-tight line-clamp-1 group-hover:shimmer-text transition-all">
+        <div className="p-2.5 sm:p-3">
+          <h3 className="text-foreground font-semibold text-xs sm:text-sm line-clamp-1">
             {show.artist?.name || show.artistName}
           </h3>
           {show.venue && (
-            <div className="space-y-0">
+            <div className="mt-1">
               <p className="text-muted-foreground text-[10px] sm:text-xs flex items-center gap-1">
-                <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 flex-shrink-0" />
-                <span className="truncate">{show.venue.name}</span>
-              </p>
-              <p className="text-muted-foreground/70 text-[9px] sm:text-xs pl-3.5 sm:pl-4 truncate">
-                {show.venue.city}{show.venue.state ? `, ${show.venue.state}` : ''}
+                <MapPin className="h-2.5 w-2.5 flex-shrink-0" />
+                <span className="truncate">{show.venue.city}{show.venue.state ? `, ${show.venue.state}` : ''}</span>
               </p>
             </div>
           )}
