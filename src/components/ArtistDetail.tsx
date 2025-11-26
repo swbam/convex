@@ -154,21 +154,20 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       >
-        {/* Hero Header - Consistent with ShowHeader */}
-        <div className="relative w-full overflow-hidden bg-card rounded-none sm:rounded-2xl">
+        {/* Hero Header - Full width, no border radius */}
+        <div className="relative w-full overflow-hidden bg-card">
           {/* Background Image with Overlay */}
           {heroImage && (
             <div className="absolute inset-0 z-0">
-              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-30 dark:opacity-30 blur-sm scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-b from-background/50 via-background/70 to-background/90 dark:from-black/50 dark:via-black/70 dark:to-black/90" />
+              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-20 dark:opacity-30 blur-sm scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/60 dark:from-black/90 dark:via-black/70 dark:to-black/50" />
             </div>
           )}
 
-          {/* Content */}
-          <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-10">
-            {/* Always side-by-side layout - image left, text right */}
-            <div className="flex flex-row items-center gap-3 sm:gap-5 lg:gap-6 max-w-6xl mx-auto">
-              {/* Artist Image - smaller on mobile */}
+          {/* Content - compact layout */}
+          <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
+            <div className="flex flex-row items-center gap-4 sm:gap-6 max-w-6xl mx-auto">
+              {/* Artist Image */}
               {(avatarImage || heroImage) && (
                 <div className="flex-shrink-0">
                   <a
@@ -181,49 +180,36 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                     <img
                       src={(avatarImage || heroImage)!}
                       alt={artist.name}
-                      className="w-16 h-16 sm:w-24 sm:h-24 lg:w-32 lg:h-32 rounded-lg sm:rounded-xl lg:rounded-2xl object-cover shadow-xl ring-2 ring-border"
+                      className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-lg object-cover shadow-lg ring-1 ring-border"
                     />
                   </a>
                 </div>
               )}
 
-              {/* Info - always left-aligned */}
+              {/* Info */}
               <div className="flex-1 min-w-0">
-                {/* Label */}
-                <p className="text-[9px] sm:text-xs font-semibold text-muted-foreground mb-0.5 sm:mb-1 uppercase tracking-widest">
-                  Artist
-                </p>
-                
                 {/* Artist Name */}
-                <h1 className="text-lg sm:text-2xl lg:text-4xl font-bold text-foreground leading-tight tracking-tight line-clamp-2">
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground leading-tight tracking-tight line-clamp-1">
                   {artist.name}
                 </h1>
 
-                {/* Meta Info */}
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 text-[10px] sm:text-sm text-muted-foreground mt-1 sm:mt-2">
+                {/* Meta Info - single line */}
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground mt-1">
                   {artist.followers && (
-                    <div className="flex items-center gap-0.5 sm:gap-1">
-                      <Users className="h-2.5 w-2.5 sm:h-4 sm:w-4" />
-                      <span className="font-medium">{(artist.followers / 1000000).toFixed(1)}M</span>
+                    <div className="flex items-center gap-1">
+                      <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                      <span>{(artist.followers / 1000000).toFixed(1)}M followers</span>
                     </div>
                   )}
-                  <span className="text-muted-foreground/50">•</span>
-                  <div className="flex items-center gap-0.5 sm:gap-1">
-                    <Calendar className="h-2.5 w-2.5 sm:h-4 sm:w-4" />
-                    <span className="font-medium">
-                      {upcomingShows.length} {upcomingShows.length === 1 ? "show" : "shows"}
-                    </span>
+                  <span className="text-muted-foreground/40">•</span>
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    <span>{upcomingShows.length} upcoming</span>
                   </div>
                   {artist.genres && artist.genres.length > 0 && (
                     <>
-                      <span className="text-muted-foreground/50 hidden sm:inline">•</span>
-                      <div className="hidden sm:flex items-center gap-2">
-                        {(artist.genres || []).slice(0, 2).map((genre: any, idx: number) => (
-                          <span key={idx} className="px-2 py-0.5 bg-secondary backdrop-blur-sm rounded-full text-xs font-medium">
-                            {genre}
-                          </span>
-                        ))}
-                      </div>
+                      <span className="text-muted-foreground/40 hidden sm:inline">•</span>
+                      <span className="hidden sm:inline text-muted-foreground/80">{artist.genres[0]}</span>
                     </>
                   )}
                 </div>
