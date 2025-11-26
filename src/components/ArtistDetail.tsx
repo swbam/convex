@@ -154,17 +154,20 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       >
-        {/* Hero Header - Full Width without horizontal overflow */}
-        <div className="relative w-full overflow-hidden bg-card min-h-[320px] sm:min-h-[420px] max-w-[100vw]">
+        {/* Hero Header - Consistent with ShowHeader */}
+        <div className="relative w-full overflow-hidden bg-card rounded-none sm:rounded-2xl">
+          {/* Background Image with Overlay */}
           {heroImage && (
             <div className="absolute inset-0 z-0">
-              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-40" />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/55 to-black/80" />
+              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-30 blur-sm scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/70 to-black/90" />
             </div>
           )}
 
-          <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-14">
-            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-6">
+          {/* Content */}
+          <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
+            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-6 max-w-6xl mx-auto">
+              {/* Artist Image */}
               {(avatarImage || heroImage) && (
                 <div className="flex-shrink-0">
                   <a
@@ -177,39 +180,50 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                     <img
                       src={(avatarImage || heroImage)!}
                       alt={artist.name}
-                      className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10"
+                      className="w-20 h-20 sm:w-28 sm:h-28 lg:w-36 lg:h-36 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10"
                     />
                   </a>
                 </div>
               )}
 
-              <div className="flex-1 min-w-0 w-full sm:pb-2">
-                <p className="text-xs font-semibold text-white/60 mb-1 sm:mb-2 uppercase tracking-widest">Artist</p>
-                <h1 className="text-2xl sm:text-3xl lg:text-5xl xl:text-6xl font-bold text-white mb-2 sm:mb-3 leading-tight tracking-tight">
+              {/* Info */}
+              <div className="flex-1 min-w-0 w-full text-center sm:text-left sm:pb-1">
+                {/* Label */}
+                <p className="text-[10px] sm:text-xs font-semibold text-white/50 mb-1 uppercase tracking-widest">
+                  Artist
+                </p>
+                
+                {/* Artist Name */}
+                <h1 className="text-xl sm:text-2xl lg:text-4xl xl:text-5xl font-bold text-white leading-tight tracking-tight">
                   {artist.name}
                 </h1>
 
-                <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-white/80">
+                {/* Meta Info */}
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3 text-[11px] sm:text-sm text-white/70 mt-2 sm:mt-3">
                   {artist.followers && (
-                    <div className="flex items-center gap-1.5">
-                      <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <div className="flex items-center gap-1">
+                      <Users className="h-3 w-3 sm:h-4 sm:w-4" />
                       <span className="font-medium">{(artist.followers / 1000000).toFixed(1)}M</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="text-white/30 hidden sm:inline">•</span>
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
                     <span className="font-medium">
                       {upcomingShows.length} {upcomingShows.length === 1 ? "show" : "shows"}
                     </span>
                   </div>
                   {artist.genres && artist.genres.length > 0 && (
-                    <div className="hidden sm:flex items-center gap-2">
-                      {(artist.genres || []).slice(0, 2).map((genre: any, idx: number) => (
-                        <span key={idx} className="px-2.5 py-1 bg-white/10 backdrop-blur-sm rounded-full text-xs font-medium">
-                          {genre}
-                        </span>
-                      ))}
-                    </div>
+                    <>
+                      <span className="text-white/30 hidden sm:inline">•</span>
+                      <div className="hidden sm:flex items-center gap-2">
+                        {(artist.genres || []).slice(0, 2).map((genre: any, idx: number) => (
+                          <span key={idx} className="px-2 py-0.5 bg-white/10 backdrop-blur-sm rounded-full text-xs font-medium">
+                            {genre}
+                          </span>
+                        ))}
+                      </div>
+                    </>
                   )}
                 </div>
               </div>

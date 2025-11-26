@@ -122,22 +122,22 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
   ] as const;
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8 relative z-10">
-      {/* Premium Header */}
+    <div className="container mx-auto px-4 py-6 sm:py-8 space-y-6 sm:space-y-8 relative z-10">
+      {/* Premium Header - Mobile Optimized */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-white/10 bg-card">
-          <div className="relative z-10 p-6 lg:p-8">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-orange-500/30 to-red-500/30 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-orange-500/20">
-                <Flame className="h-7 w-7 text-orange-400" />
+        <MagicCard className="relative overflow-hidden rounded-xl sm:rounded-2xl p-0 border border-white/10 bg-card">
+          <div className="relative z-10 p-4 sm:p-6 lg:p-8">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-orange-500/30 to-red-500/30 rounded-xl sm:rounded-2xl flex items-center justify-center backdrop-blur-sm border border-orange-500/20">
+                <Flame className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-orange-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <h1 className="text-3xl lg:text-4xl font-bold text-white">Trending</h1>
-                <p className="text-gray-400 mt-1">Discover what's hot right now</p>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">Trending</h1>
+                <p className="text-gray-400 text-xs sm:text-sm mt-0.5 sm:mt-1">Discover what's hot right now</p>
               </div>
             </div>
           </div>
@@ -145,25 +145,25 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
         </MagicCard>
       </motion.div>
 
-      {/* Tab Navigation - Premium Pill Style */}
+      {/* Tab Navigation - Mobile Optimized */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
         className="flex justify-center"
       >
-        <div className="inline-flex gap-2 p-1.5 bg-white/5 rounded-2xl backdrop-blur-sm border border-white/10">
+        <div className="inline-flex gap-1 sm:gap-2 p-1 sm:p-1.5 bg-white/5 rounded-xl sm:rounded-2xl backdrop-blur-sm border border-white/10">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 py-2.5 px-5 rounded-xl font-medium transition-all duration-200 ${
+              className={`flex items-center gap-1.5 sm:gap-2 py-2 px-3 sm:py-2.5 sm:px-5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 ${
                 activeTab === tab.id
                   ? 'bg-white/15 text-white shadow-lg border border-white/20'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              <tab.icon className="h-4 w-4" />
+              <tab.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span>{tab.label}</span>
             </button>
           ))}

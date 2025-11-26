@@ -87,22 +87,22 @@ export function Artists({ onArtistClick }: ArtistsProps) {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8 relative z-10">
-      {/* Premium Header */}
+    <div className="container mx-auto px-4 py-6 sm:py-8 space-y-6 sm:space-y-8 relative z-10">
+      {/* Premium Header - Mobile Optimized */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <MagicCard className="relative overflow-hidden rounded-2xl p-0 border border-white/10 bg-card">
-          <div className="relative z-10 p-6 lg:p-8">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-violet-500/30 to-purple-500/30 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-violet-500/20">
-                <Mic className="h-7 w-7 text-violet-400" />
+        <MagicCard className="relative overflow-hidden rounded-xl sm:rounded-2xl p-0 border border-white/10 bg-card">
+          <div className="relative z-10 p-4 sm:p-6 lg:p-8">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-violet-500/30 to-purple-500/30 rounded-xl sm:rounded-2xl flex items-center justify-center backdrop-blur-sm border border-violet-500/20">
+                <Mic className="h-5 w-5 sm:h-6 sm:h-6 lg:h-7 lg:w-7 text-violet-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <h1 className="text-3xl lg:text-4xl font-bold text-white">Artists</h1>
-                <p className="text-gray-400 mt-1">{filteredArtists.length} artists to explore</p>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">Artists</h1>
+                <p className="text-gray-400 text-xs sm:text-sm mt-0.5 sm:mt-1">{filteredArtists.length} artists to explore</p>
               </div>
             </div>
           </div>
@@ -110,26 +110,26 @@ export function Artists({ onArtistClick }: ArtistsProps) {
         </MagicCard>
       </motion.div>
 
-      {/* Search Bar */}
+      {/* Search Bar - Mobile Optimized */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
       >
-        <div className="glass-card rounded-2xl p-1 max-w-lg">
+        <div className="glass-card rounded-xl sm:rounded-2xl p-1 max-w-lg">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+            <Search className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
             <input
               type="text"
-              placeholder="Search artists by name or genre..."
+              placeholder="Search artists..."
               value={searchQuery}
               onChange={handleSearch}
-              className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/30 text-white placeholder-gray-400 text-base"
+              className="w-full pl-10 sm:pl-12 pr-16 sm:pr-4 py-3 sm:py-3.5 bg-white/5 border border-white/10 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/30 text-white placeholder-gray-400 text-sm sm:text-base"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white px-2 py-1 rounded text-sm"
+                className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white px-2 py-1 rounded text-xs sm:text-sm"
               >
                 Clear
               </button>
