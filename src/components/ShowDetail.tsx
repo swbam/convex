@@ -481,32 +481,25 @@ export function ShowDetail({
                 )}
 
                 {hasActualSetlist ? (
-                  <div className="space-y-8">
-                    {/* MAIN: Actual Setlist Performed */}
+                  <div className="space-y-6">
+                    {/* MAIN: Actual Setlist Performed - Clean integrated design */}
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center">
-                            <svg
-                              className="w-5 h-5 text-green-400"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
-                            </svg>
+                            <CheckCircle className="w-5 h-5 text-green-400" />
                           </div>
                           <div>
-                            <h2 className="text-2xl font-bold text-white">
-                              What Actually Happened
+                            <h2 className="text-xl sm:text-2xl font-bold text-white">
+                              Official Setlist
                             </h2>
                             <p className="text-green-400 text-sm">
-                              Official setlist from setlist.fm
+                              from setlist.fm • {(() => {
+                                const predicted = actualSetlistSongs.filter((song: any) =>
+                                  predictedSongTitleSet.has((song?.title ?? "").toLowerCase().trim())
+                                ).length;
+                                return `${predicted}/${actualSetlistSongs.length} predicted`;
+                              })()}
                             </p>
                           </div>
                         </div>
@@ -515,13 +508,14 @@ export function ShowDetail({
                           <div className="text-2xl font-bold text-white">
                             {actualSetlistSongs.length}
                           </div>
-                          <div className="text-sm text-gray-400">
+                          <div className="text-xs text-gray-400">
                             songs played
                           </div>
                         </div>
                       </div>
 
-                      <div className="divide-y divide-white/5 -mx-4 sm:mx-0">
+                      {/* Actual setlist with integrated vote counts */}
+                      <div className="space-y-2">
                         {actualSetlistSongs.map((song: any, index: number) => (
                           <ActualSetlistSongRow
                             key={`actual-${index}`}
@@ -533,72 +527,6 @@ export function ShowDetail({
                         ))}
                       </div>
                     </div>
-
-                    {/* SECONDARY: Complete Fan Requests with Vote Counts */}
-                    {predictionSetlist &&
-                      predictionSetlist.songs &&
-                      predictionSetlist.songs.length > 0 && (
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
-                                <svg
-                                  className="w-5 h-5 text-blue-400"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                                  />
-                                </svg>
-                              </div>
-                              <div>
-                                <h2 className="text-xl font-bold text-white">
-                                  All Fan Requests
-                                </h2>
-                                <p className="text-blue-400 text-sm">
-                                  Complete voting results
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="text-right">
-                              <div className="text-lg font-bold text-white">
-                                {predictionSetlist.songs.length}
-                              </div>
-                              <div className="text-xs text-gray-400">
-                                songs requested
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="divide-y divide-white/5 -mx-4 sm:mx-0">
-                            {(predictionSetlist.songs || [])
-                              .map((s: any) =>
-                                typeof s === "string" ? s : s?.title
-                              )
-                              .filter(Boolean)
-                              .map((songTitle: string, index: number) => (
-                                <FanRequestSongRow
-                                  key={`request-${songTitle}-${index}`}
-                                  songTitle={songTitle}
-                                  index={index}
-                                  predictionSetlistId={predictionSetlistId}
-                                  actualSongTitleSet={actualSongTitleSet}
-                                  user={user}
-                                  voteOnSong={voteOnSong}
-                                  handleVoteAction={handleVoteAction}
-                                  setShowAuthModal={setShowAuthModal}
-                                  anonId={anonId}
-                                />
-                              ))}
-                          </div>
-                        </div>
-                      )}
 
                     {/* Accuracy Summary */}
                     {predictionSetlist &&
@@ -721,10 +649,50 @@ export function ShowDetail({
               </div>
               <BorderBeam size={120} duration={10} className="opacity-20" />
             </MagicCard>
-          </div>
+        </div>
 
           {/* Sidebar - Right Column */}
           <div className="space-y-0 sm:space-y-6">
+            {/* Songs Not Played - Only show after concert with actual setlist */}
+            {hasActualSetlist && predictionSetlist?.songs && (() => {
+              const unplayedSongs = (predictionSetlist.songs as any[])
+                .map((s: any) => typeof s === "string" ? s : s?.title)
+                .filter(Boolean)
+                .filter((title: string) => !actualSongTitleSet.has(title.toLowerCase().trim()));
+              
+              if (unplayedSongs.length === 0) return null;
+              
+              return (
+                <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border">
+                  <div className="px-4 py-4 sm:p-6 bg-card">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center">
+                        <AlertCircle className="h-4 w-4 text-red-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-white">
+                          Not Played
+                        </h3>
+                        <p className="text-xs text-red-400">
+                          {unplayedSongs.length} fan requests missed
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {unplayedSongs.map((songTitle: string, index: number) => (
+                        <UnplayedRequestRow
+                          key={`unplayed-${index}`}
+                          songTitle={songTitle}
+                          predictionSetlistId={predictionSetlistId}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <BorderBeam size={100} duration={8} className="opacity-20" />
+                </MagicCard>
+              );
+            })()}
+
             {/* Venue Details */}
             <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border">
               <div className="px-4 py-4 sm:p-6 bg-card">
@@ -869,7 +837,7 @@ export function ShowDetail({
               </MagicCard>
             )}
           </div>
-        </div>
+          </div>
         </div>
 
         {/* Removed sticky mobile CTA; tickets button shown in header */}
@@ -1071,7 +1039,7 @@ function FanRequestSongRow({
   );
 }
 
-// Actual setlist song row component
+// Actual setlist song row component - Redesigned for integrated vote display
 function ActualSetlistSongRow({
   song,
   index,
@@ -1099,18 +1067,33 @@ function ActualSetlistSongRow({
 
   return (
     <div
-      className={`flex items-center justify-between py-4 px-4 sm:px-0 transition-all duration-150 min-h-[56px] ${
-        wasRequested ? "bg-green-500/5" : ""
+      className={`flex items-center justify-between py-3 px-4 sm:px-2 transition-all duration-150 min-h-[52px] rounded-lg ${
+        wasRequested ? "bg-green-500/10 border border-green-500/20" : "hover:bg-white/5"
       }`}
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        <span
-          className={`text-sm font-bold w-6 text-center ${
-            wasRequested ? "text-green-400" : "text-gray-500"
-          }`}
-        >
-          {index + 1}
-        </span>
+        {/* Song number or checkmark */}
+        {wasRequested ? (
+          <div className="w-7 h-7 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+            <svg
+              className="w-4 h-4 text-green-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </div>
+        ) : (
+          <span className="text-sm font-bold w-7 text-center text-gray-500">
+            {index + 1}
+          </span>
+        )}
 
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-base leading-tight text-white truncate">
@@ -1122,20 +1105,59 @@ function ActualSetlistSongRow({
         </div>
       </div>
 
-      {/* Clean badges - upvote display only, no click for past shows */}
-      <div className="flex items-center gap-2">
+      {/* Right side: badges and vote count */}
+      <div className="flex items-center gap-2 flex-shrink-0">
         {song.encore && (
-          <span className="bg-yellow-500/10 text-yellow-400 text-sm font-medium px-2 py-0.5 rounded-full">
+          <span className="bg-yellow-500/20 text-yellow-400 text-xs font-semibold px-2.5 py-1 rounded-full border border-yellow-500/30">
             Encore
           </span>
         )}
 
-        {wasRequested && voteCount > 0 && (
-          <div className="flex flex-col items-center gap-0.5 text-green-400">
-            <ChevronUp className="h-3.5 w-3.5 fill-current" />
-            <span className="text-xs font-semibold">{voteCount}</span>
+        {wasRequested ? (
+          <div className="flex items-center gap-1.5 bg-green-500/20 px-2.5 py-1 rounded-full border border-green-500/30">
+            <ChevronUp className="h-3.5 w-3.5 text-green-400 fill-current" />
+            <span className="text-sm font-bold text-green-400">{voteCount}</span>
           </div>
+        ) : (
+          <span className="text-xs text-gray-500 bg-white/5 px-2 py-1 rounded-full">
+            surprise
+          </span>
         )}
+      </div>
+    </div>
+  );
+}
+
+// Song that was requested but NOT played - for sidebar
+function UnplayedRequestRow({
+  songTitle,
+  predictionSetlistId,
+}: {
+  songTitle: string;
+  predictionSetlistId?: Id<"setlists">;
+}) {
+  const songVotes = useQuery(
+    api.songVotes.getSongVotes,
+    predictionSetlistId
+      ? { setlistId: predictionSetlistId, songTitle }
+      : "skip"
+  );
+
+  const voteCount = songVotes?.upvotes || 0;
+
+  return (
+    <div className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-red-500/5 border border-red-500/10 hover:bg-red-500/10 transition-colors">
+      <div className="flex items-center gap-2.5 flex-1 min-w-0">
+        <div className="w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+          <svg className="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </div>
+        <span className="text-sm text-gray-300 truncate">{songTitle}</span>
+      </div>
+      <div className="flex items-center gap-1 text-red-400/80 flex-shrink-0">
+        <ChevronUp className="h-3 w-3" />
+        <span className="text-xs font-semibold">{voteCount}</span>
       </div>
     </div>
   );

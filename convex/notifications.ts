@@ -20,7 +20,7 @@ export const getRecipientsForSetlist = internalQuery({
   }),
   handler: async () => {
     // Notifications disabled
-    return { setlist: null, show: null, artist: null, venue: null, recipients: [] };
+      return { setlist: null, show: null, artist: null, venue: null, recipients: [] };
   },
 });
 

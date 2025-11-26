@@ -22,14 +22,13 @@ import { toast } from "sonner";
 
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AdminDashboard } from "./components/AdminDashboard";
-import { TestSuite } from "./components/TestSuite";
 import { AuthGuard } from "./components/AuthGuard";
 import { BackendErrorMonitor } from "./components/BackendErrorMonitor";
 
 import { MagicCard } from "./components/ui/magic-card";
 import { DocsPage } from "./pages/Docs";
 
-type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "activity" | "signin" | "trending" | "profile" | "following" | "predictions" | "admin" | "test" | "docs";
+type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "activity" | "signin" | "trending" | "profile" | "following" | "predictions" | "admin" | "docs";
 
 function App() {
   const location = useLocation();
@@ -393,10 +392,6 @@ function App() {
       case "admin":
         return (
           <AdminDashboard />
-        );
-      case "test":
-        return (
-          <TestSuite />
         );
       case "docs":
         return <DocsPage />;

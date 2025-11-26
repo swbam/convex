@@ -269,7 +269,7 @@ export const ensureAdminByAuthIdInternal = internalMutation({
 
     if (!user) {
       console.log(`⚠️ No user found with authId ${args.authId}`);
-      return { success: true, updated: false };
+    return { success: true, updated: false };
     }
 
     if (user.role === "admin") {

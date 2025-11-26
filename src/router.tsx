@@ -8,8 +8,7 @@ import { SSOCallback } from './pages/SSOCallback';
 import { SpotifyConnectPage } from './pages/SpotifyConnectPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { TermsPage } from './pages/TermsPage';
-import { AdminTest } from './components/AdminTest';
-import { ArtistNotFound } from './components/ArtistNotFound'; // New component
+import { ArtistNotFound } from './components/ArtistNotFound';
 import { ShowNotFound } from './components/ShowNotFound'; // Assume similar for shows
 
 // Error boundary component for 404
@@ -54,14 +53,6 @@ export const router = createBrowserRouter([
   {
     path: '/docs',
     element: <App />,
-  },
-  {
-    path: '/test',
-    element: <App />,
-  },
-  {
-    path: '/admin-test',
-    element: <AdminTest />,
   },
   // Enhanced artist route with error handling
   {

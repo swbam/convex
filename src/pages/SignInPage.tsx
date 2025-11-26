@@ -316,11 +316,12 @@ export function SignInPage() {
             <ShimmerButton
               type="submit"
               disabled={isSubmitting || !email || !password}
-              className="w-full bg-primary/20 hover:bg-primary/30 text-white border-primary/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-primary/60 hover:bg-primary/70 text-white font-semibold border-primary/50 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
               shimmerColor="#ffffff"
               shimmerDuration="2s"
+              background="rgba(var(--primary-rgb), 0.6)"
             >
-              {isSubmitting ? "Signing in..." : "Sign In"}
+              <span className="relative z-10 drop-shadow-sm">{isSubmitting ? "Signing in..." : "Sign In"}</span>
             </ShimmerButton>
           </form>
 
