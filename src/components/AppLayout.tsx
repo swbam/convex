@@ -274,24 +274,21 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Enhanced Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 w-full">
         {/* Desktop top navigation */}
-        <div className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 safe-area-top shadow-sm dark:shadow-apple">
-          <header className="px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 h-14 md:h-16 flex items-center relative z-40">
-            <div className="mx-auto w-full max-w-page-full flex items-center gap-2 sm:gap-3 md:gap-4">
+        <div className="sticky top-0 z-40 border-b border-border bg-background safe-area-top shadow-sm">
+          <header className="px-4 sm:px-6 lg:px-8 h-14 flex items-center relative z-40">
+            <div className="mx-auto w-full max-w-page-full flex items-center gap-4">
               <button onClick={(e)=>{e.preventDefault(); void navigate('/')}} className="flex items-center touch-target flex-shrink-0">
-                <span className="text-2xl md:text-3xl font-bold" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>setlists.live</span>
+                <span className="text-xl sm:text-2xl font-bold text-foreground" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>setlists.live</span>
               </button>
 
-              <nav className="hidden md:flex items-center gap-1 lg:gap-2">
-                <button onClick={()=>void navigate('/')} className={`px-3 lg:px-4 py-2 rounded-md text-responsive-sm font-medium transition-all ${location.pathname==='/'?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Home</button>
-                {isSignedIn && (
-                  <button onClick={()=>void navigate('/')} className={`px-3 lg:px-4 py-2 rounded-md text-responsive-sm font-medium transition-all ${location.pathname==='/' && isSignedIn?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Dashboard</button>
-                )}
-                <button onClick={()=>void navigate('/artists')} className={`px-3 lg:px-4 py-2 rounded-md text-responsive-sm font-medium transition-all ${location.pathname.startsWith('/artists')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Artists</button>
-                <button onClick={()=>void navigate('/shows')} className={`px-3 lg:px-4 py-2 rounded-md text-responsive-sm font-medium transition-all ${location.pathname.startsWith('/shows')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Shows</button>
-                <button onClick={()=>void navigate('/trending')} className={`px-3 lg:px-4 py-2 rounded-md text-responsive-sm font-medium transition-all ${location.pathname.startsWith('/trending')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Trending</button>
+              <nav className="hidden md:flex items-center gap-1">
+                <button onClick={()=>void navigate('/')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${location.pathname==='/'?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Home</button>
+                <button onClick={()=>void navigate('/artists')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${location.pathname.startsWith('/artists')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Artists</button>
+                <button onClick={()=>void navigate('/shows')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${location.pathname.startsWith('/shows')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Shows</button>
+                <button onClick={()=>void navigate('/trending')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${location.pathname.startsWith('/trending')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Trending</button>
                 {/* Admin link - only show for admin users */}
                 {appUser?.appUser?.role === 'admin' && (
-                  <button onClick={()=>void navigate('/admin')} className={`px-3 lg:px-4 py-2 rounded-md text-responsive-sm font-medium transition-all ${location.pathname.startsWith('/admin')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Admin</button>
+                  <button onClick={()=>void navigate('/admin')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${location.pathname.startsWith('/admin')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Admin</button>
                 )}
               </nav>
 
