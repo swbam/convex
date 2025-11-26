@@ -25,8 +25,8 @@ export function DocsPage() {
             <div className="mx-auto w-14 h-14 rounded-2xl bg-red-500/20 flex items-center justify-center mb-4">
               <span className="text-red-400 text-2xl">⛔</span>
             </div>
-            <h1 className="text-2xl font-bold mb-2 text-white">403 – Admins only</h1>
-            <p className="text-gray-400">You don’t have access to API documentation.</p>
+            <h1 className="text-2xl font-bold mb-2 text-foreground">403 – Admins only</h1>
+            <p className="text-muted-foreground">You don’t have access to API documentation.</p>
           </div>
           <BorderBeam size={80} duration={8} className="opacity-20" />
         </MagicCard>
@@ -58,14 +58,14 @@ export function DocsPage() {
   return (
     <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 sm:space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl sm:text-3xl font-bold text-white">API Documentation</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">API Documentation</h1>
       </div>
 
       {/* HTTP Endpoints */}
       <MagicCard className="p-0 rounded-2xl border-0 bg-card">
         <div className="p-6 sm:p-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-white">HTTP Endpoints (Convex)</h2>
+            <h2 className="text-xl font-semibold text-foreground">HTTP Endpoints (Convex)</h2>
             <div className="text-xs text-muted-foreground">Base: {httpBase}</div>
           </div>
 
@@ -78,10 +78,10 @@ export function DocsPage() {
                 </span>
                 <code className="text-sm">/health</code>
               </div>
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 Health check. Returns JSON {"{ status: \"ok\", timestamp }"}.
               </p>
-              <pre className="bg-white/5 border border-white/10 rounded-xl p-3 text-xs overflow-x-auto">
+              <pre className="bg-secondary border border-border rounded-xl p-3 text-xs overflow-x-auto">
 {healthCurl}
               </pre>
               <Button variant="outline" size="sm" onClick={() => copy(healthCurl)}>
@@ -97,10 +97,10 @@ export function DocsPage() {
                 </span>
                 <code className="text-sm">/webhooks/clerk</code>
               </div>
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 Clerk webhooks endpoint (Svix signature headers required). Use for user lifecycle events.
               </p>
-              <pre className="bg-white/5 border border-white/10 rounded-xl p-3 text-xs overflow-x-auto">
+              <pre className="bg-secondary border border-border rounded-xl p-3 text-xs overflow-x-auto">
 {clerkCurl}
               </pre>
               <Button variant="outline" size="sm" onClick={() => copy(clerkCurl)}>
@@ -115,8 +115,8 @@ export function DocsPage() {
       {/* Notes */}
       <MagicCard className="p-0 rounded-2xl border-0 bg-card">
         <div className="p-6 sm:p-8">
-          <h3 className="text-lg font-semibold mb-3 text-white">Notes</h3>
-          <ul className="list-disc list-inside text-sm text-gray-400 space-y-2">
+          <h3 className="text-lg font-semibold mb-3 text-foreground">Notes</h3>
+          <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
             <li>These endpoints are served by your Convex deployment.</li>
             <li>The base URL matches your app’s configured Convex URL.</li>
             <li>Access to these docs is restricted to admin users.</li>

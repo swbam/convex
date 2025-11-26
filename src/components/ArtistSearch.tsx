@@ -107,7 +107,7 @@ export function ArtistSearch({ onArtistClick }: ArtistSearchProps) {
             {displayArtists.map((artist) => {
               const key = artist.ticketmasterId || artist._id;
               return (
-                <div key={key} className="flex items-center justify-between p-3 hover:bg-white/5 rounded-lg">
+                <div key={key} className="flex items-center justify-between p-3 hover:bg-secondary rounded-lg">
                   <div className="flex items-center gap-3">
                     <img src={artist.images?.[0]} alt={artist.name} className="w-10 h-10 rounded-full" />
                     <span>{artist.name}</span>

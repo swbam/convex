@@ -28,10 +28,10 @@ export function ArtistNotFound({ error, resetErrorBoundary }: ArtistNotFoundProp
         <BorderBeam size={200} duration={12} className="opacity-20" />
         <div className="relative z-10 space-y-4">
           <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-            <Search className="h-8 w-8 text-gray-400" />
+            <Search className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Artist Not Found</h1>
-          <p className="text-gray-400">
+          <h1 className="text-2xl font-bold text-foreground">Artist Not Found</h1>
+          <p className="text-muted-foreground">
             The artist you're looking for couldn't be found. It might be a typo in the URL or the artist may not be in our database yet.
           </p>
           {error && <p className="text-sm text-red-400">{error}</p>}
@@ -46,7 +46,7 @@ export function ArtistNotFound({ error, resetErrorBoundary }: ArtistNotFoundProp
             </Button>
           </div>
           {resetErrorBoundary && (
-            <Button variant="link" onClick={resetErrorBoundary} className="text-xs text-gray-500">
+            <Button variant="link" onClick={resetErrorBoundary} className="text-xs text-muted-foreground">
               Try Again
             </Button>
           )}

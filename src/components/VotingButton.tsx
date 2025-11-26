@@ -64,14 +64,14 @@ export function VotingButton({ setlistId, onSignInRequired }: VotingButtonProps)
       className={`inline-flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 border ${
         hasVoted 
           ? "bg-primary/20 text-primary border-primary/30" 
-          : "bg-white/5 text-gray-300 hover:bg-white/10 border-white/10"
+          : "bg-secondary text-muted-foreground hover:bg-secondary border-border"
       }`}
       title="Upvote this setlist"
     >
       <ChevronUp 
         className={`h-4 w-4 ${hasVoted ? "fill-current" : ""}`} 
       />
-      <span className={`font-semibold text-sm ${hasVoted ? "text-primary" : "text-gray-300"}`}>
+      <span className={`font-semibold text-sm ${hasVoted ? "text-primary" : "text-muted-foreground"}`}>
         {voteCount}
       </span>
     </motion.button>

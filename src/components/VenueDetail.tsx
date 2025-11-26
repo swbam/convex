@@ -22,9 +22,9 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
     return (
       <div className="container mx-auto px-4 py-6 sm:py-8">
         <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-white/5 rounded w-32"></div>
-          <div className="h-48 sm:h-64 bg-white/5 rounded-xl"></div>
-          <div className="h-6 bg-white/5 rounded w-48"></div>
+          <div className="h-8 bg-secondary rounded w-32"></div>
+          <div className="h-48 sm:h-64 bg-secondary rounded-xl"></div>
+          <div className="h-6 bg-secondary rounded w-48"></div>
         </div>
       </div>
     );
@@ -43,19 +43,19 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
       {/* Back Button */}
       <button
         onClick={onBack}
-        className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm"
+        className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
       >
         <ArrowLeft className="h-4 w-4" />
         Back
       </button>
 
       {/* Venue Header - Consistent with other pages */}
-      <MagicCard className="relative overflow-hidden rounded-xl sm:rounded-2xl p-0 border border-white/10 bg-card">
+      <MagicCard className="relative overflow-hidden rounded-xl sm:rounded-2xl p-0 border border-border bg-card">
         <div className="relative z-10 p-4 sm:p-6 lg:p-8">
           <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-6">
             {/* Venue Icon */}
             <div className="flex-shrink-0">
-              <div className="w-16 h-16 sm:w-24 sm:h-24 lg:w-28 lg:h-28 bg-gradient-to-br from-blue-500/30 to-cyan-500/30 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl ring-2 ring-white/10">
+              <div className="w-16 h-16 sm:w-24 sm:h-24 lg:w-28 lg:h-28 bg-gradient-to-br from-blue-500/30 to-cyan-500/30 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl ring-2 ring-border">
                 <Building2 className="h-8 w-8 sm:h-12 sm:w-12 lg:h-14 lg:w-14 text-blue-400" />
               </div>
             </div>
@@ -63,24 +63,24 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
             {/* Info */}
             <div className="flex-1 min-w-0 w-full text-center sm:text-left sm:pb-1">
               {/* Label */}
-              <p className="text-[10px] sm:text-xs font-semibold text-white/50 mb-1 uppercase tracking-widest">
+              <p className="text-[10px] sm:text-xs font-semibold text-foreground/50 mb-1 uppercase tracking-widest">
                 Venue
               </p>
               
               {/* Venue Name */}
-              <h1 className="text-xl sm:text-2xl lg:text-4xl xl:text-5xl font-bold text-white leading-tight tracking-tight">
+              <h1 className="text-xl sm:text-2xl lg:text-4xl xl:text-5xl font-bold text-foreground leading-tight tracking-tight">
                 {venue.name}
               </h1>
 
               {/* Meta Info */}
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3 text-[11px] sm:text-sm text-white/70 mt-2 sm:mt-3">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3 text-[11px] sm:text-sm text-foreground/70 mt-2 sm:mt-3">
                 <div className="flex items-center gap-1">
                   <MapPin className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="font-medium">{venue.city}, {venue.country}</span>
                 </div>
                 {venue.capacity && (
                   <>
-                    <span className="text-white/30 hidden sm:inline">•</span>
+                    <span className="text-foreground/30 hidden sm:inline">•</span>
                     <div className="flex items-center gap-1">
                       <Users className="h-3 w-3 sm:h-4 sm:w-4" />
                       <span className="font-medium">{venue.capacity.toLocaleString()} capacity</span>
@@ -90,7 +90,7 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
               </div>
 
               {venue.address && (
-                <p className="text-white/50 text-xs sm:text-sm mt-2 truncate max-w-md">
+                <p className="text-foreground/50 text-xs sm:text-sm mt-2 truncate max-w-md">
                   {venue.address}
                 </p>
               )}
@@ -99,24 +99,24 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
 
           {/* Venue Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-6">
-            <div className="bg-white/5 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-white/10">
-              <div className="text-lg sm:text-2xl font-bold text-white">{venueShows?.length || 0}</div>
-              <div className="text-[10px] sm:text-sm text-gray-400">Total Shows</div>
+            <div className="bg-secondary rounded-lg sm:rounded-xl p-3 sm:p-4 border border-border">
+              <div className="text-lg sm:text-2xl font-bold text-foreground">{venueShows?.length || 0}</div>
+              <div className="text-[10px] sm:text-sm text-muted-foreground">Total Shows</div>
             </div>
-            <div className="bg-white/5 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-white/10">
-              <div className="text-lg sm:text-2xl font-bold text-white">{upcomingShows.length}</div>
-              <div className="text-[10px] sm:text-sm text-gray-400">Upcoming</div>
+            <div className="bg-secondary rounded-lg sm:rounded-xl p-3 sm:p-4 border border-border">
+              <div className="text-lg sm:text-2xl font-bold text-foreground">{upcomingShows.length}</div>
+              <div className="text-[10px] sm:text-sm text-muted-foreground">Upcoming</div>
             </div>
-            <div className="bg-white/5 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-white/10">
-              <div className="text-lg sm:text-2xl font-bold text-white">{pastShows.length}</div>
-              <div className="text-[10px] sm:text-sm text-gray-400">Completed</div>
+            <div className="bg-secondary rounded-lg sm:rounded-xl p-3 sm:p-4 border border-border">
+              <div className="text-lg sm:text-2xl font-bold text-foreground">{pastShows.length}</div>
+              <div className="text-[10px] sm:text-sm text-muted-foreground">Completed</div>
             </div>
             {venue.capacity && (
-              <div className="bg-white/5 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-white/10">
-                <div className="text-lg sm:text-2xl font-bold text-white">
+              <div className="bg-secondary rounded-lg sm:rounded-xl p-3 sm:p-4 border border-border">
+                <div className="text-lg sm:text-2xl font-bold text-foreground">
                   {((venueShows?.length || 0) * 100 / (venue.capacity > 10000 ? 50 : venue.capacity > 5000 ? 100 : 150)).toFixed(0)}%
                 </div>
-                <div className="text-[10px] sm:text-sm text-gray-400">Utilization</div>
+                <div className="text-[10px] sm:text-sm text-muted-foreground">Utilization</div>
               </div>
             )}
           </div>
@@ -127,20 +127,20 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
       {/* Content Grid - Mobile Optimized */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
         {/* Upcoming Shows */}
-        <MagicCard className="p-0 rounded-xl sm:rounded-2xl border border-white/10 bg-card">
+        <MagicCard className="p-0 rounded-xl sm:rounded-2xl border border-border bg-card">
           <div className="p-4 sm:p-6">
             <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/10 rounded-lg sm:rounded-xl flex items-center justify-center">
-                <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-secondary rounded-lg sm:rounded-xl flex items-center justify-center">
+                <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-foreground" />
               </div>
-              <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Upcoming Shows</h2>
+              <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground">Upcoming Shows</h2>
               <span className="bg-primary/20 text-primary px-2 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium">
                 {upcomingShows.length}
               </span>
             </div>
             
             {upcomingShows.length === 0 ? (
-              <div className="text-center py-8 sm:py-12 text-gray-400">
+              <div className="text-center py-8 sm:py-12 text-muted-foreground">
                 <Calendar className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-4 opacity-50" />
                 <p className="text-sm sm:text-base">No upcoming shows scheduled</p>
               </div>
@@ -156,7 +156,7 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
                 ))}
                 {upcomingShows.length > 5 && (
                   <div className="text-center py-3 sm:py-4">
-                    <span className="text-xs sm:text-sm text-gray-400">
+                    <span className="text-xs sm:text-sm text-muted-foreground">
                       +{upcomingShows.length - 5} more upcoming shows
                     </span>
                   </div>
@@ -168,20 +168,20 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
         </MagicCard>
 
         {/* Past Shows */}
-        <MagicCard className="p-0 rounded-xl sm:rounded-2xl border border-white/10 bg-card">
+        <MagicCard className="p-0 rounded-xl sm:rounded-2xl border border-border bg-card">
           <div className="p-4 sm:p-6">
             <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/10 rounded-lg sm:rounded-xl flex items-center justify-center">
-                <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-secondary rounded-lg sm:rounded-xl flex items-center justify-center">
+                <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-foreground" />
               </div>
-              <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Recent Shows</h2>
-              <span className="bg-white/10 text-gray-400 px-2 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium">
+              <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground">Recent Shows</h2>
+              <span className="bg-secondary text-muted-foreground px-2 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium">
                 {pastShows.length}
               </span>
             </div>
             
             {pastShows.length === 0 ? (
-              <div className="text-center py-8 sm:py-12 text-gray-400">
+              <div className="text-center py-8 sm:py-12 text-muted-foreground">
                 <Clock className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-4 opacity-50" />
                 <p className="text-sm sm:text-base">No past shows recorded</p>
               </div>
@@ -197,7 +197,7 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
                 ))}
                 {pastShows.length > 5 && (
                   <div className="text-center py-3 sm:py-4">
-                    <span className="text-xs sm:text-sm text-gray-400">
+                    <span className="text-xs sm:text-sm text-muted-foreground">
                       +{pastShows.length - 5} more past shows
                     </span>
                   </div>

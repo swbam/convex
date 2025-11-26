@@ -72,18 +72,18 @@ export function SignInPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-bold text-white mb-2">Authentication Error</h2>
-              <p className="text-gray-400 mb-6">{authError}</p>
+              <h2 className="text-xl font-bold text-foreground mb-2">Authentication Error</h2>
+              <p className="text-muted-foreground mb-6">{authError}</p>
               <div className="space-y-3">
                 <button
                   onClick={() => window.location.reload()}
-                  className="w-full px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-all duration-200 border border-white/20"
+                  className="w-full px-6 py-3 bg-secondary hover:bg-secondary/80 text-foreground rounded-xl font-medium transition-all duration-200 border border-border"
                 >
                   Retry
                 </button>
                 <button
                   onClick={() => navigate('/')}
-                  className="w-full px-6 py-3 bg-transparent hover:bg-white/5 text-gray-400 hover:text-white rounded-xl font-medium transition-all duration-200"
+                  className="w-full px-6 py-3 bg-transparent hover:bg-secondary text-muted-foreground hover:text-foreground rounded-xl font-medium transition-all duration-200"
                 >
                   Go Back Home
                 </button>
@@ -91,9 +91,9 @@ export function SignInPage() {
             </>
           ) : (
             <>
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-white" />
-              <p className="text-white mb-2">Loading authentication...</p>
-              <p className="text-gray-400 text-sm">This should only take a moment</p>
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-foreground" />
+              <p className="text-foreground mb-2">Loading authentication...</p>
+              <p className="text-muted-foreground text-sm">This should only take a moment</p>
             </>
           )}
         </div>
@@ -254,17 +254,17 @@ export function SignInPage() {
           <div className="relative z-10 p-6 sm:p-8">
             <div className="text-center mb-6 sm:mb-8">
               <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 rounded-xl sm:rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                  <Music className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-secondary rounded-xl sm:rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                  <Music className="h-5 w-5 sm:h-6 sm:w-6 text-foreground" />
                 </div>
-                <h1 className="text-responsive-2xl sm:text-responsive-3xl font-bold text-white">Welcome Back</h1>
+                <h1 className="text-responsive-2xl sm:text-responsive-3xl font-bold text-foreground">Welcome Back</h1>
               </div>
-              <p className="text-gray-300 text-responsive-base sm:text-responsive-lg">
+              <p className="text-muted-foreground text-responsive-base sm:text-responsive-lg">
                 Sign in to your setlists.live account
               </p>
               <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2">
                 <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
-                <span className="text-responsive-xs sm:text-responsive-sm text-gray-400">Vote on setlists and follow artists</span>
+                <span className="text-responsive-xs sm:text-responsive-sm text-muted-foreground">Vote on setlists and follow artists</span>
               </div>
             </div>
 
@@ -272,9 +272,9 @@ export function SignInPage() {
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {/* Email Field */}
               <div className="space-y-1.5 sm:space-y-2">
-                <label className="text-responsive-xs sm:text-responsive-sm font-medium text-gray-300">Email</label>
+                <label className="text-responsive-xs sm:text-responsive-sm font-medium text-muted-foreground">Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <Mail className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   <input
                     type="email"
                     value={email}
@@ -283,28 +283,28 @@ export function SignInPage() {
                     required
                     inputMode="email"
                     autoComplete="email"
-                    className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300 text-responsive-sm touch-target"
+                    className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3 bg-secondary border border-border rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-foreground placeholder-muted-foreground backdrop-blur-sm transition-all duration-300 text-responsive-sm touch-target"
                   />
                 </div>
               </div>
 
               {/* Password Field */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-300">Password</label>
+                <label className="text-sm font-medium text-muted-foreground">Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     required
-                    className="w-full pl-12 pr-12 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300"
+                    className="w-full pl-12 pr-12 py-3 bg-secondary border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-foreground placeholder-muted-foreground backdrop-blur-sm transition-all duration-300"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -331,7 +331,7 @@ export function SignInPage() {
           {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/10"></div>
+              <div className="w-full border-t border-border"></div>
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-4 bg-card text-muted-foreground">Or continue with</span>
@@ -360,7 +360,7 @@ export function SignInPage() {
               type="button"
               onClick={handleSpotifySignIn}
               disabled={isSpotifyLoading || isGoogleLoading || isSubmitting}
-              className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-[#1DB954] hover:bg-[#1ed760] text-white rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-[#1DB954] hover:bg-[#1ed760] text-foreground rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSpotifyLoading ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -373,7 +373,7 @@ export function SignInPage() {
 
             {/* Sign Up Link */}
             <div className="mt-6 text-center">
-              <p className="text-gray-400">
+              <p className="text-muted-foreground">
                 Don't have an account?{' '}
                 <button
                   onClick={() => navigate('/signup')}

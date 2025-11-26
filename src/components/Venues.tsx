@@ -45,7 +45,7 @@ export function Venues({ onVenueClick }: VenuesProps) {
       </div>
 
       {/* Tabs */}
-      <div className="bg-card rounded-2xl p-6 border border-white/10">
+      <div className="bg-card rounded-2xl p-6 border border-border">
         <div className="flex border-b border-border mb-6">
           <button
             onClick={() => setSelectedTab('search')}
@@ -171,7 +171,7 @@ function VenueListCard({ venue, onClick }: { venue: any; onClick: () => void }) 
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-white text-xl truncate group-hover:text-gray-300 transition-colors mb-1">
+              <h3 className="font-semibold text-foreground text-xl truncate group-hover:text-muted-foreground transition-colors mb-1">
                 {venue.name}
               </h3>
               <div className="flex items-center gap-1 text-muted-foreground text-sm mb-2">

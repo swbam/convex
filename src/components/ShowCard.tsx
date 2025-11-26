@@ -54,16 +54,16 @@ function ShowCardComponent({
     <motion.div
       onClick={handleClick}
       whileTap={{ scale: 0.98 }}
-      className="group relative overflow-hidden touch-manipulation bg-card border-b border-white/5 last:border-b-0 sm:border sm:border-white/10 sm:rounded-xl cursor-pointer active:bg-white/5 transition-all duration-150"
+      className="group relative overflow-hidden touch-manipulation bg-card border-b border-border last:border-b-0 sm:border sm:border-border sm:rounded-xl cursor-pointer active:bg-secondary transition-all duration-150"
     >
       <div className="flex items-center gap-3 p-3 sm:p-4 min-h-[72px]">
         {/* Date Badge - Compact */}
         <div className="flex-shrink-0">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-white/5 ring-1 ring-white/10 flex flex-col items-center justify-center">
-            <span className="text-[10px] sm:text-xs text-gray-400 font-medium uppercase leading-none">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-secondary ring-1 ring-border flex flex-col items-center justify-center">
+            <span className="text-[10px] sm:text-xs text-muted-foreground font-medium uppercase leading-none">
               {dateInfo.month}
             </span>
-            <span className="text-lg sm:text-xl text-white font-bold leading-none mt-0.5">
+            <span className="text-lg sm:text-xl text-foreground font-bold leading-none mt-0.5">
               {dateInfo.day}
             </span>
           </div>
@@ -72,16 +72,16 @@ function ShowCardComponent({
         {/* Content - Compact Info */}
         <div className="flex-1 min-w-0">
           {showArtist && show.artist?.name && (
-            <h3 className="text-white font-semibold text-base leading-tight line-clamp-1 mb-0.5">
+            <h3 className="text-foreground font-semibold text-base leading-tight line-clamp-1 mb-0.5">
               {show.artist.name}
             </h3>
           )}
           
-          <div className="flex flex-col gap-0.5 text-xs text-gray-400">
+          <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
             {/* Venue */}
             {show.venue && (
               <div className="flex items-center gap-1.5 line-clamp-1">
-                <MapPin className="h-3 w-3 flex-shrink-0 text-gray-500" />
+                <MapPin className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
                 <span className="line-clamp-1">
                   {show.venue.name}
                   {show.venue.city && `, ${show.venue.city}`}
@@ -91,7 +91,7 @@ function ShowCardComponent({
             
             {/* Date & Time */}
             <div className="flex items-center gap-1.5">
-              <Calendar className="h-3 w-3 flex-shrink-0 text-gray-500" />
+              <Calendar className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
               <span>
                 {dateInfo.weekday}
                 {time && ` • ${time}`}
@@ -105,13 +105,13 @@ function ShowCardComponent({
           {show.ticketUrl && (
             <button
               onClick={handleTicketClick}
-              className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 transition-colors text-xs font-medium text-white flex items-center gap-1.5 touch-manipulation"
+              className="px-3 py-1.5 rounded-full bg-secondary hover:bg-secondary/80 active:bg-white/30 transition-colors text-xs font-medium text-foreground flex items-center gap-1.5 touch-manipulation"
             >
               <Ticket className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Tickets</span>
             </button>
           )}
-          <ChevronRight className="h-5 w-5 text-gray-600 group-hover:text-gray-400 transition-colors" />
+          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-muted-foreground transition-colors" />
         </div>
       </div>
     </motion.div>

@@ -76,7 +76,7 @@ export function VenueSearch() {
 
         {shows.length > 0 && (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-white">
+            <h2 className="text-xl font-semibold text-foreground">
               {shows.length} upcoming shows found within {radius} miles
             </h2>
             <div className="space-y-3">
@@ -103,11 +103,11 @@ function ShowCard({ show }: { show: any }) {
   };
 
   return (
-    <div className="rounded-xl border border-white/10 bg-card/50 p-4 hover:bg-white/5 transition-all duration-200 cursor-pointer">
+    <div className="rounded-xl border border-border bg-card/50 p-4 hover:bg-secondary transition-all duration-200 cursor-pointer">
       <div className="flex gap-4">
         {/* Artist Image */}
         {show.artistImage && (
-          <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
+          <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-secondary">
             <img 
               src={show.artistImage} 
               alt={show.artistName}
@@ -118,11 +118,11 @@ function ShowCard({ show }: { show: any }) {
         
         {/* Show Info */}
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-white text-lg truncate mb-1">
+          <h3 className="font-semibold text-foreground text-lg truncate mb-1">
             {show.artistName}
           </h3>
           
-          <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
             <MapPin className="h-4 w-4 flex-shrink-0" />
             <span className="truncate">
               {show.venueName} • {show.venueCity}{show.venueState ? `, ${show.venueState}` : ''}
@@ -130,7 +130,7 @@ function ShowCard({ show }: { show: any }) {
           </div>
           
           <div className="flex items-center gap-4 text-sm">
-            <span className="text-gray-300">
+            <span className="text-muted-foreground">
               {formatDate(show.date)}
               {show.startTime && ` • ${show.startTime}`}
             </span>

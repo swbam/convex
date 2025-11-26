@@ -28,7 +28,7 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-        <p className="text-gray-400">Loading your dashboard...</p>
+        <p className="text-muted-foreground">Loading your dashboard...</p>
       </div>
     );
   }
@@ -42,8 +42,8 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
         <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <User className="h-8 w-8 text-primary" />
         </div>
-        <h1 className="text-2xl font-bold text-white mb-2">Welcome to setlists.live</h1>
-        <p className="text-gray-400 mb-6 max-w-md mx-auto">Sign in to track your votes, predictions, and setlist activity</p>
+        <h1 className="text-2xl font-bold text-foreground mb-2">Welcome to setlists.live</h1>
+        <p className="text-muted-foreground mb-6 max-w-md mx-auto">Sign in to track your votes, predictions, and setlist activity</p>
         <Button onClick={() => void navigate('/signin')} className="bg-primary hover:bg-primary/90 text-primary-foreground">
           Get Started
         </Button>
@@ -57,11 +57,11 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
         <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-        <h1 className="text-2xl font-bold text-white mb-2">Finishing account setup…</h1>
-        <p className="text-gray-400 mb-4 max-w-md mx-auto">
+        <h1 className="text-2xl font-bold text-foreground mb-2">Finishing account setup…</h1>
+        <p className="text-muted-foreground mb-4 max-w-md mx-auto">
           You’re signed in with Clerk. We’re linking your account to Convex so you can vote and track activity.
         </p>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-muted-foreground">
           If this message doesn’t go away after a few seconds, try refreshing the page.
         </p>
       </div>
@@ -89,10 +89,10 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
       >
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-white">
+            <h1 className="text-3xl font-bold text-foreground">
               Welcome back, {user?.firstName || 'User'}!
             </h1>
-            <p className="text-gray-400">Your setlist predictions and activity</p>
+            <p className="text-muted-foreground">Your setlist predictions and activity</p>
           </div>
         </div>
 
@@ -100,22 +100,22 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
         <div className="grid grid-cols-3 gap-3">
           <MagicCard className="p-0 rounded-xl border-0 bg-card/50">
             <div className="p-4 text-center">
-              <div className="text-2xl font-bold text-white">{userVotes?.length || 0}</div>
-              <div className="text-xs text-gray-400">Total Votes</div>
+              <div className="text-2xl font-bold text-foreground">{userVotes?.length || 0}</div>
+              <div className="text-xs text-muted-foreground">Total Votes</div>
             </div>
           </MagicCard>
           
           <MagicCard className="p-0 rounded-xl border-0 bg-card/50">
             <div className="p-4 text-center">
-              <div className="text-2xl font-bold text-white">{showsVotedOn}</div>
-              <div className="text-xs text-gray-400">Shows Voted On</div>
+              <div className="text-2xl font-bold text-foreground">{showsVotedOn}</div>
+              <div className="text-xs text-muted-foreground">Shows Voted On</div>
             </div>
           </MagicCard>
           
           <MagicCard className="p-0 rounded-xl border-0 bg-card/50">
             <div className="p-4 text-center">
-              <div className="text-2xl font-bold text-white">{accuracy}</div>
-              <div className="text-xs text-gray-400">Accuracy</div>
+              <div className="text-2xl font-bold text-foreground">{accuracy}</div>
+              <div className="text-xs text-muted-foreground">Accuracy</div>
             </div>
           </MagicCard>
         </div>
@@ -135,11 +135,11 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
                   <Music className="h-6 w-6 text-green-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">Connect Spotify</h3>
-                  <p className="text-sm text-gray-300">Discover personalized shows based on your listening</p>
+                  <h3 className="text-lg font-bold text-foreground">Connect Spotify</h3>
+                  <p className="text-sm text-muted-foreground">Discover personalized shows based on your listening</p>
                 </div>
               </div>
-              <Button onClick={() => void navigate('/spotify-connect')} className="bg-green-500 hover:bg-green-600 text-white">
+              <Button onClick={() => void navigate('/spotify-connect')} className="bg-green-500 hover:bg-green-600 text-foreground">
                 Connect Now
               </Button>
             </div>
@@ -169,25 +169,25 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
           <MagicCard className="p-0 rounded-xl border-0 bg-card/50">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-                  <ChevronUp className="h-5 w-5 text-white" />
+                <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center">
+                  <ChevronUp className="h-5 w-5 text-foreground" />
                 </div>
-                <h2 className="text-xl font-bold text-white">Your Recent Votes</h2>
+                <h2 className="text-xl font-bold text-foreground">Your Recent Votes</h2>
               </div>
 
               <div className="space-y-2">
                 {userVotes?.slice(0, 10).map((vote) => (
                   <div
                     key={vote._id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/10"
+                    className="flex items-center justify-between p-3 rounded-lg bg-secondary hover:bg-secondary transition-colors border border-border"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0">
                         <Music className="h-4 w-4 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-white truncate">{vote.songTitle}</div>
-                        <div className="text-sm text-gray-400">
+                        <div className="font-medium text-foreground truncate">{vote.songTitle}</div>
+                        <div className="text-sm text-muted-foreground">
                           {new Date(vote.createdAt).toLocaleDateString()}
                         </div>
                       </div>
@@ -225,8 +225,8 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
               <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <TrendingUp className="h-8 w-8 text-primary" />
               </div>
-              <h3 className="text-2xl font-bold text-white mb-2">Start Voting!</h3>
-              <p className="text-gray-300 mb-6 max-w-md mx-auto">
+              <h3 className="text-2xl font-bold text-foreground mb-2">Start Voting!</h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                 Vote on upcoming show setlists to see your predictions here
               </p>
               <Button onClick={() => void navigate('/shows')} className="bg-primary hover:bg-primary/90">

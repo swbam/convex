@@ -55,7 +55,7 @@ export function DashboardGrid({ onViewChange }: DashboardGridProps) {
       {/* Hero Section */}
       <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-zinc-800/50 via-zinc-700/30 to-transparent border border-zinc-700 p-8">
         <div className="relative z-10">
-          <h1 className="text-4xl font-bold text-white mb-2">
+          <h1 className="text-4xl font-bold text-foreground mb-2">
             Welcome to setlists.live
           </h1>
           <p className="text-xl text-zinc-300 mb-6">
@@ -89,7 +89,7 @@ export function DashboardGrid({ onViewChange }: DashboardGridProps) {
                 <span className="text-zinc-300">🎵</span>
               </div>
               <div>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-2xl font-bold text-foreground">
                   {stats.totalArtists.toLocaleString()}
                 </p>
                 <p className="text-sm text-zinc-400">Artists</p>
@@ -103,7 +103,7 @@ export function DashboardGrid({ onViewChange }: DashboardGridProps) {
                 <span className="text-zinc-300">📅</span>
               </div>
               <div>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-2xl font-bold text-foreground">
                   {stats.totalShows.toLocaleString()}
                 </p>
                 <p className="text-sm text-zinc-400">Shows</p>
@@ -117,7 +117,7 @@ export function DashboardGrid({ onViewChange }: DashboardGridProps) {
                 <span className="text-zinc-300">⭐</span>
               </div>
               <div>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-2xl font-bold text-foreground">
                   {stats.totalSetlists.toLocaleString()}
                 </p>
                 <p className="text-sm text-zinc-400">Setlists</p>
@@ -131,7 +131,7 @@ export function DashboardGrid({ onViewChange }: DashboardGridProps) {
                 <span className="text-zinc-300">👥</span>
               </div>
               <div>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-2xl font-bold text-foreground">
                   {stats.activeUsers.toLocaleString()}
                 </p>
                 <p className="text-sm text-zinc-400">Users</p>
@@ -148,12 +148,12 @@ export function DashboardGrid({ onViewChange }: DashboardGridProps) {
           <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg">
             <div className="p-6 border-b border-zinc-800">
               <div className="flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-white text-lg font-semibold">
+                <h3 className="flex items-center gap-2 text-foreground text-lg font-semibold">
                   🔥 Trending Artists
                 </h3>
                 <button 
                   onClick={() => onViewChange('artists')}
-                  className="text-zinc-400 hover:text-white text-sm flex items-center gap-1 bg-transparent border-none cursor-pointer"
+                  className="text-zinc-400 hover:text-foreground text-sm flex items-center gap-1 bg-transparent border-none cursor-pointer"
                 >
                   View All →
                 </button>
@@ -182,7 +182,7 @@ export function DashboardGrid({ onViewChange }: DashboardGridProps) {
         <div>
           <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg">
             <div className="p-6 border-b border-zinc-800">
-              <h3 className="flex items-center gap-2 text-white text-lg font-semibold">
+              <h3 className="flex items-center gap-2 text-foreground text-lg font-semibold">
                 🕒 Recent Shows
               </h3>
             </div>
@@ -216,12 +216,12 @@ export function DashboardGrid({ onViewChange }: DashboardGridProps) {
       <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg">
         <div className="p-6 border-b border-zinc-800">
           <div className="flex items-center justify-between">
-            <h3 className="flex items-center gap-2 text-white text-lg font-semibold">
+            <h3 className="flex items-center gap-2 text-foreground text-lg font-semibold">
               📅 Upcoming Shows
             </h3>
             <button 
               onClick={() => onViewChange('shows')}
-              className="text-zinc-400 hover:text-white text-sm flex items-center gap-1 bg-transparent border-none cursor-pointer"
+              className="text-zinc-400 hover:text-foreground text-sm flex items-center gap-1 bg-transparent border-none cursor-pointer"
             >
               View All →
             </button>

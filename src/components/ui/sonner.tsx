@@ -16,7 +16,7 @@ const Toaster = ({ position = "top-right", theme = "dark", className, toastOptio
     toastOptions: {
       classNames: {
         toast:
-          "group toast group-[.toaster]:bg-zinc-900 group-[.toaster]:text-white group-[.toaster]:border-zinc-800 group-[.toaster]:shadow-lg",
+          "group toast group-[.toaster]:bg-zinc-900 group-[.toaster]:text-foreground group-[.toaster]:border-zinc-800 group-[.toaster]:shadow-lg",
         description: "group-[.toast]:text-zinc-400",
         actionButton:
           "group-[.toast]:bg-white group-[.toast]:text-black",

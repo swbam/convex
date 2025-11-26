@@ -83,7 +83,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-gray-400">Loading...</p>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
@@ -97,7 +97,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   return (
     <>
       {showSetupBanner && (
-        <div className="fixed top-3 right-3 z-[100] rounded-xl border border-white/10 bg-card/70 backdrop-blur-md px-3 py-2 text-xs text-gray-300 shadow-lg">
+        <div className="fixed top-3 right-3 z-[100] rounded-xl border border-border bg-card/70 backdrop-blur-md px-3 py-2 text-xs text-muted-foreground shadow-lg">
           Setting up your account...
         </div>
       )}

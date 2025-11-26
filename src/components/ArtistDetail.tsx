@@ -91,7 +91,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
       <div className="container mx-auto px-4 py-8 text-center min-h-screen flex flex-col items-center justify-center">
         <div className="max-w-md space-y-4">
           <h1 className="text-2xl font-bold text-foreground">Artist Not Found</h1>
-          <p className="text-gray-400">The artist could not be found in our database. Try searching for them.</p>
+          <p className="text-muted-foreground">The artist could not be found in our database. Try searching for them.</p>
           <Link to="/search">
             <Button className="w-full">
               Search Artists
@@ -117,17 +117,17 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
           <div className="animate-pulse space-y-6">
             {/* Header skeleton */}
             <div className="flex items-center gap-6">
-              <div className="w-40 h-40 bg-white/5 rounded-2xl" />
+              <div className="w-40 h-40 bg-secondary rounded-2xl" />
               <div className="flex-1 space-y-4">
-                <div className="h-10 bg-white/5 rounded w-2/3" />
-                <div className="h-5 bg-white/5 rounded w-1/2" />
-                <div className="h-5 bg-white/5 rounded w-1/3" />
+                <div className="h-10 bg-secondary rounded w-2/3" />
+                <div className="h-5 bg-secondary rounded w-1/2" />
+                <div className="h-5 bg-secondary rounded w-1/3" />
               </div>
             </div>
             {/* Shows skeleton */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-48 bg-white/5 rounded-2xl" />
+                <div key={i} className="h-48 bg-secondary rounded-2xl" />
               ))}
             </div>
           </div>
@@ -234,12 +234,12 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                     </div>
                     <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Shows</h2>
                   </div>
-                  <TabsList className="flex w-full bg-white/5 rounded-lg p-1 gap-2 h-auto max-w-md">
-                    <TabsTrigger value="upcoming" className="flex-1 justify-center data-[state=active]:bg-white/10 py-2.5">
+                  <TabsList className="flex w-full bg-secondary rounded-lg p-1 gap-2 h-auto max-w-md">
+                    <TabsTrigger value="upcoming" className="flex-1 justify-center data-[state=active]:bg-secondary py-2.5">
                       <Calendar className="h-4 w-4 mr-2" />
                       <span>Upcoming</span>
                     </TabsTrigger>
-                    <TabsTrigger value="past" className="flex-1 justify-center data-[state=active]:bg-white/10 py-2.5">
+                    <TabsTrigger value="past" className="flex-1 justify-center data-[state=active]:bg-secondary py-2.5">
                       <Music className="h-4 w-4 mr-2" />
                       <span>Past</span>
                     </TabsTrigger>
@@ -248,12 +248,12 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 
                 <TabsContent value="upcoming" className="mt-6">
                   {!shows ? (
-              <div className="divide-y divide-white/5 -mx-4 sm:mx-0 sm:space-y-0 sm:divide-y-0 sm:space-y-3">
+              <div className="divide-y divide-border -mx-4 sm:mx-0 sm:space-y-0 sm:divide-y-0 sm:space-y-3">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="px-4 py-5 sm:p-5 sm:rounded-lg sm:border sm:border-white/10 min-h-[56px] flex items-center animate-pulse">
+                  <div key={i} className="px-4 py-5 sm:p-5 sm:rounded-lg sm:border sm:border-border min-h-[56px] flex items-center animate-pulse">
                     <div className="flex-1">
-                      <div className="h-5 bg-white/10 rounded w-3/4 mb-2"></div>
-                      <div className="h-4 bg-white/5 rounded w-1/2"></div>
+                      <div className="h-5 bg-secondary rounded w-3/4 mb-2"></div>
+                      <div className="h-4 bg-secondary rounded w-1/2"></div>
                     </div>
                   </div>
                 ))}
@@ -265,10 +265,10 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     <div className="text-center">
                       <p className="text-lg font-medium text-foreground">Fetching Shows</p>
-                      <p className="text-sm text-gray-400 mt-2">
+                      <p className="text-sm text-muted-foreground mt-2">
                         Importing {artist.name}'s tour dates from Ticketmaster...
                       </p>
-                      <div className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-500">
+                      <div className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
                         <span className="animate-pulse">⚡</span>
                         <span>Usually takes 3-5 seconds</span>
                       </div>
@@ -284,7 +284,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                     <Music className="h-8 w-8 text-red-400" />
                   </div>
                   <p className="text-red-400 font-medium">{hasImportError}</p>
-                  <p className="text-sm text-gray-400">There was an issue importing show data.</p>
+                  <p className="text-sm text-muted-foreground">There was an issue importing show data.</p>
                   <Button onClick={() => window.location.reload()} variant="outline">
                     Retry Import
                   </Button>
@@ -297,17 +297,17 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 <p className="text-sm mt-1">Check back later for tour announcements</p>
               </div>
             ) : (
-              <div className="divide-y divide-white/5 -mx-4 sm:mx-0 sm:space-y-0 sm:divide-y-0 sm:space-y-3">
+              <div className="divide-y divide-border -mx-4 sm:mx-0 sm:space-y-0 sm:divide-y-0 sm:space-y-3">
                 {upcomingShows.map((show, idx) => (
                   <div
                     key={show._id}
-                    className="px-4 py-5 sm:p-5 sm:rounded-xl sm:border sm:border-white/10 bg-transparent sm:bg-white/5 active:bg-white/10 sm:hover:bg-white/10 cursor-pointer transition-all duration-150 active:scale-[0.98] min-h-[56px] flex items-center"
+                    className="px-4 py-5 sm:p-5 sm:rounded-xl sm:border sm:border-border bg-transparent sm:bg-secondary active:bg-secondary sm:hover:bg-secondary cursor-pointer transition-all duration-150 active:scale-[0.98] min-h-[56px] flex items-center"
                     onClick={() => onShowClick(show._id, (show as any).slug)}
                   >
                     <div className="flex justify-between items-start w-full">
                       <div className="flex-1 min-w-0">
                         <h3 className="text-lg sm:text-xl font-extrabold text-foreground mb-1.5 leading-tight">{show.venue?.name}</h3>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-300">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1.5">
                             <MapPin className="h-3.5 w-3.5" />
                             <span>{show.venue?.city}, {show.venue?.country}</span>
@@ -352,12 +352,12 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 
                 <TabsContent value="past" className="mt-6">
                   {!shows ? (
-                    <div className="divide-y divide-white/5 -mx-4 sm:mx-0 sm:space-y-0 sm:divide-y-0 sm:space-y-3">
+                    <div className="divide-y divide-border -mx-4 sm:mx-0 sm:space-y-0 sm:divide-y-0 sm:space-y-3">
                       {[...Array(5)].map((_, i) => (
-                        <div key={i} className="px-4 py-5 sm:p-5 sm:rounded-lg sm:border sm:border-white/10 min-h-[56px] flex items-center animate-pulse">
+                        <div key={i} className="px-4 py-5 sm:p-5 sm:rounded-lg sm:border sm:border-border min-h-[56px] flex items-center animate-pulse">
                           <div className="flex-1">
-                            <div className="h-5 bg-white/10 rounded w-3/4 mb-2"></div>
-                            <div className="h-4 bg-white/5 rounded w-1/2"></div>
+                            <div className="h-5 bg-secondary rounded w-3/4 mb-2"></div>
+                            <div className="h-4 bg-secondary rounded w-1/2"></div>
                           </div>
                         </div>
                       ))}
@@ -369,17 +369,17 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                       <p className="text-sm mt-1">Past shows will appear here after they happen</p>
                     </div>
                   ) : (
-                    <div className="divide-y divide-white/5 -mx-4 sm:mx-0 sm:space-y-0 sm:divide-y-0 sm:space-y-3">
+                    <div className="divide-y divide-border -mx-4 sm:mx-0 sm:space-y-0 sm:divide-y-0 sm:space-y-3">
                       {recentShows.map((show) => (
                     <div
                       key={show._id}
-                      className="px-4 py-5 sm:p-5 sm:rounded-xl sm:border sm:border-white/10 bg-transparent sm:bg-white/5 active:bg-white/10 sm:hover:bg-white/10 cursor-pointer transition-all duration-150 active:scale-[0.98] min-h-[56px] flex items-center"
+                      className="px-4 py-5 sm:p-5 sm:rounded-xl sm:border sm:border-border bg-transparent sm:bg-secondary active:bg-secondary sm:hover:bg-secondary cursor-pointer transition-all duration-150 active:scale-[0.98] min-h-[56px] flex items-center"
                       onClick={() => onShowClick(show._id, (show as any).slug)}
                     >
                       <div className="flex justify-between items-start w-full">
                         <div className="flex-1 min-w-0">
                           <h3 className="text-lg sm:text-xl font-extrabold text-foreground mb-1.5 leading-tight">{show.venue?.name}</h3>
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-300">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
                             <div className="flex items-center gap-1.5">
                               <MapPin className="h-3.5 w-3.5" />
                               <span>{show.venue?.city}, {show.venue?.country}</span>
@@ -423,23 +423,23 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
 
         {/* Top Songs - Right Sidebar */}
         <div className="space-y-0 sm:space-y-6">
-          <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 bg-black border-t border-b border-white/10 sm:border">
+          <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 bg-background border-t border-b border-border sm:border">
             <div className="px-4 py-4 sm:p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center">
+                <div className="w-9 h-9 bg-secondary rounded-xl flex items-center justify-center">
                   <Music className="h-4 w-4 text-foreground" />
                 </div>
                 <h3 className="text-xl sm:text-2xl font-bold text-foreground">Top Songs</h3>
               </div>
             
             {!songs ? (
-              <div className="divide-y divide-white/5 -mx-4 sm:mx-0 sm:divide-y-0 sm:space-y-1">
+              <div className="divide-y divide-border -mx-4 sm:mx-0 sm:divide-y-0 sm:space-y-1">
                 {[...Array(10)].map((_, i) => (
                   <div key={i} className="flex items-center gap-3 px-4 py-3 sm:px-2 sm:py-2 min-h-[56px] animate-pulse">
-                    <div className="w-4 h-4 bg-white/10 rounded"></div>
+                    <div className="w-4 h-4 bg-secondary rounded"></div>
                     <div className="flex-1 space-y-1.5">
-                      <div className="h-3.5 bg-white/10 rounded w-3/4"></div>
-                      <div className="h-2.5 bg-white/5 rounded w-1/2"></div>
+                      <div className="h-3.5 bg-secondary rounded w-3/4"></div>
+                      <div className="h-2.5 bg-secondary rounded w-1/2"></div>
                     </div>
                   </div>
                 ))}
@@ -450,13 +450,13 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 <p className="text-sm">No songs available yet</p>
               </div>
             ) : (
-              <div className="divide-y divide-white/5 -mx-4 sm:mx-0 sm:divide-y-0 sm:space-y-1">
+              <div className="divide-y divide-border -mx-4 sm:mx-0 sm:divide-y-0 sm:space-y-1">
                 {songs.filter(Boolean).filter(song => song && !song.isLive && !song.isRemix).slice(0, 10).map((song, index) => {
                   if (!song) return null;
                   return (
                     <div
                       key={song._id}
-                      className="group flex items-center gap-3 px-4 py-3 sm:px-2 sm:py-2 sm:rounded-lg active:bg-white/10 sm:hover:bg-accent/50 transition-all duration-150 active:scale-[0.98] min-h-[56px]"
+                      className="group flex items-center gap-3 px-4 py-3 sm:px-2 sm:py-2 sm:rounded-lg active:bg-secondary sm:hover:bg-accent/50 transition-all duration-150 active:scale-[0.98] min-h-[56px]"
                     >
                       <div className="w-4 text-center text-xs text-muted-foreground">
                         {index + 1}
@@ -489,7 +489,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
           </div>
 
           {/* Artist Stats */}
-          <div className="bg-card rounded-none sm:rounded-2xl px-4 py-6 sm:p-6 border-0 border-t border-b border-white/10 sm:border">
+          <div className="bg-card rounded-none sm:rounded-2xl px-4 py-6 sm:p-6 border-0 border-t border-b border-border sm:border">
             <h3 className="text-xl font-bold mb-4">Artist Stats</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">

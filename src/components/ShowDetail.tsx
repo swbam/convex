@@ -322,7 +322,7 @@ export function ShowDetail({
         {show.status === "completed" &&
           show.importStatus !== "completed" &&
           !hasActualSetlist && (
-            <p className="text-sm text-gray-400 mt-2">
+            <p className="text-sm text-muted-foreground mt-2">
               No setlist available yet - checking...
             </p>
           )}
@@ -451,7 +451,7 @@ export function ShowDetail({
               <div className="px-4 py-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                    <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center">
                       <Music className="h-5 w-5 text-foreground" />
                     </div>
                     <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Setlist</h2>
@@ -506,7 +506,7 @@ export function ShowDetail({
                           <div className="text-2xl font-bold text-foreground">
                             {actualSetlistSongs.length}
                           </div>
-                          <div className="text-xs text-gray-400">
+                          <div className="text-xs text-muted-foreground">
                             songs played
                           </div>
                         </div>
@@ -531,7 +531,7 @@ export function ShowDetail({
                       predictionSetlist.songs &&
                       predictionSetlist.songs.length > 0 && (
                         <div className="mt-6">
-                          <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
+                          <div className="p-6 bg-secondary border border-border rounded-2xl">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center">
@@ -583,7 +583,7 @@ export function ShowDetail({
                                     return `${pct}%`;
                                   })()}
                                 </div>
-                                <div className="text-xs text-gray-400">
+                                <div className="text-xs text-muted-foreground">
                                   accuracy rate
                                 </div>
                               </div>
@@ -621,7 +621,7 @@ export function ShowDetail({
                 ) : (
                   <div className="mt-6 touch-manipulation">
                     {/* Setlist - Native iOS style with dividers */}
-                    <div className="divide-y divide-white/5 -mx-4 sm:mx-0">
+                    <div className="divide-y divide-border -mx-4 sm:mx-0">
                         {(predictionSetlist.songs || [])
                           .map((s: any) =>
                             typeof s === "string" ? s : s?.title
@@ -661,7 +661,7 @@ export function ShowDetail({
               if (unplayedSongs.length === 0) return null;
               
               return (
-                <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border">
+                <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-border sm:border">
                   <div className="px-4 py-4 sm:p-6 bg-card">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center">
@@ -692,7 +692,7 @@ export function ShowDetail({
             })()}
 
             {/* Venue Details */}
-            <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border">
+            <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-border sm:border">
               <div className="px-4 py-4 sm:p-6 bg-card">
                 <h3 className="text-lg sm:text-xl font-bold mb-4 text-foreground">
                   Venue Details
@@ -702,14 +702,14 @@ export function ShowDetail({
                     <div className="font-medium text-foreground">
                       {show?.venue?.name}
                     </div>
-                    <div className="text-sm text-gray-400">
+                    <div className="text-sm text-muted-foreground">
                       {show?.venue?.city}, {show?.venue?.country}
                     </div>
                   </div>
 
                   {show?.venue?.capacity && (
                     <div className="flex items-center gap-2 text-sm">
-                      <Users className="h-4 w-4 text-gray-400" />
+                      <Users className="h-4 w-4 text-muted-foreground" />
                       <span className="text-foreground">
                         {show?.venue?.capacity?.toLocaleString()} capacity
                       </span>
@@ -717,7 +717,7 @@ export function ShowDetail({
                   )}
 
                   {show?.venue?.address && (
-                    <div className="text-sm text-gray-400">
+                    <div className="text-sm text-muted-foreground">
                       {show?.venue?.address}
                     </div>
                   )}
@@ -727,14 +727,14 @@ export function ShowDetail({
             </MagicCard>
 
             {/* Show Stats */}
-            <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border">
+            <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-border sm:border">
               <div className="px-4 py-4 sm:p-6 bg-card">
                 <h3 className="text-lg sm:text-xl font-bold mb-4 text-foreground">
                   Show Stats
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400">
+                    <span className="text-sm text-muted-foreground">
                       Songs {hasActualSetlist ? "played" : "in setlist"}
                     </span>
                     <span className="font-medium text-foreground">
@@ -745,19 +745,19 @@ export function ShowDetail({
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400">Catalog songs</span>
+                    <span className="text-sm text-muted-foreground">Catalog songs</span>
                     <span className="font-medium text-foreground">{catalogCount}</span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400">Coverage</span>
+                    <span className="text-sm text-muted-foreground">Coverage</span>
                     <span className="font-medium text-foreground">
                       {catalogCoverage}%
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400">
+                    <span className="text-sm text-muted-foreground">
                       Studio songs available
                     </span>
                     <span className="font-medium text-foreground">
@@ -770,7 +770,7 @@ export function ShowDetail({
                   {predictionSetlist && (
                     <>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">
+                        <span className="text-sm text-muted-foreground">
                           Total votes
                         </span>
                         <span className="font-medium text-foreground">
@@ -780,7 +780,7 @@ export function ShowDetail({
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">
+                        <span className="text-sm text-muted-foreground">
                           Setlist upvotes
                         </span>
                         <span className="font-medium text-foreground">
@@ -790,7 +790,7 @@ export function ShowDetail({
 
                       {/* Top requested songs */}
                       {predictionSetlistId && (
-                        <div className="pt-3 mt-3 border-t border-white/5">
+                        <div className="pt-3 mt-3 border-t border-border">
                           <TopRequestedSongs setlistId={predictionSetlistId} />
                         </div>
                       )}
@@ -798,7 +798,7 @@ export function ShowDetail({
                   )}
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400">Show status</span>
+                    <span className="text-sm text-muted-foreground">Show status</span>
                     <span className="font-medium text-foreground capitalize">
                       {show.status}
                     </span>
@@ -810,7 +810,7 @@ export function ShowDetail({
 
             {/* Call to Action - Only for upcoming shows */}
             {!user && isUpcoming && (
-              <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border">
+              <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-border sm:border">
                 <div className="px-4 py-6 sm:p-6 text-center bg-card">
                   <div className="flex items-center justify-center gap-3 mb-4">
                     <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
@@ -820,7 +820,7 @@ export function ShowDetail({
                       Join the Voting
                     </h3>
                   </div>
-                  <p className="text-gray-300 mb-6">
+                  <p className="text-muted-foreground mb-6">
                     Sign in to request songs and vote on setlists
                   </p>
                   <button
@@ -843,10 +843,10 @@ export function ShowDetail({
 
       {/* Auth Modal for Unauth Limits */}
       <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
-        <DialogContent className="bg-black border-white/10 text-foreground max-w-md mx-auto">
+        <DialogContent className="bg-background border-border text-foreground max-w-md mx-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">Unlock More Actions</DialogTitle>
-            <DialogDescription className="text-gray-300">
+            <DialogDescription className="text-muted-foreground">
               You've used your free action. Sign up to vote on more songs and
               create setlists!
             </DialogDescription>
@@ -967,7 +967,7 @@ function FanRequestSongRow({
 
   return (
     <div
-      className="flex items-center justify-between py-4 px-4 sm:px-0 active:bg-white/10 sm:hover:bg-white/5 transition-all duration-150 active:scale-[0.98] min-h-[56px]"
+      className="flex items-center justify-between py-4 px-4 sm:px-0 active:bg-secondary sm:hover:bg-secondary transition-all duration-150 active:scale-[0.98] min-h-[56px]"
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         {/* Minimal status indicator */}
@@ -988,7 +988,7 @@ function FanRequestSongRow({
             </svg>
           </div>
         ) : (
-          <span className="text-sm text-gray-500 w-5 text-center font-semibold">
+          <span className="text-sm text-muted-foreground w-5 text-center font-semibold">
             {index + 1}
           </span>
         )}
@@ -996,7 +996,7 @@ function FanRequestSongRow({
         <div className="flex-1 min-w-0">
           <h3
             className={`font-semibold text-base leading-tight ${
-              wasPlayed ? "text-foreground" : "text-gray-300"
+              wasPlayed ? "text-foreground" : "text-muted-foreground"
             } truncate`}
           >
             {songTitle}
@@ -1012,7 +1012,7 @@ function FanRequestSongRow({
             void handleVote();
           }}
           className={`flex flex-col items-center gap-0.5 text-base transition-all duration-150 active:scale-95 min-w-[44px] min-h-[44px] justify-center ${
-            userVoted ? "text-primary" : "text-gray-500 active:text-foreground sm:hover:text-foreground"
+            userVoted ? "text-primary" : "text-muted-foreground active:text-foreground sm:hover:text-foreground"
           }`}
         >
           <ChevronUp
@@ -1020,7 +1020,7 @@ function FanRequestSongRow({
           />
           <span
             className={`font-semibold text-base ${
-              userVoted ? "text-primary" : "text-gray-400"
+              userVoted ? "text-primary" : "text-muted-foreground"
             }`}
           >
             {voteCount}
@@ -1066,7 +1066,7 @@ function ActualSetlistSongRow({
   return (
     <div
       className={`flex items-center justify-between py-3 px-4 sm:px-2 transition-all duration-150 min-h-[52px] rounded-lg ${
-        wasRequested ? "bg-green-500/10 border border-green-500/20" : "hover:bg-white/5"
+        wasRequested ? "bg-green-500/10 border border-green-500/20" : "hover:bg-secondary"
       }`}
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -1088,7 +1088,7 @@ function ActualSetlistSongRow({
             </svg>
           </div>
         ) : (
-          <span className="text-sm font-bold w-7 text-center text-gray-500">
+          <span className="text-sm font-bold w-7 text-center text-muted-foreground">
             {index + 1}
           </span>
         )}
@@ -1098,7 +1098,7 @@ function ActualSetlistSongRow({
             {song.title}
           </h3>
           {song.album && (
-            <p className="text-xs text-gray-400 truncate mt-0.5">{song.album}</p>
+            <p className="text-xs text-muted-foreground truncate mt-0.5">{song.album}</p>
           )}
         </div>
       </div>
@@ -1117,7 +1117,7 @@ function ActualSetlistSongRow({
             <span className="text-sm font-bold text-green-400">{voteCount}</span>
           </div>
         ) : (
-          <span className="text-xs text-gray-500 bg-white/5 px-2 py-1 rounded-full">
+          <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded-full">
             surprise
           </span>
         )}
@@ -1151,7 +1151,7 @@ function UnplayedRequestRow({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </div>
-        <span className="text-sm text-gray-300 truncate">{songTitle}</span>
+        <span className="text-sm text-muted-foreground truncate">{songTitle}</span>
       </div>
       <div className="flex items-center gap-1 text-red-400/80 flex-shrink-0">
         <ChevronUp className="h-3 w-3" />

@@ -67,7 +67,7 @@ export function SpotifyConnectPage() {
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <MagicCard className="p-8 max-w-md text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#1DB954]" />
-          <p className="text-gray-400 mt-4">Loading...</p>
+          <p className="text-muted-foreground mt-4">Loading...</p>
         </MagicCard>
       </div>
     );
@@ -84,13 +84,13 @@ export function SpotifyConnectPage() {
           )}
         </div>
         
-        <h1 className="text-2xl font-bold text-white mb-4">
+        <h1 className="text-2xl font-bold text-foreground mb-4">
           {isSpotifyConnected ? 'Spotify Connected!' : 'Connect Spotify'}
         </h1>
         
         {isSpotifyConnected ? (
           <>
-            <p className="text-gray-400 mb-6">
+            <p className="text-muted-foreground mb-6">
               Your Spotify account is already linked. We're using your music preferences to personalize your experience.
             </p>
             <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 mb-6">
@@ -100,14 +100,14 @@ export function SpotifyConnectPage() {
             </div>
             <Button
               onClick={() => { void navigate('/activity'); }}
-              className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white"
+              className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-foreground"
             >
               Continue to Dashboard
             </Button>
           </>
         ) : (
           <>
-            <p className="text-gray-400 mb-6">
+            <p className="text-muted-foreground mb-6">
               {user 
                 ? 'Link your Spotify account to discover personalized shows and artists based on your music taste.'
                 : 'Sign in with Spotify to discover personalized shows and artists based on your music taste.'}
@@ -117,7 +117,7 @@ export function SpotifyConnectPage() {
               <Button
                 onClick={() => { void handleSpotifyConnect(); }}
                 disabled={isLoading}
-                className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white"
+                className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-foreground"
               >
                 {isLoading ? (
                   <>
@@ -142,7 +142,7 @@ export function SpotifyConnectPage() {
               </Button>
             </div>
             
-            <p className="text-xs text-gray-500 mt-6">
+            <p className="text-xs text-muted-foreground mt-6">
               We'll import your followed artists and top artists to personalize your experience.
             </p>
           </>

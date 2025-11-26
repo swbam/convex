@@ -40,15 +40,15 @@ export function UserPredictions() {
       {/* Simple Stats */}
       <div className="grid grid-cols-2 gap-4">
         <MagicCard className="p-6 text-center bg-card">
-          <div className="text-3xl font-bold mb-2 text-white">{songVotes.length}</div>
-          <div className="text-sm text-gray-400">Total Votes</div>
+          <div className="text-3xl font-bold mb-2 text-foreground">{songVotes.length}</div>
+          <div className="text-sm text-muted-foreground">Total Votes</div>
         </MagicCard>
         
         <MagicCard className="p-6 text-center bg-card">
-          <div className="text-3xl font-bold mb-2 text-white">
+          <div className="text-3xl font-bold mb-2 text-foreground">
             {new Set(songVotes.map(v => v.setlistId)).size}
           </div>
-          <div className="text-sm text-gray-400">Shows Voted On</div>
+          <div className="text-sm text-muted-foreground">Shows Voted On</div>
         </MagicCard>
       </div>
 

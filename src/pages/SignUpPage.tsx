@@ -53,18 +53,18 @@ export function SignUpPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-bold text-white mb-2">Authentication Error</h2>
-              <p className="text-gray-400 mb-6">{authError}</p>
+              <h2 className="text-xl font-bold text-foreground mb-2">Authentication Error</h2>
+              <p className="text-muted-foreground mb-6">{authError}</p>
               <div className="space-y-3">
                 <button
                   onClick={() => window.location.reload()}
-                  className="w-full px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-all duration-200 border border-white/20"
+                  className="w-full px-6 py-3 bg-secondary hover:bg-secondary/80 text-foreground rounded-xl font-medium transition-all duration-200 border border-border"
                 >
                   Retry
                 </button>
                 <button
                   onClick={() => navigate('/')}
-                  className="w-full px-6 py-3 bg-transparent hover:bg-white/5 text-gray-400 hover:text-white rounded-xl font-medium transition-all duration-200"
+                  className="w-full px-6 py-3 bg-transparent hover:bg-secondary text-muted-foreground hover:text-foreground rounded-xl font-medium transition-all duration-200"
                 >
                   Go Back Home
                 </button>
@@ -72,9 +72,9 @@ export function SignUpPage() {
             </>
           ) : (
             <>
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-white" />
-              <p className="text-white mb-2">Loading authentication...</p>
-              <p className="text-gray-400 text-sm">This should only take a moment</p>
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-foreground" />
+              <p className="text-foreground mb-2">Loading authentication...</p>
+              <p className="text-muted-foreground text-sm">This should only take a moment</p>
             </>
           )}
         </div>
@@ -287,17 +287,17 @@ export function SignUpPage() {
                 {/* Header */}
                 <div className="text-center mb-8">
                   <div className="flex items-center justify-center gap-3 mb-4">
-                    <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                      <Music className="h-6 w-6 text-white" />
+                    <div className="w-12 h-12 bg-secondary rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                      <Music className="h-6 w-6 text-foreground" />
                     </div>
-                    <h1 className="text-3xl font-bold text-white">Join setlists.live</h1>
+                    <h1 className="text-3xl font-bold text-foreground">Join setlists.live</h1>
                   </div>
-                  <p className="text-gray-300 text-lg">
+                  <p className="text-muted-foreground text-lg">
                     Create your account to start voting
                   </p>
                   <div className="flex items-center justify-center gap-2 mt-2">
                     <Sparkles className="h-4 w-4 text-primary" />
-                    <span className="text-sm text-gray-400">Predict setlists and compete with fans</span>
+                    <span className="text-sm text-muted-foreground">Predict setlists and compete with fans</span>
                   </div>
                 </div>
 
@@ -305,37 +305,37 @@ export function SignUpPage() {
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Email Field */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-300">Email</label>
+                    <label className="text-sm font-medium text-muted-foreground">Email</label>
                     <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                       <input
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="Enter your email"
                         required
-                        className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300"
+                        className="w-full pl-12 pr-4 py-3 bg-secondary border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-foreground placeholder-muted-foreground backdrop-blur-sm transition-all duration-300"
                       />
                     </div>
                   </div>
 
                   {/* Password Field */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-300">Password</label>
+                    <label className="text-sm font-medium text-muted-foreground">Password</label>
                     <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                       <input
                         type={showPassword ? "text" : "password"}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Create a password"
                         required
-                        className="w-full pl-12 pr-12 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300"
+                        className="w-full pl-12 pr-12 py-3 bg-secondary border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-foreground placeholder-muted-foreground backdrop-blur-sm transition-all duration-300"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
@@ -365,7 +365,7 @@ export function SignUpPage() {
                 {/* Divider */}
                 <div className="relative my-6">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-white/10"></div>
+                    <div className="w-full border-t border-border"></div>
                   </div>
                   <div className="relative flex justify-center text-sm">
                     <span className="px-4 bg-card text-muted-foreground">Or continue with</span>
@@ -394,7 +394,7 @@ export function SignUpPage() {
                     type="button"
                     onClick={handleSpotifySignUp}
                     disabled={isSpotifyLoading || isGoogleLoading || isSubmitting}
-                    className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-[#1DB954] hover:bg-[#1ed760] text-white rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-[#1DB954] hover:bg-[#1ed760] text-foreground rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSpotifyLoading ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
@@ -413,25 +413,25 @@ export function SignUpPage() {
                     <div className="w-12 h-12 bg-green-500/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
                       <Check className="h-6 w-6 text-green-400" />
                     </div>
-                    <h1 className="text-3xl font-bold text-white">Verify Email</h1>
+                    <h1 className="text-3xl font-bold text-foreground">Verify Email</h1>
                   </div>
-                  <p className="text-gray-300 text-lg">
+                  <p className="text-muted-foreground text-lg">
                     We sent a verification code to
                   </p>
-                  <p className="text-white font-medium">{email}</p>
+                  <p className="text-foreground font-medium">{email}</p>
                 </div>
 
                 {/* Verification Form */}
                 <form onSubmit={handleVerification} className="space-y-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-300">Verification Code</label>
+                    <label className="text-sm font-medium text-muted-foreground">Verification Code</label>
                     <input
                       type="text"
                       value={verificationCode}
                       onChange={(e) => setVerificationCode(e.target.value)}
                       placeholder="Enter 6-digit code"
                       required
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-400 backdrop-blur-sm transition-all duration-300 text-center text-lg tracking-widest"
+                      className="w-full px-4 py-3 bg-secondary border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-foreground placeholder-muted-foreground backdrop-blur-sm transition-all duration-300 text-center text-lg tracking-widest"
                       maxLength={6}
                     />
                   </div>
@@ -455,7 +455,7 @@ export function SignUpPage() {
                 <div className="mt-6 text-center">
                   <button
                     onClick={() => setVerificationStep(false)}
-                    className="text-gray-400 hover:text-white transition-colors text-sm"
+                    className="text-muted-foreground hover:text-foreground transition-colors text-sm"
                   >
                     Back to sign up
                   </button>
@@ -465,7 +465,7 @@ export function SignUpPage() {
 
             {/* Sign In Link */}
             <div className="mt-6 text-center">
-              <p className="text-gray-400">
+              <p className="text-muted-foreground">
                 Already have an account?{' '}
                 <button
                   onClick={() => navigate('/signin')}

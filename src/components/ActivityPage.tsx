@@ -63,7 +63,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-        <p className="text-gray-400">Loading your activity...</p>
+        <p className="text-muted-foreground">Loading your activity...</p>
       </div>
     );
   }
@@ -75,8 +75,8 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
         <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <Activity className="h-8 w-8 text-primary" />
         </div>
-        <h2 className="text-2xl font-bold text-white mb-2">Activity Feed</h2>
-        <p className="text-gray-400 mb-6">Sign in to track your voting history and predictions</p>
+        <h2 className="text-2xl font-bold text-foreground mb-2">Activity Feed</h2>
+        <p className="text-muted-foreground mb-6">Sign in to track your voting history and predictions</p>
         <Button onClick={() => void navigate('/signin')} className="bg-primary hover:bg-primary/90">
           Sign In to View Activity
         </Button>
@@ -88,7 +88,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-        <p className="text-gray-400">Setting up your account...</p>
+        <p className="text-muted-foreground">Setting up your account...</p>
       </div>
     );
   }
@@ -101,14 +101,14 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
     <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 relative z-10">
       {/* Header */}
       <FadeIn delay={0} duration={0.5}>
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 bg-black border-t border-b border-white/5">
+      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 bg-background border-t border-b border-border">
       <div className="relative z-10 p-4 sm:p-6 lg:p-8">
         <div className="flex items-center justify-between mb-4">
           <Button 
             variant="ghost" 
             size="sm" 
             onClick={() => void navigate('/')}
-            className="text-gray-400 hover:text-white"
+            className="text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Home
@@ -116,12 +116,12 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-            <Activity className="h-6 w-6 text-white" />
+          <div className="w-12 h-12 bg-secondary rounded-2xl flex items-center justify-center backdrop-blur-sm">
+            <Activity className="h-6 w-6 text-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">Your Activity</h1>
-            <p className="text-gray-300 text-sm sm:text-base">Track your voting history and engagement</p>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">Your Activity</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">Track your voting history and engagement</p>
           </div>
         </div>
       </div>
@@ -132,46 +132,46 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
       {/* Stats Cards - Consistent with Admin Page */}
       <FadeIn delay={0.2} duration={0.5}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MagicCard className="p-0 rounded-xl border-0 bg-black border-t border-b border-white/5">
+        <MagicCard className="p-0 rounded-xl border-0 bg-background border-t border-b border-border">
           <div className="p-4 sm:p-6 text-center">
             <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
               <Vote className="h-5 w-5 text-green-400" />
             </div>
-            <div className="text-3xl font-bold text-white mb-1">{activityStats?.totalVotes || 0}</div>
-            <div className="text-sm text-gray-400">Total Votes</div>
+            <div className="text-3xl font-bold text-foreground mb-1">{activityStats?.totalVotes || 0}</div>
+            <div className="text-sm text-muted-foreground">Total Votes</div>
           </div>
           <BorderBeam size={80} duration={8} className="opacity-20" />
         </MagicCard>
 
-        <MagicCard className="p-0 rounded-xl border-0 bg-black border-t border-b border-white/5">
+        <MagicCard className="p-0 rounded-xl border-0 bg-background border-t border-b border-border">
           <div className="p-4 sm:p-6 text-center">
             <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
               <Music className="h-5 w-5 text-blue-400" />
             </div>
-            <div className="text-3xl font-bold text-white mb-1">{activityStats?.totalSetlists || 0}</div>
-            <div className="text-sm text-gray-400">Setlists Created</div>
+            <div className="text-3xl font-bold text-foreground mb-1">{activityStats?.totalSetlists || 0}</div>
+            <div className="text-sm text-muted-foreground">Setlists Created</div>
           </div>
           <BorderBeam size={80} duration={8} className="opacity-20" />
         </MagicCard>
 
-        <MagicCard className="p-0 rounded-xl border-0 bg-black border-t border-b border-white/5">
+        <MagicCard className="p-0 rounded-xl border-0 bg-background border-t border-b border-border">
           <div className="p-4 sm:p-6 text-center">
             <div className="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
               <TrendingUp className="h-5 w-5 text-purple-400" />
             </div>
-            <div className="text-3xl font-bold text-white mb-1">{activityStats?.accuracy || 0}%</div>
-            <div className="text-sm text-gray-400">Accuracy</div>
+            <div className="text-3xl font-bold text-foreground mb-1">{activityStats?.accuracy || 0}%</div>
+            <div className="text-sm text-muted-foreground">Accuracy</div>
           </div>
           <BorderBeam size={80} duration={8} className="opacity-20" />
         </MagicCard>
 
-        <MagicCard className="p-0 rounded-xl border-0 bg-black border-t border-b border-white/5">
+        <MagicCard className="p-0 rounded-xl border-0 bg-background border-t border-b border-border">
           <div className="p-4 sm:p-6 text-center">
             <div className="w-10 h-10 bg-orange-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
               <Star className="h-5 w-5 text-orange-400" />
             </div>
-            <div className="text-3xl font-bold text-white mb-1">{activityStats?.streak || 0}</div>
-            <div className="text-sm text-gray-400">Day Streak</div>
+            <div className="text-3xl font-bold text-foreground mb-1">{activityStats?.streak || 0}</div>
+            <div className="text-sm text-muted-foreground">Day Streak</div>
           </div>
           <BorderBeam size={80} duration={8} className="opacity-20" />
         </MagicCard>
@@ -180,13 +180,13 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
 
       {/* Filter Tabs */}
       <FadeIn delay={0.4} duration={0.5}>
-      <div className="flex gap-2 p-1 bg-white/5 rounded-xl backdrop-blur-sm border border-white/10">
+      <div className="flex gap-2 p-1 bg-secondary rounded-xl backdrop-blur-sm border border-border">
         <button
           onClick={() => setFilter('all')}
           className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all duration-200 ${
             filter === 'all'
-              ? 'bg-white/10 text-white border border-white/20'
-              : 'text-gray-400 hover:text-white hover:bg-white/5'
+              ? 'bg-secondary text-foreground border border-border'
+              : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
           }`}
         >
           All Activity
@@ -195,8 +195,8 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
           onClick={() => setFilter('recent')}
           className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all duration-200 ${
             filter === 'recent'
-              ? 'bg-white/10 text-white border border-white/20'
-              : 'text-gray-400 hover:text-white hover:bg-white/5'
+              ? 'bg-secondary text-foreground border border-border'
+              : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
           }`}
         >
           Past Week
@@ -206,10 +206,10 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
 
       {/* Activity List - Apple Music Style */}
       <FadeIn delay={0.6} duration={0.5}>
-      <MagicCard className="p-0 rounded-2xl border-0 bg-black border-t border-b border-white/5">
+      <MagicCard className="p-0 rounded-2xl border-0 bg-background border-t border-b border-border">
         <div className="p-4 sm:p-6">
-          <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-            <Clock className="h-5 w-5 text-gray-400" />
+          <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
+            <Clock className="h-5 w-5 text-muted-foreground" />
             Voting History
           </h2>
 
@@ -217,14 +217,14 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
             // Loading/Empty state
             <div className="space-y-0">
               {[...Array(10)].map((_, i) => (
-                <div key={i} className="animate-pulse py-4 border-b border-white/5">
-                  <div className="h-12 bg-white/5 rounded" />
+                <div key={i} className="animate-pulse py-4 border-b border-border">
+                  <div className="h-12 bg-secondary rounded" />
                 </div>
               ))}
               {activityFeed.length === 0 && (
                 <div className="text-center py-12">
-                  <Activity className="h-12 w-12 mx-auto mb-4 text-gray-500" />
-                  <p className="text-gray-400 mb-4">No activity yet</p>
+                  <Activity className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground mb-4">No activity yet</p>
                   <Button onClick={() => void navigate('/shows')}>
                     Start Voting on Shows
                   </Button>
@@ -236,20 +236,20 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
             <div className="space-y-0">
               {Object.entries(groupedActivity).map(([date, items]) => (
                 <div key={date}>
-                  <div className="sticky top-0 bg-card/80 backdrop-blur-sm z-10 py-3 px-4 border-b border-white/5">
-                    <h3 className="text-sm font-medium text-gray-300">{date}</h3>
+                  <div className="sticky top-0 bg-card/80 backdrop-blur-sm z-10 py-3 px-4 border-b border-border">
+                    <h3 className="text-sm font-medium text-muted-foreground">{date}</h3>
                   </div>
                   {items.map((activity: any) => (
-                    <div key={activity._id} className="py-4 px-4 border-b border-white/5 last:border-b-0 hover:bg-white/5 transition-colors">
+                    <div key={activity._id} className="py-4 px-4 border-b border-border last:border-b-0 hover:bg-secondary transition-colors">
                       <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <div className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
                           {activity.type === 'song_vote' && <Vote className="h-4 w-4 text-primary" />}
                           {activity.type === 'setlist_created' && <Music className="h-4 w-4 text-green-400" />}
                           {activity.type === 'prediction_made' && <TrendingUp className="h-4 w-4 text-blue-400" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-white font-medium text-sm">{activity.description}</p>
-                          <p className="text-gray-400 text-xs mt-1">
+                          <p className="text-foreground font-medium text-sm">{activity.description}</p>
+                          <p className="text-muted-foreground text-xs mt-1">
                             {new Date(activity.createdAt).toLocaleString('en-US', { 
                               month: 'short', 
                               day: 'numeric', 
@@ -258,7 +258,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
                             })}
                           </p>
                           {activity.data?.show && (
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-muted-foreground mt-1">
                               {activity.data.show.artist.name} • {activity.data.show.venue.name}
                             </p>
                           )}
@@ -277,9 +277,9 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
 
       {/* Recent Predictions */}
       <FadeIn delay={0.8} duration={0.5}>
-        <MagicCard className="p-0 rounded-2xl border-0 bg-black border-t border-b border-white/5">
+        <MagicCard className="p-0 rounded-2xl border-0 bg-background border-t border-b border-border">
           <div className="p-4 sm:p-6">
-            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+            <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
               <Star className="h-5 w-5 text-yellow-400" />
               Recent Predictions
             </h2>
@@ -288,27 +288,27 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
                 // Loading state
                 <div className="space-y-3">
                   {[...Array(3)].map((_, i) => (
-                    <div key={i} className="animate-pulse bg-white/5 rounded-lg p-4 h-16" />
+                    <div key={i} className="animate-pulse bg-secondary rounded-lg p-4 h-16" />
                   ))}
                 </div>
               ) : recentPredictions && recentPredictions.length > 0 ? (
                 // Has predictions
                 recentPredictions.map((pred: any) => (
-                  <div key={pred._id} className="p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
-                    <p className="text-white font-medium">
+                  <div key={pred._id} className="p-4 bg-secondary rounded-lg hover:bg-secondary transition-colors">
+                    <p className="text-foreground font-medium">
                       {pred.show?.artist?.name || 'Unknown Artist'} - {Array.isArray(pred.predictedSongs) ? pred.predictedSongs.join(', ') : 'No songs'}
                     </p>
-                    <p className="text-xs text-gray-400">{new Date(pred.createdAt).toLocaleDateString()} {new Date(pred.createdAt).toLocaleTimeString()}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(pred.createdAt).toLocaleDateString()} {new Date(pred.createdAt).toLocaleTimeString()}</p>
                   </div>
                 ))
               ) : (
                 // Empty state with better CTA
                 <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Star className="h-8 w-8 text-gray-400" />
+                  <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Star className="h-8 w-8 text-muted-foreground" />
                   </div>
-                  <p className="text-white font-medium mb-2">No Predictions Yet</p>
-                  <p className="text-gray-400 text-sm mb-4">Start predicting setlists to see them here</p>
+                  <p className="text-foreground font-medium mb-2">No Predictions Yet</p>
+                  <p className="text-muted-foreground text-sm mb-4">Start predicting setlists to see them here</p>
                   <Button onClick={() => void navigate('/shows')} className="bg-primary/20 hover:bg-primary/30">
                     Browse Upcoming Shows
                   </Button>

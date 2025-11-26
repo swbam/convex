@@ -116,15 +116,15 @@ export function Shows({ onShowClick }: ShowsProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <MagicCard className="relative overflow-hidden rounded-xl sm:rounded-2xl p-0 border border-white/10 bg-card">
+        <MagicCard className="relative overflow-hidden rounded-xl sm:rounded-2xl p-0 border border-border bg-card">
           <div className="relative z-10 p-4 sm:p-6 lg:p-8">
             <div className="flex items-center gap-3 sm:gap-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-white/10 rounded-xl sm:rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/10">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-secondary rounded-xl sm:rounded-2xl flex items-center justify-center backdrop-blur-sm border border-border">
                 <Calendar className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-foreground" />
               </div>
               <div className="flex-1 min-w-0">
                 <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">Upcoming Shows</h1>
-                <p className="text-gray-400 text-xs sm:text-sm mt-0.5 sm:mt-1">{displayShows.length} concerts available</p>
+                <p className="text-muted-foreground text-xs sm:text-sm mt-0.5 sm:mt-1">{displayShows.length} concerts available</p>
               </div>
             </div>
           </div>
@@ -140,7 +140,7 @@ export function Shows({ onShowClick }: ShowsProps) {
       >
         <div className="glass-card rounded-xl sm:rounded-2xl p-1 max-w-lg">
           <div className="relative">
-            <Search className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
+            <Search className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 sm:h-5 sm:w-5" />
             <input
               type="text"
               placeholder="Search by city, state, or zip..."
@@ -149,12 +149,12 @@ export function Shows({ onShowClick }: ShowsProps) {
                 setCityFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full pl-10 sm:pl-12 pr-16 sm:pr-4 py-3 sm:py-3.5 bg-white/5 border border-white/10 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-foreground placeholder-gray-400 text-sm sm:text-base"
+              className="w-full pl-10 sm:pl-12 pr-16 sm:pr-4 py-3 sm:py-3.5 bg-secondary border border-border rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-foreground placeholder-muted-foreground text-sm sm:text-base"
             />
             {cityFilter && (
               <button
                 onClick={() => setCityFilter('')}
-                className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-foreground px-2 py-1 rounded text-xs sm:text-sm"
+                className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground px-2 py-1 rounded text-xs sm:text-sm"
               >
                 Clear
               </button>
@@ -169,10 +169,10 @@ export function Shows({ onShowClick }: ShowsProps) {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {[...Array(10)].map((_, i) => (
             <div key={i} className="glass-card rounded-2xl overflow-hidden animate-pulse">
-              <div className="aspect-square bg-white/5" />
+              <div className="aspect-square bg-secondary" />
               <div className="p-4 space-y-3">
-                <div className="h-5 bg-white/10 rounded w-3/4" />
-                <div className="h-4 bg-white/10 rounded w-1/2" />
+                <div className="h-5 bg-secondary rounded w-3/4" />
+                <div className="h-4 bg-secondary rounded w-1/2" />
               </div>
             </div>
           ))}
@@ -184,11 +184,11 @@ export function Shows({ onShowClick }: ShowsProps) {
           animate={{ opacity: 1, scale: 1 }}
           className="text-center py-20"
         >
-          <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-white/5 flex items-center justify-center border border-white/10">
-            <Music className="h-10 w-10 text-gray-500" />
+          <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-secondary flex items-center justify-center border border-border">
+            <Music className="h-10 w-10 text-muted-foreground" />
           </div>
           <h3 className="text-2xl font-bold text-foreground mb-3">No shows found</h3>
-          <p className="text-gray-400 text-lg mb-6 max-w-md mx-auto">
+          <p className="text-muted-foreground text-lg mb-6 max-w-md mx-auto">
             {cityFilter 
               ? 'No shows found in that area. Try a different location.'
               : 'No shows available yet. Check back soon!'
@@ -197,7 +197,7 @@ export function Shows({ onShowClick }: ShowsProps) {
           {cityFilter && (
             <button
               onClick={() => setCityFilter('')}
-              className="px-6 py-3 bg-white/10 hover:bg-white/20 text-foreground rounded-xl transition-colors font-medium border border-white/10"
+              className="px-6 py-3 bg-secondary hover:bg-secondary/80 text-foreground rounded-xl transition-colors font-medium border border-border"
             >
               Show All Shows
             </button>
@@ -213,7 +213,7 @@ export function Shows({ onShowClick }: ShowsProps) {
         >
           {/* Shows count */}
           <div className="flex items-center justify-between">
-            <p className="text-gray-400">
+            <p className="text-muted-foreground">
               Showing {paginatedShows.length} of {displayShows.length} shows
             </p>
           </div>
@@ -239,7 +239,7 @@ export function Shows({ onShowClick }: ShowsProps) {
               className="flex items-center justify-center gap-3 pt-6"
             >
               <button
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-foreground text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 transition-colors"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-secondary border border-border text-foreground text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:bg-secondary transition-colors"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
@@ -257,8 +257,8 @@ export function Shows({ onShowClick }: ShowsProps) {
                       onClick={() => setPage(pageNum)}
                       className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
                         pageNum === page
-                          ? 'bg-white/20 text-foreground border border-white/20'
-                          : 'text-gray-400 hover:text-foreground hover:bg-white/5'
+                          ? 'bg-secondary/80 text-foreground border border-border'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
                       }`}
                     >
                       {pageNum}
@@ -268,7 +268,7 @@ export function Shows({ onShowClick }: ShowsProps) {
               </div>
               
               <button
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-foreground text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 transition-colors"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-secondary border border-border text-foreground text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:bg-secondary transition-colors"
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               >
@@ -343,11 +343,11 @@ function PremiumShowCard({
           </h3>
           {show.venue && (
             <div className="space-y-0.5">
-              <p className="text-gray-400 text-xs sm:text-sm flex items-center gap-1.5">
+              <p className="text-muted-foreground text-xs sm:text-sm flex items-center gap-1.5">
                 <MapPin className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate">{show.venue.name}</span>
               </p>
-              <p className="text-gray-500 text-xs pl-4">
+              <p className="text-muted-foreground text-xs pl-4">
                 {show.venue.city}{show.venue.state ? `, ${show.venue.state}` : ''}
               </p>
             </div>

@@ -129,7 +129,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <MagicCard className="relative overflow-hidden rounded-xl sm:rounded-2xl p-0 border border-white/10 bg-card">
+        <MagicCard className="relative overflow-hidden rounded-xl sm:rounded-2xl p-0 border border-border bg-card">
           <div className="relative z-10 p-4 sm:p-6 lg:p-8">
             <div className="flex items-center gap-3 sm:gap-4">
               <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-orange-500/30 to-red-500/30 rounded-xl sm:rounded-2xl flex items-center justify-center backdrop-blur-sm border border-orange-500/20">
@@ -137,7 +137,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">Trending</h1>
-                <p className="text-gray-400 text-xs sm:text-sm mt-0.5 sm:mt-1">Discover what's hot right now</p>
+                <p className="text-muted-foreground text-xs sm:text-sm mt-0.5 sm:mt-1">Discover what's hot right now</p>
               </div>
             </div>
           </div>
@@ -152,15 +152,15 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
         transition={{ duration: 0.4, delay: 0.1 }}
         className="flex justify-center"
       >
-        <div className="inline-flex gap-1 sm:gap-2 p-1 sm:p-1.5 bg-white/5 rounded-xl sm:rounded-2xl backdrop-blur-sm border border-white/10">
+        <div className="inline-flex gap-1 sm:gap-2 p-1 sm:p-1.5 bg-secondary rounded-xl sm:rounded-2xl backdrop-blur-sm border border-border">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 sm:gap-2 py-2 px-3 sm:py-2.5 sm:px-5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 ${
                 activeTab === tab.id
-                  ? 'bg-white/15 text-foreground shadow-lg border border-white/20'
-                  : 'text-gray-400 hover:text-foreground hover:bg-white/5'
+                  ? 'bg-secondary text-foreground shadow-lg border border-border'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
               }`}
             >
               <tab.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -173,10 +173,10 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2">
-          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-card overflow-hidden">
+          <MagicCard className="p-0 rounded-2xl border border-border bg-card overflow-hidden">
             <div className="p-6">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center">
                   <TrendingUp className="h-5 w-5 text-foreground" />
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold text-foreground">
@@ -195,15 +195,15 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                   {!trendingArtists ? (
                     [...Array(9)].map((_, i) => (
                       <div key={i} className="glass-card rounded-2xl overflow-hidden animate-pulse">
-                        <div className="aspect-square bg-white/5" />
+                        <div className="aspect-square bg-secondary" />
                         <div className="p-3 space-y-2">
-                          <div className="h-4 bg-white/10 rounded w-3/4" />
-                          <div className="h-3 bg-white/10 rounded w-1/2" />
+                          <div className="h-4 bg-secondary rounded w-3/4" />
+                          <div className="h-3 bg-secondary rounded w-1/2" />
                         </div>
                       </div>
                     ))
                   ) : (!Array.isArray(trendingArtists.page) || trendingArtists.page.length === 0) ? (
-                    <div className="col-span-full text-center py-12 text-gray-400">
+                    <div className="col-span-full text-center py-12 text-muted-foreground">
                       <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No trending artists data available</p>
                     </div>
@@ -232,15 +232,15 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                   {!trendingShows ? (
                     [...Array(9)].map((_, i) => (
                       <div key={i} className="glass-card rounded-2xl overflow-hidden animate-pulse">
-                        <div className="aspect-square bg-white/5" />
+                        <div className="aspect-square bg-secondary" />
                         <div className="p-3 space-y-2">
-                          <div className="h-4 bg-white/10 rounded w-3/4" />
-                          <div className="h-3 bg-white/10 rounded w-1/2" />
+                          <div className="h-4 bg-secondary rounded w-3/4" />
+                          <div className="h-3 bg-secondary rounded w-1/2" />
                         </div>
                       </div>
                     ))
                   ) : (!Array.isArray(trendingShows.page) || trendingShows.page.length === 0) ? (
-                    <div className="col-span-full text-center py-12 text-gray-400">
+                    <div className="col-span-full text-center py-12 text-muted-foreground">
                       <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No trending shows data available</p>
                     </div>
@@ -269,17 +269,17 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                   {!trendingSetlists ? (
                     [...Array(8)].map((_, i) => (
                       <div key={i} className="animate-pulse">
-                        <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5">
-                          <div className="w-12 h-12 bg-white/10 rounded-lg" />
+                        <div className="flex items-center gap-4 p-4 rounded-xl bg-secondary">
+                          <div className="w-12 h-12 bg-secondary rounded-lg" />
                           <div className="flex-1 space-y-2">
-                            <div className="h-5 bg-white/10 rounded w-2/3" />
-                            <div className="h-4 bg-white/10 rounded w-1/2" />
+                            <div className="h-5 bg-secondary rounded w-2/3" />
+                            <div className="h-4 bg-secondary rounded w-1/2" />
                           </div>
                         </div>
                       </div>
                     ))
                   ) : (!Array.isArray(trendingSetlists) || trendingSetlists.length === 0) ? (
-                    <div className="text-center py-12 text-gray-400">
+                    <div className="text-center py-12 text-muted-foreground">
                       <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No trending setlists available</p>
                     </div>
@@ -307,18 +307,18 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                               />
                             ) : (
                               <div className="w-full h-full bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center">
-                                <Music className="h-5 w-5 text-gray-500" />
+                                <Music className="h-5 w-5 text-muted-foreground" />
                               </div>
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-foreground truncate">{setlist.artist?.name}</h3>
-                            <p className="text-sm text-gray-400 truncate">
+                            <p className="text-sm text-muted-foreground truncate">
                               {setlist.venue?.name} • {setlist.songs?.length ?? 0} songs
                             </p>
                           </div>
-                          <div className="flex items-center gap-2 text-gray-400">
-                            <span className="text-xs bg-white/10 px-2 py-1 rounded-full">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <span className="text-xs bg-secondary px-2 py-1 rounded-full">
                               #{index + 1}
                             </span>
                             <ChevronRight className="h-4 w-4" />
@@ -342,7 +342,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
           >
-            <MagicCard className="p-0 rounded-2xl border border-white/10 bg-card">
+            <MagicCard className="p-0 rounded-2xl border border-border bg-card">
               <div className="p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <TrendingUp className="h-5 w-5 text-orange-400" />
@@ -353,13 +353,13 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                     <div className="text-2xl font-bold text-foreground">
                       {trendingArtists?.page?.length || 0}
                     </div>
-                    <div className="text-xs text-gray-400">Artists</div>
+                    <div className="text-xs text-muted-foreground">Artists</div>
                   </div>
                   <div className="glass-card rounded-xl p-4 text-center">
                     <div className="text-2xl font-bold text-foreground">
                       {trendingShows?.page?.length || 0}
                     </div>
-                    <div className="text-xs text-gray-400">Shows</div>
+                    <div className="text-xs text-muted-foreground">Shows</div>
                   </div>
                 </div>
               </div>
@@ -373,7 +373,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, delay: 0.3 }}
           >
-            <MagicCard className="p-0 rounded-2xl border border-white/10 bg-card">
+            <MagicCard className="p-0 rounded-2xl border border-border bg-card">
               <div className="p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <Clock className="h-5 w-5 text-foreground" />
@@ -384,21 +384,21 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                   <div className="space-y-3">
                     {[...Array(5)].map((_, i) => (
                       <div key={i} className="animate-pulse">
-                        <div className="p-3 rounded-lg bg-white/5">
-                          <div className="h-4 bg-white/10 rounded w-3/4 mb-2" />
-                          <div className="h-3 bg-white/10 rounded w-1/2" />
+                        <div className="p-3 rounded-lg bg-secondary">
+                          <div className="h-4 bg-secondary rounded w-3/4 mb-2" />
+                          <div className="h-3 bg-secondary rounded w-1/2" />
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : recentActivity.length === 0 ? (
-                  <p className="text-sm text-gray-500">No recent activity</p>
+                  <p className="text-sm text-muted-foreground">No recent activity</p>
                 ) : (
                   <div className="space-y-2">
                     {recentActivity.slice(0, 5).map((activity, index) => (
                       <motion.div 
                         key={index} 
-                        className="p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors"
+                        className="p-3 rounded-lg bg-secondary border border-border hover:bg-secondary transition-colors"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
@@ -409,7 +409,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                             <p className="text-sm text-foreground truncate">
                               <span className="font-semibold">{activity.artist?.name || 'Unknown'}</span>
                             </p>
-                            <p className="text-xs text-gray-400 truncate">
+                            <p className="text-xs text-muted-foreground truncate">
                               {activity.venue?.name || 'Unknown Venue'}
                             </p>
                           </div>
@@ -479,7 +479,7 @@ function TrendingArtistCard({
             <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-sm ${
               rank <= 3 
                 ? 'bg-gradient-to-br from-orange-500 to-red-500 text-foreground' 
-                : 'bg-white/20 backdrop-blur-sm text-foreground'
+                : 'bg-secondary/80 backdrop-blur-sm text-foreground'
             }`}>
               {rank}
             </div>
@@ -487,7 +487,7 @@ function TrendingArtistCard({
         </div>
         <div className="p-3">
           <h3 className="font-semibold text-foreground text-sm truncate">{artist.name}</h3>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-muted-foreground">
             {upcomingCount} {upcomingCount === 1 ? 'show' : 'shows'}
           </p>
         </div>
@@ -555,7 +555,7 @@ function TrendingShowCard({
             <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-sm ${
               rank <= 3 
                 ? 'bg-gradient-to-br from-orange-500 to-red-500 text-foreground' 
-                : 'bg-white/20 backdrop-blur-sm text-foreground'
+                : 'bg-secondary/80 backdrop-blur-sm text-foreground'
             }`}>
               {rank}
             </div>
@@ -563,7 +563,7 @@ function TrendingShowCard({
         </div>
         <div className="p-3">
           <h3 className="font-semibold text-foreground text-sm truncate">{artistName}</h3>
-          <p className="text-xs text-gray-400 flex items-center gap-1">
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
             <MapPin className="h-3 w-3" />
             <span className="truncate">{venueCity}</span>
           </p>

@@ -51,7 +51,7 @@ export function SongCombobox({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
-        className="w-full px-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-left text-sm text-white backdrop-blur-sm transition-all duration-300 flex items-center justify-between"
+        className="w-full px-4 py-3.5 bg-secondary border border-border rounded-xl text-left text-sm text-foreground backdrop-blur-sm transition-all duration-300 flex items-center justify-between"
         aria-haspopup="listbox"
         aria-expanded={open}
       >
@@ -60,8 +60,8 @@ export function SongCombobox({
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-2 w-full rounded-xl border border-white/10 bg-background shadow-xl">
-          <div className="p-2 border-b border-white/10 sticky top-0 bg-background/80 backdrop-blur">
+        <div className="absolute z-50 mt-2 w-full rounded-xl border border-border bg-background shadow-xl">
+          <div className="p-2 border-b border-border sticky top-0 bg-background/80 backdrop-blur">
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 opacity-60" />
               <Input

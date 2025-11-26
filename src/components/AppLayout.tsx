@@ -228,7 +228,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           </nav>
           
           {/* Enhanced User Section with Magic UI */}
-          <div className="p-3 border-t border-white/10 sticky bottom-0 bg-background/95 backdrop-blur-xl">
+          <div className="p-3 border-t border-border sticky bottom-0 bg-background/95 backdrop-blur-xl">
             {isSignedIn && user ? (
               <div className="space-y-3">
                 <MagicCard className="p-3.5 bg-accent/20 rounded-xl">

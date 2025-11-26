@@ -133,7 +133,7 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
               
               <motion.p 
                 variants={itemVariants}
-                className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto"
+                className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto"
               >
                 Search trending artists, explore upcoming concerts, and vote on predicted setlists
               </motion.p>
@@ -174,12 +174,12 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
         >
           <motion.div variants={itemVariants} className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
+              <div className="h-12 w-12 rounded-2xl bg-secondary flex items-center justify-center border border-border">
                 <Users className="h-6 w-6 text-foreground/80" />
             </div>
             <div>
                 <h2 className="text-2xl md:text-3xl font-bold text-foreground">Trending Artists</h2>
-                <p className="text-sm text-gray-500">Most popular artists with upcoming shows</p>
+                <p className="text-sm text-muted-foreground">Most popular artists with upcoming shows</p>
               </div>
             </div>
           </motion.div>
@@ -192,8 +192,8 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
             ) : (trendingArtists as any[])?.length === 0 ? (
               <div className="col-span-2 w-full flex flex-col items-center justify-center py-16 text-center min-h-[300px]">
                 <Music className="h-16 w-16 text-gray-800 mb-4" />
-                <p className="text-gray-500 text-lg">No trending artists yet</p>
-                <p className="text-gray-600 text-sm mt-2">Artists will appear here once data is synced</p>
+                <p className="text-muted-foreground text-lg">No trending artists yet</p>
+                <p className="text-muted-foreground text-sm mt-2">Artists will appear here once data is synced</p>
               </div>
             ) : (
               <div className="overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20 pb-4">
@@ -238,12 +238,12 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
         >
           <motion.div variants={itemVariants} className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
+              <div className="h-12 w-12 rounded-2xl bg-secondary flex items-center justify-center border border-border">
                 <TrendingUp className="h-6 w-6 text-foreground/80" />
               </div>
           <div>
                 <h2 className="text-2xl md:text-3xl font-bold text-foreground">Top Shows</h2>
-                <p className="text-sm text-gray-500">Most popular upcoming concerts</p>
+                <p className="text-sm text-muted-foreground">Most popular upcoming concerts</p>
               </div>
             </div>
           </motion.div>
@@ -257,8 +257,8 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
             ) : (trendingShows as any[])?.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
                 <Music className="h-16 w-16 text-gray-800 mb-4" />
-                <p className="text-gray-500 text-lg">No shows available</p>
-                <p className="text-gray-600 text-sm mt-2">Check back soon</p>
+                <p className="text-muted-foreground text-lg">No shows available</p>
+                <p className="text-muted-foreground text-sm mt-2">Check back soon</p>
               </div>
             ) : (
               <div className="overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20 pb-4">
@@ -318,7 +318,7 @@ function ArtistCard({ artist, onClick }: {
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-white/10 dark:to-white/5 flex items-center justify-center">
-              <span className="text-gray-600 dark:text-white/80 font-bold text-xl sm:text-2xl md:text-3xl">
+              <span className="text-muted-foreground dark:text-foreground/80 font-bold text-xl sm:text-2xl md:text-3xl">
                 {(typeof artist?.name === 'string' && artist.name.length > 0 ? artist.name : '??').slice(0, 2).toUpperCase()}
               </span>
             </div>
@@ -380,7 +380,7 @@ function ShowCard({
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-white/10 dark:to-white/5 flex items-center justify-center">
-              <span className="text-gray-600 dark:text-white/80 font-bold text-xl sm:text-2xl md:text-3xl">
+              <span className="text-muted-foreground dark:text-foreground/80 font-bold text-xl sm:text-2xl md:text-3xl">
                 {((show?.artist?.name || show?.artistName || '??') as string).slice(0, 2).toUpperCase()}
               </span>
             </div>

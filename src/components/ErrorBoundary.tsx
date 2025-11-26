@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 // Fallback component for error boundary
 function ErrorFallback({ error, resetError }: { error: Error; resetError: () => void }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background text-white">
+    <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
       <div className="text-center space-y-4 max-w-md p-6">
         <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -12,14 +12,14 @@ function ErrorFallback({ error, resetError }: { error: Error; resetError: () => 
           </svg>
         </div>
         <h1 className="text-2xl font-bold">Something went wrong</h1>
-        <p className="text-gray-400">{error?.message || 'An unexpected error occurred'}</p>
+        <p className="text-muted-foreground">{error?.message || 'An unexpected error occurred'}</p>
         <div className="flex gap-3 justify-center">
           <Button 
             onClick={() => {
               resetError();
               window.location.reload();
             }}
-            className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-all duration-200 border border-white/20"
+            className="px-6 py-3 bg-secondary hover:bg-secondary/80 text-foreground rounded-xl font-medium transition-all duration-200 border border-border"
           >
             Try Again
           </Button>
@@ -31,7 +31,7 @@ function ErrorFallback({ error, resetError }: { error: Error; resetError: () => 
             Go Home
           </Button>
         </div>
-        <p className="text-xs text-gray-500 mt-4">
+        <p className="text-xs text-muted-foreground mt-4">
           This error has been automatically reported to our team.
         </p>
       </div>

@@ -254,16 +254,16 @@ function App() {
               <MagicCard className="p-6 rounded-2xl border-0 bg-card">
                 <div className="animate-pulse space-y-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-32 h-32 bg-white/10 rounded-xl"></div>
+                    <div className="w-32 h-32 bg-secondary rounded-xl"></div>
                     <div className="flex-1 space-y-3">
-                      <div className="h-8 bg-white/10 rounded w-2/3"></div>
-                      <div className="h-4 bg-white/10 rounded w-1/2"></div>
-                      <div className="h-4 bg-white/10 rounded w-1/3"></div>
+                      <div className="h-8 bg-secondary rounded w-2/3"></div>
+                      <div className="h-4 bg-secondary rounded w-1/2"></div>
+                      <div className="h-4 bg-secondary rounded w-1/3"></div>
                     </div>
                   </div>
                   <div className="text-center py-4">
                     <p className="text-lg text-foreground mb-2">Loading {artistName}...</p>
-                    <p className="text-sm text-gray-400">Fetching artist details</p>
+                    <p className="text-sm text-muted-foreground">Fetching artist details</p>
                   </div>
                 </div>
               </MagicCard>
@@ -286,8 +286,8 @@ function App() {
                     <Music className="h-10 w-10 text-red-400" />
                   </div>
                   <h2 className="text-2xl font-bold text-foreground">Artist Not Found</h2>
-                  <p className="text-gray-400">We couldn't find {artistName} in our database.</p>
-                  <p className="text-sm text-gray-500">Try searching for the artist from the homepage.</p>
+                  <p className="text-muted-foreground">We couldn't find {artistName} in our database.</p>
+                  <p className="text-sm text-muted-foreground">Try searching for the artist from the homepage.</p>
                   <div className="flex gap-3 justify-center mt-6">
                     <button
                       onClick={() => navigate('/')}
@@ -428,7 +428,7 @@ function App() {
                   </svg>
                 </div>
                 <h2 className="text-xl font-bold text-foreground mb-2">Something went wrong</h2>
-                <p className="text-gray-400 mb-6">We encountered an unexpected error. Please try refreshing the page.</p>
+                <p className="text-muted-foreground mb-6">We encountered an unexpected error. Please try refreshing the page.</p>
                 <button
                   onClick={() => window.location.reload()}
                   className="px-6 py-3 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-xl font-medium transition-all duration-200 border border-border"

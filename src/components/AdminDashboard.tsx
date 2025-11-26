@@ -278,7 +278,7 @@ export function AdminDashboard() {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
-        <p className="text-gray-400">Checking access...</p>
+        <p className="text-muted-foreground">Checking access...</p>
       </div>
     );
   }
@@ -291,8 +291,8 @@ export function AdminDashboard() {
             <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Lock className="h-8 w-8 text-red-400" />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">Access Denied</h1>
-            <p className="text-gray-400 mb-6">You don't have permission to access the admin dashboard.</p>
+            <h1 className="text-2xl font-bold text-foreground mb-2">Access Denied</h1>
+            <p className="text-muted-foreground mb-6">You don't have permission to access the admin dashboard.</p>
             <Button onClick={() => { void navigate('/'); }} variant="outline">
               Return to Home
             </Button>
@@ -307,8 +307,8 @@ export function AdminDashboard() {
     <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen w-full">
         {/* Left Sidebar */}
-        <Sidebar className="border-r border-white/10">
-          <SidebarHeader className="border-b border-white/10 p-4">
+        <Sidebar className="border-r border-border">
+          <SidebarHeader className="border-b border-border p-4">
             <div className="flex items-center gap-2">
               <Shield className="h-6 w-6 text-primary" />
               <h2 className="font-semibold text-lg">Admin</h2>
@@ -369,7 +369,7 @@ export function AdminDashboard() {
             </SidebarGroup>
           </SidebarContent>
 
-          <SidebarFooter className="border-t border-white/10 p-4">
+          <SidebarFooter className="border-t border-border p-4">
             <Button onClick={() => { void navigate('/'); }} variant="outline" className="w-full">
               Back to Home
             </Button>
@@ -378,7 +378,7 @@ export function AdminDashboard() {
 
         {/* Main Content */}
         <SidebarInset className="flex-1">
-          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b border-white/10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4">
+          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4">
             <SidebarTrigger />
             <div className="flex items-center gap-2 flex-1">
               <h1 className="text-2xl font-bold">Admin Dashboard</h1>
@@ -397,8 +397,8 @@ export function AdminDashboard() {
                   <Database className="h-6 w-6 text-red-400" />
                 </div>
                 <div>
-                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">Admin Dashboard</h1>
-                  <p className="text-gray-300 text-sm sm:text-base">System management and data synchronization</p>
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">Admin Dashboard</h1>
+                  <p className="text-muted-foreground text-sm sm:text-base">System management and data synchronization</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -411,19 +411,19 @@ export function AdminDashboard() {
           </MagicCard>
 
           {/* Stats Overview */}
-          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-card">
+          <MagicCard className="p-0 rounded-2xl border border-border bg-card">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-8 h-8 bg-blue-500/20 rounded-xl flex items-center justify-center">
                   <TrendingUp className="h-4 w-4 text-blue-400" />
                 </div>
-                <h2 className="text-xl font-semibold text-white">Platform Statistics</h2>
+                <h2 className="text-xl font-semibold text-foreground">Platform Statistics</h2>
               </div>
 
               {!stats ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                   {[...Array(6)].map((_, i) => (
-                    <div key={i} className="animate-pulse bg-white/5 rounded-xl p-4 h-20" />
+                    <div key={i} className="animate-pulse bg-secondary rounded-xl p-4 h-20" />
                   ))}
                 </div>
               ) : (
@@ -441,13 +441,13 @@ export function AdminDashboard() {
           </MagicCard>
 
           {/* Auth Diagnostics */}
-          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-card">
+          <MagicCard className="p-0 rounded-2xl border border-border bg-card">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-8 h-8 bg-primary/20 rounded-xl flex items-center justify-center">
                   <Shield className="h-4 w-4 text-primary" />
                 </div>
-                <h2 className="text-xl font-semibold text-white">Auth Diagnostics</h2>
+                <h2 className="text-xl font-semibold text-foreground">Auth Diagnostics</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <DiagItem label="Clerk subject" value={logged?.identity?.subject} />
@@ -497,36 +497,36 @@ export function AdminDashboard() {
           </MagicCard>
 
           {/* Health */}
-          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-card">
+          <MagicCard className="p-0 rounded-2xl border border-border bg-card">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-8 h-8 bg-green-500/20 rounded-xl flex items-center justify-center">
                   <CheckCircle className="h-4 w-4 text-green-400" />
                 </div>
-                <h2 className="text-xl font-semibold text-white">System Health</h2>
+                <h2 className="text-xl font-semibold text-foreground">System Health</h2>
               </div>
 
               {!health ? (
                 <div className="space-y-3">
                   {[...Array(3)].map((_, i) => (
-                    <div key={i} className="animate-pulse bg-white/5 rounded-lg p-3 h-16" />
+                    <div key={i} className="animate-pulse bg-secondary rounded-lg p-3 h-16" />
                   ))}
                 </div>
               ) : (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-white/5 border border-white/10 rounded-lg p-3">
-                      <div className="text-sm text-gray-400">Database</div>
-                      <div className="text-lg font-semibold text-white">{health.database.totalRecords.toLocaleString()}</div>
-                      <div className="text-xs text-gray-500">{health.database.orphanedRecords} orphaned</div>
+                    <div className="bg-secondary border border-border rounded-lg p-3">
+                      <div className="text-sm text-muted-foreground">Database</div>
+                      <div className="text-lg font-semibold text-foreground">{health.database.totalRecords.toLocaleString()}</div>
+                      <div className="text-xs text-muted-foreground">{health.database.orphanedRecords} orphaned</div>
                     </div>
-                    <div className="bg-white/5 border border-white/10 rounded-lg p-3">
-                      <div className="text-sm text-gray-400">Sync Status</div>
-                      <div className="text-lg font-semibold text-white">{health.sync.artistsNeedingSync}</div>
-                      <div className="text-xs text-gray-500">artists need sync</div>
+                    <div className="bg-secondary border border-border rounded-lg p-3">
+                      <div className="text-sm text-muted-foreground">Sync Status</div>
+                      <div className="text-lg font-semibold text-foreground">{health.sync.artistsNeedingSync}</div>
+                      <div className="text-xs text-muted-foreground">artists need sync</div>
                     </div>
-                    <div className="bg-white/5 border border-white/10 rounded-lg p-3">
-                      <div className="text-sm text-gray-400">API Status</div>
+                    <div className="bg-secondary border border-border rounded-lg p-3">
+                      <div className="text-sm text-muted-foreground">API Status</div>
                       <div className="flex gap-2 mt-1">
                         <span className={`text-xs px-2 py-1 rounded ${health.api.spotifyConfigured ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                           Spotify
@@ -546,37 +546,37 @@ export function AdminDashboard() {
             <BorderBeam size={80} duration={8} className="opacity-20" />
           </MagicCard>
 
-          <div className="bg-white/5 rounded-2xl border border-white/10 p-4 space-y-4">
+          <div className="bg-secondary rounded-2xl border border-border p-4 space-y-4">
             <div className="flex items-center gap-3">
               <AlertCircle className="h-5 w-5 text-amber-400" />
               <div>
-                <h3 className="text-white font-semibold">Error Monitoring</h3>
-                <p className="text-xs text-gray-400">Pulled from admin/errorMonitoring</p>
+                <h3 className="text-foreground font-semibold">Error Monitoring</h3>
+                <p className="text-xs text-muted-foreground">Pulled from admin/errorMonitoring</p>
               </div>
             </div>
             {!errorStats ? (
               <div className="grid grid-cols-2 gap-3">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className="h-14 bg-white/5 rounded-lg animate-pulse" />
+                  <div key={i} className="h-14 bg-secondary rounded-lg animate-pulse" />
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-gray-300">
-                <div className="p-3 bg-white/5 rounded-lg border border-white/10">
-                  <div className="text-xs text-gray-400">Total</div>
-                  <div className="text-white font-semibold">{errorStats.total}</div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-muted-foreground">
+                <div className="p-3 bg-secondary rounded-lg border border-border">
+                  <div className="text-xs text-muted-foreground">Total</div>
+                  <div className="text-foreground font-semibold">{errorStats.total}</div>
                 </div>
-                <div className="p-3 bg-white/5 rounded-lg border border-white/10">
-                  <div className="text-xs text-gray-400">Unresolved</div>
-                  <div className="text-white font-semibold">{errorStats.unresolved}</div>
+                <div className="p-3 bg-secondary rounded-lg border border-border">
+                  <div className="text-xs text-muted-foreground">Unresolved</div>
+                  <div className="text-foreground font-semibold">{errorStats.unresolved}</div>
                 </div>
-                <div className="p-3 bg-white/5 rounded-lg border border-white/10">
-                  <div className="text-xs text-gray-400">Last 24h</div>
-                  <div className="text-white font-semibold">{errorStats.last24Hours}</div>
+                <div className="p-3 bg-secondary rounded-lg border border-border">
+                  <div className="text-xs text-muted-foreground">Last 24h</div>
+                  <div className="text-foreground font-semibold">{errorStats.last24Hours}</div>
                 </div>
-                <div className="p-3 bg-white/5 rounded-lg border border-white/10">
-                  <div className="text-xs text-gray-400">Errors</div>
-                  <div className="text-white font-semibold">{errorStats.bySeverity.error}</div>
+                <div className="p-3 bg-secondary rounded-lg border border-border">
+                  <div className="text-xs text-muted-foreground">Errors</div>
+                  <div className="text-foreground font-semibold">{errorStats.bySeverity.error}</div>
                 </div>
               </div>
             )}
@@ -585,19 +585,19 @@ export function AdminDashboard() {
               {!recentErrors ? (
                 <div className="space-y-2">
                   {[...Array(3)].map((_, i) => (
-                    <div key={i} className="h-12 rounded-lg bg-white/5 animate-pulse" />
+                    <div key={i} className="h-12 rounded-lg bg-secondary animate-pulse" />
                   ))}
                 </div>
               ) : recentErrors.length === 0 ? (
-                <p className="text-gray-400 text-sm">No unresolved errors 🎉</p>
+                <p className="text-muted-foreground text-sm">No unresolved errors 🎉</p>
               ) : recentErrors.map((err: any) => (
-                <div key={err._id} className="p-3 bg-white/5 rounded-lg border border-white/10">
-                  <div className="flex justify-between text-sm text-white">
+                <div key={err._id} className="p-3 bg-secondary rounded-lg border border-border">
+                  <div className="flex justify-between text-sm text-foreground">
                     <span>{err.operation}</span>
-                    <span className="text-xs text-gray-400">{new Date(err.timestamp).toLocaleString()}</span>
+                    <span className="text-xs text-muted-foreground">{new Date(err.timestamp).toLocaleString()}</span>
                   </div>
-                  <p className="text-xs text-gray-300 mt-1 truncate">{err.error}</p>
-                  <p className="text-[11px] text-gray-500 mt-1">Severity: {err.severity} • Resolved: {err.resolved ? "yes" : "no"}</p>
+                  <p className="text-xs text-muted-foreground mt-1 truncate">{err.error}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">Severity: {err.severity} • Resolved: {err.resolved ? "yes" : "no"}</p>
                 </div>
               ))}
             </div>
@@ -617,10 +617,10 @@ export function AdminDashboard() {
           </div>
           <div className="space-y-4">
             {filteredUsers.map((user: any) => (
-              <div key={user._id} className="flex items-center justify-between p-4 bg-white/5 rounded">
+              <div key={user._id} className="flex items-center justify-between p-4 bg-secondary rounded">
                 <div>
-                  <p className="text-white font-medium">{user.email}</p>
-                  <p className="text-gray-400 text-sm">ID: {user._id}</p>
+                  <p className="text-foreground font-medium">{user.email}</p>
+                  <p className="text-muted-foreground text-sm">ID: {user._id}</p>
                 </div>
                 <div className="flex gap-2">
                 <Button size="sm" onClick={() => { void handleRoleUpdate(user._id, "admin"); }}>Admin</Button>
@@ -646,7 +646,7 @@ export function AdminDashboard() {
                 onClick={() => { void handleSyncTrending(); }}
                 disabled={trendingSyncing}
                 variant="outline"
-                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-white/5 text-white"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-secondary text-foreground"
               >
                 {trendingSyncing ? (
                   <>
@@ -664,7 +664,7 @@ export function AdminDashboard() {
                 onClick={() => { void handleSyncArtists(); }}
                 disabled={artistSyncing}
                 variant="outline"
-                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-white/5 text-white"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-secondary text-foreground"
               >
                 {artistSyncing ? (
                   <>
@@ -682,7 +682,7 @@ export function AdminDashboard() {
                 onClick={() => { void handleSyncShows(); }}
                 disabled={showSyncing}
                 variant="outline"
-                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-white/5 text-white"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-secondary text-foreground"
               >
                 {showSyncing ? (
                   <>
@@ -710,7 +710,7 @@ export function AdminDashboard() {
                 onClick={() => { void handleBackfillSetlists(); }}
                 disabled={backfillSyncing}
                 variant="outline"
-                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-white/5 text-white"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-secondary text-foreground"
               >
                 {backfillSyncing ? (
                   <>
@@ -728,7 +728,7 @@ export function AdminDashboard() {
                 onClick={() => { void handleSyncSetlists(); }}
                 disabled={setlistSyncing}
                 variant="outline"
-                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-white/5 text-white"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-secondary text-foreground"
               >
                 {setlistSyncing ? (
                   <>
@@ -746,7 +746,7 @@ export function AdminDashboard() {
                 onClick={() => { void handleResyncCatalogs(); }}
                 disabled={catalogSyncing}
                 variant="outline"
-                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-white/5 text-white"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-secondary text-foreground"
               >
                 {catalogSyncing ? (
                   <>
@@ -765,8 +765,8 @@ export function AdminDashboard() {
 
           {/* Data Import Section */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-white/5 rounded-xl space-y-2">
-              <p className="text-sm text-gray-300">Force catalog sync by Artist ID</p>
+            <div className="p-4 bg-secondary rounded-xl space-y-2">
+              <p className="text-sm text-muted-foreground">Force catalog sync by Artist ID</p>
               <div className="flex gap-2">
                 <Input 
                   placeholder="Artist ID" 
@@ -778,8 +778,8 @@ export function AdminDashboard() {
                 </Button>
               </div>
             </div>
-            <div className="p-4 bg-white/5 rounded-xl space-y-2">
-              <p className="text-sm text-gray-300">One-time engagement backfill</p>
+            <div className="p-4 bg-secondary rounded-xl space-y-2">
+              <p className="text-sm text-muted-foreground">One-time engagement backfill</p>
               <Button onClick={() => { void handleRecomputeEngagement(); }} disabled={engagementRunning}>
                 {engagementRunning ? "Recomputing..." : "Recompute counts"}
               </Button>
@@ -796,7 +796,7 @@ export function AdminDashboard() {
                 onClick={() => { void handleImportTrending(); }}
                 disabled={importSyncing}
                 variant="outline"
-                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-white/5 text-white"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-secondary text-foreground"
               >
                 {importSyncing ? (
                   <>
@@ -814,7 +814,7 @@ export function AdminDashboard() {
                 onClick={() => { void handleCleanupSongs(); }}
                 disabled={cleanupSyncing}
                 variant="outline"
-                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-white/5 text-white"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-secondary text-foreground"
               >
                 {cleanupSyncing ? (
                   <>
@@ -838,8 +838,8 @@ export function AdminDashboard() {
               Admin Users
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                <div className="text-sm text-gray-300 mb-2">Promote user by email</div>
+              <div className="bg-secondary border border-border rounded-xl p-4">
+                <div className="text-sm text-muted-foreground mb-2">Promote user by email</div>
                 <div className="flex gap-2">
                   <Input
                     placeholder="user@example.com"
@@ -873,7 +873,7 @@ export function AdminDashboard() {
                     Promote
                   </Button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-muted-foreground mt-2">
                   Note: Clerk role update requires CLERK_SECRET_KEY configured.
                 </p>
               </div>
@@ -889,20 +889,20 @@ export function AdminDashboard() {
             {!activeSyncJobs ? (
               <div className="space-y-2">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-14 rounded-lg bg-white/5 animate-pulse" />
+                  <div key={i} className="h-14 rounded-lg bg-secondary animate-pulse" />
                 ))}
               </div>
             ) : activeSyncJobs.length === 0 ? (
-              <p className="text-sm text-gray-400">No running sync jobs.</p>
+              <p className="text-sm text-muted-foreground">No running sync jobs.</p>
             ) : (
               <div className="space-y-2">
                 {activeSyncJobs.map((job: any) => (
-                  <div key={job._id} className="flex justify-between items-center bg-white/5 border border-white/10 rounded-xl p-3">
+                  <div key={job._id} className="flex justify-between items-center bg-secondary border border-border rounded-xl p-3">
                     <div>
-                      <div className="text-sm text-white font-medium">{job.type}</div>
-                      <div className="text-xs text-gray-400">Step: {job.currentStep || "n/a"}</div>
+                      <div className="text-sm text-foreground font-medium">{job.type}</div>
+                      <div className="text-xs text-muted-foreground">Step: {job.currentStep || "n/a"}</div>
                     </div>
-                    <div className="text-xs text-gray-300">
+                    <div className="text-xs text-muted-foreground">
                       {job.progressPercentage ?? 0}% • Retries: {job.retryCount}/{job.maxRetries}
                     </div>
                   </div>
@@ -920,16 +920,16 @@ export function AdminDashboard() {
             {!cronSettings ? (
               <div className="space-y-2">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className="h-14 rounded-lg bg-white/5 animate-pulse" />
+                  <div key={i} className="h-14 rounded-lg bg-secondary animate-pulse" />
                 ))}
               </div>
             ) : (
               <div className="space-y-2">
                 {cronSettings.map((c: any) => (
-                  <div key={c._id} className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl p-3">
+                  <div key={c._id} className="flex items-center gap-3 bg-secondary border border-border rounded-xl p-3">
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm text-white font-medium truncate">{c.name}</div>
-                      <div className="text-xs text-gray-400">
+                      <div className="text-sm text-foreground font-medium truncate">{c.name}</div>
+                      <div className="text-xs text-muted-foreground">
                         Last run: {c.lastRunAt ? new Date(c.lastRunAt).toLocaleString() : "never"}
                       </div>
                     </div>
@@ -949,7 +949,7 @@ export function AdminDashboard() {
                           }
                         })(); }}
                       />
-                      <span className="text-xs text-gray-400">min</span>
+                      <span className="text-xs text-muted-foreground">min</span>
                       <Checkbox
                         checked={c.enabled !== false}
                         onCheckedChange={(checked) => { void (async () => {
@@ -961,31 +961,31 @@ export function AdminDashboard() {
                           }
                         })(); }}
                       />
-                      <span className="text-xs text-gray-400">Enabled</span>
+                      <span className="text-xs text-muted-foreground">Enabled</span>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               Orchestrator checks every 5 min; jobs adhere to these intervals.
             </p>
           </div>
 
-          <div className="text-sm text-gray-400 px-2">
+          <div className="text-sm text-muted-foreground px-2">
             <p className="mb-1">🔄 Trending rankings are automatically updated every 4 hours</p>
             <p>📊 Rankings are based on: popularity, followers, upcoming shows, and recent activity</p>
           </div>
 
           {/* Status Info */}
-          <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+          <div className="bg-secondary rounded-xl p-4 border border-border">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center">
                 <AlertCircle className="h-5 w-5 text-orange-400" />
               </div>
               <div>
-                <h3 className="font-semibold text-white">Sync Status</h3>
-                <p className="text-xs text-gray-400">Last operation</p>
+                <h3 className="font-semibold text-foreground">Sync Status</h3>
+                <p className="text-xs text-muted-foreground">Last operation</p>
               </div>
             </div>
             <div className="text-sm space-y-1">
@@ -993,7 +993,7 @@ export function AdminDashboard() {
                 <CheckCircle className="h-3 w-3" />
                 <span>System ready</span>
               </div>
-              <p className="text-xs text-gray-500">Manual triggers available</p>
+              <p className="text-xs text-muted-foreground">Manual triggers available</p>
             </div>
           </div>
               </div>
@@ -1001,38 +1001,38 @@ export function AdminDashboard() {
 
             {activeSection === 'logs' && (
               <div className="space-y-6">
-          <MagicCard className="p-0 rounded-2xl border border-white/10 bg-card">
+          <MagicCard className="p-0 rounded-2xl border border-border bg-card">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-8 h-8 bg-blue-500/20 rounded-xl flex items-center justify-center">
                   <Activity className="h-4 w-4 text-blue-400" />
                 </div>
-                <h2 className="text-xl font-semibold text-white">Recent Activity</h2>
+                <h2 className="text-xl font-semibold text-foreground">Recent Activity</h2>
               </div>
 
               {!recentActivity ? (
                 <div className="space-y-3">
                   {[...Array(10)].map((_, i) => (
-                    <div key={i} className="animate-pulse bg-white/5 rounded-lg p-4 h-16" />
+                    <div key={i} className="animate-pulse bg-secondary rounded-lg p-4 h-16" />
                   ))}
                 </div>
               ) : recentActivity.length === 0 ? (
                 <div className="text-center py-12">
-                  <Activity className="h-12 w-12 mx-auto mb-4 text-gray-500" />
-                  <p className="text-gray-400">No recent activity</p>
+                  <Activity className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">No recent activity</p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {recentActivity.map((activity: any, idx: number) => (
-                    <div key={idx} className="flex items-start gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
-                      <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div key={idx} className="flex items-start gap-3 p-3 bg-secondary rounded-lg hover:bg-secondary transition-colors">
+                      <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
                         {activity.type === 'vote' && <TrendingUp className="h-4 w-4 text-green-400" />}
                         {activity.type === 'setlist' && <Music className="h-4 w-4 text-blue-400" />}
                         {activity.type === 'user' && <UserCheck className="h-4 w-4 text-purple-400" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm">{activity.description}</p>
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-foreground text-sm">{activity.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
                           {new Date(activity.timestamp).toLocaleString('en-US', {
                             month: 'short',
                             day: 'numeric',
@@ -1064,12 +1064,12 @@ function StatCard({ icon, label, value }: {
   value: number; 
 }) {
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
-      <div className="flex items-center justify-center mb-2 text-white/60">
+    <div className="bg-secondary border border-border rounded-xl p-4 text-center">
+      <div className="flex items-center justify-center mb-2 text-foreground/60">
         {icon}
       </div>
-      <div className="text-2xl font-bold text-white">{value.toLocaleString()}</div>
-      <div className="text-xs text-gray-400 mt-1">{label}</div>
+      <div className="text-2xl font-bold text-foreground">{value.toLocaleString()}</div>
+      <div className="text-xs text-muted-foreground mt-1">{label}</div>
     </div>
   );
 }
@@ -1085,13 +1085,13 @@ function DiagItem({ label, value }: { label: string; value: any }) {
     }
   };
   return (
-    <div className="bg-white/5 border border-white/10 rounded-lg p-3">
-      <div className="text-xs text-gray-400 mb-1">{label}</div>
+    <div className="bg-secondary border border-border rounded-lg p-3">
+      <div className="text-xs text-muted-foreground mb-1">{label}</div>
       <div className="flex items-center justify-between gap-2">
-        <code className="text-sm text-white/90 truncate">{text}</code>
+        <code className="text-sm text-foreground/90 truncate">{text}</code>
         <button
           onClick={() => { void copy(); }}
-          className="inline-flex items-center justify-center rounded-md border border-white/10 px-2 py-1 text-xs text-white/80 hover:bg-white/10"
+          className="inline-flex items-center justify-center rounded-md border border-border px-2 py-1 text-xs text-foreground/80 hover:bg-secondary"
           aria-label={`Copy ${label}`}
         >
           <Copy className="h-3.5 w-3.5" />

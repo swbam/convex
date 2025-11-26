@@ -47,9 +47,9 @@ export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
   if (!myArtists || myArtists.length === 0) {
     return (
       <MagicCard className="p-6 text-center" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
-        <Music className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+        <Music className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
         <h3 className="text-lg font-semibold mb-2">Connect Your Spotify</h3>
-        <p className="text-gray-400 mb-4">Import your followed artists to see their upcoming shows</p>
+        <p className="text-muted-foreground mb-4">Import your followed artists to see their upcoming shows</p>
         <Button onClick={() => window.location.href = '/spotify-connect'}>
           Connect Spotify
         </Button>
@@ -66,15 +66,15 @@ export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
               <Music className="h-5 w-5 text-green-400" />
             </div>
             <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-white">My Artists on Tour</h2>
-              <p className="text-sm text-gray-400">
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground">My Artists on Tour</h2>
+              <p className="text-sm text-muted-foreground">
                 Your most listened-to artists with upcoming shows ({filteredArtists.length} artists)
               </p>
             </div>
           </div>
           {/* Toggle */}
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-gray-400">Show all artists</span>
+            <span className="text-muted-foreground">Show all artists</span>
             <Switch checked={showAll} onCheckedChange={setShowAll} />
           </div>
         </div>
@@ -82,11 +82,11 @@ export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
         <div className="space-y-0">
           {filteredArtists.length === 0 ? (
             <div className="text-center py-8">
-              <Music className="h-12 w-12 mx-auto mb-3 text-gray-500" />
-              <p className="text-gray-400 mb-2">
+              <Music className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-muted-foreground mb-2">
                 {showAll ? "No artists found in your Spotify" : "None of your Spotify artists have upcoming shows"}
               </p>
-              <p className="text-gray-500 text-xs">
+              <p className="text-muted-foreground text-xs">
                 {showAll ? "Try connecting your Spotify again" : "Toggle 'Show all' to see all your artists"}
               </p>
             </div>
@@ -95,7 +95,7 @@ export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
               <div
                 key={item.artist._id}
                 onClick={() => onArtistClick(item.artist._id, item.artist.slug)}
-                className="flex items-center justify-between py-3 px-0 hover:bg-white/5 cursor-pointer transition-all touch-manipulation min-h-[44px]"
+                className="flex items-center justify-between py-3 px-0 hover:bg-secondary cursor-pointer transition-all touch-manipulation min-h-[44px]"
                 style={{
                   borderBottom: filteredArtists.length > 1 && item !== filteredArtists[filteredArtists.length - 1] ? '1px solid rgba(255, 255, 255, 0.03)' : 'none',
                 }}
@@ -109,14 +109,14 @@ export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
                     />
                     {/* Badge for top artists */}
                     {item.isTopArtist && item.topArtistRank && item.topArtistRank <= 5 && (
-                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-black">
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-[10px] font-bold text-foreground border-2 border-black">
                         {item.topArtistRank}
                       </div>
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="text-white font-medium text-sm truncate">{item.artist.name}</p>
+                      <p className="text-foreground font-medium text-sm truncate">{item.artist.name}</p>
                       {item.isFollowed && (
                         <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">Followed</span>
                       )}
@@ -125,7 +125,7 @@ export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
                       {item.isTopArtist && (
                         <p className="text-green-400 text-xs">Top #{item.topArtistRank}</p>
                       )}
-                      <p className="text-gray-400 text-xs">
+                      <p className="text-muted-foreground text-xs">
                         {item.upcomingShowsCount} {item.upcomingShowsCount === 1 ? 'show' : 'shows'}
                       </p>
                     </div>

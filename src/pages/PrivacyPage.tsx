@@ -175,13 +175,13 @@ export function PrivacyPage() {
             <p className="text-muted-foreground leading-relaxed">
               If you have questions about this privacy policy or our data practices, please contact us at:
             </p>
-            <div className="mt-4 p-4 bg-white/5 rounded-lg">
-              <p className="text-white">Email: privacy@setlists.live</p>
-              <p className="text-white mt-2">Website: https://setlists.live</p>
+            <div className="mt-4 p-4 bg-secondary rounded-lg">
+              <p className="text-foreground">Email: privacy@setlists.live</p>
+              <p className="text-foreground mt-2">Website: https://setlists.live</p>
             </div>
           </section>
 
-          <section className="border-t border-white/10 pt-8">
+          <section className="border-t border-border pt-8">
             <h2 className="text-2xl font-bold mb-4">GDPR Compliance (EU Users)</h2>
             <p className="text-muted-foreground leading-relaxed mb-4">
               If you are located in the European Economic Area (EEA), you have additional rights under the General Data Protection Regulation (GDPR):
@@ -194,7 +194,7 @@ export function PrivacyPage() {
             </ul>
           </section>
 
-          <section className="border-t border-white/10 pt-8">
+          <section className="border-t border-border pt-8">
             <h2 className="text-2xl font-bold mb-4">CCPA Compliance (California Users)</h2>
             <p className="text-muted-foreground leading-relaxed mb-4">
               If you are a California resident, you have rights under the California Consumer Privacy Act (CCPA):
@@ -212,7 +212,7 @@ export function PrivacyPage() {
         </div>
 
         {/* Footer */}
-        <div className="mt-12 pt-8 border-t border-white/10">
+        <div className="mt-12 pt-8 border-t border-border">
           <p className="text-center text-muted-foreground">
             By using SetlistVote, you agree to this Privacy Policy and our{" "}
             <Link to="/terms" className="text-primary hover:underline">

@@ -39,7 +39,7 @@ export function UserProfilePage() {
       <AppLayout>
         <div className="container mx-auto px-4 py-8 text-center">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-gray-400">Loading...</p>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </AppLayout>
     );
@@ -63,7 +63,7 @@ export function UserProfilePage() {
       return (
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="animate-pulse bg-white/5 rounded-lg p-3 h-12" />
+            <div key={i} className="animate-pulse bg-secondary rounded-lg p-3 h-12" />
           ))}
         </div>
       );
@@ -71,7 +71,7 @@ export function UserProfilePage() {
     
     if (userVotes.length === 0) {
       return (
-        <div className="text-center py-6 text-gray-400">
+        <div className="text-center py-6 text-muted-foreground">
           <Vote className="h-8 w-8 mx-auto mb-2 opacity-50" />
           <p className="text-sm">No votes yet</p>
         </div>
@@ -81,18 +81,18 @@ export function UserProfilePage() {
     return (
       <div className="space-y-3">
         <div className="text-center mb-4">
-          <div className="text-2xl font-bold text-white">{userVotes.length}</div>
-          <div className="text-xs text-gray-400">Total Votes</div>
+          <div className="text-2xl font-bold text-foreground">{userVotes.length}</div>
+          <div className="text-xs text-muted-foreground">Total Votes</div>
         </div>
         
         <div className="space-y-2 max-h-60 overflow-y-auto">
           {userVotes.slice(0, 5).map((vote) => (
-            <div key={vote._id} className="bg-white/5 border border-white/10 rounded-lg p-3">
+            <div key={vote._id} className="bg-secondary border border-border rounded-lg p-3">
               <div className="flex items-center gap-2">
                 <Star className="h-3 w-3 text-primary flex-shrink-0" />
-                <span className="text-sm text-white truncate">{vote.songTitle}</span>
+                <span className="text-sm text-foreground truncate">{vote.songTitle}</span>
               </div>
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-xs text-muted-foreground mt-1">
                 {new Date(vote.createdAt).toLocaleDateString()}
               </div>
             </div>
@@ -131,8 +131,8 @@ export function UserProfilePage() {
               <User className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white">Settings</h1>
-              <p className="text-gray-300 text-sm sm:text-base">Manage your account preferences and view activity</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Settings</h1>
+              <p className="text-muted-foreground text-sm sm:text-base">Manage your account preferences and view activity</p>
             </div>
           </div>
         </div>
@@ -145,22 +145,22 @@ export function UserProfilePage() {
           <MagicCard className="p-0 rounded-2xl border-0 bg-card">
             <div className="p-4 sm:p-6">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="flex flex-wrap w-full bg-white/5 rounded-lg p-1 gap-2 h-auto">
-                  <TabsTrigger value="general" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-white/10 py-2.5">
+                <TabsList className="flex flex-wrap w-full bg-secondary rounded-lg p-1 gap-2 h-auto">
+                  <TabsTrigger value="general" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-secondary py-2.5">
                     <User className="h-4 w-4 mr-2" />
                     <span className="text-sm">General</span>
                   </TabsTrigger>
                   {hasSpotify && (
-                    <TabsTrigger value="spotify" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-white/10 py-2.5">
+                    <TabsTrigger value="spotify" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-secondary py-2.5">
                       <Music className="h-4 w-4 mr-2" />
                       <span className="text-sm">My Artists</span>
                     </TabsTrigger>
                   )}
-                  <TabsTrigger value="security" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-white/10 py-2.5">
+                  <TabsTrigger value="security" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-secondary py-2.5">
                     <Shield className="h-4 w-4 mr-2" />
                     <span className="text-sm">Security</span>
                   </TabsTrigger>
-                  <TabsTrigger value="activity" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-white/10 py-2.5 lg:hidden">
+                  <TabsTrigger value="activity" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-secondary py-2.5 lg:hidden">
                     <Activity className="h-4 w-4 mr-2" />
                     <span className="text-sm">Activity</span>
                   </TabsTrigger>
@@ -168,7 +168,7 @@ export function UserProfilePage() {
                 
                 <TabsContent value="general" className="mt-6 space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-white mb-4">Profile Information</h3>
+                    <h3 className="text-lg font-semibold text-foreground mb-4">Profile Information</h3>
                     {/* Clerk UserProfile Component for general settings */}
                     <div className="clerk-profile-container">
                       <UserProfile 
@@ -184,10 +184,10 @@ export function UserProfilePage() {
                           },
                           elements: {
                             rootBox: 'w-full',
-                            card: 'bg-card border border-white/10 shadow-none',
-                            headerTitle: 'text-white',
-                            headerSubtitle: 'text-gray-400',
-                            socialButtonsBlockButton: 'border-white/10 text-white hover:bg-white/5',
+                            card: 'bg-card border border-border shadow-none',
+                            headerTitle: 'text-foreground',
+                            headerSubtitle: 'text-muted-foreground',
+                            socialButtonsBlockButton: 'border-border text-foreground hover:bg-secondary',
                             formButtonPrimary: 'bg-primary hover:bg-primary/90',
                             footerActionLink: 'text-primary hover:text-primary/80',
                             navbar: 'hidden',
@@ -202,7 +202,7 @@ export function UserProfilePage() {
                 
                 <TabsContent value="security" className="mt-6 space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-white mb-4">Security Settings</h3>
+                    <h3 className="text-lg font-semibold text-foreground mb-4">Security Settings</h3>
                     <div className="clerk-profile-container">
                       <UserProfile.Page path="security" />
                     </div>
@@ -213,7 +213,7 @@ export function UserProfilePage() {
                   <TabsContent value="spotify" className="mt-6 space-y-6">
                     <div>
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-white">Your Spotify Artists</h3>
+                        <h3 className="text-lg font-semibold text-foreground">Your Spotify Artists</h3>
                         <Button
                           variant="outline"
                           size="sm"
@@ -236,15 +236,15 @@ export function UserProfilePage() {
                       {isImporting ? (
                         <div className="text-center py-8">
                           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
-                          <p className="text-gray-400">Importing your Spotify artists...</p>
-                          <p className="text-xs text-gray-500 mt-2">This may take 30-60 seconds</p>
+                          <p className="text-muted-foreground">Importing your Spotify artists...</p>
+                          <p className="text-xs text-muted-foreground mt-2">This may take 30-60 seconds</p>
                         </div>
                       ) : !spotifyArtists || spotifyArtists.length === 0 ? (
                         <div className="text-center py-8">
-                          <Music className="h-12 w-12 mx-auto mb-4 text-gray-500" />
+                          <Music className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                           <div className="space-y-2">
-                            <p className="text-gray-400 mb-2">No artists with upcoming shows found</p>
-                            <p className="text-sm text-gray-500">Your Spotify artists will appear here when they have concerts scheduled</p>
+                            <p className="text-muted-foreground mb-2">No artists with upcoming shows found</p>
+                            <p className="text-sm text-muted-foreground">Your Spotify artists will appear here when they have concerts scheduled</p>
                             {!appUser?.appUser?.spotifyId && (
                               <p className="text-xs text-yellow-500 mt-4">Note: Spotify ID not detected. Try refreshing.</p>
                             )}
@@ -262,7 +262,7 @@ export function UserProfilePage() {
                         </div>
                       ) : (
                         <div>
-                          <p className="text-sm text-gray-400 mb-4">
+                          <p className="text-sm text-muted-foreground mb-4">
                             Showing {spotifyArtists.length} of your Spotify artists with upcoming concerts
                           </p>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -278,7 +278,7 @@ export function UserProfilePage() {
                                   onClick={handleArtistClick}
                                   showFollowButton={false}
                                 />
-                                <div className="mt-2 flex items-center gap-4 text-xs text-gray-400">
+                                <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
                                   {isFollowed && (
                                     <span className="flex items-center gap-1">
                                       <Star className="h-3 w-3" />
@@ -302,7 +302,7 @@ export function UserProfilePage() {
                 <TabsContent value="activity" className="mt-6 space-y-6 lg:hidden">
                   {/* Mobile activity view */}
                   <div>
-                    <h3 className="text-lg font-semibold text-white mb-4">Your Activity</h3>
+                    <h3 className="text-lg font-semibold text-foreground mb-4">Your Activity</h3>
                     {renderActivityContent()}
                   </div>
                 </TabsContent>
@@ -321,7 +321,7 @@ export function UserProfilePage() {
                 <div className="w-8 h-8 bg-green-500/20 rounded-xl flex items-center justify-center">
                   <Activity className="h-4 w-4 text-green-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-white">Your Activity</h3>
+                <h3 className="text-lg font-semibold text-foreground">Your Activity</h3>
               </div>
 
               {renderActivityContent()}
@@ -337,18 +337,18 @@ export function UserProfilePage() {
                   <div className="w-8 h-8 bg-purple-500/20 rounded-xl flex items-center justify-center">
                     <User className="h-4 w-4 text-purple-400" />
                   </div>
-                  <h3 className="text-lg font-semibold text-white">Account Info</h3>
+                  <h3 className="text-lg font-semibold text-foreground">Account Info</h3>
                 </div>
                 
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Member since</span>
-                    <span className="text-white">
+                    <span className="text-muted-foreground">Member since</span>
+                    <span className="text-foreground">
                       {new Date(appUser.appUser.createdAt).toLocaleDateString()}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Role</span>
+                    <span className="text-muted-foreground">Role</span>
                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                       appUser.appUser.role === 'admin' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'
                     }`}>

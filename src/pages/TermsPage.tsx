@@ -184,13 +184,13 @@ export function TermsPage() {
             <p className="text-muted-foreground leading-relaxed">
               If you have questions about these Terms, please contact us at:
             </p>
-            <div className="mt-4 p-4 bg-white/5 rounded-lg">
-              <p className="text-white">Email: legal@setlists.live</p>
-              <p className="text-white mt-2">Website: https://setlists.live</p>
+            <div className="mt-4 p-4 bg-secondary rounded-lg">
+              <p className="text-foreground">Email: legal@setlists.live</p>
+              <p className="text-foreground mt-2">Website: https://setlists.live</p>
             </div>
           </section>
 
-          <section className="border-t border-white/10 pt-8">
+          <section className="border-t border-border pt-8">
             <h2 className="text-2xl font-bold mb-4">Acceptable Use Policy</h2>
             <p className="text-muted-foreground mb-4">
               In addition to the User Conduct section above, you specifically agree not to:
@@ -205,7 +205,7 @@ export function TermsPage() {
             </ul>
           </section>
 
-          <section className="border-t border-white/10 pt-8">
+          <section className="border-t border-border pt-8">
             <h2 className="text-2xl font-bold mb-4">Data Accuracy</h2>
             <p className="text-muted-foreground leading-relaxed">
               While we strive to provide accurate information, we cannot guarantee the accuracy of:
@@ -221,7 +221,7 @@ export function TermsPage() {
             </p>
           </section>
 
-          <section className="border-t border-white/10 pt-8">
+          <section className="border-t border-border pt-8">
             <h2 className="text-2xl font-bold mb-4">Copyright and DMCA</h2>
             <p className="text-muted-foreground leading-relaxed mb-4">
               We respect intellectual property rights. If you believe content on the Service infringes your copyright, please contact us with:
@@ -237,7 +237,7 @@ export function TermsPage() {
         </div>
 
         {/* Footer */}
-        <div className="mt-12 pt-8 border-t border-white/10">
+        <div className="mt-12 pt-8 border-t border-border">
           <p className="text-center text-muted-foreground">
             By using SetlistVote, you agree to these Terms of Service and our{" "}
             <Link to="/privacy" className="text-primary hover:underline">

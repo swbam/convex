@@ -136,7 +136,7 @@ export function DashboardHome({
   return (
     <div className="container mx-auto px-6 py-8 space-y-8">
       {/* Search Section */}
-      <div className="bg-card rounded-2xl p-6 border border-white/10">
+      <div className="bg-card rounded-2xl p-6 border border-border">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold mb-2">Discover Artists & Shows</h1>
           <p className="text-muted-foreground">
@@ -151,7 +151,7 @@ export function DashboardHome({
             placeholder="Search by artist name..."
             value={searchQuery}
             onChange={(e) => void handleSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-background/60 border border-white/10 text-sm outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-background/60 border border-border text-sm outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
 
@@ -178,7 +178,7 @@ export function DashboardHome({
               {searchResults.map((result) => (
                 <button
                   key={`${result.ticketmasterId}-${result.name}`}
-                  className="w-full flex items-center gap-3 rounded-xl px-3 py-2 bg-card hover:bg-card/80 border border-white/5 text-left"
+                  className="w-full flex items-center gap-3 rounded-xl px-3 py-2 bg-card hover:bg-card/80 border border-border text-left"
                   onClick={() => void handleArtistSelect(result)}
                 >
                   {result.images?.[0]?.url && (
@@ -213,7 +213,7 @@ export function DashboardHome({
       {/* Content Grid with compact horizontal carousels */}
       <div className="space-y-8">
         {/* Trending Artists */}
-        <div className="bg-card rounded-2xl p-6 border border-white/10">
+        <div className="bg-card rounded-2xl p-6 border border-border">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-2xl font-bold">Trending Artists</h2>
@@ -256,7 +256,7 @@ export function DashboardHome({
                       <button
                         key={artist._id}
                         onClick={() => onArtistClick(artist._id as Id<"artists">)}
-                        className="flex-shrink-0 w-40 sm:w-48 rounded-xl bg-card/80 border border-white/10 hover:border-primary/50 transition-colors overflow-hidden text-left"
+                        className="flex-shrink-0 w-40 sm:w-48 rounded-xl bg-card/80 border border-border hover:border-primary/50 transition-colors overflow-hidden text-left"
                       >
                         {artist.images?.[0] && (
                           <div className="h-32 w-full overflow-hidden">
@@ -268,7 +268,7 @@ export function DashboardHome({
                           </div>
                         )}
                         <div className="p-3">
-                          <div className="font-medium text-sm text-white truncate">
+                          <div className="font-medium text-sm text-foreground truncate">
                             {artist.name}
                           </div>
                           {artist.genres && artist.genres.length > 0 && (
@@ -277,7 +277,7 @@ export function DashboardHome({
                             </div>
                           )}
                           {typeof artist.upcomingShowsCount === "number" && (
-                            <div className="mt-1 text-[11px] text-gray-400">
+                            <div className="mt-1 text-[11px] text-muted-foreground">
                               {artist.upcomingShowsCount}{" "}
                               {artist.upcomingShowsCount === 1
                                 ? "upcoming show"
@@ -294,7 +294,7 @@ export function DashboardHome({
         </div>
 
         {/* Trending Shows */}
-        <div className="bg-card rounded-2xl p-6 border border-white/10">
+        <div className="bg-card rounded-2xl p-6 border border-border">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-2xl font-bold">Trending Shows</h2>
@@ -339,23 +339,23 @@ export function DashboardHome({
                         onClick={() =>
                           onShowClick(show._id as Id<"shows">, (show as any).slug)
                         }
-                        className="flex-shrink-0 w-64 rounded-xl bg-card/80 border border-white/10 hover:border-primary/50 transition-colors overflow-hidden text-left"
+                        className="flex-shrink-0 w-64 rounded-xl bg-card/80 border border-border hover:border-primary/50 transition-colors overflow-hidden text-left"
                       >
                         <div className="p-3 space-y-1">
                           <div className="flex items-center justify-between gap-2">
-                            <div className="font-medium text-sm text-white truncate">
+                            <div className="font-medium text-sm text-foreground truncate">
                               {show.artist?.name || "Unknown Artist"}
                             </div>
                             {show.status && (
-                              <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/5 text-gray-300 capitalize">
+                              <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground capitalize">
                                 {show.status}
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-gray-400 truncate">
+                          <div className="text-xs text-muted-foreground truncate">
                             {show.venue?.name}
                           </div>
-                          <div className="flex items-center gap-1.5 text-[11px] text-gray-400 mt-1">
+                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1">
                             <MapPin className="h-3 w-3" />
                             <span className="truncate">
                               {show.venue?.city}
@@ -364,7 +364,7 @@ export function DashboardHome({
                                 : ""}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-[11px] text-gray-400 mt-1">
+                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1">
                             <Calendar className="h-3 w-3" />
                             <span>
                               {new Date(show.date).toLocaleDateString("en-US", {

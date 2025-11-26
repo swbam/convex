@@ -209,7 +209,7 @@ export function SearchBar({
           {query && (
             <button
               onClick={clearSearch}
-              className="h-5 w-5 sm:h-6 sm:w-6 p-0 text-zinc-400 hover:text-white bg-transparent border-none cursor-pointer flex items-center justify-center touch-target"
+              className="h-5 w-5 sm:h-6 sm:w-6 p-0 text-zinc-400 hover:text-foreground bg-transparent border-none cursor-pointer flex items-center justify-center touch-target"
               aria-label="Clear search"
             >
               ✕
