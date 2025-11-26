@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
 import { MagicCard } from '../components/ui/magic-card';
 import { BorderBeam } from '../components/ui/border-beam';
-import { ShimmerButton } from '../components/ui/shimmer-button';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, Music, Sparkles, Loader2 } from 'lucide-react';
 import { FaGoogle } from 'react-icons/fa';
 
@@ -313,16 +312,20 @@ export function SignInPage() {
               </div>
 
             {/* Submit Button */}
-            <ShimmerButton
+            <button
               type="submit"
               disabled={isSubmitting || !email || !password}
-              className="w-full bg-primary/60 hover:bg-primary/70 text-white font-semibold border-primary/50 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-              shimmerColor="#ffffff"
-              shimmerDuration="2s"
-              background="rgba(var(--primary-rgb), 0.6)"
+              className="w-full px-6 py-3 bg-white hover:bg-gray-100 text-black font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all duration-200"
             >
-              <span className="relative z-10 drop-shadow-sm">{isSubmitting ? "Signing in..." : "Sign In"}</span>
-            </ShimmerButton>
+              {isSubmitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Signing in...
+                </span>
+              ) : (
+                "Sign In"
+              )}
+            </button>
           </form>
 
           {/* Divider */}

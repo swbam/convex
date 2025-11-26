@@ -6,11 +6,9 @@ import { Id } from "../../convex/_generated/dataModel";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import { ShimmerButton } from "./ui/shimmer-button";
 import { Input } from "./ui/input";
+import { Activity, TrendingUp, Users, Music, Calendar, Database, Mic, CheckCircle, AlertCircle, Loader2, Shield, Lock, RefreshCw, BarChart3, FileText, Copy, Trash2, UserCheck } from "lucide-react";
 import { Checkbox } from "./ui/checkbox";
-import { Activity, TrendingUp, Users, Music, Calendar, Flag, Database, Mic, CheckCircle, AlertCircle, Loader2, Shield, Lock, Trash2, RefreshCw, UserCheck, BarChart3, FileText, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
@@ -48,10 +46,6 @@ export function AdminDashboard() {
     (api as any).admin.getSystemHealth,
     isAdmin === true ? {} : "skip"
   );
-  const flagged = useQuery(
-    (api as any).admin.getFlaggedContent,
-    isAdmin === true ? {} : "skip"
-  );
   const users = useQuery(
     (api as any).admin.getAllUsers,
     isAdmin === true ? { limit: 50 } : "skip"
@@ -64,11 +58,7 @@ export function AdminDashboard() {
     (api as any).admin.getRecentActivity,
     isAdmin === true ? { limit: 50 } : "skip"
   );
-  const bulkDeleteFlagged = useAction((api as any).admin.bulkDeleteFlagged);
   const updateUserRole = useMutation((api as any).admin.updateUserRole);
-  const resolveFlag = useMutation((api as any).admin.resolveFlag);
-  const dismissFlag = useMutation((api as any).admin.dismissFlag);
-  const deleteFlaggedContent = useMutation((api as any).admin.deleteFlaggedContent);
   const recomputeEngagementCounts = useAction((api as any).admin.recomputeEngagementCounts);
   const forceCatalogSync = useAction((api as any).admin.forceArtistCatalogSync);
   
@@ -112,21 +102,12 @@ export function AdminDashboard() {
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [spotifyTesting, setSpotifyTesting] = useState(false);
   const [forceArtistId, setForceArtistId] = useState("");
-  const [flagActionLoading, setFlagActionLoading] = useState<Id<'contentFlags'> | null>(null);
   const [forceCatalogRunning, setForceCatalogRunning] = useState(false);
   const [engagementRunning, setEngagementRunning] = useState(false);
 
-  const pendingFlags = useMemo(() => (flagged || []).filter((f: any) => f.status === "pending"), [flagged]);
-
   const [activeSection, setActiveSection] = useState('stats');
-  const [selectedFlagged, setSelectedFlagged] = useState<Set<Id<'contentFlags'>>>(new Set());
   const [userSearch, setUserSearch] = useState('');
   // removed unused selectedUsers state
-
-  // Filtered flagged
-  const filteredFlagged = useMemo(() => 
-    flagged?.filter((f: any) => f.reason.toLowerCase().includes(userSearch.toLowerCase())) || []
-  , [flagged, userSearch]);
 
   // Filtered users
   const filteredUsers = useMemo(() => 
@@ -247,17 +228,6 @@ export function AdminDashboard() {
     }
   };
 
-  const handleBulkDelete = async () => {
-    if (selectedFlagged.size === 0) return;
-    try {
-      await bulkDeleteFlagged({ ids: Array.from(selectedFlagged) });
-      toast.success("Flagged content deleted");
-      setSelectedFlagged(new Set());
-    } catch {
-      toast.error("Bulk delete failed");
-    }
-  };
-
   const handleRoleUpdate = async (userId: Id<'users'>, role: "user" | "admin") => {
     try {
       await updateUserRole({ userId, role });
@@ -267,27 +237,6 @@ export function AdminDashboard() {
     }
   };
 
-  const handleFlagAction = async (flagId: Id<'contentFlags'>, action: "resolve" | "dismiss" | "delete") => {
-    setFlagActionLoading(flagId);
-    try {
-      if (action === "resolve") {
-        await resolveFlag({ flagId });
-        toast.success("Flag resolved");
-      } else if (action === "dismiss") {
-        await dismissFlag({ flagId });
-        toast.success("Flag dismissed");
-      } else {
-        await deleteFlaggedContent({ flagId });
-        toast.success("Content deleted");
-      }
-    } catch (error) {
-      toast.error("Flag action failed", {
-        description: error instanceof Error ? error.message : "Unknown error",
-      });
-    } finally {
-      setFlagActionLoading(null);
-    }
-  };
 
   const handleForceCatalog = async () => {
     if (!forceArtistId) {
@@ -389,18 +338,6 @@ export function AdminDashboard() {
                       <span>Users</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton 
-                      isActive={activeSection === 'flagged'}
-                      onClick={() => setActiveSection('flagged')}
-                    >
-                      <Flag className="h-4 w-4" />
-                      <span>Flagged Content</span>
-                      {pendingFlags.length > 0 && (
-                        <Badge className="ml-auto" variant="destructive">{pendingFlags.length}</Badge>
-                      )}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -496,7 +433,7 @@ export function AdminDashboard() {
                   <StatCard icon={<Calendar className="h-5 w-5" />} label="Shows" value={stats.totalShows} />
                   <StatCard icon={<Music className="h-5 w-5" />} label="Setlists" value={stats.totalSetlists} />
                   <StatCard icon={<TrendingUp className="h-5 w-5" />} label="Votes" value={stats.totalVotes} />
-                  <StatCard icon={<Flag className="h-5 w-5" />} label="Pending Flags" value={pendingFlags.length} />
+                  <StatCard icon={<Activity className="h-5 w-5" />} label="Active Jobs" value={activeSyncJobs?.length || 0} />
                 </div>
               )}
             </div>
@@ -696,61 +633,6 @@ export function AdminDashboard() {
               </div>
             )}
 
-            {activeSection === 'flagged' && (
-              <div className="space-y-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Flagged Content ({filteredFlagged.length})</h2>
-            <Button onClick={() => { void handleBulkDelete(); }} disabled={selectedFlagged.size === 0} variant="destructive">
-              Delete Selected ({selectedFlagged.size})
-            </Button>
-          </div>
-          <div className="space-y-4">
-            {filteredFlagged.map((flag: any) => (
-              <div key={flag._id} className="flex gap-2 items-start p-4 bg-white/5 rounded">
-                <Checkbox 
-                  id={flag._id}
-                  checked={selectedFlagged.has(flag._id)}
-                  onCheckedChange={(checked) => {
-                    const newSelected = new Set(selectedFlagged);
-                    if (checked) newSelected.add(flag._id);
-                    else newSelected.delete(flag._id);
-                    setSelectedFlagged(newSelected);
-                  }}
-                />
-                <div className="flex-1">
-                  <p className="text-white">Flag: {flag.reason}</p>
-                  <p className="text-gray-400 text-sm">Reporter: {flag.reporterId}, Date: {new Date(flag.createdAt).toLocaleString()}</p>
-                  <p className="text-gray-400 text-sm">Content: {flag.contentType} - {flag.contentId}</p>
-                </div>
-                <Button 
-                  size="sm" 
-                  onClick={() => { void handleFlagAction(flag._id, "resolve"); }}
-                  disabled={flagActionLoading === flag._id}
-                >
-                  {flagActionLoading === flag._id ? "Working..." : "Review"}
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="destructive" 
-                  onClick={() => { void handleFlagAction(flag._id, "delete"); }}
-                  disabled={flagActionLoading === flag._id}
-                >
-                  Delete
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => { void handleFlagAction(flag._id, "dismiss"); }}
-                  disabled={flagActionLoading === flag._id}
-                >
-                  Dismiss
-                </Button>
-              </div>
-            ))}
-          </div>
-              </div>
-            )}
-
             {activeSection === 'syncs' && (
               <div className="space-y-6">
           {/* Trending & Rankings Section */}
@@ -760,11 +642,11 @@ export function AdminDashboard() {
               Trending & Rankings
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <ShimmerButton
+              <Button
                 onClick={() => { void handleSyncTrending(); }}
                 disabled={trendingSyncing}
-                className="w-full bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 text-white border-white/20"
-                shimmerColor="#8b5cf6"
+                variant="outline"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-white/5 text-white"
               >
                 {trendingSyncing ? (
                   <>
@@ -777,12 +659,12 @@ export function AdminDashboard() {
                     Update All Trending
                   </>
                 )}
-              </ShimmerButton>
-              <ShimmerButton
+              </Button>
+              <Button
                 onClick={() => { void handleSyncArtists(); }}
                 disabled={artistSyncing}
-                className="w-full bg-gradient-to-r from-emerald-500/20 to-green-500/20 hover:from-emerald-500/30 hover:to-green-500/30 text-white border-white/20"
-                shimmerColor="#10b981"
+                variant="outline"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-white/5 text-white"
               >
                 {artistSyncing ? (
                   <>
@@ -795,12 +677,12 @@ export function AdminDashboard() {
                     Artist Rankings
                   </>
                 )}
-              </ShimmerButton>
-              <ShimmerButton
+              </Button>
+              <Button
                 onClick={() => { void handleSyncShows(); }}
                 disabled={showSyncing}
-                className="w-full bg-gradient-to-r from-sky-500/20 to-blue-500/20 hover:from-sky-500/30 hover:to-blue-500/30 text-white border-white/20"
-                shimmerColor="#0ea5e9"
+                variant="outline"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-white/5 text-white"
               >
                 {showSyncing ? (
                   <>
@@ -813,7 +695,7 @@ export function AdminDashboard() {
                     Show Rankings
                   </>
                 )}
-              </ShimmerButton>
+              </Button>
             </div>
           </div>
 
@@ -824,11 +706,11 @@ export function AdminDashboard() {
               Setlist Generation
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <ShimmerButton
+              <Button
                 onClick={() => { void handleBackfillSetlists(); }}
                 disabled={backfillSyncing}
-                className="w-full bg-gradient-to-r from-indigo-500/20 to-purple-500/20 hover:from-indigo-500/30 hover:to-purple-500/30 text-white border-white/20"
-                shimmerColor="#6366f1"
+                variant="outline"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-white/5 text-white"
               >
                 {backfillSyncing ? (
                   <>
@@ -841,12 +723,12 @@ export function AdminDashboard() {
                     Generate Initial Setlists
                   </>
                 )}
-              </ShimmerButton>
-              <ShimmerButton
+              </Button>
+              <Button
                 onClick={() => { void handleSyncSetlists(); }}
                 disabled={setlistSyncing}
-                className="w-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-white border-white/20"
-                shimmerColor="#a855f7"
+                variant="outline"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-white/5 text-white"
               >
                 {setlistSyncing ? (
                   <>
@@ -859,12 +741,12 @@ export function AdminDashboard() {
                     Import from Setlist.fm
                   </>
                 )}
-              </ShimmerButton>
-              <ShimmerButton
+              </Button>
+              <Button
                 onClick={() => { void handleResyncCatalogs(); }}
                 disabled={catalogSyncing}
-                className="w-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/30 hover:to-cyan-500/30 text-white border-white/20"
-                shimmerColor="#3b82f6"
+                variant="outline"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-white/5 text-white"
               >
                 {catalogSyncing ? (
                   <>
@@ -877,7 +759,7 @@ export function AdminDashboard() {
                     Import Artist Catalogs
                   </>
                 )}
-              </ShimmerButton>
+              </Button>
             </div>
           </div>
 
@@ -910,11 +792,11 @@ export function AdminDashboard() {
               Data Import & Cleanup
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <ShimmerButton
+              <Button
                 onClick={() => { void handleImportTrending(); }}
                 disabled={importSyncing}
-                className="w-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 text-white border-white/20"
-                shimmerColor="#22c55e"
+                variant="outline"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-white/5 text-white"
               >
                 {importSyncing ? (
                   <>
@@ -927,12 +809,12 @@ export function AdminDashboard() {
                     Import Trending Artists
                   </>
                 )}
-              </ShimmerButton>
-              <ShimmerButton
+              </Button>
+              <Button
                 onClick={() => { void handleCleanupSongs(); }}
                 disabled={cleanupSyncing}
-                className="w-full bg-gradient-to-r from-red-500/20 to-orange-500/20 hover:from-red-500/30 hover:to-orange-500/30 text-white border-white/20"
-                shimmerColor="#ef4444"
+                variant="outline"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-white/5 text-white"
               >
                 {cleanupSyncing ? (
                   <>
@@ -945,7 +827,7 @@ export function AdminDashboard() {
                     Clean Non-Studio Songs
                   </>
                 )}
-              </ShimmerButton>
+              </Button>
             </div>
           </div>
           

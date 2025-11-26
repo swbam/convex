@@ -1,7 +1,6 @@
 import React from 'react';
 import { Calendar, MapPin, ExternalLink, Ticket } from 'lucide-react';
 import { Id } from '../../convex/_generated/dataModel';
-import { ShimmerButton } from './ui/shimmer-button';
 
 export function ShowHeader({
   show,
@@ -59,15 +58,14 @@ export function ShowHeader({
             </div>
             <div className="flex flex-wrap gap-2 sm:gap-3">
               {isUpcoming && (
-                <ShimmerButton
+                <button
                   onClick={() => window.open(show?.ticketUrl ? show.ticketUrl : (origin || '#'), '_blank')}
-                  className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white border-0 px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-semibold"
-                  shimmerColor="#60a5fa"
+                  className="flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-white hover:bg-gray-100 text-black font-semibold rounded-xl text-sm sm:text-base transition-all duration-200 shadow-lg"
                 >
                   <Ticket className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
                   Get Tickets
                   <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4 ml-1.5 sm:ml-2" />
-                </ShimmerButton>
+                </button>
               )}
               <button
                 onClick={() => {

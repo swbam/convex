@@ -3,7 +3,6 @@ import { useClerk, useSignUp, useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { MagicCard } from '../components/ui/magic-card';
 import { BorderBeam } from '../components/ui/border-beam';
-import { ShimmerButton } from '../components/ui/shimmer-button';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, Music, Sparkles, User, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { FaSpotify, FaGoogle } from 'react-icons/fa';
@@ -347,15 +346,20 @@ export function SignUpPage() {
                   <div id="clerk-captcha" className="flex justify-center"></div>
 
                   {/* Submit Button */}
-                  <ShimmerButton
+                  <button
                     type="submit"
                     disabled={isSubmitting || !email || !password}
-                    className="w-full bg-primary/20 hover:bg-primary/30 text-white border-primary/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                    shimmerColor="#ffffff"
-                    shimmerDuration="2s"
+                    className="w-full px-6 py-3 bg-white hover:bg-gray-100 text-black font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all duration-200"
                   >
-                    {isSubmitting ? "Creating Account..." : "Create Account"}
-                  </ShimmerButton>
+                    {isSubmitting ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Creating Account...
+                      </span>
+                    ) : (
+                      "Create Account"
+                    )}
+                  </button>
                 </form>
 
                 {/* Divider */}
@@ -432,15 +436,20 @@ export function SignUpPage() {
                     />
                   </div>
 
-                  <ShimmerButton
+                  <button
                     type="submit"
                     disabled={isSubmitting || verificationCode.length !== 6}
-                    className="w-full bg-green-500/20 hover:bg-green-500/30 text-white border-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                    shimmerColor="#10b981"
-                    shimmerDuration="2s"
+                    className="w-full px-6 py-3 bg-white hover:bg-gray-100 text-black font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all duration-200"
                   >
-                    {isSubmitting ? "Verifying..." : "Verify Email"}
-                  </ShimmerButton>
+                    {isSubmitting ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Verifying...
+                      </span>
+                    ) : (
+                      "Verify Email"
+                    )}
+                  </button>
                 </form>
 
                 <div className="mt-6 text-center">
