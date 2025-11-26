@@ -596,24 +596,35 @@ export function ShowDetail({
                   predictionSetlist.songs.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    {catalogCount === 0 ? (
+                    {songs === undefined ? (
+                      // Songs query is still loading
                       <>
                         <p className="text-lg font-medium">
-                          Importing this artist&apos;s catalog…
+                          Loading songs…
                         </p>
                         <p className="text-sm mt-1">
-                          We&apos;re fetching studio tracks in the background.
-                          Your prediction setlist will appear here shortly.
+                          Please wait while we fetch this artist&apos;s catalog.
+                        </p>
+                      </>
+                    ) : catalogCount === 0 ? (
+                      // Songs loaded but empty - need to import
+                      <>
+                        <p className="text-lg font-medium">
+                          No songs available yet
+                        </p>
+                        <p className="text-sm mt-1">
+                          This artist&apos;s catalog hasn&apos;t been imported yet.
+                          Check back soon!
                         </p>
                       </>
                     ) : (
+                      // Songs exist but setlist not generated yet
                       <>
                         <p className="text-lg font-medium">
-                          Generating a prediction setlist…
+                          Generating prediction setlist…
                         </p>
                         <p className="text-sm mt-1">
-                          We&apos;re seeding a 5‑song set from the catalog.
-                          Try again in a moment if this doesn&apos;t update.
+                          We&apos;re creating an initial setlist from the catalog.
                         </p>
                       </>
                     )}
