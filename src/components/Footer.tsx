@@ -3,7 +3,7 @@ import { Heart, Github, Twitter, Instagram, Mail } from 'lucide-react'
 
 export function Footer() {
   return (
-    <footer className="w-full bg-transparent border-t border-white/10 mt-auto">
+    <footer className="w-full bg-transparent border-t border-border mt-auto">
       <div className="mx-auto max-w-page-full px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 py-8 sm:py-12 lg:py-16">
         {/* Main Footer Content */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-12">
@@ -65,7 +65,7 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar - Enhanced */}
-        <div className="border-t border-white/10 mt-8 sm:mt-12 pt-6 sm:pt-8">
+        <div className="border-t border-border mt-8 sm:mt-12 pt-6 sm:pt-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6">
             {/* Copyright */}
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3 text-responsive-xs sm:text-responsive-sm text-muted-foreground">

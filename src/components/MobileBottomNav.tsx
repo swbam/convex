@@ -39,7 +39,7 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
   
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-40 bg-background/95 backdrop-blur-xl border-t border-white/10 md:hidden safe-area-bottom"
+      className="fixed bottom-0 inset-x-0 z-40 bg-background/95 backdrop-blur-xl border-t border-border md:hidden safe-area-bottom"
     >
       <ul className={`grid ${gridColumnsClass} relative`}>
         {navItems.map((item) => {

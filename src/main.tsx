@@ -86,18 +86,8 @@ if (!convexUrl || !publishableKey) {
             <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
               <RouterProvider router={router} />
               <Toaster 
-                theme="dark"
                 position="bottom-right"
-                toastOptions={{
-                  style: {
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    color: '#fff',
-                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5)',
-                  },
-                }}
+                richColors
               />
             </ConvexProviderWithClerk>
           </ClerkProvider>

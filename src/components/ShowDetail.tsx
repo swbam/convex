@@ -449,7 +449,7 @@ export function ShowDetail({
           
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             
-            <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 bg-black border-t border-b border-white/5 sm:border">
+            <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 bg-card border-t border-b border-border sm:border">
               <div className="px-4 py-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">

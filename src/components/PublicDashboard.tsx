@@ -300,13 +300,13 @@ function ArtistCard({ artist, onClick }: {
 }) {
   return (
     <motion.div 
-      className="w-full md:flex-shrink-0 md:w-48 lg:w-56 xl:w-64 snap-start cursor-pointer transform-gpu will-change-transform"
+      className="w-40 sm:w-44 md:w-48 lg:w-56 xl:w-64 flex-shrink-0 snap-start cursor-pointer transform-gpu will-change-transform"
       onClick={onClick}
       whileHover={{ y: -6, transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="glass-card glass-card-hover rounded-2xl overflow-hidden card-lift shadow-elevated shadow-elevated-hover">
-        {/* Artist Image */}
+      <div className="glass-card glass-card-hover rounded-xl sm:rounded-2xl overflow-hidden card-lift shadow-elevated shadow-elevated-hover">
+        {/* Artist Image - Square aspect ratio */}
         <div className="relative w-full aspect-square overflow-hidden">
           {artist.images?.[0] ? (
             <motion.img 
@@ -317,27 +317,27 @@ function ArtistCard({ artist, onClick }: {
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center">
-              <span className="text-white/80 font-bold text-2xl sm:text-3xl md:text-4xl">
+            <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-white/10 dark:to-white/5 flex items-center justify-center">
+              <span className="text-gray-600 dark:text-white/80 font-bold text-xl sm:text-2xl md:text-3xl">
                 {(typeof artist?.name === 'string' && artist.name.length > 0 ? artist.name : '??').slice(0, 2).toUpperCase()}
               </span>
             </div>
           )}
-          {/* Monochrome gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+          {/* Gradient overlay for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         </div>
 
         {/* Content */}
-        <div className="p-3 sm:p-4 space-y-1 sm:space-y-2">
-          <h3 className="text-white font-bold text-sm sm:text-base md:text-lg leading-tight line-clamp-1 group-hover:shimmer-text transition-all">
+        <div className="p-2.5 sm:p-3 md:p-4 space-y-0.5 sm:space-y-1">
+          <h3 className="text-foreground font-bold text-xs sm:text-sm md:text-base leading-tight line-clamp-1 group-hover:shimmer-text transition-all">
             {artist.name}
           </h3>
-          <div className="flex items-center justify-between">
-            <p className="text-gray-400 text-xs sm:text-sm">
+          <div className="flex items-center justify-between gap-1">
+            <p className="text-muted-foreground text-[10px] sm:text-xs">
               {artist.upcomingShowsCount || 0} shows
             </p>
             {artist.genres?.[0] && (
-              <span className="text-xs px-2 py-0.5 sm:py-1 rounded-full bg-white/5 text-white/70 border border-white/10">
+              <span className="text-[9px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground border border-border truncate max-w-[60px] sm:max-w-none">
                 {artist.genres[0]}
               </span>
             )}
@@ -357,17 +357,16 @@ function ShowCard({
   onClick: () => void;
 }) {
   const showDate = new Date(show.date);
-  const isUpcoming = showDate >= new Date();
 
   return (
     <motion.div 
-      className="w-full md:flex-shrink-0 md:w-48 lg:w-56 xl:w-64 snap-start cursor-pointer transform-gpu will-change-transform"
+      className="w-40 sm:w-44 md:w-48 lg:w-56 xl:w-64 flex-shrink-0 snap-start cursor-pointer transform-gpu will-change-transform"
       onClick={onClick}
       whileHover={{ y: -6, transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="glass-card glass-card-hover rounded-2xl overflow-hidden card-lift shadow-elevated shadow-elevated-hover">
-        {/* Show Image */}
+      <div className="glass-card glass-card-hover rounded-xl sm:rounded-2xl overflow-hidden card-lift shadow-elevated shadow-elevated-hover">
+        {/* Show Image - Square aspect ratio */}
         <div className="relative w-full aspect-square overflow-hidden">
           {(() => {
             const imgSrc = show?.artist?.images?.[0] || show?.artistImage || show?.cachedTrending?.artistImage;
@@ -380,19 +379,19 @@ function ShowCard({
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center">
-              <span className="text-white/80 font-bold text-xl sm:text-2xl md:text-3xl">
+            <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-white/10 dark:to-white/5 flex items-center justify-center">
+              <span className="text-gray-600 dark:text-white/80 font-bold text-xl sm:text-2xl md:text-3xl">
                 {((show?.artist?.name || show?.artistName || '??') as string).slice(0, 2).toUpperCase()}
               </span>
             </div>
           );})()}
-          {/* Monochrome gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent" />
+          {/* Gradient overlay for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
           
           {/* Date Badge with glass effect */}
-          <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
-            <div className="glass-card rounded-lg px-2 py-1 sm:px-3 sm:py-2">
-              <p className="text-white text-xs font-bold">
+          <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
+            <div className="glass-card rounded-md sm:rounded-lg px-1.5 py-0.5 sm:px-2 sm:py-1">
+              <p className="text-white text-[10px] sm:text-xs font-bold">
                 {showDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </p>
             </div>
@@ -400,25 +399,20 @@ function ShowCard({
         </div>
 
         {/* Content */}
-        <div className="p-3 sm:p-4 space-y-1 sm:space-y-2">
-          <h3 className="text-white font-bold text-sm sm:text-base leading-tight line-clamp-1 group-hover:shimmer-text transition-all">
+        <div className="p-2.5 sm:p-3 md:p-4 space-y-0.5 sm:space-y-1">
+          <h3 className="text-foreground font-bold text-xs sm:text-sm md:text-base leading-tight line-clamp-1 group-hover:shimmer-text transition-all">
             {show.artist?.name || show.artistName}
           </h3>
           {show.venue && (
-            <div className="space-y-0.5 sm:space-y-1">
-              <p className="text-gray-400 text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2">
-                <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+            <div className="space-y-0">
+              <p className="text-muted-foreground text-[10px] sm:text-xs flex items-center gap-1">
+                <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 flex-shrink-0" />
                 <span className="truncate">{show.venue.name}</span>
               </p>
-              <p className="text-gray-500 text-xs pl-4 sm:pl-5">
+              <p className="text-muted-foreground/70 text-[9px] sm:text-xs pl-3.5 sm:pl-4 truncate">
                 {show.venue.city}{show.venue.state ? `, ${show.venue.state}` : ''}
               </p>
             </div>
-          )}
-          {show.priceRange && (
-            <p className="text-xs text-white/70 font-semibold">
-              {show.priceRange}
-            </p>
           )}
         </div>
       </div>
