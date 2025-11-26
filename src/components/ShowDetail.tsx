@@ -349,25 +349,25 @@ export function ShowDetail({
   return (
     <>
       <motion.div
-        className="py-4 sm:py-8 space-y-4 sm:space-y-8 relative z-10"
+        className="space-y-4 sm:space-y-6 relative z-10"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       >
         <SEOHead />
 
-        {/* Hero Header - Full Width without causing horizontal overflow */}
-        <div className="relative w-full overflow-hidden bg-card min-h-[320px] sm:min-h-[420px] max-w-[100vw]">
+        {/* Hero Header - Compact, full width */}
+        <div className="relative w-full overflow-hidden bg-card">
           {heroImage && (
             <div className="absolute inset-0 z-0">
-              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-40" />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/55 to-black/80" />
+              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-20 dark:opacity-30 blur-sm scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/60 dark:from-black/90 dark:via-black/70 dark:to-black/50" />
             </div>
           )}
 
-          <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-14">
-            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-6">
-              {/* Profile Image - Smaller on Mobile */}
+          <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
+            <div className="flex flex-row items-center gap-4 sm:gap-6 max-w-6xl mx-auto">
+              {/* Profile Image */}
               {(avatarImage || heroImage) && (
                 <div className="flex-shrink-0">
                   <a
@@ -380,37 +380,35 @@ export function ShowDetail({
                     <img
                       src={avatarImage || heroImage}
                       alt={show?.artist?.name}
-                      className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl sm:rounded-2xl object-cover shadow-2xl ring-2 ring-white/10"
+                      className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-lg object-cover shadow-lg ring-1 ring-border"
                     />
                   </a>
                 </div>
               )}
 
-              {/* Show Info - Consistent with Artist Page */}
-              <div className="flex-1 min-w-0 w-full sm:pb-2">
-                <p className="text-xs font-semibold text-white/60 mb-1 sm:mb-2 uppercase tracking-widest">Concert</p>
+              {/* Show Info */}
+              <div className="flex-1 min-w-0">
+                {/* Artist Name - clickable */}
                 <button
                   onClick={() => {
                     if (show?.artistId) onArtistClick(show.artistId);
                   }}
-                  className="text-2xl sm:text-3xl lg:text-5xl xl:text-6xl font-bold text-white hover:text-primary/90 transition-colors text-left mb-2 sm:mb-3 leading-tight tracking-tight"
+                  className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground hover:text-primary transition-colors leading-tight tracking-tight text-left line-clamp-1"
                 >
                   {show?.artist?.name}
                 </button>
 
-                <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-white/80">
-                  <div className="flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span className="font-medium">{show?.venue?.name}</span>
+                {/* Venue & Date - single line */}
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground mt-1">
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                    <span className="truncate max-w-[120px] sm:max-w-none">{show?.venue?.name}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span className="font-medium">
-                      {showDate.toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
+                  <span className="text-muted-foreground/40">•</span>
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                    <span>
+                      {showDate.toLocaleDateString("en-US", { weekday: 'short', month: "short", day: "numeric" })}
                       {show?.startTime && ` • ${(() => {
                         const [hours, minutes] = show.startTime.split(':');
                         const hour = parseInt(hours);
@@ -421,25 +419,25 @@ export function ShowDetail({
                     </span>
                   </div>
                 </div>
+                
+                {/* Get Tickets - inline on all sizes */}
+                {isUpcoming && show?.ticketUrl && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <button
+                      onClick={() =>
+                        window.open(
+                          buildTicketmasterAffiliateUrl(show.ticketUrl || ""),
+                          "_blank"
+                        )
+                      }
+                      className="inline-flex items-center px-3 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-md text-xs transition-all"
+                    >
+                      <Ticket className="h-3 w-3 mr-1" />
+                      Get Tickets
+                    </button>
+                  </div>
+                )}
               </div>
-
-              {/* Tickets CTA - in header for both mobile and desktop */}
-              {isUpcoming && show?.ticketUrl && (
-                <div className="w-full sm:w-auto">
-                  <button
-                    onClick={() =>
-                      window.open(
-                        buildTicketmasterAffiliateUrl(show.ticketUrl || ""),
-                        "_blank"
-                      )
-                    }
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-white px-4 py-3 sm:px-5 sm:py-2.5 transition-colors"
-                  >
-                    <Ticket className="h-4 w-4" />
-                    <span className="text-sm sm:text-base font-medium">Get Tickets</span>
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -454,9 +452,9 @@ export function ShowDetail({
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-                      <Music className="h-5 w-5 text-white" />
+                      <Music className="h-5 w-5 text-foreground" />
                     </div>
-                    <h2 className="text-2xl sm:text-3xl font-bold text-white">Setlist</h2>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Setlist</h2>
                   </div>
                 </div>
 
@@ -490,7 +488,7 @@ export function ShowDetail({
                             <CheckCircle className="w-5 h-5 text-green-400" />
                           </div>
                           <div>
-                            <h2 className="text-xl sm:text-2xl font-bold text-white">
+                            <h2 className="text-xl sm:text-2xl font-bold text-foreground">
                               Official Setlist
                             </h2>
                             <p className="text-green-400 text-sm">
@@ -505,7 +503,7 @@ export function ShowDetail({
                         </div>
 
                         <div className="text-right">
-                          <div className="text-2xl font-bold text-white">
+                          <div className="text-2xl font-bold text-foreground">
                             {actualSetlistSongs.length}
                           </div>
                           <div className="text-xs text-gray-400">
@@ -552,7 +550,7 @@ export function ShowDetail({
                                   </svg>
                                 </div>
                                 <div>
-                                  <h3 className="text-lg font-bold text-white">
+                                  <h3 className="text-lg font-bold text-foreground">
                                     Fan Prediction Accuracy
                                   </h3>
                                   <p className="text-purple-400 text-sm">
@@ -670,7 +668,7 @@ export function ShowDetail({
                         <AlertCircle className="h-4 w-4 text-red-400" />
                       </div>
                       <div>
-                        <h3 className="text-base font-bold text-white">
+                        <h3 className="text-base font-bold text-foreground">
                           Not Played
                         </h3>
                         <p className="text-xs text-red-400">
@@ -696,12 +694,12 @@ export function ShowDetail({
             {/* Venue Details */}
             <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border">
               <div className="px-4 py-4 sm:p-6 bg-card">
-                <h3 className="text-lg sm:text-xl font-bold mb-4 text-white">
+                <h3 className="text-lg sm:text-xl font-bold mb-4 text-foreground">
                   Venue Details
                 </h3>
                 <div className="space-y-3">
                   <div>
-                    <div className="font-medium text-white">
+                    <div className="font-medium text-foreground">
                       {show?.venue?.name}
                     </div>
                     <div className="text-sm text-gray-400">
@@ -712,7 +710,7 @@ export function ShowDetail({
                   {show?.venue?.capacity && (
                     <div className="flex items-center gap-2 text-sm">
                       <Users className="h-4 w-4 text-gray-400" />
-                      <span className="text-white">
+                      <span className="text-foreground">
                         {show?.venue?.capacity?.toLocaleString()} capacity
                       </span>
                     </div>
@@ -731,7 +729,7 @@ export function ShowDetail({
             {/* Show Stats */}
             <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-white/5 sm:border">
               <div className="px-4 py-4 sm:p-6 bg-card">
-                <h3 className="text-lg sm:text-xl font-bold mb-4 text-white">
+                <h3 className="text-lg sm:text-xl font-bold mb-4 text-foreground">
                   Show Stats
                 </h3>
                 <div className="space-y-3">
@@ -739,7 +737,7 @@ export function ShowDetail({
                     <span className="text-sm text-gray-400">
                       Songs {hasActualSetlist ? "played" : "in setlist"}
                     </span>
-                    <span className="font-medium text-white">
+                    <span className="font-medium text-foreground">
                       {hasActualSetlist
                         ? actualSetlistSongs.length
                         : predictionSetlist?.songs?.length || 0}
@@ -748,12 +746,12 @@ export function ShowDetail({
 
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-400">Catalog songs</span>
-                    <span className="font-medium text-white">{catalogCount}</span>
+                    <span className="font-medium text-foreground">{catalogCount}</span>
                   </div>
 
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-400">Coverage</span>
-                    <span className="font-medium text-white">
+                    <span className="font-medium text-foreground">
                       {catalogCoverage}%
                     </span>
                   </div>
@@ -762,7 +760,7 @@ export function ShowDetail({
                     <span className="text-sm text-gray-400">
                       Studio songs available
                     </span>
-                    <span className="font-medium text-white">
+                    <span className="font-medium text-foreground">
                       {songs
                         ?.filter(Boolean)
                         .filter((s) => s && !s.isLive && !s.isRemix).length || 0}
@@ -775,7 +773,7 @@ export function ShowDetail({
                         <span className="text-sm text-gray-400">
                           Total votes
                         </span>
-                        <span className="font-medium text-white">
+                        <span className="font-medium text-foreground">
                           {(predictionSetlist.upvotes || 0) +
                             (predictionSetlist.downvotes || 0)}
                         </span>
@@ -785,7 +783,7 @@ export function ShowDetail({
                         <span className="text-sm text-gray-400">
                           Setlist upvotes
                         </span>
-                        <span className="font-medium text-white">
+                        <span className="font-medium text-foreground">
                           {predictionSetlist.upvotes || 0}
                         </span>
                       </div>
@@ -801,7 +799,7 @@ export function ShowDetail({
 
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-400">Show status</span>
-                    <span className="font-medium text-white capitalize">
+                    <span className="font-medium text-foreground capitalize">
                       {show.status}
                     </span>
                   </div>
@@ -818,7 +816,7 @@ export function ShowDetail({
                     <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
                       <Vote className="h-5 w-5 text-primary" />
                     </div>
-                    <h3 className="text-xl font-bold text-white">
+                    <h3 className="text-xl font-bold text-foreground">
                       Join the Voting
                     </h3>
                   </div>
@@ -827,7 +825,7 @@ export function ShowDetail({
                   </p>
                   <button
                     onClick={onSignInRequired}
-                    className="w-full bg-primary/20 hover:bg-primary/30 text-white border border-primary/30 rounded-xl py-3 px-6 font-medium transition-all duration-300"
+                    className="w-full bg-primary/20 hover:bg-primary/30 text-foreground border border-primary/30 rounded-xl py-3 px-6 font-medium transition-all duration-300"
                   >
                     <Music className="h-4 w-4 mr-2 inline" />
                     Sign In to Vote
@@ -845,9 +843,9 @@ export function ShowDetail({
 
       {/* Auth Modal for Unauth Limits */}
       <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
-        <DialogContent className="bg-black border-white/10 text-white max-w-md mx-auto">
+        <DialogContent className="bg-black border-white/10 text-foreground max-w-md mx-auto">
           <DialogHeader>
-            <DialogTitle className="text-white">Unlock More Actions</DialogTitle>
+            <DialogTitle className="text-foreground">Unlock More Actions</DialogTitle>
             <DialogDescription className="text-gray-300">
               You've used your free action. Sign up to vote on more songs and
               create setlists!
@@ -881,7 +879,7 @@ function TopRequestedSongs({ setlistId }: { setlistId: Id<"setlists"> }) {
   if (!top.length) return null;
   return (
     <div>
-      <div className="text-sm font-semibold mb-2 text-white">Top requested songs</div>
+      <div className="text-sm font-semibold mb-2 text-foreground">Top requested songs</div>
       <ul className="space-y-1">
         {top.map((s: any) => (
           <li key={s.songTitle} className="flex items-center justify-between text-sm">
@@ -998,7 +996,7 @@ function FanRequestSongRow({
         <div className="flex-1 min-w-0">
           <h3
             className={`font-semibold text-base leading-tight ${
-              wasPlayed ? "text-white" : "text-gray-300"
+              wasPlayed ? "text-foreground" : "text-gray-300"
             } truncate`}
           >
             {songTitle}
@@ -1014,7 +1012,7 @@ function FanRequestSongRow({
             void handleVote();
           }}
           className={`flex flex-col items-center gap-0.5 text-base transition-all duration-150 active:scale-95 min-w-[44px] min-h-[44px] justify-center ${
-            userVoted ? "text-primary" : "text-gray-500 active:text-white sm:hover:text-white"
+            userVoted ? "text-primary" : "text-gray-500 active:text-foreground sm:hover:text-foreground"
           }`}
         >
           <ChevronUp
@@ -1096,7 +1094,7 @@ function ActualSetlistSongRow({
         )}
 
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-base leading-tight text-white truncate">
+          <h3 className="font-semibold text-base leading-tight text-foreground truncate">
             {song.title}
           </h3>
           {song.album && (

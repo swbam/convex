@@ -136,7 +136,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                 <Flame className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-orange-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">Trending</h1>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">Trending</h1>
                 <p className="text-gray-400 text-xs sm:text-sm mt-0.5 sm:mt-1">Discover what's hot right now</p>
               </div>
             </div>
@@ -159,8 +159,8 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 sm:gap-2 py-2 px-3 sm:py-2.5 sm:px-5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 ${
                 activeTab === tab.id
-                  ? 'bg-white/15 text-white shadow-lg border border-white/20'
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  ? 'bg-white/15 text-foreground shadow-lg border border-white/20'
+                  : 'text-gray-400 hover:text-foreground hover:bg-white/5'
               }`}
             >
               <tab.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -177,9 +177,9 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
             <div className="p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-white" />
+                  <TrendingUp className="h-5 w-5 text-foreground" />
                 </div>
-                <h2 className="text-xl sm:text-2xl font-bold text-white">
+                <h2 className="text-xl sm:text-2xl font-bold text-foreground">
                   Top {activeTab === 'artists' ? 'Artists' : activeTab === 'shows' ? 'Shows' : 'Setlists'}
                 </h2>
               </div>
@@ -312,7 +312,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-white truncate">{setlist.artist?.name}</h3>
+                            <h3 className="font-semibold text-foreground truncate">{setlist.artist?.name}</h3>
                             <p className="text-sm text-gray-400 truncate">
                               {setlist.venue?.name} • {setlist.songs?.length ?? 0} songs
                             </p>
@@ -346,17 +346,17 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
               <div className="p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <TrendingUp className="h-5 w-5 text-orange-400" />
-                  <h3 className="text-lg font-bold text-white">Quick Stats</h3>
+                  <h3 className="text-lg font-bold text-foreground">Quick Stats</h3>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="glass-card rounded-xl p-4 text-center">
-                    <div className="text-2xl font-bold text-white">
+                    <div className="text-2xl font-bold text-foreground">
                       {trendingArtists?.page?.length || 0}
                     </div>
                     <div className="text-xs text-gray-400">Artists</div>
                   </div>
                   <div className="glass-card rounded-xl p-4 text-center">
-                    <div className="text-2xl font-bold text-white">
+                    <div className="text-2xl font-bold text-foreground">
                       {trendingShows?.page?.length || 0}
                     </div>
                     <div className="text-xs text-gray-400">Shows</div>
@@ -376,8 +376,8 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
             <MagicCard className="p-0 rounded-2xl border border-white/10 bg-card">
               <div className="p-6">
                 <div className="flex items-center gap-3 mb-4">
-                  <Clock className="h-5 w-5 text-white" />
-                  <h3 className="text-lg font-bold text-white">Recent Activity</h3>
+                  <Clock className="h-5 w-5 text-foreground" />
+                  <h3 className="text-lg font-bold text-foreground">Recent Activity</h3>
                 </div>
                 
                 {!recentActivity ? (
@@ -406,7 +406,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                         <div className="flex items-start gap-2">
                           <div className="w-2 h-2 rounded-full bg-orange-500 mt-1.5 flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm text-white truncate">
+                            <p className="text-sm text-foreground truncate">
                               <span className="font-semibold">{activity.artist?.name || 'Unknown'}</span>
                             </p>
                             <p className="text-xs text-gray-400 truncate">
@@ -467,7 +467,7 @@ function TrendingArtistCard({
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center">
-              <span className="text-white/80 font-bold text-2xl">
+              <span className="text-foreground/80 font-bold text-2xl">
                 {artist.name?.slice(0, 2).toUpperCase()}
               </span>
             </div>
@@ -478,15 +478,15 @@ function TrendingArtistCard({
           <div className="absolute top-2 left-2">
             <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-sm ${
               rank <= 3 
-                ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white' 
-                : 'bg-white/20 backdrop-blur-sm text-white'
+                ? 'bg-gradient-to-br from-orange-500 to-red-500 text-foreground' 
+                : 'bg-white/20 backdrop-blur-sm text-foreground'
             }`}>
               {rank}
             </div>
           </div>
         </div>
         <div className="p-3">
-          <h3 className="font-semibold text-white text-sm truncate">{artist.name}</h3>
+          <h3 className="font-semibold text-foreground text-sm truncate">{artist.name}</h3>
           <p className="text-xs text-gray-400">
             {upcomingCount} {upcomingCount === 1 ? 'show' : 'shows'}
           </p>
@@ -536,7 +536,7 @@ function TrendingShowCard({
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center">
-              <span className="text-white/80 font-bold text-2xl">
+              <span className="text-foreground/80 font-bold text-2xl">
                 {artistName.slice(0, 2).toUpperCase()}
               </span>
             </div>
@@ -546,7 +546,7 @@ function TrendingShowCard({
           {/* Date Badge */}
           <div className="absolute top-2 right-2">
             <div className="glass-card rounded-lg px-2 py-1">
-              <p className="text-white text-xs font-bold">{dateLabel}</p>
+              <p className="text-foreground text-xs font-bold">{dateLabel}</p>
             </div>
           </div>
           
@@ -554,15 +554,15 @@ function TrendingShowCard({
           <div className="absolute top-2 left-2">
             <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-sm ${
               rank <= 3 
-                ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white' 
-                : 'bg-white/20 backdrop-blur-sm text-white'
+                ? 'bg-gradient-to-br from-orange-500 to-red-500 text-foreground' 
+                : 'bg-white/20 backdrop-blur-sm text-foreground'
             }`}>
               {rank}
             </div>
           </div>
         </div>
         <div className="p-3">
-          <h3 className="font-semibold text-white text-sm truncate">{artistName}</h3>
+          <h3 className="font-semibold text-foreground text-sm truncate">{artistName}</h3>
           <p className="text-xs text-gray-400 flex items-center gap-1">
             <MapPin className="h-3 w-3" />
             <span className="truncate">{venueCity}</span>

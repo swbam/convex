@@ -262,7 +262,7 @@ function App() {
                     </div>
                   </div>
                   <div className="text-center py-4">
-                    <p className="text-lg text-white mb-2">Loading {artistName}...</p>
+                    <p className="text-lg text-foreground mb-2">Loading {artistName}...</p>
                     <p className="text-sm text-gray-400">Fetching artist details</p>
                   </div>
                 </div>
@@ -285,19 +285,19 @@ function App() {
                   <div className="w-20 h-20 mx-auto bg-red-500/20 rounded-full flex items-center justify-center">
                     <Music className="h-10 w-10 text-red-400" />
                   </div>
-                  <h2 className="text-2xl font-bold text-white">Artist Not Found</h2>
+                  <h2 className="text-2xl font-bold text-foreground">Artist Not Found</h2>
                   <p className="text-gray-400">We couldn't find {artistName} in our database.</p>
                   <p className="text-sm text-gray-500">Try searching for the artist from the homepage.</p>
                   <div className="flex gap-3 justify-center mt-6">
                     <button
                       onClick={() => navigate('/')}
-                      className="px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl transition-all"
+                      className="px-6 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl transition-all"
                     >
                       Back to Home
                     </button>
                     <button
                       onClick={() => navigate('/artists')}
-                      className="px-6 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all"
+                      className="px-6 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-xl transition-all"
                     >
                       Browse Artists
                     </button>
@@ -410,12 +410,12 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-white overflow-x-hidden">
+    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
       {/* Backend error monitoring - sends Convex errors to Sentry */}
       <BackendErrorMonitor />
       
-      {/* Premium monochrome gradient background */}
-      <div className="fixed inset-0 bg-gradient-to-br from-black via-gray-950 to-black" />
+      {/* Theme-aware gradient background */}
+      <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-background dark:from-black dark:via-gray-950 dark:to-black" />
       
       <div className="relative z-10 overflow-x-hidden w-full">
         <ErrorBoundary
@@ -427,11 +427,11 @@ function App() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <h2 className="text-xl font-bold text-white mb-2">Something went wrong</h2>
+                <h2 className="text-xl font-bold text-foreground mb-2">Something went wrong</h2>
                 <p className="text-gray-400 mb-6">We encountered an unexpected error. Please try refreshing the page.</p>
                 <button
                   onClick={() => window.location.reload()}
-                  className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-all duration-200 border border-white/20"
+                  className="px-6 py-3 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-xl font-medium transition-all duration-200 border border-border"
                 >
                   Refresh Page
                 </button>

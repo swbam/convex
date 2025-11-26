@@ -389,29 +389,18 @@ export function AppLayout({ children }: AppLayoutProps) {
             >
               <SyncProgress />
               {location.pathname === '/' ? (
-                isSignedIn ? (
-                  <UserDashboard 
-                    onArtistClick={(artistId) => {
-                      void navigate(`/artists/${artistId}`)
-                    }}
-                    onShowClick={(showId, slug) => {
-                      void navigate(`/shows/${slug || showId}`)
-                    }}
-                  />
-                ) : (
-                  <PublicDashboard 
-                    onArtistClick={(artistId) => {
-                      void navigate(`/artists/${artistId}`)
-                    }}
-                    onShowClick={(showId, slug) => {
-                      void navigate(`/shows/${slug || showId}`)
-                    }}
-                    onSignInRequired={() => {
-                      void navigate('/signin')
-                    }}
-                    navigate={(path: string) => { void navigate(path) }}
-                  />
-                )
+                <PublicDashboard 
+                  onArtistClick={(artistId) => {
+                    void navigate(`/artists/${artistId}`)
+                  }}
+                  onShowClick={(showId, slug) => {
+                    void navigate(`/shows/${slug || showId}`)
+                  }}
+                  onSignInRequired={() => {
+                    void navigate('/signin')
+                  }}
+                  navigate={(path: string) => { void navigate(path) }}
+                />
               ) : (
                 children
               )}

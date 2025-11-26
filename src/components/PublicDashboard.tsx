@@ -175,10 +175,10 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
           <motion.div variants={itemVariants} className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
-                <Users className="h-6 w-6 text-white/80" />
+                <Users className="h-6 w-6 text-foreground/80" />
             </div>
             <div>
-                <h2 className="text-2xl md:text-3xl font-bold text-white">Trending Artists</h2>
+                <h2 className="text-2xl md:text-3xl font-bold text-foreground">Trending Artists</h2>
                 <p className="text-sm text-gray-500">Most popular artists with upcoming shows</p>
               </div>
             </div>
@@ -239,10 +239,10 @@ export function PublicDashboard({ onArtistClick, onShowClick, onSignInRequired, 
           <motion.div variants={itemVariants} className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
-                <TrendingUp className="h-6 w-6 text-white/80" />
+                <TrendingUp className="h-6 w-6 text-foreground/80" />
               </div>
           <div>
-                <h2 className="text-2xl md:text-3xl font-bold text-white">Top Shows</h2>
+                <h2 className="text-2xl md:text-3xl font-bold text-foreground">Top Shows</h2>
                 <p className="text-sm text-gray-500">Most popular upcoming concerts</p>
               </div>
             </div>
@@ -391,7 +391,7 @@ function ShowCard({
           {/* Date Badge with glass effect */}
           <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
             <div className="glass-card rounded-md sm:rounded-lg px-1.5 py-0.5 sm:px-2 sm:py-1">
-              <p className="text-white text-[10px] sm:text-xs font-bold">
+              <p className="text-foreground text-[10px] sm:text-xs font-bold">
                 {showDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </p>
             </div>

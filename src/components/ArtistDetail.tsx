@@ -90,7 +90,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
     return (
       <div className="container mx-auto px-4 py-8 text-center min-h-screen flex flex-col items-center justify-center">
         <div className="max-w-md space-y-4">
-          <h1 className="text-2xl font-bold text-white">Artist Not Found</h1>
+          <h1 className="text-2xl font-bold text-foreground">Artist Not Found</h1>
           <p className="text-gray-400">The artist could not be found in our database. Try searching for them.</p>
           <Link to="/search">
             <Button className="w-full">
@@ -264,7 +264,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                   <div className="flex flex-col items-center justify-center space-y-4">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     <div className="text-center">
-                      <p className="text-lg font-medium text-white">Fetching Shows</p>
+                      <p className="text-lg font-medium text-foreground">Fetching Shows</p>
                       <p className="text-sm text-gray-400 mt-2">
                         Importing {artist.name}'s tour dates from Ticketmaster...
                       </p>
@@ -306,7 +306,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                   >
                     <div className="flex justify-between items-start w-full">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg sm:text-xl font-extrabold text-white mb-1.5 leading-tight">{show.venue?.name}</h3>
+                        <h3 className="text-lg sm:text-xl font-extrabold text-foreground mb-1.5 leading-tight">{show.venue?.name}</h3>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-300">
                           <div className="flex items-center gap-1.5">
                             <MapPin className="h-3.5 w-3.5" />
@@ -378,7 +378,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                     >
                       <div className="flex justify-between items-start w-full">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg sm:text-xl font-extrabold text-white mb-1.5 leading-tight">{show.venue?.name}</h3>
+                          <h3 className="text-lg sm:text-xl font-extrabold text-foreground mb-1.5 leading-tight">{show.venue?.name}</h3>
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-300">
                             <div className="flex items-center gap-1.5">
                               <MapPin className="h-3.5 w-3.5" />
@@ -427,9 +427,9 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
             <div className="px-4 py-4 sm:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center">
-                  <Music className="h-4 w-4 text-white" />
+                  <Music className="h-4 w-4 text-foreground" />
                 </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-white">Top Songs</h3>
+                <h3 className="text-xl sm:text-2xl font-bold text-foreground">Top Songs</h3>
               </div>
             
             {!songs ? (

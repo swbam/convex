@@ -101,7 +101,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
                 <Mic className="h-5 w-5 sm:h-6 sm:h-6 lg:h-7 lg:w-7 text-violet-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">Artists</h1>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">Artists</h1>
                 <p className="text-gray-400 text-xs sm:text-sm mt-0.5 sm:mt-1">{filteredArtists.length} artists to explore</p>
               </div>
             </div>
@@ -124,12 +124,12 @@ export function Artists({ onArtistClick }: ArtistsProps) {
               placeholder="Search artists..."
               value={searchQuery}
               onChange={handleSearch}
-              className="w-full pl-10 sm:pl-12 pr-16 sm:pr-4 py-3 sm:py-3.5 bg-white/5 border border-white/10 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/30 text-white placeholder-gray-400 text-sm sm:text-base"
+              className="w-full pl-10 sm:pl-12 pr-16 sm:pr-4 py-3 sm:py-3.5 bg-white/5 border border-white/10 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/30 text-foreground placeholder-gray-400 text-sm sm:text-base"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white px-2 py-1 rounded text-xs sm:text-sm"
+                className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-foreground px-2 py-1 rounded text-xs sm:text-sm"
               >
                 Clear
               </button>
@@ -162,7 +162,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
           <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-white/5 flex items-center justify-center border border-white/10">
             <Music className="h-10 w-10 text-gray-500" />
           </div>
-          <h3 className="text-2xl font-bold text-white mb-3">No artists found</h3>
+          <h3 className="text-2xl font-bold text-foreground mb-3">No artists found</h3>
           <p className="text-gray-400 text-lg mb-6 max-w-md mx-auto">
             {searchQuery 
               ? 'Try a different search term or browse all artists.'
@@ -172,7 +172,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors font-medium border border-white/10"
+              className="px-6 py-3 bg-white/10 hover:bg-white/20 text-foreground rounded-xl transition-colors font-medium border border-white/10"
             >
               Show All Artists
             </button>
@@ -214,7 +214,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
               className="flex items-center justify-center gap-3 pt-6"
             >
               <button
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 transition-colors"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-foreground text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 transition-colors"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
@@ -232,8 +232,8 @@ export function Artists({ onArtistClick }: ArtistsProps) {
                       onClick={() => setPage(pageNum)}
                       className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
                         pageNum === page
-                          ? 'bg-white/20 text-white border border-white/20'
-                          : 'text-gray-400 hover:text-white hover:bg-white/5'
+                          ? 'bg-white/20 text-foreground border border-white/20'
+                          : 'text-gray-400 hover:text-foreground hover:bg-white/5'
                       }`}
                     >
                       {pageNum}
@@ -243,7 +243,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
               </div>
               
               <button
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 transition-colors"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-foreground text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 transition-colors"
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               >
@@ -297,7 +297,7 @@ function PremiumArtistCard({
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
-              <span className="text-white/80 font-bold text-2xl md:text-3xl">
+              <span className="text-foreground/80 font-bold text-2xl md:text-3xl">
                 {artist.name?.slice(0, 2).toUpperCase()}
               </span>
             </div>
@@ -309,7 +309,7 @@ function PremiumArtistCard({
           {genres.length > 0 && (
             <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
               <div className="glass-card rounded-lg px-2 py-1 sm:px-3 sm:py-1.5">
-                <p className="text-white text-xs font-medium truncate max-w-[80px]">
+                <p className="text-foreground text-xs font-medium truncate max-w-[80px]">
                   {genres[0]}
                 </p>
               </div>
@@ -319,7 +319,7 @@ function PremiumArtistCard({
 
         {/* Content */}
         <div className="p-3 sm:p-4 space-y-1 sm:space-y-2">
-          <h3 className="text-white font-bold text-sm sm:text-base leading-tight line-clamp-1">
+          <h3 className="text-foreground font-bold text-sm sm:text-base leading-tight line-clamp-1">
             {artist.name}
           </h3>
           <div className="flex items-center gap-3 text-gray-400 text-xs sm:text-sm">
