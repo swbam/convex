@@ -417,26 +417,26 @@ export function ShowDetail({
                         return `${displayHour}:${minutes} ${ampm}`;
                       })()}`}
                     </span>
-                  </div>
                 </div>
-                
+              </div>
+
                 {/* Get Tickets - inline on all sizes */}
-                {isUpcoming && show?.ticketUrl && (
+              {isUpcoming && show?.ticketUrl && (
                   <div className="flex items-center gap-2 mt-2">
-                    <button
-                      onClick={() =>
-                        window.open(
-                          buildTicketmasterAffiliateUrl(show.ticketUrl || ""),
-                          "_blank"
-                        )
-                      }
+                  <button
+                    onClick={() =>
+                      window.open(
+                        buildTicketmasterAffiliateUrl(show.ticketUrl || ""),
+                        "_blank"
+                      )
+                    }
                       className="inline-flex items-center px-3 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-md text-xs transition-all"
-                    >
+                  >
                       <Ticket className="h-3 w-3 mr-1" />
                       Get Tickets
-                    </button>
-                  </div>
-                )}
+                  </button>
+                </div>
+              )}
               </div>
             </div>
           </div>
@@ -451,10 +451,10 @@ export function ShowDetail({
               <div className="px-4 py-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center">
-                      <Music className="h-5 w-5 text-foreground" />
+                    <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
+                      <Music className="h-4 w-4 text-foreground" />
                     </div>
-                    <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Setlist</h2>
+                    <h2 className="text-lg sm:text-xl font-bold text-foreground">Setlist</h2>
                   </div>
                 </div>
 
@@ -488,7 +488,7 @@ export function ShowDetail({
                             <CheckCircle className="w-5 h-5 text-green-400" />
                           </div>
                           <div>
-                            <h2 className="text-xl sm:text-2xl font-bold text-foreground">
+                            <h2 className="text-lg sm:text-xl font-bold text-foreground">
                               Official Setlist
                             </h2>
                             <p className="text-green-400 text-sm">
@@ -503,7 +503,7 @@ export function ShowDetail({
                         </div>
 
                         <div className="text-right">
-                          <div className="text-2xl font-bold text-foreground">
+                          <div className="text-xl font-bold text-foreground">
                             {actualSetlistSongs.length}
                           </div>
                           <div className="text-xs text-muted-foreground">
@@ -559,7 +559,7 @@ export function ShowDetail({
                                 </div>
                               </div>
                               <div className="text-right">
-                                <div className="text-3xl font-bold text-purple-400">
+                                <div className="text-xl font-bold text-purple-400">
                                   {(() => {
                                     const total =
                                       predictionSetlist.songs.length;
@@ -1100,8 +1100,8 @@ function ActualSetlistSongRow({
           </div>
         ) : (
           <span className="text-sm font-bold w-7 text-center text-muted-foreground">
-            {index + 1}
-          </span>
+          {index + 1}
+        </span>
         )}
 
         <div className="flex-1 min-w-0">

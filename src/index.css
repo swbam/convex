@@ -338,9 +338,9 @@
     animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
-  /* Gradient text (monochrome) */
+  /* Gradient text (theme-aware) */
   .gradient-text {
-    background: linear-gradient(180deg, #ffffff 0%, #888888 100%);
+    background: linear-gradient(180deg, hsl(var(--foreground)) 0%, hsl(var(--muted-foreground)) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -611,13 +611,13 @@
     background-attachment: fixed;
   }
 
-  /* LIGHT MODE body background - uses html.light selector */
+  /* LIGHT MODE body background - subtle warm gray gradient, no blue */
   html.light body {
     background-image:
-      radial-gradient(1400px 600px at 20% -5%, hsl(220 15% 96% / 0.5), transparent 50%),
-      radial-gradient(1000px 500px at 80% 10%, hsl(220 15% 94% / 0.4), transparent 60%),
-      radial-gradient(800px 400px at 50% 100%, hsl(220 10% 97% / 0.6), transparent 70%),
-      linear-gradient(135deg, hsl(0 0% 99%), hsl(220 10% 96%));
+      radial-gradient(1400px 700px at 15% -10%, hsl(30 5% 88% / 0.8), transparent 55%),
+      radial-gradient(1200px 600px at 85% 5%, hsl(30 3% 90% / 0.6), transparent 60%),
+      radial-gradient(1000px 500px at 50% 95%, hsl(30 5% 86% / 0.7), transparent 65%),
+      linear-gradient(180deg, hsl(30 5% 98%) 0%, hsl(30 3% 94%) 40%, hsl(30 5% 96%) 100%);
     background-attachment: fixed;
   }
 
@@ -812,7 +812,10 @@
   }
 
   .pulse-dot { @apply w-2 h-2 bg-primary rounded-full animate-pulse; }
-  .gradient-text { @apply bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent; }
+  .gradient-text { 
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(to right, hsl(var(--foreground)), hsl(var(--muted-foreground)));
+  }
 }
 
 /* =========================================

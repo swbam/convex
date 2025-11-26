@@ -164,8 +164,8 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
             </div>
           )}
 
-          {/* Content - compact layout */}
-          <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
+          {/* Content - slightly taller on desktop */}
+          <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
             <div className="flex flex-row items-center gap-4 sm:gap-6 max-w-6xl mx-auto">
               {/* Artist Image */}
               {(avatarImage || heroImage) && (
@@ -227,20 +227,20 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
           <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 bg-card border-t border-b border-border sm:border">
             <div className="px-4 py-4 sm:p-6">
               <Tabs defaultValue="upcoming" className="w-full">
-                <div className="space-y-4 mb-6">
+                <div className="space-y-3 mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center">
-                      <Calendar className="h-5 w-5 text-foreground" />
+                    <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
+                      <Calendar className="h-4 w-4 text-foreground" />
                     </div>
-                    <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Shows</h2>
+                    <h2 className="text-lg sm:text-xl font-bold text-foreground">Shows</h2>
                   </div>
-                  <TabsList className="flex w-full bg-secondary rounded-lg p-1 gap-2 h-auto max-w-md">
-                    <TabsTrigger value="upcoming" className="flex-1 justify-center data-[state=active]:bg-secondary py-2.5">
-                      <Calendar className="h-4 w-4 mr-2" />
+                  <TabsList className="flex w-auto bg-secondary rounded-lg p-0.5 gap-1 h-auto">
+                    <TabsTrigger value="upcoming" className="justify-center data-[state=active]:bg-background px-3 py-1.5 text-sm">
+                      <Calendar className="h-3.5 w-3.5 mr-1.5" />
                       <span>Upcoming</span>
                     </TabsTrigger>
-                    <TabsTrigger value="past" className="flex-1 justify-center data-[state=active]:bg-secondary py-2.5">
-                      <Music className="h-4 w-4 mr-2" />
+                    <TabsTrigger value="past" className="justify-center data-[state=active]:bg-background px-3 py-1.5 text-sm">
+                      <Music className="h-3.5 w-3.5 mr-1.5" />
                       <span>Past</span>
                     </TabsTrigger>
                   </TabsList>
@@ -426,10 +426,10 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
           <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 bg-background border-t border-b border-border sm:border">
             <div className="px-4 py-4 sm:p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 bg-secondary rounded-xl flex items-center justify-center">
+                <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
                   <Music className="h-4 w-4 text-foreground" />
                 </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-foreground">Top Songs</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-foreground">Top Songs</h3>
               </div>
             
             {!songs ? (

@@ -175,7 +175,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
               </div>
             ) : (
               <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border pb-2">
-                <div className="grid grid-rows-2 grid-flow-col gap-3 sm:gap-4 w-max">
+                <div className="flex flex-wrap gap-3 sm:gap-4">
                   {(trendingArtists as any[]).map((artist: any, index: number) => {
                     const artistId = artist?._id || artist?.artistId;
                     const slug = artist?.slug 
@@ -187,7 +187,9 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                     return (
                       <motion.div
                         key={`${artistId}-${index}`}
-                        variants={cardVariants}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: index * 0.1 }}
                       >
                         <ArtistCard 
                           artist={artist} 
@@ -233,11 +235,13 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
               </div>
             ) : (
               <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border pb-2">
-                <div className="grid grid-rows-2 grid-flow-col gap-3 sm:gap-4 w-max">
+                <div className="flex flex-wrap gap-3 sm:gap-4">
                   {(trendingShows as any[]).map((show: any, index: number) => (
                     <motion.div
                       key={`${show._id || show.showId}-${index}`}
-                      variants={cardVariants}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: index * 0.1 }}
                     >
                       <ShowCard
                         show={show}

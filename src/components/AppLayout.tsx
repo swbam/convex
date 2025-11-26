@@ -282,13 +282,13 @@ export function AppLayout({ children }: AppLayoutProps) {
               </button>
 
               <nav className="hidden md:flex items-center gap-1">
-                <button onClick={()=>void navigate('/')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${location.pathname==='/'?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Home</button>
-                <button onClick={()=>void navigate('/artists')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${location.pathname.startsWith('/artists')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Artists</button>
-                <button onClick={()=>void navigate('/shows')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${location.pathname.startsWith('/shows')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Shows</button>
-                <button onClick={()=>void navigate('/trending')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${location.pathname.startsWith('/trending')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Trending</button>
+                <button onClick={()=>void navigate('/')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname==='/'?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Home</button>
+                <button onClick={()=>void navigate('/artists')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/artists')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Artists</button>
+                <button onClick={()=>void navigate('/shows')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/shows')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Shows</button>
+                <button onClick={()=>void navigate('/trending')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/trending')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Trending</button>
                 {/* Admin link - only show for admin users */}
                 {appUser?.appUser?.role === 'admin' && (
-                  <button onClick={()=>void navigate('/admin')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${location.pathname.startsWith('/admin')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Admin</button>
+                  <button onClick={()=>void navigate('/admin')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/admin')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Admin</button>
                 )}
               </nav>
 
