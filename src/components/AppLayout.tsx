@@ -7,7 +7,6 @@ import { SearchBar } from './SearchBar'
 import { SyncProgress } from './SyncProgress'
 import { PublicDashboard } from './PublicDashboard'
 import { UserDashboard } from './UserDashboard'
-import { Toaster } from './ui/sonner'
 import { SignOutButton } from '../SignOutButton'
 import { MagicCard } from './ui/magic-card'
 import { BorderBeam } from './ui/border-beam'
@@ -414,7 +413,6 @@ export function AppLayout({ children }: AppLayoutProps) {
         </main>
       </div>
       
-      <Toaster />
       <MobileBottomNav onMenuClick={() => setSidebarOpen(true)} />
     </div>
   )

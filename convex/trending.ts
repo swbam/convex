@@ -4,6 +4,47 @@ import { api } from "./_generated/api";
 import { internal } from "./_generated/api";
 import { isMassiveArtist } from "./massivenessFilter";
 
+// Helper to filter out non-concert content (plays, musicals, film screenings, etc.)
+const isRealConcert = (name: string, genres?: string[]): boolean => {
+  const lowerName = (name || '').toLowerCase();
+  
+  // Reject patterns for non-concert content
+  const rejectPatterns = [
+    // Theatrical/Stage productions
+    'tribute', 'experience', 'orchestra', 'symphony', 'chamber', 
+    'ballet', 'opera', 'broadway', 'musical', 'playhouse',
+    'cirque', 'comedy', 'film with', '- film', 'live in concert',
+    // Plays and theater
+    'play', 'theatre', 'theater', 'stage production',
+    'drama', 'pantomime', 'puppet', 'improv',
+    // Film screenings
+    'film score', 'movie score', 'cinema', 'screening',
+    'live to film', 'in concert film', 'soundtrack live',
+    // Holiday/Themed shows (often not real concerts)
+    'holiday inn', 'christmas carol', 'nutcracker', 'swan lake',
+    // Non-music entertainment
+    'magic show', 'illusionist', 'hypnotist', 'speaker', 'lecture',
+    'podcast', 'wrestling', 'ufc', 'boxing', 'esports',
+    // Orchestra/Classical performances
+    'performed by orchestra', 'symphonic tribute', 'classical rendition'
+  ];
+  
+  if (rejectPatterns.some(p => lowerName.includes(p))) return false;
+  
+  // Check genres
+  if (genres && genres.length > 0) {
+    const lowerGenres = genres.map(g => g.toLowerCase());
+    const nonConcertGenres = [
+      'broadway', 'musical theater', 'theatre', 'theater',
+      'soundtrack', 'film score', 'children\'s music', 'kids',
+      'spoken word', 'audiobook', 'podcast'
+    ];
+    if (lowerGenres.some(g => nonConcertGenres.some(ng => g.includes(ng)))) return false;
+  }
+  
+  return true;
+};
+
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const internalRef = internal as any;
@@ -152,16 +193,18 @@ export const getTrendingShows = query({
         limit
       );
 
-      // final cleanup to avoid Unknown entries and non-upcoming items
+      // final cleanup to avoid Unknown entries, non-upcoming items, and non-concerts
       const cleaned = artistScoped.filter((s: any) => {
         const name = s?.artist?.name || s?.cachedTrending?.artistName || "";
         const venue = s?.venue?.name || s?.cachedTrending?.venueName || "";
         const status = normalizeShowStatus(s?.status || s?.cachedTrending?.status);
+        const genres = s?.artist?.genres || s?.cachedTrending?.genres || [];
         return (
           typeof name === "string" && name.length > 0 &&
           !name.toLowerCase().includes("unknown") &&
           typeof venue === "string" && venue.length > 0 &&
-          status === "upcoming"
+          status === "upcoming" &&
+          isRealConcert(name, genres) // Filter out plays, musicals, film screenings
         );
       });
 
@@ -203,7 +246,7 @@ export const getTrendingShows = query({
     // Sort purely by date ascending (next upcoming first)
     fallbackShows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    // PRODUCTION FILTER: Balance quality with availability
+    // PRODUCTION FILTER: Balance quality with availability + filter non-concerts
     const eligible = fallbackShows.filter(show => {
       const artist = show.artist;
       const venue = show.venue;
@@ -212,9 +255,10 @@ export const getTrendingShows = query({
       const isUpcoming = show.status === "upcoming";
       const notUnknown = !artist.name.toLowerCase().includes("unknown");
       const hasBasicData = artist.name && artist.name.length > 0 && venue.name;
+      const isConcert = isRealConcert(artist.name, artist.genres);
 
-      // Require upcoming + valid names; image not required but preferred
-      return isUpcoming && notUnknown && hasBasicData;
+      // Require upcoming + valid names + must be a real concert (no plays/musicals)
+      return isUpcoming && notUnknown && hasBasicData && isConcert;
     });
 
     // DEDUPE: only one show per artist on homepage
@@ -311,17 +355,24 @@ export const getTrendingArtists = query({
       }).slice(0, limit * 3);
 
       // Relaxed filter: allow artists with any upcoming events or reasonable popularity/followers
+      // AND filter out non-concerts (plays, musicals, film screenings)
       const massive = unique.filter((a: any) => {
         const popularity = a?.popularity ?? 0;
         const followers = a?.followers ?? 0;
         const upcoming = a?.upcomingShowsCount ?? a?.upcomingEvents ?? 0;
+        const name = a?.name || '';
+        const genres = a?.genres || [];
+        
+        // Must be a real concert (not a play, musical, or film screening)
+        if (!isRealConcert(name, genres)) return false;
+        
         // Keep if any of these basic signals indicate relevance
         return upcoming > 0 || popularity > 30 || followers > 50_000 || isMassiveArtist({
-          artistName: a.name,
+          artistName: name,
           artistPopularity: a.popularity,
           artistFollowers: a.followers,
-          upcomingEvents: a.upcomingShowsCount || a.upcomingEvents,
-          genres: a.genres,
+          upcomingEvents: upcoming,
+          genres: genres,
         });
       });
 
@@ -343,13 +394,19 @@ export const getTrendingArtists = query({
       (artist) => artist.isActive !== false
     );
 
-    // Apply massive filter to fallback results too
+    // Apply massive filter to fallback results too + filter non-concerts
     const massiveRanked = filteredRanked.filter((a: any) => {
+      const name = a?.name || '';
+      const genres = a?.genres || [];
+      
+      // Must be a real concert (not a play, musical, or film screening)
+      if (!isRealConcert(name, genres)) return false;
+      
       const popularity = a?.popularity ?? 0;
       const followers = a?.followers ?? 0;
       const upcoming = a?.upcomingShowsCount ?? 0;
       return upcoming > 0 || popularity > 30 || followers > 50_000 || isMassiveArtist({
-        artistName: a.name,
+        artistName: name,
         artistPopularity: a.popularity,
         artistFollowers: a.followers,
         upcomingEvents: a.upcomingShowsCount,

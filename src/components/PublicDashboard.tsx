@@ -346,12 +346,11 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
         
         {/* Trending Artists */}
         <motion.section
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: "-100px" }}
-          variants={containerVariants}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
         >
-          <motion.div variants={itemVariants} className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-secondary flex items-center justify-center border border-border">
                 <Users className="h-5 w-5 sm:h-6 sm:w-6 text-foreground/80" />
@@ -361,9 +360,9 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 <p className="text-xs sm:text-sm text-muted-foreground">Popular artists with upcoming shows</p>
               </div>
             </div>
-          </motion.div>
+          </div>
           
-          <motion.div variants={containerVariants}>
+          <div>
             {isLoading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
                 {[...Array(5)].map((_, i) => <ArtistCardSkeleton key={i} />)}
@@ -374,44 +373,41 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 <p className="text-muted-foreground">No trending artists yet</p>
               </div>
             ) : (
-              <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border pb-2">
-                <div className="flex flex-wrap gap-3 sm:gap-4">
-                  {(trendingArtists as any[]).map((artist: any, index: number) => {
-                    const artistId = artist?._id || artist?.artistId;
-                    const slug = artist?.slug 
-                      || artist?.cachedTrending?.slug 
-                      || (typeof artist.name === 'string' && artist.name.length > 0 
-                          ? artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-                          : undefined);
-                    
-                    return (
-                      <motion.div
-                        key={`${artistId}-${index}`}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4, delay: index * 0.1 }}
-                      >
-                        <ArtistCard 
-                          artist={artist} 
-                          onClick={() => onArtistClick(artistId || slug || artist.ticketmasterId)} 
-                        />
-                      </motion.div>
-                    );
-                  })}
-                </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+                {(trendingArtists as any[]).map((artist: any, index: number) => {
+                  const artistId = artist?._id || artist?.artistId;
+                  const slug = artist?.slug 
+                    || artist?.cachedTrending?.slug 
+                    || (typeof artist.name === 'string' && artist.name.length > 0 
+                        ? artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+                        : undefined);
+                  
+                  return (
+                    <motion.div
+                      key={`${artistId}-${index}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.3) }}
+                    >
+                      <ArtistCard 
+                        artist={artist} 
+                        onClick={() => onArtistClick(artistId || slug || artist.ticketmasterId)} 
+                      />
+                    </motion.div>
+                  );
+                })}
               </div>
             )}
-          </motion.div>
+          </div>
         </motion.section>
 
         {/* Upcoming Shows */}
         <motion.section
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: "-100px" }}
-          variants={containerVariants}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
         >
-          <motion.div variants={itemVariants} className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-secondary flex items-center justify-center border border-border">
                 <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-foreground/80" />
@@ -421,9 +417,9 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 <p className="text-xs sm:text-sm text-muted-foreground">Popular upcoming concerts</p>
               </div>
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div variants={containerVariants}>
+          <div>
             {isLoading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
                 {[...Array(5)].map((_, i) => <ShowCardSkeleton key={i} />)}
@@ -434,29 +430,27 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 <p className="text-muted-foreground">No shows available</p>
               </div>
             ) : (
-              <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border pb-2">
-                <div className="flex flex-wrap gap-3 sm:gap-4">
-                  {(trendingShows as any[]).map((show: any, index: number) => (
-                    <motion.div
-                      key={`${show._id || show.showId}-${index}`}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.4, delay: index * 0.1 }}
-                    >
-                      <ShowCard
-                        show={show}
-                        onClick={() => {
-                          const showId = show._id || show.showId;
-                          const slug = show.slug || show.cachedTrending?.showSlug;
-                          onShowClick(showId || slug || show.ticketmasterId, slug);
-                        }}
-                      />
-                    </motion.div>
-                  ))}
-                </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+                {(trendingShows as any[]).map((show: any, index: number) => (
+                  <motion.div
+                    key={`${show._id || show.showId}-${index}`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.3) }}
+                  >
+                    <ShowCard
+                      show={show}
+                      onClick={() => {
+                        const showId = show._id || show.showId;
+                        const slug = show.slug || show.cachedTrending?.showSlug;
+                        onShowClick(showId || slug || show.ticketmasterId, slug);
+                      }}
+                    />
+                  </motion.div>
+                ))}
               </div>
             )}
-          </motion.div>
+          </div>
         </motion.section>
       </div>
     </div>
@@ -467,7 +461,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
 function ArtistCard({ artist, onClick }: { artist: any; onClick: () => void }) {
   return (
     <motion.div 
-      className="w-36 sm:w-40 md:w-44 flex-shrink-0 cursor-pointer"
+      className="w-full cursor-pointer"
       onClick={onClick}
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
@@ -515,7 +509,7 @@ function ShowCard({ show, onClick }: { show: any; onClick: () => void }) {
 
   return (
     <motion.div 
-      className="w-36 sm:w-40 md:w-44 flex-shrink-0 cursor-pointer"
+      className="w-full cursor-pointer"
       onClick={onClick}
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}

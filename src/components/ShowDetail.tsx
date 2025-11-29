@@ -360,7 +360,7 @@ export function ShowDetail({
       >
         <SEOHead />
 
-        {/* Hero Header - Compact, full width */}
+        {/* Hero Header - Full width with proper height */}
         <div className="relative w-full overflow-hidden bg-card">
           {heroImage && (
             <div className="absolute inset-0 z-0">
@@ -369,9 +369,9 @@ export function ShowDetail({
             </div>
           )}
 
-          <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
-            <div className="flex flex-row items-center gap-4 sm:gap-6 max-w-6xl mx-auto">
-              {/* Profile Image */}
+          <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
+            <div className="flex flex-row items-center gap-4 sm:gap-6 lg:gap-8 max-w-6xl mx-auto">
+              {/* Profile Image - larger */}
               {(avatarImage || heroImage) && (
                 <div className="flex-shrink-0">
                   <a
@@ -384,7 +384,7 @@ export function ShowDetail({
                     <img
                       src={avatarImage || heroImage}
                       alt={show?.artist?.name}
-                      className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-lg object-cover shadow-lg ring-1 ring-border"
+                      className="w-20 h-20 sm:w-28 sm:h-28 lg:w-36 lg:h-36 rounded-xl object-cover shadow-xl ring-1 ring-border"
                     />
                   </a>
                 </div>
@@ -392,27 +392,27 @@ export function ShowDetail({
 
               {/* Show Info */}
               <div className="flex-1 min-w-0">
-                {/* Artist Name - clickable */}
+                {/* Artist Name - larger font */}
                 <button
                   onClick={() => {
                     if (show?.artistId) onArtistClick(show.artistId);
                   }}
-                  className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground hover:text-primary transition-colors leading-tight tracking-tight text-left line-clamp-1"
+                  className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-foreground hover:text-primary transition-colors leading-tight tracking-tight text-left line-clamp-2"
                 >
                   {show?.artist?.name}
                 </button>
 
-                {/* Venue & Date - single line */}
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground mt-1">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
-                    <span className="truncate max-w-[120px] sm:max-w-none">{show?.venue?.name}</span>
+                {/* Venue & Date */}
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm sm:text-base lg:text-lg text-muted-foreground mt-2 sm:mt-3">
+                  <div className="flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                    <span className="truncate max-w-[150px] sm:max-w-none">{show?.venue?.name}</span>
                   </div>
-                  <span className="text-muted-foreground/40">•</span>
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                  <span className="text-muted-foreground/40 hidden sm:inline">•</span>
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
                     <span>
-                      {showDate.toLocaleDateString("en-US", { weekday: 'short', month: "short", day: "numeric" })}
+                      {showDate.toLocaleDateString("en-US", { weekday: 'short', month: "short", day: "numeric", year: 'numeric' })}
                       {show?.startTime && ` • ${(() => {
                         const [hours, minutes] = show.startTime.split(':');
                         const hour = parseInt(hours);
@@ -421,37 +421,37 @@ export function ShowDetail({
                         return `${displayHour}:${minutes} ${ampm}`;
                       })()}`}
                     </span>
+                  </div>
                 </div>
-              </div>
 
-                {/* Get Tickets - inline on all sizes */}
-              {isUpcoming && show?.ticketUrl && (
-                  <div className="flex items-center gap-2 mt-2">
-                  <button
-                    onClick={() =>
-                      window.open(
-                        buildTicketmasterAffiliateUrl(show.ticketUrl || ""),
-                        "_blank"
-                      )
-                    }
-                      className="inline-flex items-center px-3 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-md text-xs transition-all"
-                  >
-                      <Ticket className="h-3 w-3 mr-1" />
+                {/* Get Tickets */}
+                {isUpcoming && show?.ticketUrl && (
+                  <div className="flex items-center gap-2 mt-3 sm:mt-4">
+                    <button
+                      onClick={() =>
+                        window.open(
+                          buildTicketmasterAffiliateUrl(show.ticketUrl || ""),
+                          "_blank"
+                        )
+                      }
+                      className="inline-flex items-center px-4 py-2 sm:px-5 sm:py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg text-sm sm:text-base transition-all"
+                    >
+                      <Ticket className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                       Get Tickets
-                  </button>
-                </div>
-              )}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
         
-        <div className="container mx-auto px-0 sm:px-6 pb-4 sm:pb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 sm:gap-6 lg:gap-8">
+        <div className="container mx-auto px-4 sm:px-6 pb-4 sm:pb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             
-            <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 bg-card border-t border-b border-border sm:border">
+            <MagicCard className="p-0 rounded-2xl border border-border bg-card">
               <div className="px-4 py-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
@@ -677,8 +677,8 @@ export function ShowDetail({
               if (unplayedSongs.length === 0) return null;
               
               return (
-                <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-border sm:border">
-                  <div className="px-4 py-4 sm:p-6 bg-card">
+                <MagicCard className="p-0 rounded-2xl border border-border bg-card">
+                  <div className="p-4 sm:p-6">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center">
                         <AlertCircle className="h-4 w-4 text-red-400" />
@@ -708,8 +708,8 @@ export function ShowDetail({
             })()}
 
             {/* Venue Details */}
-            <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-border sm:border">
-              <div className="px-4 py-4 sm:p-6 bg-card">
+            <MagicCard className="p-0 rounded-2xl border border-border bg-card">
+              <div className="p-4 sm:p-6">
                 <h3 className="text-lg sm:text-xl font-bold mb-4 text-foreground">
                   Venue Details
                 </h3>
@@ -743,8 +743,8 @@ export function ShowDetail({
             </MagicCard>
 
             {/* Show Stats */}
-            <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-border sm:border">
-              <div className="px-4 py-4 sm:p-6 bg-card">
+            <MagicCard className="p-0 rounded-2xl border border-border bg-card">
+              <div className="p-4 sm:p-6">
                 <h3 className="text-lg sm:text-xl font-bold mb-4 text-foreground">
                   Show Stats
                 </h3>
@@ -826,8 +826,8 @@ export function ShowDetail({
 
             {/* Call to Action - Only for upcoming shows */}
             {!user && isUpcoming && (
-              <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 border-t border-b border-border sm:border">
-                <div className="px-4 py-6 sm:p-6 text-center bg-card">
+              <MagicCard className="p-0 rounded-2xl border border-border bg-card">
+                <div className="p-4 sm:p-6 text-center">
                   <div className="flex items-center justify-center gap-3 mb-4">
                     <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
                       <Vote className="h-5 w-5 text-primary" />

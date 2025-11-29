@@ -10,18 +10,37 @@ export function isMassiveArtist(args: {
 }): boolean {
   const name = (args.artistName || '').toLowerCase();
   
-  // Auto-reject patterns (theatrical, tribute, non-concerts)
+  // Auto-reject patterns (theatrical, tribute, non-concerts, plays, musicals)
   const rejectPatterns = [
+    // Theatrical/Stage productions
     'tribute', 'experience', 'orchestra', 'symphony', 'chamber', 
     'ballet', 'opera', 'broadway', 'musical', 'playhouse',
-    'cirque', 'comedy', 'film with', '- film'
+    'cirque', 'comedy', 'film with', '- film', 'live in concert',
+    // Plays and theater
+    'play', 'theatre', 'theater', 'the play', 'stage production',
+    'drama', 'pantomime', 'puppet', 'improv',
+    // Film screenings
+    'film score', 'movie score', 'cinema', 'screening',
+    'live to film', 'in concert film', 'soundtrack live',
+    // Holiday/Themed shows (often not real concerts)
+    'holiday inn', 'christmas carol', 'nutcracker', 'swan lake',
+    // Non-music entertainment
+    'magic show', 'illusionist', 'hypnotist', 'speaker', 'lecture',
+    'podcast', 'wrestling', 'ufc', 'boxing', 'esports',
+    // Orchestra/Classical performances of pop music
+    'performed by orchestra', 'symphonic tribute', 'classical rendition'
   ];
   if (rejectPatterns.some(p => name.includes(p))) return false;
   
-  // Reject small/niche genres
+  // Reject non-concert genres (plays, musicals, classical, theater)
   const genres = (args.genres || []).map(g => g.toLowerCase());
-  const niche = ['chamber music', 'opera', 'classical', 'medieval'];
-  if (genres.some(g => niche.includes(g))) return false;
+  const nonConcertGenres = [
+    'chamber music', 'opera', 'classical', 'medieval',
+    'broadway', 'musical theater', 'musical theatre', 'theater', 'theatre',
+    'soundtrack', 'film score', 'children\'s music', 'kids',
+    'comedy', 'spoken word', 'audiobook', 'podcast'
+  ];
+  if (genres.some(g => nonConcertGenres.some(ng => g.includes(ng)))) return false;
   
   // Minimum thresholds for "massive"
   const popularity = args.artistPopularity ?? 0;
