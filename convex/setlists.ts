@@ -907,6 +907,29 @@ export const ensureAutoSetlistForShow = action({
       return { created: false, message: "Show not found" };
     }
 
+    // First, check if artist has any songs in catalog
+    const artistSongs = await ctx.runQuery(api.songs.getByArtist, { 
+      artistId: show.artistId, 
+      limit: 1 
+    });
+
+    // If no songs, trigger catalog sync and return - user should retry after a moment
+    if (!artistSongs || artistSongs.length === 0) {
+      console.log(`🎵 No songs for artist, triggering catalog sync...`);
+      
+      // Get artist info
+      const artist = await ctx.runQuery(api.artists.getById, { id: show.artistId });
+      if (artist) {
+        // Schedule catalog sync (non-blocking)
+        void ctx.scheduler.runAfter(0, internalRef.spotify.syncArtistCatalog, {
+          artistId: show.artistId,
+          artistName: artist.name,
+        });
+        return { created: false, message: "Syncing song catalog, please refresh in a moment" };
+      }
+      return { created: false, message: "Artist not found" };
+    }
+
     try {
       const setlistId = await ctx.runMutation(internalRef.setlists.autoGenerateSetlist, {
         showId: args.showId,

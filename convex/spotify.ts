@@ -305,13 +305,24 @@ export const syncArtistCatalog = internalAction({
         }
       );
 
-      if (!searchResponse.ok) return null;
+      if (!searchResponse.ok) {
+        console.error(`❌ Spotify search failed for ${args.artistName}: ${searchResponse.status} ${searchResponse.statusText}`);
+        await ctx.runMutation(internalRef.artists.updateSyncStatus, {
+          artistId: args.artistId,
+          catalogSyncStatus: "failed",
+        });
+        return null;
+      }
 
       const searchData = await searchResponse.json();
       const artists = searchData.artists?.items || [];
       
       if (artists.length === 0) {
-        console.log(`No Spotify artist found for: ${args.artistName}`);
+        console.log(`⚠️ No Spotify artist found for: ${args.artistName}`);
+        await ctx.runMutation(internalRef.artists.updateSyncStatus, {
+          artistId: args.artistId,
+          catalogSyncStatus: "failed",
+        });
         return null;
       }
 

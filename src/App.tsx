@@ -94,12 +94,23 @@ function App() {
   // Update view based on current route
   useEffect(() => {
     const path = location.pathname;
+    console.log('🔄 Route change detected:', path, 'current view:', currentView);
+    
     // Basic SEO title updates per route
     if (path === '/') {
       document.title = 'setlists.live – Concert Setlists, Predictions, and Voting';
     }
     if (path === '/') {
       setCurrentView('home');
+    } else if (path === '/festivals') {
+      // Handle /festivals BEFORE /artists/ and /shows/ to ensure exact match
+      console.log('🎪 Setting view to festivals');
+      setCurrentView('festivals');
+      document.title = 'Music Festivals – setlists.live';
+    } else if (path.startsWith('/festivals/')) {
+      console.log('🎪 Setting view to festival detail');
+      setCurrentView('festival');
+      document.title = 'Festival – setlists.live';
     } else if (path.startsWith('/artists/')) {
       setCurrentView('artist');
       if (artistBySlug && 'name' in artistBySlug) {
@@ -143,12 +154,6 @@ function App() {
     } else if (path === '/shows') {
       setCurrentView('shows');
       document.title = 'Shows – setlists.live';
-    } else if (path === '/festivals') {
-      setCurrentView('festivals');
-      document.title = 'Music Festivals – setlists.live';
-    } else if (path.startsWith('/festivals/')) {
-      setCurrentView('festival');
-      document.title = 'Festival – setlists.live';
     } else if (path === '/trending') {
       setCurrentView('trending');
       document.title = 'Trending – setlists.live';
@@ -249,6 +254,7 @@ function App() {
   };
 
   const renderMainContent = () => {
+    console.log('🎨 renderMainContent called with view:', currentView);
     switch (currentView) {
       case "artist":
         // CRITICAL FIX: Proper artist loading states
