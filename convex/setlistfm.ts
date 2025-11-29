@@ -157,23 +157,28 @@ export const syncActualSetlist = internalAction({
         }
       }
 
-      // No setlist found after all attempts - keep pending for retries
+      // No setlist found after all attempts
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       baseDate.setHours(0, 0, 0, 0);
 
       if (baseDate >= today) {
+        // Show hasn't happened yet - keep pending
         console.log(`ℹ️  Show hasn't occurred yet: ${artist.name} @ ${venue.city} on ${args.showDate}`);
+        await ctx.runMutation(internalRef.shows.updateImportStatus, {
+          showId: args.showId,
+          status: "pending" as const,
+        });
       } else {
+        // Show is in the past but no setlist found - mark as not_found (will retry later)
         console.log(
-          `⚠️  No setlist found (±1 day attempts) for ${artist.name} @ ${venue.city} (${args.showDate}); keeping pending`,
+          `⚠️  No setlist found on Setlist.fm for ${artist.name} @ ${venue.city} (${args.showDate}); marking not_found`,
         );
+        await ctx.runMutation(internalRef.shows.updateImportStatus, {
+          showId: args.showId,
+          status: "not_found" as const,
+        });
       }
-
-      await ctx.runMutation(internalRef.shows.updateImportStatus, {
-        showId: args.showId,
-        status: "pending" as const,
-      });
       return null;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
@@ -389,7 +394,10 @@ export const getCompletedShowsNeedingImport = internalQuery({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx) => {
-    return await ctx.db
+    const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
+    
+    // Get shows that need first-time import
+    const newShows = await ctx.db
       .query("shows")
       .withIndex("by_status", (q) => q.eq("status", "completed"))
       .filter((q) => q.or(
@@ -398,6 +406,18 @@ export const getCompletedShowsNeedingImport = internalQuery({
         q.eq(q.field("importStatus"), "failed")
       ))
       .take(5);
+    
+    // Also retry "not_found" shows after 24h (Setlist.fm data often appears late)
+    const retryShows = await ctx.db
+      .query("shows")
+      .withIndex("by_status", (q) => q.eq("status", "completed"))
+      .filter((q) => q.and(
+        q.eq(q.field("importStatus"), "not_found"),
+        q.lt(q.field("lastSynced"), twentyFourHoursAgo)
+      ))
+      .take(3);
+    
+    return [...newShows, ...retryShows];
   },
 });
 

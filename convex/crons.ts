@@ -7,68 +7,55 @@ const crons = cronJobs();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const internalRef = internal as any;
 
-// Production-optimized cron frequencies for scalability and API rate limits
-// CRITICAL: Use Convex's built-in interval system - DO NOT use orchestrator pattern
-// as it causes massive database overhead (12+ queries every 5 minutes = millions of calls)
+// ============================================================================
+// OPTIMIZED CRON SCHEDULE - Minimized for cost efficiency
+// ============================================================================
 
-// Trending updates: Every 4 hours (balanced between freshness and API limits)
-// NOTE: syncTrendingData internally updates engagement counts before ranking
-crons.interval("update-trending", { hours: 4 }, internalRef.maintenance.syncTrendingData, {});
+// DAILY JOBS (run once per day at specific times)
+// -----------------------------------------------
 
-// Completed shows check: Every 2 hours (sufficient for post-concert setlist availability)
-crons.interval("check-completed-shows", { hours: 2 }, internalRef.setlistfm.checkCompletedShows, {});
+// Setlist.fm import: Daily at midnight PST (8:00 UTC)
+// Setlist.fm data often takes 1-3 days to appear, so daily is plenty
+crons.cron("check-completed-shows", "0 8 * * *", internalRef.setlistfm.checkCompletedShows, {});
 
-// Daily cleanup: Once per day (sufficient for orphaned records)
-crons.interval("daily-cleanup", { hours: 24 }, internalRef.maintenance.cleanupOrphanedRecords, {});
+// Daily cleanup: Run at 3:00 AM UTC
+crons.cron("daily-cleanup", "0 3 * * *", internalRef.maintenance.cleanupOrphanedRecords, {});
 
-// Old logs and webhook events cleanup: Once per day to keep tables lean
-crons.interval(
-  "cleanup-operational-data",
-  { hours: 24 },
-  internalRef.maintenance.cleanupOldOperationalData,
-  {},
-);
+// Operational data cleanup: Run at 4:00 AM UTC
+crons.cron("cleanup-operational-data", "0 4 * * *", internalRef.maintenance.cleanupOldOperationalData, {});
 
-// Pending setlist scan: Every 30 minutes (queues setlist imports for processing)
-crons.interval("setlistfm-scan", { minutes: 30 }, internalRef.setlistfm.scanPendingImports, {});
+// Auto-seed prediction setlists: Daily at 6:00 AM UTC
+crons.cron("refresh-auto-setlists", "0 6 * * *", internalRef.setlists.refreshMissingAutoSetlists, { limit: 50 });
 
-// Process setlist import queue: Every 30 minutes (processes queued jobs with retry logic)
-crons.interval("process-setlist-queue", { minutes: 30 }, internalRef.syncJobs.processSetlistImportQueue, { maxJobs: 5 });
+// Festival status transitions: Daily at 5:00 AM UTC
+crons.cron("transition-festival-status", "0 5 * * *", internalRef.festivals.transitionStatuses, {});
 
-// Artist show counts update: Every 2 hours (keeps artist stats current)
-crons.interval("update-artist-show-counts", { hours: 2 }, internalRef.trending.updateArtistShowCounts, {});
+// PERIODIC JOBS (run multiple times per day)
+// -------------------------------------------
 
-// Artist trending scores: Every 4 hours (balanced between freshness and API limits)
-crons.interval("update-artist-trending", { hours: 4 }, internalRef.trending.updateArtistTrending, {});
+// Trending data sync: Every 6 hours (4x daily is sufficient for discovery)
+crons.interval("update-trending", { hours: 6 }, internalRef.maintenance.syncTrendingData, {});
 
-// Show trending scores: Every 4 hours (balanced between freshness and API limits)
-crons.interval("update-show-trending", { hours: 4 }, internalRef.trending.updateShowTrending, {});
+// Artist trending scores: Every 6 hours
+crons.interval("update-artist-trending", { hours: 6 }, internalRef.trending.updateArtistTrending, {});
 
-// Auto-transition show statuses: Every 2 hours (sufficient for status transitions)
-crons.interval("auto-transition-shows", { hours: 2 }, internalRef.shows.autoTransitionStatuses, {});
+// Show trending scores: Every 6 hours
+crons.interval("update-show-trending", { hours: 6 }, internalRef.trending.updateShowTrending, {});
 
-// Missing fields population: Every hour (keeps data complete without overwhelming APIs)
-crons.interval("populate-missing-fields", { hours: 1 }, internalRef.maintenance.populateMissingFields, {});
+// Artist show counts: Every 6 hours
+crons.interval("update-artist-show-counts", { hours: 6 }, internalRef.trending.updateArtistShowCounts, {});
 
-// Spotify token refresh: Every 12 hours (tokens valid for 1 hour, but refresh only needed twice daily)
+// Auto-transition show statuses: Every 4 hours (marks shows as completed after date passes)
+crons.interval("auto-transition-shows", { hours: 4 }, internalRef.shows.autoTransitionStatuses, {});
+
+// Populate missing fields: Every 8 hours (not urgent, fills in gaps)
+crons.interval("populate-missing-fields", { hours: 8 }, internalRef.maintenance.populateMissingFields, {});
+
+// Spotify token refresh: Every 12 hours (tokens valid for 1 hour, but we only refresh active users)
 crons.interval("spotify-refresh", { hours: 12 }, internalRef.spotifyAuth.refreshUserTokens, {});
 
-// Ensure prediction setlists are always seeded for active shows (upcoming only)
-// Increased frequency to regenerate empty setlists after catalog sync
-crons.interval(
-  "refresh-auto-setlists",
-  { hours: 6 }, // Run every 6 hours to catch newly synced catalogs
-  internalRef.setlists.refreshMissingAutoSetlists,
-  { limit: 20 } // Process 20 shows at a time with staggered delays
-);
-
-// DISABLED: Weekly backfill was causing infinite loops and usage spikes
-// If needed, run manually via admin dashboard with careful monitoring
-// crons.interval(
-//   "backfill-legacy-setlists",
-//   { hours: 168 }, // Once per week (7 days * 24 hours)
-//   internalRef.setlists.refreshMissingAutoSetlists,
-//   { limit: 200, includeCompleted: true } // Scan ALL statuses for legacy fixes
-// );
+// REMOVED - These were redundant with check-completed-shows:
+// - setlistfm-scan (scanPendingImports) - duplicated work
+// - process-setlist-queue (processSetlistImportQueue) - unnecessary queue layer
 
 export default crons;

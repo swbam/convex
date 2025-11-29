@@ -24,6 +24,8 @@ import type * as dashboard from "../dashboard.js";
 import type * as deployment from "../deployment.js";
 import type * as diagnostics from "../diagnostics.js";
 import type * as errorTracking from "../errorTracking.js";
+import type * as festivalBootstrap from "../festivalBootstrap.js";
+import type * as festivals from "../festivals.js";
 import type * as fixEmptySetlists from "../fixEmptySetlists.js";
 import type * as health from "../health.js";
 import type * as http from "../http.js";
@@ -80,6 +82,8 @@ declare const fullApi: ApiFromModules<{
   deployment: typeof deployment;
   diagnostics: typeof diagnostics;
   errorTracking: typeof errorTracking;
+  festivalBootstrap: typeof festivalBootstrap;
+  festivals: typeof festivals;
   fixEmptySetlists: typeof fixEmptySetlists;
   health: typeof health;
   http: typeof http;

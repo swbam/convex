@@ -7,7 +7,7 @@ import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Activity, TrendingUp, Users, Music, Calendar, Database, Mic, CheckCircle, AlertCircle, Loader2, Shield, Lock, RefreshCw, BarChart3, FileText, Copy, Trash2, UserCheck } from "lucide-react";
+import { Activity, TrendingUp, Users, Music, Calendar, Database, Mic, CheckCircle, AlertCircle, Loader2, Shield, Lock, RefreshCw, BarChart3, FileText, Copy, Trash2, UserCheck, Sparkles } from "lucide-react";
 import { Checkbox } from "./ui/checkbox";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -89,6 +89,7 @@ export function AdminDashboard() {
   const promoteByEmail = useMutation((api as any).admin.promoteUserByEmail);
   const setClerkRoleByEmail = useAction((api as any).admin.setClerkRoleByEmail);
   const testSpotifyClient = useAction((api as any).admin.testSpotifyClientCredentials);
+  const bootstrapFestivals = useAction((api as any).festivalBootstrap.runBootstrap);
   
   // Loading state
   const [trendingSyncing, setTrendingSyncing] = useState(false);
@@ -99,6 +100,7 @@ export function AdminDashboard() {
   const [backfillSyncing, setBackfillSyncing] = useState(false);
   const [catalogSyncing, setCatalogSyncing] = useState(false);
   const [importSyncing, setImportSyncing] = useState(false);
+  const [festivalSyncing, setFestivalSyncing] = useState(false);
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [spotifyTesting, setSpotifyTesting] = useState(false);
   const [forceArtistId, setForceArtistId] = useState("");
@@ -225,6 +227,21 @@ export function AdminDashboard() {
       toast.success(`Imported ${res.artistsImported} new trending artists`);
     } finally {
       setImportSyncing(false);
+    }
+  };
+
+  const handleBootstrapFestivals = async () => {
+    setFestivalSyncing(true);
+    try {
+      const res = await bootstrapFestivals({ year: new Date().getFullYear() + 1 });
+      toast.success(`Festivals: ${res.festivalsCreated}, Artists linked: ${res.artistsLinked}`);
+      if (res.errors.length > 0) {
+        toast.warning(`${res.errors.length} festivals had issues`);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Festival bootstrap failed");
+    } finally {
+      setFestivalSyncing(false);
     }
   };
 
@@ -825,6 +842,24 @@ export function AdminDashboard() {
                   <>
                     <Trash2 className="h-4 w-4 mr-2" />
                     Clean Non-Studio Songs
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={() => { void handleBootstrapFestivals(); }}
+                disabled={festivalSyncing}
+                variant="outline"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-secondary text-foreground"
+              >
+                {festivalSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Importing Festivals...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Bootstrap Festivals
                   </>
                 )}
               </Button>

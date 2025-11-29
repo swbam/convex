@@ -295,6 +295,7 @@ export function ShowDetail({
 
     let badgeContent;
     let icon;
+    let statusMessage = "";
     switch (show.importStatus) {
       case "completed":
         badgeContent = "Imported";
@@ -303,6 +304,12 @@ export function ShowDetail({
       case "importing":
         badgeContent = "Importing";
         icon = <Loader2 className="h-4 w-4 animate-spin" />;
+        statusMessage = "Checking Setlist.fm...";
+        break;
+      case "not_found":
+        badgeContent = "Not on Setlist.fm";
+        icon = <AlertCircle className="h-4 w-4" />;
+        statusMessage = "No setlist found on Setlist.fm yet. Will retry automatically.";
         break;
       case "failed":
         badgeContent = "Failed";
@@ -310,27 +317,28 @@ export function ShowDetail({
         break;
       default:
         badgeContent = "Pending";
+        statusMessage = "Waiting to check Setlist.fm...";
     }
 
     return (
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-bold">
-          Setlist {show.importStatus !== "completed" && `(${badgeContent})`}
-        </h3>
-        <Badge
-          variant={show.importStatus === "completed" ? "default" : "secondary"}
-          className="flex items-center gap-1"
-        >
-          {icon} {badgeContent}
-        </Badge>
-        {show.status === "completed" &&
-          show.importStatus !== "completed" &&
-          !hasActualSetlist && (
-            <p className="text-sm text-muted-foreground mt-2">
-              No setlist available yet - checking...
-            </p>
-          )}
-        {show.importStatus === "failed" && (
+      <div className="space-y-2 mb-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-bold">
+            Setlist {show.importStatus !== "completed" && `(${badgeContent})`}
+          </h3>
+          <Badge
+            variant={show.importStatus === "completed" ? "default" : "secondary"}
+            className="flex items-center gap-1"
+          >
+            {icon} {badgeContent}
+          </Badge>
+        </div>
+        {statusMessage && !hasActualSetlist && (
+          <p className="text-sm text-muted-foreground">
+            {statusMessage}
+          </p>
+        )}
+        {(show.importStatus === "failed" || show.importStatus === "not_found") && (
           <Button
             variant="outline"
             size="sm"

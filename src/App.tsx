@@ -11,6 +11,8 @@ import { ArtistDetail } from "./components/ArtistDetail";
 import { ShowDetail } from "./components/ShowDetail";
 import { Artists } from "./components/Artists";
 import { Shows } from "./components/Shows";
+import { Festivals } from "./components/Festivals";
+import { FestivalDetail } from "./components/FestivalDetail";
 
 import { Trending } from "./components/Trending";
 
@@ -28,7 +30,7 @@ import { BackendErrorMonitor } from "./components/BackendErrorMonitor";
 import { MagicCard } from "./components/ui/magic-card";
 import { DocsPage } from "./pages/Docs";
 
-type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "activity" | "signin" | "trending" | "profile" | "following" | "predictions" | "admin" | "docs";
+type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "festivals" | "festival" | "activity" | "signin" | "trending" | "profile" | "following" | "predictions" | "admin" | "docs";
 
 function App() {
   const location = useLocation();
@@ -73,6 +75,8 @@ function App() {
     getSlugFromPath(location.pathname, '/artists/') : null;
   const showSlug = location.pathname.startsWith('/shows/') ? 
     getSlugFromPath(location.pathname, '/shows/') : null;
+  const festivalSlug = location.pathname.startsWith('/festivals/') ? 
+    getSlugFromPath(location.pathname, '/festivals/') : null;
 
   // Queries to resolve slugs/ids and canonicalize to Convex IDs
   const artistBySlug = useQuery(api.artists.getBySlugOrId, 
@@ -139,6 +143,12 @@ function App() {
     } else if (path === '/shows') {
       setCurrentView('shows');
       document.title = 'Shows – setlists.live';
+    } else if (path === '/festivals') {
+      setCurrentView('festivals');
+      document.title = 'Music Festivals – setlists.live';
+    } else if (path.startsWith('/festivals/')) {
+      setCurrentView('festival');
+      document.title = 'Festival – setlists.live';
     } else if (path === '/trending') {
       setCurrentView('trending');
       document.title = 'Trending – setlists.live';
@@ -209,6 +219,10 @@ function App() {
     const showId = typeof showKey === 'string' && showKey.startsWith('k') ? (showKey as Id<"shows">) : undefined;
     const preferredSlug = slug ?? (typeof showKey === 'string' && !showKey.startsWith('k') ? showKey : undefined);
     handleViewChange("show", showId ?? null, preferredSlug);
+  };
+
+  const handleFestivalClick = (slug: string) => {
+    void navigate(`/festivals/${slug}`);
   };
 
   const handleSignInRequired = () => {
@@ -371,6 +385,19 @@ function App() {
         return (
           <Shows onShowClick={handleShowClick} />
         );
+      case "festivals":
+        return (
+          <Festivals onFestivalClick={handleFestivalClick} />
+        );
+      case "festival":
+        return festivalSlug ? (
+          <FestivalDetail
+            festivalSlug={festivalSlug}
+            onBack={() => navigate('/festivals')}
+            onShowClick={handleShowClick}
+            onArtistClick={handleArtistClick}
+          />
+        ) : null;
       case "trending":
         return (
           <Trending 

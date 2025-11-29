@@ -94,6 +94,35 @@ const applicationTables = {
     .index("by_ticketmaster_id", ["ticketmasterId"]) 
     .index("by_name_city", ["name", "city"]),
 
+  // Festivals - multi-artist events like Coachella, Bonnaroo, etc.
+  festivals: defineTable({
+    name: v.string(),                     // "Coachella 2025"
+    slug: v.string(),                     // "coachella-2025"
+    year: v.number(),                     // 2025
+    startDate: v.string(),                // "2025-04-11"
+    endDate: v.string(),                  // "2025-04-13"
+    venueId: v.optional(v.id("venues")),  // Link to existing venue
+    location: v.string(),                 // "Indio, CA" (denormalized)
+    imageUrl: v.optional(v.string()),
+    websiteUrl: v.optional(v.string()),
+    wikiUrl: v.optional(v.string()),      // Wikipedia source
+    genres: v.optional(v.array(v.string())),
+    status: v.union(
+      v.literal("announced"),             // Dates announced, no lineup
+      v.literal("lineup"),                // Lineup published
+      v.literal("scheduled"),             // Set times available
+      v.literal("ongoing"),               // Festival happening now
+      v.literal("completed")              // Festival ended
+    ),
+    artistCount: v.optional(v.number()),  // Denormalized count
+    totalVotes: v.optional(v.number()),   // Engagement metric
+    lastSynced: v.optional(v.number()),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_year", ["year"])
+    .index("by_status", ["status"])
+    .index("by_start_date", ["startDate"]),
+
   shows: defineTable({
     slug: v.optional(v.string()),
     artistId: v.id("artists"),
@@ -116,8 +145,16 @@ const applicationTables = {
       v.literal("pending"),
       v.literal("importing"),
       v.literal("completed"),
-      v.literal("failed")
+      v.literal("failed"),
+      v.literal("not_found")
     )),
+    // Festival-specific fields
+    festivalId: v.optional(v.id("festivals")),
+    stageName: v.optional(v.string()),      // "Main Stage"
+    setTime: v.optional(v.string()),        // "21:30" (24h format)
+    setEndTime: v.optional(v.string()),     // "23:00"
+    dayNumber: v.optional(v.number()),      // 1, 2, 3 for multi-day
+    isFestivalSet: v.optional(v.boolean()), // Quick filter flag
   })
     .index("by_slug", ["slug"])
     .index("by_artist", ["artistId"])
@@ -128,7 +165,8 @@ const applicationTables = {
     .index("by_date", ["date"]) 
     .index("by_ticketmaster_id", ["ticketmasterId"]) 
     .index("by_trending_rank", ["trendingRank"])
-    .index("by_import_status", ["importStatus"]), // For import monitoring
+    .index("by_import_status", ["importStatus"]) // For import monitoring
+    .index("by_festival", ["festivalId"]), // For festival pages
 
   songs: defineTable({
     title: v.string(),

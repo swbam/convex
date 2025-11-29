@@ -15,7 +15,7 @@ import { MobileBottomNav } from './MobileBottomNav'
 import { PageContainer } from './PageContainer'
 import { Button } from './ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from './ui/dropdown-menu'
-import { Home, Mic, Menu, X, User, Settings, Shield, LogIn, Calendar, Activity } from 'lucide-react'
+import { Home, Mic, Menu, X, User, Settings, Shield, LogIn, Calendar, Activity, Sparkles } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { MobileThemeToggle } from './MobileThemeToggle'
 
@@ -27,6 +27,7 @@ const navigationItems = [
   { name: 'Home', href: '/', icon: Home },
   { name: 'Artists', href: '/artists', icon: Mic },
   { name: 'Shows', href: '/shows', icon: Calendar },
+  { name: 'Festivals', href: '/festivals', icon: Sparkles },
 ]
 
 export function AppLayout({ children }: AppLayoutProps) {
