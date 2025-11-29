@@ -533,3 +533,32 @@ export const getById = internalQuery({
   },
 });
 
+// List all festivals (internal - for image updates)
+export const listAll = internalQuery({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => {
+    return await ctx.db.query("festivals").collect();
+  },
+});
+
+// Update festival image
+export const updateImage = internalMutation({
+  args: {
+    festivalId: v.id("festivals"),
+    imageUrl: v.optional(v.string()),
+    websiteUrl: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const updates: Record<string, string | undefined> = {};
+    if (args.imageUrl) updates.imageUrl = args.imageUrl;
+    if (args.websiteUrl) updates.websiteUrl = args.websiteUrl;
+    
+    if (Object.keys(updates).length > 0) {
+      await ctx.db.patch(args.festivalId, updates);
+    }
+    return null;
+  },
+});
+

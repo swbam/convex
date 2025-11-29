@@ -7,7 +7,7 @@ import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Activity, TrendingUp, Users, Music, Calendar, Database, Mic, CheckCircle, AlertCircle, Loader2, Shield, Lock, RefreshCw, BarChart3, FileText, Copy, Trash2, UserCheck, Sparkles } from "lucide-react";
+import { Activity, TrendingUp, Users, Music, Calendar, Database, Mic, CheckCircle, AlertCircle, Loader2, Shield, Lock, RefreshCw, BarChart3, FileText, Copy, Trash2, UserCheck, Sparkles, ImageIcon } from "lucide-react";
 import { Checkbox } from "./ui/checkbox";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -90,6 +90,7 @@ export function AdminDashboard() {
   const setClerkRoleByEmail = useAction((api as any).admin.setClerkRoleByEmail);
   const testSpotifyClient = useAction((api as any).admin.testSpotifyClientCredentials);
   const bootstrapFestivals = useAction((api as any).festivalBootstrap.runBootstrap);
+  const updateFestivalImages = useAction((api as any).festivalBootstrap.updateFestivalImages);
   
   // Loading state
   const [trendingSyncing, setTrendingSyncing] = useState(false);
@@ -101,6 +102,7 @@ export function AdminDashboard() {
   const [catalogSyncing, setCatalogSyncing] = useState(false);
   const [importSyncing, setImportSyncing] = useState(false);
   const [festivalSyncing, setFestivalSyncing] = useState(false);
+  const [festivalImageSyncing, setFestivalImageSyncing] = useState(false);
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [spotifyTesting, setSpotifyTesting] = useState(false);
   const [forceArtistId, setForceArtistId] = useState("");
@@ -242,6 +244,21 @@ export function AdminDashboard() {
       toast.error(e.message || "Festival bootstrap failed");
     } finally {
       setFestivalSyncing(false);
+    }
+  };
+
+  const handleUpdateFestivalImages = async () => {
+    setFestivalImageSyncing(true);
+    try {
+      const res = await updateFestivalImages({});
+      toast.success(`Updated images for ${res.updated} festivals`);
+      if (res.errors.length > 0) {
+        toast.warning(`${res.errors.length} festivals had errors`);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Festival image update failed");
+    } finally {
+      setFestivalImageSyncing(false);
     }
   };
 
@@ -860,6 +877,24 @@ export function AdminDashboard() {
                   <>
                     <Sparkles className="h-4 w-4 mr-2" />
                     Bootstrap Festivals
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={() => { void handleUpdateFestivalImages(); }}
+                disabled={festivalImageSyncing}
+                variant="outline"
+                className="w-full border-gray-600 hover:border-gray-500 bg-transparent hover:bg-secondary text-foreground"
+              >
+                {festivalImageSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Fetching Images...
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon className="h-4 w-4 mr-2" />
+                    Update Festival Images
                   </>
                 )}
               </Button>

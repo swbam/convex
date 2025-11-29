@@ -186,6 +186,86 @@ const MAJOR_US_FESTIVALS: FestivalSource[] = [
 ];
 
 // ============================================================================
+// TICKETMASTER IMAGE FETCHING
+// ============================================================================
+
+// Fetch high-quality festival image from Ticketmaster
+export const fetchFestivalImage = internalAction({
+  args: {
+    festivalName: v.string(),
+    year: v.number(),
+  },
+  returns: v.object({
+    imageUrl: v.optional(v.string()),
+    ticketmasterId: v.optional(v.string()),
+    websiteUrl: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const apiKey = process.env.TICKETMASTER_API_KEY;
+    if (!apiKey) {
+      console.log("⚠️ Ticketmaster API key not configured");
+      return { imageUrl: undefined, ticketmasterId: undefined, websiteUrl: undefined };
+    }
+
+    try {
+      console.log(`🎫 Searching Ticketmaster for: ${args.festivalName} ${args.year}`);
+      
+      // Search for the festival as an event (festivals are events in Ticketmaster)
+      const searchQuery = encodeURIComponent(`${args.festivalName} ${args.year}`);
+      const url = `https://app.ticketmaster.com/discovery/v2/events.json?keyword=${searchQuery}&classificationName=music&size=10&apikey=${apiKey}`;
+      
+      const response = await fetch(url, {
+        headers: { "Accept": "application/json" },
+      });
+      
+      if (!response.ok) {
+        console.log(`⚠️ Ticketmaster API error: ${response.status}`);
+        return { imageUrl: undefined, ticketmasterId: undefined, websiteUrl: undefined };
+      }
+      
+      const data = await response.json();
+      const events = data._embedded?.events || [];
+      
+      if (events.length === 0) {
+        console.log(`  No Ticketmaster events found for ${args.festivalName}`);
+        return { imageUrl: undefined, ticketmasterId: undefined, websiteUrl: undefined };
+      }
+      
+      // Find the best matching event (prefer exact name match)
+      const festivalNameLower = args.festivalName.toLowerCase();
+      const bestEvent = events.find((e: any) => 
+        e.name?.toLowerCase().includes(festivalNameLower)
+      ) || events[0];
+      
+      // Extract the best quality image (prefer 16:9 ratio, largest size)
+      const images = bestEvent.images || [];
+      const bestImage = images
+        .filter((img: any) => img.url && img.width && img.height)
+        .sort((a: any, b: any) => {
+          // Prefer 16:9 ratio images for hero banners
+          const aRatio = Math.abs((a.width / a.height) - (16/9));
+          const bRatio = Math.abs((b.width / b.height) - (16/9));
+          if (Math.abs(aRatio - bRatio) > 0.1) return aRatio - bRatio;
+          // Then prefer larger images
+          return (b.width * b.height) - (a.width * a.height);
+        })[0];
+      
+      const imageUrl = bestImage?.url;
+      console.log(`  ✅ Found image: ${imageUrl ? "yes" : "no"}`);
+      
+      return {
+        imageUrl: imageUrl || undefined,
+        ticketmasterId: bestEvent.id || undefined,
+        websiteUrl: bestEvent.url || undefined,
+      };
+    } catch (error) {
+      console.error(`❌ Ticketmaster fetch failed: ${error instanceof Error ? error.message : "Unknown"}`);
+      return { imageUrl: undefined, ticketmasterId: undefined, websiteUrl: undefined };
+    }
+  },
+});
+
+// ============================================================================
 // SCRAPING FUNCTIONS
 // ============================================================================
 
@@ -385,7 +465,13 @@ export const bootstrapFestivals = internalAction({
         // Estimate dates based on typical month
         const { startDate, endDate } = estimateFestivalDates(source.typicalMonth, year);
         
-        // Step 1: Create/update festival record
+        // Step 1: Fetch image from Ticketmaster
+        const tmData = await ctx.runAction(internalRef.festivalBootstrap.fetchFestivalImage, {
+          festivalName: source.name,
+          year,
+        });
+        
+        // Step 2: Create/update festival record with image
         const festivalId = await ctx.runMutation(internalRef.festivals.upsertFestival, {
           name: `${source.name} ${year}`,
           slug,
@@ -395,10 +481,12 @@ export const bootstrapFestivals = internalAction({
           location: source.location,
           wikiUrl: source.wikiUrl,
           genres: source.genres,
+          imageUrl: tmData.imageUrl,
+          websiteUrl: tmData.websiteUrl,
         });
         
         festivalsCreated++;
-        console.log(`  ✅ Festival record created/updated`);
+        console.log(`  ✅ Festival record created/updated${tmData.imageUrl ? " with image" : ""}`);
         
         // Step 2: Scrape lineup from Wikipedia
         const lineup = await ctx.runAction(internalRef.festivalBootstrap.scrapeFestivalLineup, {
@@ -501,6 +589,58 @@ export const runBootstrap = action({
       year: args.year,
       festivalSlugs: args.festivalSlugs,
     });
+  },
+});
+
+// Fetch images for all festivals missing images
+export const updateFestivalImages = action({
+  args: {},
+  returns: v.object({
+    updated: v.number(),
+    errors: v.array(v.string()),
+  }),
+  handler: async (ctx) => {
+    const errors: string[] = [];
+    let updated = 0;
+    
+    // Get all festivals
+    const festivals = await ctx.runQuery(internalRef.festivals.listAll);
+    
+    for (const festival of festivals) {
+      // Skip if already has image
+      if (festival.imageUrl) continue;
+      
+      // Extract base name and year from festival name
+      const nameMatch = festival.name.match(/^(.+?)\s+(\d{4})$/);
+      if (!nameMatch) continue;
+      
+      const baseName = nameMatch[1];
+      const year = parseInt(nameMatch[2]);
+      
+      try {
+        const tmData = await ctx.runAction(internalRef.festivalBootstrap.fetchFestivalImage, {
+          festivalName: baseName,
+          year,
+        });
+        
+        if (tmData.imageUrl) {
+          await ctx.runMutation(internalRef.festivals.updateImage, {
+            festivalId: festival._id,
+            imageUrl: tmData.imageUrl,
+            websiteUrl: tmData.websiteUrl,
+          });
+          updated++;
+          console.log(`✅ Updated image for ${festival.name}`);
+        }
+        
+        // Rate limit
+        await new Promise((r) => setTimeout(r, 500));
+      } catch (error) {
+        errors.push(`${festival.name}: ${error instanceof Error ? error.message : "Unknown"}`);
+      }
+    }
+    
+    return { updated, errors };
   },
 });
 
