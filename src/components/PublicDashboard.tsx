@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useQuery } from "convex/react";
+import { useUser } from "@clerk/clerk-react";
 import { api } from "../../convex/_generated/api";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, Users, MapPin, Music } from "lucide-react";
+import { TrendingUp, Users, MapPin, Music, Sparkles, ArrowRight } from "lucide-react";
 import { SearchBar } from "./SearchBar";
 import { Id } from "../../convex/_generated/dataModel";
 import { ArtistCardSkeleton, ShowCardSkeleton } from "./LoadingSkeleton";
 import { motion } from "framer-motion";
+import { MagicCard } from "./ui/magic-card";
+import { BorderBeam } from "./ui/border-beam";
+import { FaSpotify } from "react-icons/fa";
 
 interface PublicDashboardProps {
   onArtistClick: (artistKey: Id<"artists"> | string) => void;
@@ -17,10 +21,42 @@ interface PublicDashboardProps {
 
 export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardProps) {
   const navigateTo = useNavigate();
+  const { user, isSignedIn, isLoaded: isClerkLoaded } = useUser();
 
   // Load trending data
   const dbTrendingShowsResult = useQuery(api.trending.getTrendingShows, { limit: 20 });
   const dbTrendingArtistsResult = useQuery(api.trending.getTrendingArtists, { limit: 20 });
+  
+  // Load user data for personalization
+  const appUser = useQuery(api.auth.loggedInUser);
+  
+  // Load Spotify artists only if logged in
+  const mySpotifyArtists = useQuery(
+    api.spotifyAuthQueries.getUserSpotifyArtists, 
+    isSignedIn ? { limit: 20, onlyWithShows: true } : "skip"
+  );
+  
+  // Determine Spotify connection status
+  const hasSpotify = useMemo(() => {
+    if (appUser?.appUser?.spotifyId) return true;
+    if (user?.externalAccounts) {
+      return user.externalAccounts.some((account) => account.provider === 'oauth_spotify');
+    }
+    return false;
+  }, [appUser?.appUser?.spotifyId, user?.externalAccounts]);
+  
+  // Sort Spotify artists: top artists first, then by show count
+  const sortedSpotifyArtists = useMemo(() => {
+    if (!mySpotifyArtists) return [];
+    return [...mySpotifyArtists].sort((a, b) => {
+      if (a.isTopArtist && !b.isTopArtist) return -1;
+      if (!a.isTopArtist && b.isTopArtist) return 1;
+      if (a.isTopArtist && b.isTopArtist) {
+        return (a.topArtistRank || 999) - (b.topArtistRank || 999);
+      }
+      return (b.upcomingShowsCount || 0) - (a.upcomingShowsCount || 0);
+    });
+  }, [mySpotifyArtists]);
   
   // Extract page arrays with robust guards
   const dbTrendingShows = React.useMemo(() => {
@@ -117,8 +153,17 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
               variants={itemVariants}
               className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto"
             >
-              Search artists, explore upcoming concerts, and vote on predicted setlists
+              See your favorite artists' upcoming shows. Vote on songs before the concert. See what actually got played after.
             </motion.p>
+            
+            <motion.a
+              href="/about"
+              variants={itemVariants}
+              className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors"
+            >
+              How it works
+              <span aria-hidden="true">→</span>
+            </motion.a>
         
             {/* Search Bar */}
             <motion.div 
@@ -140,6 +185,161 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
           </div>
         </div>
       </motion.section>
+
+      {/* Personalization Layer - Conditional based on auth status */}
+      <div className="container mx-auto px-4 mb-8">
+        {/* State 1: Logged in WITH Spotify - Show their artists on tour */}
+        {isClerkLoaded && isSignedIn && hasSpotify && sortedSpotifyArtists.length > 0 && (
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <MagicCard className="p-0 rounded-2xl border-0 bg-card overflow-hidden">
+              <div className="p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center">
+                      <FaSpotify className="h-5 w-5 text-green-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg sm:text-xl font-bold text-foreground">Your Artists on Tour</h2>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        {sortedSpotifyArtists.length} of your artists have upcoming shows
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => navigateTo('/activity')}
+                    className="text-xs sm:text-sm text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+                  >
+                    View all <ArrowRight className="h-3 w-3" />
+                  </button>
+                </div>
+                
+                {/* Horizontal scrolling artist cards */}
+                <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+                  <div className="flex gap-3">
+                    {sortedSpotifyArtists.slice(0, 10).map((item, index) => (
+                      <motion.div
+                        key={item.artist._id}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                        onClick={() => onArtistClick(item.artist._id)}
+                        className="flex-shrink-0 w-28 sm:w-32 cursor-pointer group"
+                      >
+                        <div className="relative">
+                          <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-secondary">
+                            {item.artist.images?.[0] ? (
+                              <img 
+                                src={item.artist.images[0]} 
+                                alt={item.artist.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-foreground/40 font-bold text-xl">
+                                {item.artist.name?.slice(0, 2).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                            
+                            {/* Top artist badge */}
+                            {item.isTopArtist && item.topArtistRank && item.topArtistRank <= 5 && (
+                              <div className="absolute top-1.5 left-1.5 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                                #{item.topArtistRank}
+                              </div>
+                            )}
+                            
+                            {/* Show count badge */}
+                            <div className="absolute bottom-1.5 right-1.5 bg-background/90 backdrop-blur-sm rounded-md px-1.5 py-0.5 text-[10px] font-medium text-foreground">
+                              {item.upcomingShowsCount} {item.upcomingShowsCount === 1 ? 'show' : 'shows'}
+                            </div>
+                          </div>
+                          <p className="mt-2 text-xs sm:text-sm font-medium text-foreground truncate text-center">
+                            {item.artist.name}
+                          </p>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <BorderBeam size={100} duration={12} className="opacity-20" />
+            </MagicCard>
+          </motion.section>
+        )}
+        
+        {/* State 2: Logged in WITHOUT Spotify - Show connect CTA */}
+        {isClerkLoaded && isSignedIn && !hasSpotify && (
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <MagicCard className="p-0 rounded-2xl border-0 bg-gradient-to-br from-green-500/10 to-green-500/5 overflow-hidden">
+              <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <FaSpotify className="h-6 w-6 text-green-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">See Your Artists on Tour</h3>
+                    <p className="text-sm text-muted-foreground">Connect Spotify to instantly see which of your favorite artists have upcoming shows</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => navigateTo('/spotify-connect')}
+                  className="w-full sm:w-auto px-6 py-2.5 bg-green-500 hover:bg-green-600 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  <FaSpotify className="h-4 w-4" />
+                  Connect Spotify
+                </button>
+              </div>
+              <BorderBeam size={100} duration={10} className="opacity-20" />
+            </MagicCard>
+          </motion.section>
+        )}
+        
+        {/* State 3: Logged OUT (or Clerk not loaded) - Show sign up with Spotify CTA */}
+        {(!isClerkLoaded || !isSignedIn) && (
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <MagicCard className="p-0 rounded-2xl border-0 bg-gradient-to-br from-green-500/10 via-card to-card overflow-hidden">
+              <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="h-6 w-6 text-green-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">Get Personalized Shows</h3>
+                    <p className="text-sm text-muted-foreground">Sign up with Spotify to instantly see your top artists' upcoming concerts</p>
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  <button 
+                    onClick={() => navigateTo('/signup')}
+                    className="w-full sm:w-auto px-6 py-2.5 bg-green-500 hover:bg-green-600 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+                  >
+                    <FaSpotify className="h-4 w-4" />
+                    Sign up with Spotify
+                  </button>
+                  <button 
+                    onClick={() => navigateTo('/signin')}
+                    className="w-full sm:w-auto px-6 py-2.5 bg-secondary hover:bg-secondary/80 text-foreground font-medium rounded-xl transition-colors"
+                  >
+                    Sign in
+                  </button>
+                </div>
+              </div>
+              <BorderBeam size={100} duration={10} className="opacity-20" />
+            </MagicCard>
+          </motion.section>
+        )}
+      </div>
 
       {/* Content Sections */}
       <div className="container mx-auto px-4 space-y-12 pb-16">

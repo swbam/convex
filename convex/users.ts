@@ -143,41 +143,6 @@ export const getUserSetlists = query({
   },
 });
 
-// ONE-TIME BOOTSTRAP: Promote the initial admin user
-// Remove this after first successful run
-export const bootstrapAdminUser = mutation({
-  args: { email: v.string(), secretKey: v.string() },
-  returns: v.object({ success: v.boolean(), message: v.string() }),
-  handler: async (ctx, args) => {
-    // Hardcoded secret to prevent unauthorized access
-    if (args.secretKey !== "setlists2024bootstrap") {
-      return { success: false, message: "Invalid secret key" };
-    }
-    
-    const lowerEmail = args.email.toLowerCase();
-    const users = await ctx.db.query("users").collect();
-    
-    // Find the REAL user (one with Clerk authId starting with "user_")
-    const realUser = users.find(u => 
-      u.email?.toLowerCase() === lowerEmail && 
-      u.authId?.startsWith("user_") &&
-      !u.authId?.includes("abc") &&
-      !u.authId?.includes("test")
-    );
-    
-    if (!realUser) {
-      return { success: false, message: `No real user found with email ${args.email}` };
-    }
-    
-    if (realUser.role === "admin") {
-      return { success: true, message: `User ${args.email} is already admin` };
-    }
-    
-    await ctx.db.patch(realUser._id, { role: "admin" });
-    return { success: true, message: `Promoted ${args.email} (ID: ${realUser._id}) to admin` };
-  },
-});
-
 // Internal: get user by email, case-insensitive
 export const getByEmailCaseInsensitive = internalQuery({
   args: { email: v.string() },
@@ -221,13 +186,6 @@ export const upsertFromClerk = internalMutation({
     const spotifyId = spotifyAccount?.provider_user_id || unsafe_metadata?.spotifyId;
     const role = (public_metadata?.role || unsafe_metadata?.role) === "admin" ? "admin" : "user";
 
-    console.log('🔵 Clerk webhook: upsertFromClerk', {
-      clerkId: id,
-      email,
-      hasSpotifyAccount: !!spotifyAccount,
-      spotifyId: spotifyId || 'none'
-    });
-
     // Check existing
     const user = await ctx.db
       .query("users")
@@ -250,7 +208,6 @@ export const upsertFromClerk = internalMutation({
         },
         createdAt: Date.now(),
       });
-      console.log('✅ User created from webhook:', userId);
     } else {
       // CRITICAL: Preserve preferences when updating, only update if they don't exist
       const updateData: any = { email, name, avatar, spotifyId, role };
@@ -262,7 +219,6 @@ export const upsertFromClerk = internalMutation({
       }
       await ctx.db.patch(user._id, updateData);
       userId = user._id;
-      console.log('✅ User updated from webhook:', userId);
     }
 
     return userId;
@@ -295,13 +251,6 @@ export const updateFromClerk = internalMutation({
     const spotifyId = spotifyAccount?.provider_user_id || unsafe_metadata?.spotifyId;
     const role = (public_metadata?.role || unsafe_metadata?.role) === "admin" ? "admin" : "user";
 
-    console.log('🔵 Clerk webhook: updateFromClerk', {
-      clerkId: id,
-      email,
-      hasSpotifyAccount: !!spotifyAccount,
-      spotifyId: spotifyId || 'none'
-    });
-
     const user = await ctx.db
       .query("users")
       .withIndex("by_auth_id", (q) => q.eq("authId", id))
@@ -309,7 +258,6 @@ export const updateFromClerk = internalMutation({
 
     if (user) {
       await ctx.db.patch(user._id, { email, name, avatar, spotifyId, role });
-      console.log('✅ User updated from webhook:', user._id);
     }
     return null;
   },
@@ -329,9 +277,6 @@ export const deleteFromClerk = internalMutation({
 
     if (user) {
       await ctx.db.delete(user._id);
-      console.log('✅ User deleted from webhook:', user._id);
-    } else {
-      console.warn('⚠️ User not found for deletion:', args.clerkUserId);
     }
 
     return null;
@@ -412,7 +357,6 @@ export const syncCurrentUser = mutation({
       .first();
 
     if (existing) {
-      console.log('✅ User already exists:', existing._id);
       return existing._id;
     }
 
@@ -434,35 +378,7 @@ export const syncCurrentUser = mutation({
       createdAt: Date.now(),
     });
 
-    console.log('✅ User created from Clerk identity:', userId);
     return userId;
   },
 });
 
-// ONE-TIME FIX: Promote user by Clerk auth ID (no auth required, DELETE AFTER USE)
-export const fixAdminByAuthId = mutation({
-  args: { authId: v.string(), secretKey: v.string() },
-  returns: v.object({ success: v.boolean(), message: v.string() }),
-  handler: async (ctx, args) => {
-    // Simple secret to prevent random calls
-    if (args.secretKey !== "setlists-admin-fix-2024") {
-      return { success: false, message: "Invalid secret" };
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_auth_id", (q) => q.eq("authId", args.authId))
-      .first();
-
-    if (!user) {
-      return { success: false, message: "User not found with that authId" };
-    }
-
-    if (user.role === "admin") {
-      return { success: true, message: `User ${user.email} is already admin` };
-    }
-
-    await ctx.db.patch(user._id, { role: "admin" });
-    return { success: true, message: `User ${user.email} promoted to admin` };
-  },
-});

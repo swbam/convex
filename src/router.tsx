@@ -8,6 +8,7 @@ import { SSOCallback } from './pages/SSOCallback';
 import { SpotifyConnectPage } from './pages/SpotifyConnectPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { TermsPage } from './pages/TermsPage';
+import { AboutPage } from './pages/AboutPage';
 import { ArtistNotFound } from './components/ArtistNotFound';
 import { ShowNotFound } from './components/ShowNotFound'; // Assume similar for shows
 
@@ -81,6 +82,10 @@ export const router = createBrowserRouter([
   {
     path: '/search',
     element: <App />,
+  },
+  {
+    path: '/about',
+    element: <AboutPage />,
   },
   {
     path: '/privacy',

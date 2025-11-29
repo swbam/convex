@@ -107,8 +107,7 @@ export function SearchBar({
         }))
         
         setSearchResults(transformedResults)
-      } catch (error) {
-        console.error('Ticketmaster search failed:', error)
+      } catch {
         // Fallback to local search
         if (localArtistResults) {
           const fallbackResults: SearchResult[] = localArtistResults.map(artist => ({
@@ -159,16 +158,13 @@ export function SearchBar({
           images: result.image ? [result.image] : undefined,
         });
 
-        console.log(`✅ Artist ${result.title} created with ID: ${artistId}`);
-
         // Navigate using the canonical ID; the app will canonicalize to slug when available
         onResultClick(result.type, artistId);
         setIsOpen(false);
         setQuery('');
 
         toast.success(`Importing ${result.title} data...`);
-      } catch (error) {
-        console.error('Failed to trigger artist sync:', error);
+      } catch {
         toast.error('Failed to import artist data');
       }
 

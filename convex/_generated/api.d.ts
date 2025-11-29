@@ -37,7 +37,6 @@ import type * as media from "../media.js";
 import type * as migrations_20240929_add_shows_fields from "../migrations/20240929_add_shows_fields.js";
 import type * as migrations_fixUserFieldsMismatch from "../migrations/fixUserFieldsMismatch.js";
 import type * as migrations_initializeSyncStatus from "../migrations/initializeSyncStatus.js";
-import type * as notifications from "../notifications.js";
 import type * as setlistfm from "../setlistfm.js";
 import type * as setlists from "../setlists.js";
 import type * as shows from "../shows.js";
@@ -94,7 +93,6 @@ declare const fullApi: ApiFromModules<{
   "migrations/20240929_add_shows_fields": typeof migrations_20240929_add_shows_fields;
   "migrations/fixUserFieldsMismatch": typeof migrations_fixUserFieldsMismatch;
   "migrations/initializeSyncStatus": typeof migrations_initializeSyncStatus;
-  notifications: typeof notifications;
   setlistfm: typeof setlistfm;
   setlists: typeof setlists;
   shows: typeof shows;

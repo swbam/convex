@@ -22,6 +22,9 @@ export function Footer() {
           <div className="space-y-3 sm:space-y-4 lg:space-y-6">
             <h3 className="font-semibold text-foreground text-responsive-base sm:text-responsive-lg">Product</h3>
             <nav className="space-y-2 sm:space-y-3">
+              <a href="/about" className="block text-responsive-xs sm:text-responsive-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
+                How It Works
+              </a>
               <a href="/artists" className="block text-responsive-xs sm:text-responsive-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
                 Browse Artists
               </a>

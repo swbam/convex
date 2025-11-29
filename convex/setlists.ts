@@ -17,9 +17,8 @@ async function trackError(ctx: any, operation: string, error: unknown, context?:
       context,
       severity: "error",
     });
-  } catch (e) {
+  } catch {
     // Don't fail the mutation if error tracking fails
-    console.error("Failed to track error:", e);
   }
 }
 
@@ -105,16 +104,17 @@ export const addSongToSetlist = mutation({
       effectiveUserId = authUserId;
     }
 
-    // For anonymous users, enforce limit of 1 total song add
+    // For anonymous users, enforce limit of 1 song add per show (not total)
     if (typeof effectiveUserId === "string") {
-      const totalAdds = await ctx.db
+      const showAddAction = `add_song:${args.showId}`;
+      const showAdds = await ctx.db
         .query("userActions")
         .filter((q) => q.eq(q.field("userId"), effectiveUserId))
-        .filter((q) => q.eq(q.field("action"), "add_song"))
+        .filter((q) => q.eq(q.field("action"), showAddAction))
         .collect();
 
-      if (totalAdds.length >= 1) {
-        throw new Error("Anonymous users can only add one song total");
+      if (showAdds.length >= 1) {
+        throw new Error("Anonymous users can only add one song per show");
       }
     }
 
@@ -166,7 +166,7 @@ export const addSongToSetlist = mutation({
     if (typeof effectiveUserId === "string") {
       await ctx.db.insert("userActions", {
         userId: effectiveUserId,
-        action: "add_song",
+        action: `add_song:${args.showId}`,
         timestamp: Date.now(),
       });
     }
@@ -461,7 +461,6 @@ export const autoGenerateSetlist = internalMutation({
     // Catalog sync for this artist is orchestrated elsewhere (Ticketmaster + Spotify flows),
     // so we simply skip for now and let callers/cron retry once songs are available.
     if (artistSongs.length === 0) {
-      console.log(`⚠️ No songs found for artist ${args.artistId}, skipping autoGenerateSetlist for now`);
       return null;
     }
 
@@ -478,7 +477,6 @@ export const autoGenerateSetlist = internalMutation({
       .sort((a, b) => (b.popularity || 0) - (a.popularity || 0)); // Sort by popularity
 
     if (studioSongs.length === 0) {
-      console.log(`No studio songs found for artist ${args.artistId}, skipping setlist generation`);
       return null;
     }
 
@@ -530,7 +528,6 @@ export const autoGenerateSetlist = internalMutation({
         upvotes: existingSetlist.upvotes ?? 0,
         downvotes: existingSetlist.downvotes ?? 0,
       });
-      console.log(`Refreshed auto-generated setlist for show ${args.showId} with ${selectedSongs.length} songs`);
       return existingSetlist._id;
     }
 
@@ -548,7 +545,6 @@ export const autoGenerateSetlist = internalMutation({
     });
 
     await incrementShowSetlistCount(ctx, args.showId);
-    console.log(`Auto-generated setlist for show ${args.showId} with ${selectedSongs.length} songs`);
     return setlistId;
   },
 });
@@ -615,10 +611,6 @@ export const ensurePredictionsForArtistShows = internalMutation({
         });
       }
     }
-
-    console.log(
-      `✅ ensurePredictionsForArtistShows: checked ${shows.length} shows, created ${created}, skipped ${skipped}`,
-    );
 
     return {
       showsChecked: shows.length,
@@ -888,16 +880,11 @@ export const refreshMissingAutoSetlists = internalMutation({
           artistId: show.artistId,
         });
         scheduled += 1;
-      } catch (error) {
-        console.error("Failed to schedule setlist generation", {
-          showId: show._id,
-          artistId: show.artistId,
-          error,
-        });
+      } catch {
+        // Failed to schedule - continue with other shows
       }
     }
 
-    console.log(`✅ Scheduled ${scheduled} setlist generations with staggered delays (prevents write conflicts)`);
     return { scheduled };
   },
 });
@@ -907,24 +894,18 @@ export const ensureAutoSetlistForShow = action({
   args: { showId: v.id("shows") },
   returns: v.object({ created: v.boolean(), message: v.string() }),
   handler: async (ctx, args): Promise<{ created: boolean; message: string }> => {
-    console.log(`🔍 Checking if setlist exists for show ${args.showId}...`);
-    
     // If a prediction setlist already exists with songs, do nothing
     const setlists = await ctx.runQuery(api.setlists.getByShow, { showId: args.showId });
     const hasPrediction = (setlists || []).some((s: any) => !s.isOfficial && !s.userId && Array.isArray(s.songs) && s.songs.length > 0);
     
     if (hasPrediction) {
-      console.log(`✅ Prediction setlist already exists for show ${args.showId}`);
       return { created: false, message: "Setlist already exists" };
     }
 
     const show = await ctx.runQuery(api.shows.getById, { id: args.showId });
     if (!show) {
-      console.log(`❌ Show ${args.showId} not found`);
       return { created: false, message: "Show not found" };
     }
-
-    console.log(`🎵 Creating auto-generated setlist for show ${args.showId}, artist ${show.artistId}...`);
 
     try {
       const setlistId = await ctx.runMutation(internalRef.setlists.autoGenerateSetlist, {
@@ -933,14 +914,11 @@ export const ensureAutoSetlistForShow = action({
       });
       
       if (setlistId) {
-        console.log(`✅ Created setlist ${setlistId} for show ${args.showId}`);
         return { created: true, message: "Setlist created successfully" };
       } else {
-        console.log(`⚠️ Auto-generate returned null (likely no songs available yet) for show ${args.showId}`);
         return { created: false, message: "No songs available to generate setlist" };
       }
     } catch (error) {
-      console.error(`❌ Failed to create setlist for show ${args.showId}:`, error);
       return { created: false, message: error instanceof Error ? error.message : "Unknown error" };
     }
   },
@@ -963,18 +941,109 @@ export const createFromApi = internalMutation({
   },
   returns: v.id("setlists"),
   handler: async (ctx, args) => {
-    const songs = Array.isArray(args.data.songs) ? args.data.songs : [];
+    // Extract songs from Setlist.fm format: sets.set[].song[]
+    const extractedSongs: { title: string; setNumber: number; encore: boolean; album?: string }[] = [];
+    
+    if (args.data.sets && args.data.sets.set && Array.isArray(args.data.sets.set)) {
+      for (const [setIndex, set] of args.data.sets.set.entries()) {
+        const isEncore = set.encore === 1 || set.encore === true || set.encore === "true";
+        const setNumber = setIndex + 1;
+        
+        if (set.song && Array.isArray(set.song)) {
+          for (const song of set.song) {
+            if (song.name && song.name.trim() !== '') {
+              extractedSongs.push({
+                title: song.name.trim(),
+                setNumber,
+                encore: isEncore,
+                album: song.info || undefined,
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    // Fallback to direct songs array if present (for pre-parsed data)
+    const songs = extractedSongs.length > 0 
+      ? extractedSongs 
+      : (Array.isArray(args.data.songs) ? args.data.songs : []);
+    
+    if (songs.length === 0) {
+      console.warn(`⚠️ No songs found in setlist.fm data for show ${args.showId}`);
+    } else {
+      console.log(`✅ Extracted ${songs.length} songs from setlist.fm for show ${args.showId}`);
+    }
+    
+    // Check for existing setlists for this show
+    const existingSetlists = await ctx.db
+      .query("setlists")
+      .withIndex("by_show", (q) => q.eq("showId", args.showId))
+      .collect();
+    
+    // Find prediction setlist (non-official, no user) or official setlist to update
+    const predictionSetlist = existingSetlists.find((s: any) => !s.isOfficial && !s.userId);
+    const officialSetlist = existingSetlists.find((s: any) => s.isOfficial);
+    
+    const actualSetlistData = songs.map((s: any) => ({ 
+      title: s.title || s, 
+      setNumber: s.setNumber || 1, 
+      encore: s.encore || false 
+    }));
+    
+    // Calculate accuracy if there's a prediction setlist
+    let accuracy = 0;
+    if (predictionSetlist?.songs && Array.isArray(predictionSetlist.songs)) {
+      const predictedTitles = predictionSetlist.songs
+        .map((song: any) => (typeof song === "string" ? song : song?.title)?.toLowerCase().trim())
+        .filter(Boolean);
+      const actualTitles = actualSetlistData.map((s: { title: string }) => s.title.toLowerCase().trim());
+      if (predictedTitles.length > 0 && actualTitles.length > 0) {
+        const correct = predictedTitles.filter((t: string) => actualTitles.includes(t)).length;
+        accuracy = Math.round((correct / predictedTitles.length) * 100);
+      }
+    }
+    
+    // Update prediction setlist with actual data
+    if (predictionSetlist) {
+      await ctx.db.patch(predictionSetlist._id, {
+        actualSetlist: actualSetlistData,
+        setlistfmId: args.data.id || undefined,
+        setlistfmData: args.data,
+        lastUpdated: Date.now(),
+        accuracy,
+        comparedAt: Date.now(),
+      });
+      console.log(`✅ Updated prediction setlist ${predictionSetlist._id} with actual setlist (${songs.length} songs, ${accuracy}% accuracy)`);
+    }
+    
+    // Update or create official setlist
+    if (officialSetlist) {
+      await ctx.db.patch(officialSetlist._id, {
+        actualSetlist: actualSetlistData,
+        setlistfmId: args.data.id || undefined,
+        setlistfmData: args.data,
+        songs: songs.map((s: any) => ({ title: s.title || s, album: s.album, duration: s.duration, songId: s.songId })),
+        lastUpdated: Date.now(),
+      });
+      console.log(`✅ Updated official setlist ${officialSetlist._id} with actual setlist`);
+      return officialSetlist._id;
+    }
+    
+    // Create new official setlist only if none exists
     const setlistId = await ctx.db.insert("setlists", {
       showId: args.showId,
       setlistfmId: args.data.id || undefined,
+      setlistfmData: args.data,
       songs: songs.map((s: any) => ({ title: s.title || s, album: s.album, duration: s.duration, songId: s.songId })),
-      actualSetlist: songs.map((s: any) => ({ title: s.title || s, setNumber: s.setNumber, encore: s.encore })),
+      actualSetlist: actualSetlistData,
       isOfficial: true,
       verified: true,
       source: "setlistfm" as const,
       lastUpdated: Date.now(),
     });
     await incrementShowSetlistCount(ctx, args.showId);
+    console.log(`✅ Created new official setlist ${setlistId} with ${songs.length} songs`);
     return setlistId;
   },
 });

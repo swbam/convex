@@ -63,15 +63,16 @@ export const voteOnSong = mutation({
       }
     }
 
-    // For anonymous users, enforce limit of 1 total upvote
+    // For anonymous users, enforce limit of 1 upvote per setlist (not total)
     if (typeof effectiveUserId === "string") {
-      const totalVotes = await ctx.db
+      const setlistVotes = await ctx.db
         .query("songVotes")
-        .withIndex("by_user", (q) => q.eq("userId", effectiveUserId))
+        .withIndex("by_setlist", (q) => q.eq("setlistId", args.setlistId))
+        .filter((q) => q.eq(q.field("userId"), effectiveUserId))
         .collect();
 
-      if (totalVotes.length >= 1) {
-        throw new Error("Anonymous users can only upvote one song total");
+      if (setlistVotes.length >= 1) {
+        throw new Error("Anonymous users can only upvote one song per show");
       }
     }
 

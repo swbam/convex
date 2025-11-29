@@ -121,10 +121,23 @@ export const syncActualSetlist = internalAction({
         console.log(`🔍 Searching setlist.fm (${offset}d): ${artist.name} @ ${venue.city} on ${setlistfmDate}`);
 
         const apiResponse = await fetchWithRetry(searchUrl);
+        
+        // Handle 404 as "no results" - continue to next date offset
+        if (apiResponse.status === 404) {
+          console.log(`ℹ️  No setlist found for date ${setlistfmDate}, trying next offset...`);
+          continue;
+        }
+        
+        // Handle other non-OK responses as errors
         if (!apiResponse.ok) {
           const errorMsg = `Setlist.fm API error: ${apiResponse.status}`;
           console.error(`❌ ${errorMsg}`);
-          throw new Error(errorMsg);
+          // Don't throw - mark as pending and let cron retry later
+          await ctx.runMutation(internalRef.shows.updateImportStatus, {
+            showId: args.showId,
+            status: "pending" as const,
+          });
+          return null;
         }
 
         const data = await apiResponse.json();

@@ -101,16 +101,20 @@ export function ShowDetail({
     return "anon_default";
   });
 
+  // Per-show tracking for anonymous users
+  const votedKey = `hasVoted_${showId}`;
+  const addedKey = `hasAdded_${showId}`;
+
   const [hasVoted, setHasVoted] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("hasVoted") === "true";
+      return localStorage.getItem(votedKey) === "true";
     }
     return false;
   });
 
   const [hasAdded, setHasAdded] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("hasAdded") === "true";
+      return localStorage.getItem(addedKey) === "true";
     }
     return false;
   });
@@ -119,10 +123,10 @@ export function ShowDetail({
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      localStorage.setItem("hasVoted", hasVoted.toString());
-      localStorage.setItem("hasAdded", hasAdded.toString());
+      localStorage.setItem(votedKey, hasVoted.toString());
+      localStorage.setItem(addedKey, hasAdded.toString());
     }
-  }, [hasVoted, hasAdded]);
+  }, [hasVoted, hasAdded, votedKey, addedKey]);
 
 
   const predictionSetlist = useMemo(() => {
@@ -650,6 +654,7 @@ export function ShowDetail({
                               handleVoteAction={handleVoteAction}
                               setShowAuthModal={setShowAuthModal}
                               anonId={anonId}
+                              isUpcoming={isUpcoming}
                             />
                           ))}
                     </div>
@@ -913,6 +918,7 @@ function FanRequestSongRow({
   handleVoteAction,
   setShowAuthModal,
   anonId,
+  isUpcoming,
 }: {
   songTitle: string;
   index: number;
@@ -923,6 +929,7 @@ function FanRequestSongRow({
   handleVoteAction: () => boolean;
   setShowAuthModal: (show: boolean) => void;
   anonId: string;
+  isUpcoming: boolean;
 }) {
   const normalizedTitle = songTitle.toLowerCase().trim();
   const wasPlayed = actualSongTitleSet.has(normalizedTitle);
@@ -1016,8 +1023,8 @@ function FanRequestSongRow({
         </div>
       </div>
 
-      {/* Reddit-style upvote icon + count below - now clickable */}
-      {!wasPlayed && (
+      {/* Reddit-style upvote icon + count below - only clickable for upcoming shows */}
+      {!wasPlayed && isUpcoming && (
         <button
           onClick={() => {
             void handleVote();
@@ -1038,9 +1045,10 @@ function FanRequestSongRow({
           </span>
         </button>
       )}
-      {wasPlayed && (
-        <div className="flex flex-col items-center gap-0.5 text-sm text-green-400">
-          <ChevronUp className="h-4 w-4 fill-current" />
+      {/* Show vote count (non-clickable) for completed shows or played songs */}
+      {(wasPlayed || !isUpcoming) && (
+        <div className={`flex flex-col items-center gap-0.5 text-sm ${wasPlayed ? "text-green-400" : "text-muted-foreground"}`}>
+          <ChevronUp className={`h-4 w-4 ${wasPlayed ? "fill-current" : ""}`} />
           <span className="font-semibold text-base">{voteCount}</span>
         </div>
       )}

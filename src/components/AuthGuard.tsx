@@ -19,20 +19,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const [creationAttempts, setCreationAttempts] = useState(0);
 
   useEffect(() => {
-    console.log('🔍 AuthGuard: User state check', {
-      hasUser: !!user,
-      needsSetup: user?.needsSetup,
-      hasAppUser: !!user?.appUser,
-      identity: user?.identity ? {
-        subject: user.identity.subject,
-        email: user.identity.email
-      } : null,
-      isCreatingUser,
-      hasTriedCreation,
-      creationAttempts,
-      timestamp: new Date().toISOString()
-    });
-    
     // If user is logged in but app user doesn't exist, auto-create in background
     if (
       user &&
@@ -41,32 +27,22 @@ export function AuthGuard({ children }: AuthGuardProps) {
       !isCreatingUser &&
       creationAttempts < MAX_CREATION_ATTEMPTS
     ) {
-      console.log('🔧 AuthGuard: Auto-creating app user in background...', {
-        attempt: creationAttempts + 1,
-        maxAttempts: MAX_CREATION_ATTEMPTS
-      });
       setIsCreatingUser(true);
       setHasTriedCreation(true);
       setCreationAttempts((prev) => prev + 1);
 
       ensureUser()
-        .then((userId) => {
-          console.log('✅ AuthGuard: App user created successfully', {
-            userId,
-            timestamp: new Date().toISOString()
-          });
+        .then(() => {
           toast.success('Welcome! Your account is ready.', {
             description: 'You can now vote on setlists and follow artists.',
             duration: 3000,
           });
           setCreationAttempts(0);
         })
-        .catch((error) => {
-          console.error('❌ AuthGuard: Failed to create app user:', error);
+        .catch(() => {
           toast.error('Account setup failed', {
             description: 'Please refresh the page to try again.',
           });
-          // Allow another retry if we still need setup and haven't exhausted attempts
           setTimeout(() => {
             setHasTriedCreation(false);
           }, RETRY_DELAY_MS);

@@ -20,18 +20,15 @@ export function SpotifyConnectPage() {
 
   const handleSpotifyConnect = async () => {
     setIsLoading(true);
-    console.log('🎵 Starting Spotify OAuth connection flow...');
     
     try {
       // If user is signed in, use createExternalAccount to LINK Spotify
       if (user) {
-        console.log('🔗 User is signed in, linking Spotify account...');
         const externalAccount = await user.createExternalAccount({
           strategy: 'oauth_spotify',
           redirectUrl: `${window.location.origin}/sso-callback`,
         });
         
-        // Get the verification URL and redirect
         const verificationUrl = externalAccount.verification?.externalVerificationRedirectURL;
         if (verificationUrl) {
           window.location.href = verificationUrl.toString();
@@ -39,14 +36,13 @@ export function SpotifyConnectPage() {
           throw new Error('No verification URL returned');
         }
       } else {
-        // If not signed in, use signIn flow (this will sign them in with Spotify)
+        // If not signed in, use signIn flow
         if (!signIn) {
           toast.error('Authentication not ready. Please refresh the page.');
           setIsLoading(false);
           return;
         }
         
-        console.log('🔑 User not signed in, using OAuth sign-in...');
         await signIn.authenticateWithRedirect({
           strategy: 'oauth_spotify',
           redirectUrl: `${window.location.origin}/sso-callback`,
@@ -54,7 +50,6 @@ export function SpotifyConnectPage() {
         });
       }
     } catch (error: any) {
-      console.error('❌ Spotify connection error:', error);
       const errorMessage = error?.errors?.[0]?.message || error?.message || 'Failed to connect Spotify';
       toast.error(errorMessage);
       setIsLoading(false);

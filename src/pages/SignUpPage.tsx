@@ -26,7 +26,6 @@ export function SignUpPage() {
   React.useEffect(() => {
     const timeout = setTimeout(() => {
       if (!isLoaded || !signUp) {
-        console.error('❌ Clerk failed to load after 10 seconds');
         setAuthError("Authentication service failed to load. Please check your internet connection.");
       }
     }, 10000); // 10 second timeout
@@ -84,13 +83,11 @@ export function SignUpPage() {
 
   const handleSpotifySignUp = async () => {
     if (!signUp) {
-      console.error('SignUp not available');
       toast.error('Authentication not ready. Please refresh the page.');
       return;
     }
     
     setIsSpotifyLoading(true);
-    console.log('🎵 Starting Spotify OAuth sign up flow...');
     
     try {
       await signUp.authenticateWithRedirect({
@@ -99,13 +96,6 @@ export function SignUpPage() {
         redirectUrlComplete: `${window.location.origin}/activity`,
       });
     } catch (error: any) {
-      console.error('❌ Spotify sign up error:', error);
-      console.error('Error details:', {
-        message: error?.message,
-        errors: error?.errors,
-        status: error?.status
-      });
-      
       const errorMessage = error?.errors?.[0]?.message || error?.message || 'Failed to sign up with Spotify';
       toast.error(errorMessage);
       setIsSpotifyLoading(false);
@@ -114,13 +104,11 @@ export function SignUpPage() {
 
   const handleGoogleSignUp = async () => {
     if (!signUp) {
-      console.error('SignUp not available');
       toast.error('Authentication not ready. Please refresh the page.');
       return;
     }
     
     setIsGoogleLoading(true);
-    console.log('🔍 Starting Google OAuth sign up flow...');
     
     try {
       await signUp.authenticateWithRedirect({
@@ -129,13 +117,6 @@ export function SignUpPage() {
         redirectUrlComplete: `${window.location.origin}/`,
       });
     } catch (error: any) {
-      console.error('❌ Google sign up error:', error);
-      console.error('Error details:', {
-        message: error?.message,
-        errors: error?.errors,
-        status: error?.status
-      });
-      
       const errorMessage = error?.errors?.[0]?.message || error?.message || 'Failed to sign up with Google';
       toast.error(errorMessage);
       setIsGoogleLoading(false);
@@ -145,58 +126,30 @@ export function SignUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!signUp) {
-      console.error('SignUp not available');
       toast.error('Authentication not ready. Please refresh the page.');
       return;
     }
 
     setIsSubmitting(true);
-    console.log('📧 SignUpPage: Starting email sign up...', {
-      email,
-      timestamp: new Date().toISOString()
-    });
     
     try {
-      // CRITICAL: Create with CAPTCHA support
       const result = await signUp.create({
         emailAddress: email,
         password,
       });
 
-      console.log('📧 SignUpPage: Sign up result', {
-        status: result.status,
-        createdSessionId: result.createdSessionId,
-        userId: result.createdUserId,
-        timestamp: new Date().toISOString()
-      });
-
       if (result.status === "complete") {
         if (result.createdSessionId) {
-          console.log('📧 SignUpPage: Setting active session...', {
-            sessionId: result.createdSessionId
-          });
           await setActive({ session: result.createdSessionId });
         }
         toast.success("Account created successfully!");
-        
-        console.log('✅ SignUpPage: Sign up successful, redirecting to home...');
-        // FIXED: Redirect to home (/) - AuthGuard will handle user creation
         navigate('/');
       } else {
-        console.log('📧 SignUpPage: Sign up requires verification');
         await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
         setVerificationStep(true);
         toast.success("Please check your email for verification code.");
       }
     } catch (error: any) {
-      console.error("❌ Sign up error:", error);
-      console.error('Error details:', {
-        message: error?.message,
-        errors: error?.errors,
-        status: error?.status,
-        clerkError: error?.clerkError
-      });
-      
       if (error.errors?.[0]?.message) {
         toast.error(error.errors[0].message);
       } else if (error.message) {
@@ -212,44 +165,28 @@ export function SignUpPage() {
   const handleVerification = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!signUp) {
-      console.error('SignUp not available');
-      console.error('Clerk state:', { isLoaded, signUp: !!signUp });
       toast.error('Authentication not ready. Please refresh the page.');
-      // FIXED: Immediate redirect to home
       navigate('/');
       return;
     }
 
     setIsSubmitting(true);
-    console.log('✉️ Attempting email verification...');
     
     try {
       const result = await signUp.attemptEmailAddressVerification({
         code: verificationCode,
       });
 
-      console.log('Verification result status:', result.status);
-
       if (result.status === "complete") {
         if (result.createdSessionId) {
           await setActive({ session: result.createdSessionId });
         }
         toast.success("Email verified! Welcome to setlists.live!");
-        console.log('✅ Email verified, redirecting to home...');
-        // FIXED: Redirect to home (/)
         navigate('/');
       } else {
-        console.warn('Verification incomplete:', result.status);
         toast.error("Invalid verification code. Please try again.");
       }
     } catch (error: any) {
-      console.error("❌ Verification error:", error);
-      console.error('Error details:', {
-        message: error?.message,
-        errors: error?.errors,
-        status: error?.status
-      });
-      
       if (error.errors?.[0]?.message) {
         toast.error(error.errors[0].message);
       } else if (error.message) {

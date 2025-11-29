@@ -225,14 +225,6 @@ export function UserProfilePage() {
                         </Button>
                       </div>
                       
-                      {/* Debug info */}
-                      {console.log('Spotify Artists Data:', { 
-                        hasSpotify, 
-                        isImporting, 
-                        spotifyArtistsCount: spotifyArtists?.length || 0,
-                        appUserSpotifyId: appUser?.appUser?.spotifyId
-                      })}
-                      
                       {isImporting ? (
                         <div className="text-center py-8">
                           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />

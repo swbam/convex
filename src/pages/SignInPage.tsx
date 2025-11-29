@@ -28,33 +28,19 @@ export function SignInPage() {
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (!isLoaded || !signIn) {
-        console.error('❌ Clerk failed to load after 10 seconds');
         setAuthError("Authentication service failed to load. Please check your internet connection.");
       }
-    }, 10000); // 10 second timeout
+    }, 10000);
 
     return () => clearTimeout(timeout);
   }, [isLoaded, signIn]);
 
-  // CRITICAL FIX: Removed automatic Spotify import on sign-in
-  // Spotify data import is now handled by SSOCallback page after OAuth completion
-  // This prevents the bug where empty arrays were being imported
-
   // Redirect to dashboard if already signed in
   useEffect(() => {
-    console.log('🔍 SignInPage: Auth state check', {
-      isUserLoaded,
-      isSignedIn,
-      userEmail: user?.emailAddresses?.[0]?.emailAddress,
-      userId: user?.id,
-      timestamp: new Date().toISOString()
-    });
-    
     if (isUserLoaded && isSignedIn) {
-      console.log('✅ SignInPage: User is signed in, redirecting to home');
       navigate('/', { replace: true });
     }
-  }, [isUserLoaded, isSignedIn, navigate, user]);
+  }, [isUserLoaded, isSignedIn, navigate]);
 
   if (isImporting) {
     return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /> Importing Spotify...</div>;
@@ -103,28 +89,19 @@ export function SignInPage() {
 
   const handleSpotifySignIn = async () => {
     if (!signIn) {
-      console.error('SignIn not available');
       toast.error('Authentication not ready. Please refresh the page.');
       return;
     }
     
     setIsSpotifyLoading(true);
-    console.log('🎵 Starting Spotify OAuth flow...');
     
     try {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_spotify',
         redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectUrlComplete: `${window.location.origin}/`, // Redirect through the dashboard
+        redirectUrlComplete: `${window.location.origin}/`,
       });
     } catch (error: any) {
-      console.error('❌ Spotify sign in error:', error);
-      console.error('Error details:', {
-        message: error?.message,
-        errors: error?.errors,
-        status: error?.status
-      });
-      
       const errorMessage = error?.errors?.[0]?.message || error?.message || 'Failed to sign in with Spotify';
       toast.error(errorMessage);
       setIsSpotifyLoading(false);
@@ -133,34 +110,19 @@ export function SignInPage() {
 
   const handleGoogleSignIn = async () => {
     if (!signIn) {
-      console.error('SignIn not available');
       toast.error('Authentication not ready. Please refresh the page.');
       return;
     }
     
     setIsGoogleLoading(true);
-    console.log('🔍 SignInPage: Starting Google OAuth flow...', {
-      redirectUrl: `${window.location.origin}/sso-callback`,
-      redirectUrlComplete: `${window.location.origin}/`,
-      currentUrl: window.location.href,
-      timestamp: new Date().toISOString()
-    });
     
     try {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',
         redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectUrlComplete: `${window.location.origin}/`, // After OAuth, go to home
+        redirectUrlComplete: `${window.location.origin}/`,
       });
-      console.log('✅ SignInPage: OAuth redirect initiated');
     } catch (error: any) {
-      console.error('❌ SignInPage: Google sign in error:', error);
-      console.error('Error details:', {
-        message: error?.message,
-        errors: error?.errors,
-        status: error?.status
-      });
-      
       const errorMessage = error?.errors?.[0]?.message || error?.message || 'Failed to sign in with Google';
       toast.error(errorMessage);
       setIsGoogleLoading(false);
@@ -170,16 +132,11 @@ export function SignInPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!signIn) {
-      console.error('SignIn not available');
       toast.error('Authentication not ready. Please refresh the page.');
       return;
     }
 
     setIsSubmitting(true);
-    console.log('📧 SignInPage: Starting email/password sign in...', {
-      email,
-      timestamp: new Date().toISOString()
-    });
     
     try {
       const result = await signIn.create({
@@ -187,38 +144,16 @@ export function SignInPage() {
         password,
       });
 
-      console.log('📧 SignInPage: Sign in result', {
-        status: result.status,
-        createdSessionId: result.createdSessionId,
-        userId: result.createdUserId,
-        timestamp: new Date().toISOString()
-      });
-
       if (result.status === "complete") {
         if (result.createdSessionId) {
-          console.log('📧 SignInPage: Setting active session...', {
-            sessionId: result.createdSessionId
-          });
           await setActive({ session: result.createdSessionId });
         }
         toast.success("Welcome back!");
-        
-        console.log('✅ SignInPage: Email sign in successful, redirecting to home...');
-        // FIXED: Redirect to home (/) - AppLayout will show appropriate dashboard
         navigate('/');
       } else {
-        console.warn('⚠️ SignInPage: Sign in incomplete:', result.status);
         toast.error("Sign in incomplete. Please check your email for verification.");
       }
     } catch (error: any) {
-      console.error("❌ Sign in error:", error);
-      console.error('Error details:', {
-        message: error?.message,
-        errors: error?.errors,
-        status: error?.status,
-        clerkError: error?.clerkError
-      });
-      
       if (error.errors?.[0]?.message) {
         toast.error(error.errors[0].message);
       } else if (error.message) {
