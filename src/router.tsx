@@ -84,6 +84,14 @@ export const router = createBrowserRouter([
     element: <App />,
   },
   {
+    path: '/festivals',
+    element: <App />,
+  },
+  {
+    path: '/festivals/:festivalSlug',
+    element: <App />,
+  },
+  {
     path: '/about',
     element: <AboutPage />,
   },
