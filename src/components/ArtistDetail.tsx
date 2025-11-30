@@ -188,8 +188,8 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                {/* Artist Name - LARGER FONT */}
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-foreground leading-tight tracking-tight line-clamp-2">
+                {/* Artist Name - Responsive headline */}
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground leading-tight tracking-tight line-clamp-2">
                   {artist.name}
                 </h1>
 

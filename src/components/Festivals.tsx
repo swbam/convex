@@ -75,7 +75,7 @@ export function Festivals({ onFestivalClick }: FestivalsProps) {
           <div className="p-2 bg-primary/10 rounded-xl">
             <Sparkles className="h-6 w-6 text-primary" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Music Festivals</h1>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">Music Festivals</h1>
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -100,7 +100,7 @@ export function Festivals({ onFestivalClick }: FestivalsProps) {
           <div className="p-2 bg-primary/10 rounded-xl">
             <Sparkles className="h-6 w-6 text-primary" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Music Festivals</h1>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">Music Festivals</h1>
         </div>
         
         <MagicCard className="p-8 rounded-2xl text-center">
@@ -125,7 +125,7 @@ export function Festivals({ onFestivalClick }: FestivalsProps) {
           <Sparkles className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Music Festivals</h1>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">Music Festivals</h1>
           <p className="text-sm text-muted-foreground">
             {allFestivals.length} festivals • Vote on setlists for each artist
           </p>

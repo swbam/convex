@@ -144,7 +144,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
           <div className="max-w-3xl mx-auto text-center space-y-4">
             <motion.h1 
               variants={itemVariants}
-              className="text-2xl md:text-3xl lg:text-4xl font-bold leading-tight gradient-text"
+              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight gradient-text"
             >
               Crowdsourced Concert Setlists
             </motion.h1>

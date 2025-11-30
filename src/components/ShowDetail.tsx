@@ -405,7 +405,7 @@ export function ShowDetail({
                   onClick={() => {
                     if (show?.artistId) onArtistClick(show.artistId);
                   }}
-                  className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-foreground hover:text-primary transition-colors leading-tight tracking-tight text-left line-clamp-2"
+                  className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground hover:text-primary transition-colors leading-tight tracking-tight text-left line-clamp-2"
                 >
                   {show?.artist?.name}
                 </button>
