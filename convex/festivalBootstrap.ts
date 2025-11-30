@@ -209,36 +209,46 @@ export const fetchFestivalImage = internalAction({
 
     try {
       console.log(`🎫 Searching Ticketmaster for: ${args.festivalName} ${args.year}`);
-      
-      // Search for the festival as an event (festivals are events in Ticketmaster)
-      const searchQuery = encodeURIComponent(`${args.festivalName} ${args.year}`);
-      const url = `https://app.ticketmaster.com/discovery/v2/events.json?keyword=${searchQuery}&classificationName=music&size=10&apikey=${apiKey}`;
-      
-      const response = await fetch(url, {
-        headers: { "Accept": "application/json" },
-      });
-      
-      if (!response.ok) {
-        console.log(`⚠️ Ticketmaster API error: ${response.status}`);
-        return { imageUrl: undefined, ticketmasterId: undefined, websiteUrl: undefined };
-      }
-      
-      const data = await response.json();
-      const events = data._embedded?.events || [];
-      
-      if (events.length === 0) {
-        console.log(`  No Ticketmaster events found for ${args.festivalName}`);
-        return { imageUrl: undefined, ticketmasterId: undefined, websiteUrl: undefined };
-      }
-      
-      // Find the best matching event (prefer exact name match)
       const festivalNameLower = args.festivalName.toLowerCase();
-      const bestEvent = events.find((e: any) => 
+      
+      // Strategy 1: Search for the festival as an event
+      const searchQuery = encodeURIComponent(`${args.festivalName} ${args.year}`);
+      const eventsUrl = `https://app.ticketmaster.com/discovery/v2/events.json?keyword=${searchQuery}&classificationName=music&size=10&apikey=${apiKey}`;
+      
+      let response = await fetch(eventsUrl, { headers: { "Accept": "application/json" } });
+      let data = response.ok ? await response.json() : {};
+      let items = data._embedded?.events || [];
+      
+      // Strategy 2: If no events, search as attraction (many festivals are attractions)
+      if (items.length === 0) {
+        console.log(`  No events found, trying attractions...`);
+        const attractionsUrl = `https://app.ticketmaster.com/discovery/v2/attractions.json?keyword=${encodeURIComponent(args.festivalName)}&classificationName=music&size=10&apikey=${apiKey}`;
+        response = await fetch(attractionsUrl, { headers: { "Accept": "application/json" } });
+        data = response.ok ? await response.json() : {};
+        items = data._embedded?.attractions || [];
+      }
+      
+      // Strategy 3: Try searching just the festival name without year
+      if (items.length === 0) {
+        console.log(`  No attractions found, trying broader search...`);
+        const broadUrl = `https://app.ticketmaster.com/discovery/v2/events.json?keyword=${encodeURIComponent(args.festivalName)}&classificationName=music&size=20&apikey=${apiKey}`;
+        response = await fetch(broadUrl, { headers: { "Accept": "application/json" } });
+        data = response.ok ? await response.json() : {};
+        items = data._embedded?.events || [];
+      }
+      
+      if (items.length === 0) {
+        console.log(`  No Ticketmaster results for ${args.festivalName}`);
+        return { imageUrl: undefined, ticketmasterId: undefined, websiteUrl: undefined };
+      }
+      
+      // Find the best matching item (prefer exact name match)
+      const bestItem = items.find((e: any) => 
         e.name?.toLowerCase().includes(festivalNameLower)
-      ) || events[0];
+      ) || items[0];
       
       // Extract the best quality image (prefer 16:9 ratio, largest size)
-      const images = bestEvent.images || [];
+      const images = bestItem.images || [];
       const bestImage = images
         .filter((img: any) => img.url && img.width && img.height)
         .sort((a: any, b: any) => {
@@ -251,12 +261,12 @@ export const fetchFestivalImage = internalAction({
         })[0];
       
       const imageUrl = bestImage?.url;
-      console.log(`  ✅ Found image: ${imageUrl ? "yes" : "no"}`);
+      console.log(`  ✅ Found ${items.length} results, image: ${imageUrl ? "yes" : "no"}`);
       
       return {
         imageUrl: imageUrl || undefined,
-        ticketmasterId: bestEvent.id || undefined,
-        websiteUrl: bestEvent.url || undefined,
+        ticketmasterId: bestItem.id || undefined,
+        websiteUrl: bestItem.url || undefined,
       };
     } catch (error) {
       console.error(`❌ Ticketmaster fetch failed: ${error instanceof Error ? error.message : "Unknown"}`);
