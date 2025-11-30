@@ -354,26 +354,21 @@ export const getTrendingArtists = query({
         return true;
       }).slice(0, limit * 3);
 
-      // Relaxed filter: allow artists with any upcoming events or reasonable popularity/followers
-      // AND filter out non-concerts (plays, musicals, film screenings)
+      // STRICT filter: REQUIRE upcoming shows for "Trending Artists with upcoming shows"
+      // Also filter out non-concerts (plays, musicals, film screenings)
       const massive = unique.filter((a: any) => {
-        const popularity = a?.popularity ?? 0;
-        const followers = a?.followers ?? 0;
         const upcoming = a?.upcomingShowsCount ?? a?.upcomingEvents ?? 0;
         const name = a?.name || '';
         const genres = a?.genres || [];
         
+        // CRITICAL: Must have upcoming shows - this section is "artists WITH upcoming shows"
+        if (upcoming <= 0) return false;
+        
         // Must be a real concert (not a play, musical, or film screening)
         if (!isRealConcert(name, genres)) return false;
         
-        // Keep if any of these basic signals indicate relevance
-        return upcoming > 0 || popularity > 30 || followers > 50_000 || isMassiveArtist({
-          artistName: name,
-          artistPopularity: a.popularity,
-          artistFollowers: a.followers,
-          upcomingEvents: upcoming,
-          genres: genres,
-        });
+        // All artists with shows pass - popularity/followers are bonuses, not requirements
+        return true;
       });
 
       return {
@@ -394,24 +389,19 @@ export const getTrendingArtists = query({
       (artist) => artist.isActive !== false
     );
 
-    // Apply massive filter to fallback results too + filter non-concerts
+    // STRICT filter: REQUIRE upcoming shows + filter non-concerts
     const massiveRanked = filteredRanked.filter((a: any) => {
+      const upcoming = a?.upcomingShowsCount ?? 0;
       const name = a?.name || '';
       const genres = a?.genres || [];
+      
+      // CRITICAL: Must have upcoming shows
+      if (upcoming <= 0) return false;
       
       // Must be a real concert (not a play, musical, or film screening)
       if (!isRealConcert(name, genres)) return false;
       
-      const popularity = a?.popularity ?? 0;
-      const followers = a?.followers ?? 0;
-      const upcoming = a?.upcomingShowsCount ?? 0;
-      return upcoming > 0 || popularity > 30 || followers > 50_000 || isMassiveArtist({
-        artistName: name,
-        artistPopularity: a.popularity,
-        artistFollowers: a.followers,
-        upcomingEvents: a.upcomingShowsCount,
-        genres: a.genres,
-      });
+      return true;
     });
 
     if (massiveRanked.length > 0) {
@@ -422,21 +412,19 @@ export const getTrendingArtists = query({
       };
     }
 
-    // Final fallback: active artists scored by upcoming + popularity, with massive filter
+    // Final fallback: active artists with upcoming shows, scored by show count + popularity
     const activeArtists = await ctx.db
       .query("artists")
       .filter((q) => q.eq(q.field("isActive"), true))
       .take(200);
 
-    const massiveActive = activeArtists.filter((a: any) => isMassiveArtist({
-      artistName: a.name,
-      artistPopularity: a.popularity,
-      artistFollowers: a.followers,
-      upcomingEvents: a.upcomingShowsCount,
-      genres: a.genres,
-    }));
+    // CRITICAL: Only include artists with upcoming shows
+    const withShows = activeArtists.filter((a: any) => {
+      const upcoming = a?.upcomingShowsCount ?? 0;
+      return upcoming > 0 && isRealConcert(a.name, a.genres);
+    });
 
-    const scored = massiveActive
+    const scored = withShows
       .map((artist) => ({
         artist,
         score:
