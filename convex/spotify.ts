@@ -248,20 +248,25 @@ export const syncArtistCatalog = internalAction({
     }
 
     // CRITICAL: Check catalogSyncStatus to prevent race conditions
-    // Don't sync if already syncing or pending (prevents duplicate concurrent syncs)
-    if (artist.catalogSyncStatus === "syncing" || artist.catalogSyncStatus === "pending") {
-      console.log(`⏭️ Skipping catalog sync for ${args.artistName} - sync already ${artist.catalogSyncStatus}`);
+    // Only skip if actively syncing (prevents duplicate concurrent syncs)
+    // NOTE: "pending" should NOT block sync - it just means sync was requested but never completed
+    if (artist.catalogSyncStatus === "syncing") {
+      console.log(`⏭️ Skipping catalog sync for ${args.artistName} - sync already in progress`);
       return null;
     }
 
     // CRITICAL: Check catalogSyncAttemptedAt (NOT lastSynced) to prevent duplicate syncs
     // The lastSynced field is for general artist metadata, not catalog sync specifically.
     // Using lastSynced here would incorrectly skip catalog sync for newly created artists.
-    const recentlyAttempted = artist.catalogSyncAttemptedAt && (now - artist.catalogSyncAttemptedAt) < TWENTY_FOUR_HOURS;
+    // EXCEPTION: If catalog sync failed or is pending, allow retry after 1 hour instead of 24 hours
+    const RETRY_DELAY_FOR_INCOMPLETE = 60 * 60 * 1000; // 1 hour
+    const isIncomplete = artist.catalogSyncStatus === "failed" || artist.catalogSyncStatus === "pending" || artist.catalogSyncStatus === "never";
+    const dedupeWindow = isIncomplete ? RETRY_DELAY_FOR_INCOMPLETE : TWENTY_FOUR_HOURS;
+    const recentlyAttempted = artist.catalogSyncAttemptedAt && (now - artist.catalogSyncAttemptedAt) < dedupeWindow;
 
     if (recentlyAttempted) {
       const minutesAgo = Math.round((now - (artist.catalogSyncAttemptedAt || 0)) / 1000 / 60);
-      console.log(`⏭️ Skipping catalog sync for ${args.artistName} - attempted ${minutesAgo} minutes ago`);
+      console.log(`⏭️ Skipping catalog sync for ${args.artistName} - attempted ${minutesAgo} minutes ago (status: ${artist.catalogSyncStatus})`);
       return null;
     }
 
