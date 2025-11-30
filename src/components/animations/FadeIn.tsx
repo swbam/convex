@@ -16,9 +16,9 @@ interface FadeInProps extends HTMLMotionProps<'div'> {
 export function FadeIn({
   children,
   delay = 0,
-  duration = 0.5,
-  direction = 'up',
-  distance = 20,
+  duration = 0.3,
+  direction = 'none',
+  distance = 8,
   className,
   ...props
 }: FadeInProps) {

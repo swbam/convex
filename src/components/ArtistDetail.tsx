@@ -150,9 +150,9 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
       <SEOHead />
       <motion.div
         className="space-y-4 sm:space-y-8 relative z-10"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
       >
         {/* Hero Header - Full width, no border radius */}
         <div className="relative w-full overflow-hidden bg-card">
@@ -220,7 +220,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
 
         {/* Main Content */}
         <div className="container mx-auto px-0 sm:px-6 pb-4 sm:pb-8">
-          <FadeIn delay={0.3} duration={0.6}>
+          <FadeIn delay={0} duration={0.3}>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 sm:gap-6 lg:gap-8">
           {/* Upcoming Shows - Main Content */}
         <div className="lg:col-span-2">
