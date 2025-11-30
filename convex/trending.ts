@@ -14,7 +14,10 @@ const isRealConcert = (name: string, genres?: string[]): boolean => {
     'tribute', 'experience', 'orchestra', 'symphony', 'chamber', 
     'ballet', 'opera', 'broadway', 'musical', 'playhouse',
     'cirque', 'comedy', 'film with', '- film', 'live in concert',
-    'ensemble', 'philharmonic', 'chorale', 'choir',
+    'ensemble', 'philharmonic', 'chorale', 'choir', 'choral society',
+    // Academic/College performances (usually classical or choral)
+    'college choir', 'college choral', 'college orchestra', 'college ensemble',
+    'queens college', 'university choir', 'university orchestra',
     // Plays and theater
     'play', 'theatre', 'theater', 'stage production',
     'drama', 'pantomime', 'puppet', 'improv',
@@ -24,6 +27,7 @@ const isRealConcert = (name: string, genres?: string[]): boolean => {
     // Holiday/Themed shows (almost always theatrical, not concerts)
     'holiday inn', 'christmas carol', 'nutcracker', 'swan lake',
     'charlie brown', 'a christmas', 'christmas story', 'holiday spectacular',
+    'carols', 'carol collection', 'hymns', 'greatest carols',
     'on ice', 'disney on', 'sesame street', 'paw patrol', 'peppa pig',
     'bluey', 'baby shark', 'cocomelon', 'nick jr',
     // Specific theatrical productions
@@ -35,8 +39,12 @@ const isRealConcert = (name: string, genres?: string[]): boolean => {
     'magic show', 'illusionist', 'hypnotist', 'speaker', 'lecture',
     'podcast', 'wrestling', 'ufc', 'boxing', 'esports',
     'stand-up', 'standup', 'comedian',
-    // Orchestra/Classical performances
+    // Orchestra/Classical performances & soloists
     'performed by orchestra', 'symphonic tribute', 'classical rendition',
+    'piano recital', 'violin recital', 'recital', 'concerto',
+    'jazz fantasy', 'fantasy on mozart', 'plays mozart', 'plays beethoven',
+    // Known classical musicians (not pop/rock artists)
+    'fazil say', 'gina alice', 'lang lang', 'yuja wang', 'itzhak perlman',
     // Festival of seasons and video game concerts
     'festival of seasons', 'video games live', 'game symphony',
     // Other non-concert patterns
