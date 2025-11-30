@@ -6,9 +6,8 @@ import {
   Calendar, MapPin, Music, Users, Sparkles, 
   ExternalLink, ChevronLeft, Clock, Vote
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { MagicCard } from './ui/magic-card';
-import { Badge } from './ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { useNavigate } from 'react-router-dom';
 
@@ -37,16 +36,6 @@ export function FestivalDetail({
   
   const isLoading = scheduleData === undefined;
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long',
-      month: 'long', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
-  };
-
   const formatDateRange = (startDate: string, endDate: string) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -71,27 +60,33 @@ export function FestivalDetail({
   };
 
   const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-      announced: { label: 'Announced', variant: 'secondary' },
-      lineup: { label: 'Lineup Available', variant: 'default' },
-      scheduled: { label: 'Schedule Out', variant: 'default' },
-      ongoing: { label: 'Happening Now!', variant: 'destructive' },
-      completed: { label: 'Completed', variant: 'outline' },
+    const statusConfig: Record<string, { label: string; color: string }> = {
+      announced: { label: 'Announced', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+      lineup: { label: 'Lineup Out', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
+      scheduled: { label: 'Schedule Out', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
+      ongoing: { label: 'Happening Now', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30 animate-pulse' },
+      completed: { label: 'Completed', color: 'bg-gray-500/20 text-gray-400 border-gray-500/30' },
     };
     
     const config = statusConfig[status] || statusConfig.announced;
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    return (
+      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${config.color}`}>
+        {config.label}
+      </span>
+    );
   };
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-6">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-secondary rounded w-1/3"></div>
-          <div className="h-48 bg-secondary rounded-2xl"></div>
+      <div className="space-y-8">
+        {/* Hero Skeleton */}
+        <div className="w-full h-[400px] sm:h-[450px] md:h-[500px] bg-gradient-to-r from-secondary/50 via-secondary/30 to-secondary/50 animate-pulse" />
+        
+        {/* Content Skeleton */}
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="h-32 bg-secondary rounded-xl"></div>
+              <div key={i} className="h-32 bg-secondary rounded-xl animate-pulse"></div>
             ))}
           </div>
         </div>
@@ -101,18 +96,18 @@ export function FestivalDetail({
 
   if (!festival) {
     return (
-      <div className="container mx-auto px-4 py-6">
-        <MagicCard className="p-8 rounded-2xl text-center">
-          <div className="w-16 h-16 mx-auto bg-red-500/10 rounded-full flex items-center justify-center mb-4">
-            <Sparkles className="h-8 w-8 text-red-400" />
+      <div className="container mx-auto px-4 py-12">
+        <MagicCard className="p-8 rounded-2xl text-center max-w-lg mx-auto">
+          <div className="w-20 h-20 mx-auto bg-red-500/10 rounded-full flex items-center justify-center mb-6">
+            <Sparkles className="h-10 w-10 text-red-400" />
           </div>
-          <h2 className="text-xl font-semibold text-foreground mb-2">Festival Not Found</h2>
-          <p className="text-muted-foreground mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-3">Festival Not Found</h2>
+          <p className="text-muted-foreground mb-6">
             We couldn't find this festival. It may not exist yet.
           </p>
           <button
             onClick={onBack}
-            className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl transition-colors"
+            className="px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl transition-colors font-medium"
           >
             Back to Festivals
           </button>
@@ -122,21 +117,13 @@ export function FestivalDetail({
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      {/* Back Button */}
-      <button
-        onClick={onBack}
-        className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ChevronLeft className="h-4 w-4" />
-        <span>Back to Festivals</span>
-      </button>
-
-      {/* Festival Header */}
-      <MagicCard className="overflow-hidden rounded-2xl">
-        <div className="relative">
-          {/* Hero Background */}
-          <div className="h-48 sm:h-64 bg-gradient-to-br from-primary/40 via-primary/20 to-secondary/30 flex items-center justify-center">
+    <div className="space-y-8 relative z-10">
+      {/* ===== FULL-WIDTH HERO HEADER ===== */}
+      <div className="relative w-full overflow-hidden">
+        {/* Hero Container */}
+        <div className="relative w-full h-[400px] sm:h-[450px] md:h-[500px] lg:h-[550px]">
+          {/* Background Image */}
+          <div className="absolute inset-0">
             {festival.imageUrl ? (
               <img 
                 src={festival.imageUrl} 
@@ -144,108 +131,140 @@ export function FestivalDetail({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <Sparkles className="h-20 w-20 text-primary/30" />
+              <div className="w-full h-full bg-gradient-to-br from-primary/30 via-primary/20 to-secondary/30 flex items-center justify-center">
+                <Sparkles className="h-24 w-24 text-primary/30" />
+              </div>
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
+            {/* Gradient Overlays */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/20" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-black/60" />
           </div>
-
-          {/* Festival Info Overlay */}
-          <div className="absolute bottom-0 left-0 right-0 p-6">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              {getStatusBadge(festival.status)}
-              {festival.genres?.slice(0, 3).map((genre: string) => (
-                <Badge key={genre} variant="outline" className="bg-background/50 backdrop-blur-sm">
-                  {genre}
-                </Badge>
-              ))}
-            </div>
-            
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-2">
-              {festival.name}
-            </h1>
-            
-            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <Calendar className="h-4 w-4" />
-                <span>{formatDateRange(festival.startDate, festival.endDate)}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <MapPin className="h-4 w-4" />
-                <span>{festival.location}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Users className="h-4 w-4" />
-                <span>{totalArtists} artists</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Links */}
-        {festival.websiteUrl && (
-          <div className="p-4 border-t border-border">
-            <a
-              href={festival.websiteUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-primary hover:underline"
+          
+          {/* Back Button - Top Left */}
+          <div className="absolute top-6 left-4 sm:left-6 lg:left-8 z-20">
+            <button
+              onClick={onBack}
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm border border-white/10 text-white transition-all duration-200 hover:scale-105"
             >
-              <ExternalLink className="h-4 w-4" />
-              Official Website
-            </a>
+              <ChevronLeft className="h-4 w-4" />
+              <span className="text-sm font-medium">Back to Festivals</span>
+            </button>
           </div>
-        )}
-      </MagicCard>
-
-      {/* Lineup Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <Music className="h-5 w-5 text-primary" />
-            Lineup
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Click any artist to vote on their setlist
-          </p>
+          
+          {/* Content */}
+          <div className="absolute inset-0 flex items-end">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-20 md:pb-24">
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="max-w-3xl"
+              >
+                {/* Status Badge */}
+                <div className="mb-4">
+                  {getStatusBadge(festival.status)}
+                </div>
+                
+                {/* Festival Name */}
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight">
+                  {festival.name}
+                </h1>
+                
+                {/* Details */}
+                <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-white/90">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    <span className="text-sm sm:text-base font-medium">
+                      {formatDateRange(festival.startDate, festival.endDate)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    <span className="text-sm sm:text-base font-medium">{festival.location}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    <span className="text-sm sm:text-base font-medium">
+                      {totalArtists} artists
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Website Link */}
+                {festival.websiteUrl && (
+                  <div className="mt-6">
+                    <a
+                      href={festival.websiteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white transition-all duration-200 hover:scale-105"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      <span className="text-sm font-medium">Official Website</span>
+                    </a>
+                  </div>
+                )}
+              </motion.div>
+            </div>
+          </div>
         </div>
+      </div>
 
-        {/* Day Tabs */}
-        {days.length > 1 ? (
-          <Tabs value={String(selectedDay)} onValueChange={(v) => setSelectedDay(Number(v))}>
-            <TabsList className="mb-4">
-              {days.map((day) => (
-                <TabsTrigger key={day.dayNumber} value={String(day.dayNumber)}>
-                  Day {day.dayNumber}
-                  <span className="ml-1 text-xs text-muted-foreground">
-                    ({getDayDate(day.dayNumber)})
-                  </span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
-            {days.map((day) => (
-              <TabsContent key={day.dayNumber} value={String(day.dayNumber)}>
-                <ArtistGrid 
-                  shows={day.shows} 
-                  onShowClick={onShowClick}
-                  onArtistClick={onArtistClick}
-                />
-              </TabsContent>
-            ))}
-          </Tabs>
-        ) : days.length === 1 ? (
-          <ArtistGrid 
-            shows={days[0].shows} 
-            onShowClick={onShowClick}
-            onArtistClick={onArtistClick}
-          />
-        ) : (
-          <MagicCard className="p-8 text-center rounded-xl">
-            <p className="text-muted-foreground">
-              Lineup hasn't been announced yet. Check back later!
+      {/* ===== LINEUP SECTION ===== */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+        <div className="space-y-6">
+          {/* Section Header */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
+              <Music className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              Lineup
+            </h2>
+            <p className="text-sm text-muted-foreground hidden sm:block">
+              Click any artist to vote on their setlist
             </p>
-          </MagicCard>
-        )}
+          </div>
+
+          {/* Day Tabs */}
+          {days.length > 1 ? (
+            <Tabs value={String(selectedDay)} onValueChange={(v) => setSelectedDay(Number(v))}>
+              <TabsList className="mb-4">
+                {days.map((day) => (
+                  <TabsTrigger key={day.dayNumber} value={String(day.dayNumber)}>
+                    Day {day.dayNumber}
+                    <span className="ml-1 text-xs text-muted-foreground hidden sm:inline">
+                      ({getDayDate(day.dayNumber)})
+                    </span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+
+              {days.map((day) => (
+                <TabsContent key={day.dayNumber} value={String(day.dayNumber)}>
+                  <ArtistGrid 
+                    shows={day.shows} 
+                    onShowClick={onShowClick}
+                    onArtistClick={onArtistClick}
+                  />
+                </TabsContent>
+              ))}
+            </Tabs>
+          ) : days.length === 1 ? (
+            <ArtistGrid 
+              shows={days[0].shows} 
+              onShowClick={onShowClick}
+              onArtistClick={onArtistClick}
+            />
+          ) : (
+            <MagicCard className="p-8 text-center rounded-xl">
+              <div className="w-16 h-16 mx-auto bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                <Music className="h-8 w-8 text-primary" />
+              </div>
+              <p className="text-muted-foreground">
+                Lineup hasn't been announced yet. Check back later!
+              </p>
+            </MagicCard>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -310,7 +329,7 @@ function ArtistGrid({ shows, onShowClick, onArtistClick }: ArtistGridProps) {
               <div className="w-1 h-5 bg-primary rounded-full" />
               {stageName}
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
               {stageShows.map((show, index) => (
                 <ArtistCard 
                   key={show.showId} 
@@ -324,7 +343,7 @@ function ArtistGrid({ shows, onShowClick, onArtistClick }: ArtistGridProps) {
           </div>
         ))
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
           {shows.map((show, index) => (
             <ArtistCard 
               key={show.showId} 
@@ -371,10 +390,10 @@ function ArtistCard({ show, index, onShowClick, onArtistClick }: ArtistCardProps
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.02 }}
+      transition={{ duration: 0.3, delay: Math.min(index * 0.02, 0.3) }}
     >
       <MagicCard
-        className="group cursor-pointer rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg"
+        className="group cursor-pointer rounded-xl overflow-hidden transition-all duration-300 hover:scale-[1.03] hover:shadow-xl"
         onClick={() => onShowClick(show.showId, show.slug)}
       >
         {/* Artist Image */}
@@ -417,7 +436,7 @@ function ArtistCard({ show, index, onShowClick, onArtistClick }: ArtistCardProps
             </h4>
             {show.hasSetlist && (
               <p className="text-xs text-white/70 mt-0.5">
-                View setlist predictions →
+                View setlist →
               </p>
             )}
           </div>
@@ -426,4 +445,3 @@ function ArtistCard({ show, index, onShowClick, onArtistClick }: ArtistCardProps
     </motion.div>
   );
 }
-
