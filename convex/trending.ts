@@ -901,13 +901,19 @@ export const updateAll = internalAction({
         let artist = await ctx.runQuery(internalRef.artists.getByTicketmasterIdInternal, { ticketmasterId: tmArtist.id });
 
         if (!artist) {
-          const newArtistId = await ctx.runMutation(internalRef.artists.createFromTicketmaster, {
-            ticketmasterId: tmArtist.id,
-            name: tmArtist.name,
-            genres: tmArtist.genres,
-            images: tmArtist.images,
-          });
-          artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: newArtistId });
+          try {
+            const newArtistId = await ctx.runMutation(internalRef.artists.createFromTicketmaster, {
+              ticketmasterId: tmArtist.id,
+              name: tmArtist.name,
+              genres: tmArtist.genres,
+              images: tmArtist.images,
+            });
+            artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: newArtistId });
+          } catch (error) {
+            // Skip festivals, theatrical productions, orchestras, etc.
+            console.log(`⏭️ Skipping non-artist from trending: ${tmArtist.name}`);
+            continue;
+          }
         }
 
         if (!artist) continue; // Skip if creation failed
