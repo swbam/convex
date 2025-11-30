@@ -1,18 +1,10 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { AppLayout } from "../components/AppLayout";
 
 export function TermsPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <AppLayout>
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Back Button */}
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Home
-        </Link>
 
         {/* Header */}
         <div className="mb-8">
@@ -236,20 +228,7 @@ export function TermsPage() {
           </section>
         </div>
 
-        {/* Footer */}
-        <div className="mt-12 pt-8 border-t border-border">
-          <p className="text-center text-muted-foreground">
-            By using SetlistVote, you agree to these Terms of Service and our{" "}
-            <Link to="/privacy" className="text-primary hover:underline">
-              Privacy Policy
-            </Link>
-            .
-          </p>
-          <p className="text-center text-muted-foreground mt-4 text-sm">
-            Last updated: {new Date().toLocaleDateString()}
-          </p>
-        </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }

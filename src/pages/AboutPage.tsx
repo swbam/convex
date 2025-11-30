@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft, Music, Vote, CheckCircle, Sparkles, Users, Zap } from "lucide-react";
+import { Music, Vote, CheckCircle, Sparkles, Users, Zap } from "lucide-react";
 import { MagicCard } from "../components/ui/magic-card";
 import { motion } from "framer-motion";
+import { AppLayout } from "../components/AppLayout";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -18,17 +19,8 @@ const itemVariants = {
 
 export function AboutPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <AppLayout>
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Back Button */}
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Home
-        </Link>
-
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -247,17 +239,8 @@ export function AboutPage() {
           </motion.section>
         </motion.div>
 
-        {/* Footer */}
-        <div className="mt-12 pt-8 border-t border-border">
-          <p className="text-center text-muted-foreground text-sm">
-            Questions? Reach out at{" "}
-            <a href="mailto:hello@setlists.live" className="text-primary hover:underline">
-              hello@setlists.live
-            </a>
-          </p>
-        </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }
 
