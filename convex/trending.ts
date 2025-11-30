@@ -14,19 +14,33 @@ const isRealConcert = (name: string, genres?: string[]): boolean => {
     'tribute', 'experience', 'orchestra', 'symphony', 'chamber', 
     'ballet', 'opera', 'broadway', 'musical', 'playhouse',
     'cirque', 'comedy', 'film with', '- film', 'live in concert',
+    'ensemble', 'philharmonic', 'chorale', 'choir',
     // Plays and theater
     'play', 'theatre', 'theater', 'stage production',
     'drama', 'pantomime', 'puppet', 'improv',
     // Film screenings
     'film score', 'movie score', 'cinema', 'screening',
     'live to film', 'in concert film', 'soundtrack live',
-    // Holiday/Themed shows (often not real concerts)
+    // Holiday/Themed shows (almost always theatrical, not concerts)
     'holiday inn', 'christmas carol', 'nutcracker', 'swan lake',
+    'charlie brown', 'a christmas', 'christmas story', 'holiday spectacular',
+    'on ice', 'disney on', 'sesame street', 'paw patrol', 'peppa pig',
+    'bluey', 'baby shark', 'cocomelon', 'nick jr',
+    // Specific theatrical productions
+    'wicked', 'hamilton', 'phantom', 'les mis', 'cats the musical',
+    'lion king', 'book of mormon', 'dear evan', 'moulin rouge',
+    'hadestown', 'beetlejuice', 'aladdin', 'frozen', 'mean girls',
+    'chicago the musical', 'mamma mia', 'jersey boys', 'hairspray',
     // Non-music entertainment
     'magic show', 'illusionist', 'hypnotist', 'speaker', 'lecture',
     'podcast', 'wrestling', 'ufc', 'boxing', 'esports',
+    'stand-up', 'standup', 'comedian',
     // Orchestra/Classical performances
-    'performed by orchestra', 'symphonic tribute', 'classical rendition'
+    'performed by orchestra', 'symphonic tribute', 'classical rendition',
+    // Festival of seasons and video game concerts
+    'festival of seasons', 'video games live', 'game symphony',
+    // Other non-concert patterns
+    'storytime', 'story time', 'sing-along', 'singalong'
   ];
   
   if (rejectPatterns.some(p => lowerName.includes(p))) return false;
@@ -37,7 +51,8 @@ const isRealConcert = (name: string, genres?: string[]): boolean => {
     const nonConcertGenres = [
       'broadway', 'musical theater', 'theatre', 'theater',
       'soundtrack', 'film score', 'children\'s music', 'kids',
-      'spoken word', 'audiobook', 'podcast'
+      'spoken word', 'audiobook', 'podcast', 'comedy',
+      'classical', 'choral', 'christmas', 'holiday'
     ];
     if (lowerGenres.some(g => nonConcertGenres.some(ng => g.includes(ng)))) return false;
   }
