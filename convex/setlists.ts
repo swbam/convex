@@ -104,8 +104,10 @@ export const addSongToSetlist = mutation({
       effectiveUserId = authUserId;
     }
 
-    // Determine if this is an anonymous user (anonId from localStorage, NOT a Clerk user_id)
-    const isAnonymous = typeof effectiveUserId === "string" && !effectiveUserId.startsWith("user_");
+    // Determine if this is an anonymous user by checking if authUserId is null
+    // authUserId is null = anonymous user (using anonId)
+    // authUserId is not null = authenticated user (using Convex user ID)
+    const isAnonymous = authUserId === null;
 
     // For anonymous users, enforce limit of 2 song adds per show
     if (isAnonymous) {

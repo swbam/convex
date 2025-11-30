@@ -46,9 +46,10 @@ export const voteOnSong = mutation({
       return null;
     }
 
-    // Determine if this is an anonymous user (anonId from localStorage, NOT a Clerk user_id)
-    const isAnonymous = typeof effectiveUserId === "string" && !effectiveUserId.startsWith("user_");
-    const isAuthenticated = authUserId !== null;
+    // Determine if this is an anonymous user by checking if authUserId is null
+    // authUserId is null = anonymous user (using anonId)
+    // authUserId is not null = authenticated user (using Convex user ID)
+    const isAnonymous = authUserId === null;
 
     // For anonymous users: limit to 2 votes per setlist
     if (isAnonymous) {
@@ -65,7 +66,7 @@ export const voteOnSong = mutation({
     }
 
     // For authenticated users: enforce a soft per-day cap to prevent spam
-    if (isAuthenticated) {
+    if (!isAnonymous) {
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
       const dayStartMs = startOfDay.getTime();
