@@ -46,38 +46,26 @@ export const voteOnSong = mutation({
       return null;
     }
 
-    // Validate - one vote per user per song
-    if (typeof effectiveUserId === "string" && effectiveUserId.startsWith("user_")) {
-      // For authenticated users, check for any existing vote on this song
-      const userVote = await ctx.db
-        .query("songVotes")
-        .withIndex("by_user_setlist_song", (q) =>
-          q.eq("userId", effectiveUserId)
-           .eq("setlistId", args.setlistId)
-           .eq("songTitle", args.songTitle)
-        )
-        .first();
+    // Determine if this is an anonymous user (anonId from localStorage, NOT a Clerk user_id)
+    const isAnonymous = typeof effectiveUserId === "string" && !effectiveUserId.startsWith("user_");
+    const isAuthenticated = authUserId !== null;
 
-      if (userVote) {
-        throw new Error("Already voted on this song");
-      }
-    }
-
-    // For anonymous users, enforce limit of 1 upvote per setlist (not total)
-    if (typeof effectiveUserId === "string") {
+    // For anonymous users: limit to 2 votes per setlist
+    if (isAnonymous) {
       const setlistVotes = await ctx.db
         .query("songVotes")
         .withIndex("by_setlist", (q) => q.eq("setlistId", args.setlistId))
         .filter((q) => q.eq(q.field("userId"), effectiveUserId))
         .collect();
 
-      if (setlistVotes.length >= 1) {
-        throw new Error("Anonymous users can only upvote one song per show");
+      const ANON_VOTE_LIMIT = 2;
+      if (setlistVotes.length >= ANON_VOTE_LIMIT) {
+        throw new Error(`Anonymous users can only vote on ${ANON_VOTE_LIMIT} songs per show. Sign up for more!`);
       }
     }
 
-    // For authenticated users, enforce a soft per-day cap to prevent spam
-    if (typeof effectiveUserId !== "string") {
+    // For authenticated users: enforce a soft per-day cap to prevent spam
+    if (isAuthenticated) {
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
       const dayStartMs = startOfDay.getTime();
@@ -86,9 +74,9 @@ export const voteOnSong = mutation({
         .query("songVotes")
         .withIndex("by_user", (q) => q.eq("userId", effectiveUserId))
         .filter((q) => q.gte(q.field("createdAt"), dayStartMs))
-        .take(50);
+        .take(100);
 
-      const DAILY_LIMIT = 50;
+      const DAILY_LIMIT = 100;
       if (todaysVotes.length >= DAILY_LIMIT) {
         throw new Error("Daily vote limit reached. Please come back tomorrow!");
       }

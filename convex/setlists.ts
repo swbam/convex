@@ -104,8 +104,11 @@ export const addSongToSetlist = mutation({
       effectiveUserId = authUserId;
     }
 
-    // For anonymous users, enforce limit of 1 song add per show (not total)
-    if (typeof effectiveUserId === "string") {
+    // Determine if this is an anonymous user (anonId from localStorage, NOT a Clerk user_id)
+    const isAnonymous = typeof effectiveUserId === "string" && !effectiveUserId.startsWith("user_");
+
+    // For anonymous users, enforce limit of 2 song adds per show
+    if (isAnonymous) {
       const showAddAction = `add_song:${args.showId}`;
       const showAdds = await ctx.db
         .query("userActions")
@@ -113,8 +116,9 @@ export const addSongToSetlist = mutation({
         .filter((q) => q.eq(q.field("action"), showAddAction))
         .collect();
 
-      if (showAdds.length >= 1) {
-        throw new Error("Anonymous users can only add one song per show");
+      const ANON_ADD_LIMIT = 2;
+      if (showAdds.length >= ANON_ADD_LIMIT) {
+        throw new Error(`Anonymous users can only add ${ANON_ADD_LIMIT} songs per show. Sign up for more!`);
       }
     }
 
