@@ -269,7 +269,8 @@ export const createFromTicketmaster = internalMutation({
     genres: v.optional(v.array(v.string())),
     images: v.optional(v.array(v.string())),
   },
-  handler: async (ctx, args) => {
+  returns: v.union(v.id("artists"), v.null()),
+  handler: async (ctx, args): Promise<any> => {
     const lowerName = args.name.toLowerCase();
     
     // CRITICAL: Only allow actual CONCERT genres (rock/pop/country/hip-hop/electronic/metal/indie/etc)
@@ -299,7 +300,7 @@ export const createFromTicketmaster = internalMutation({
     
     if (!hasValidGenre || hasExcludedGenre) {
       console.log(`⏭️ Skipping non-concert artist: ${args.name} (genres: ${genres.join(', ')})`);
-      throw new Error(`Not a musical artist: ${args.name}`);
+      return null;
     }
     
     // CRITICAL: Filter out non-musical artists (festivals, theater, plays)
@@ -331,7 +332,7 @@ export const createFromTicketmaster = internalMutation({
     
     if (skipKeywords.some(keyword => lowerName.includes(keyword))) {
       console.log(`⏭️ Skipping non-musical artist: ${args.name} (festival/theatrical/orchestra)`);
-      throw new Error(`Not a musical artist: ${args.name}`);
+      return null;
     }
     // Check existing by name or TM ID
     let existing = await ctx.db
