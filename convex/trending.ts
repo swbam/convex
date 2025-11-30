@@ -314,8 +314,12 @@ export const getTrendingArtists = query({
           if (row.artistId) {
             const artistDoc = await ctx.db.get(row.artistId);
             if (artistDoc) {
+              // Use the HIGHER of doc count vs cached count (cached is from Ticketmaster, more current)
+              const docShows = artistDoc.upcomingShowsCount ?? 0;
+              const cachedShows = row.upcomingEvents ?? 0;
               return {
                 ...artistDoc,
+                upcomingShowsCount: Math.max(docShows, cachedShows),
                 trendingRank: artistDoc.trendingRank ?? row.rank,
                 cachedTrending: row,
               };
@@ -357,7 +361,11 @@ export const getTrendingArtists = query({
       // STRICT filter: REQUIRE upcoming shows for "Trending Artists with upcoming shows"
       // Also filter out non-concerts (plays, musicals, film screenings)
       const massive = unique.filter((a: any) => {
-        const upcoming = a?.upcomingShowsCount ?? a?.upcomingEvents ?? 0;
+        // Check BOTH artist doc and cached data - use the higher value
+        // (artist doc may be stale, cached data from Ticketmaster is more current)
+        const docShows = a?.upcomingShowsCount ?? 0;
+        const cachedShows = a?.cachedTrending?.upcomingEvents ?? 0;
+        const upcoming = Math.max(docShows, cachedShows);
         const name = a?.name || '';
         const genres = a?.genres || [];
         
