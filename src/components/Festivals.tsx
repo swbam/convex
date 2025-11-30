@@ -91,16 +91,33 @@ export function Festivals({ onFestivalClick }: FestivalsProps) {
     return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`;
   };
 
-  const getStatusBadge = (status: string) => {
+  // Compute realistic status based on actual artist count
+  const getStatusBadge = (status: string, artistCount?: number) => {
+    // Determine effective status based on artist count (source of truth)
+    let effectiveStatus = status;
+    const count = artistCount ?? 0;
+    
+    if (status === 'ongoing' || status === 'completed') {
+      // Keep these statuses as-is
+      effectiveStatus = status;
+    } else if (count === 0) {
+      effectiveStatus = 'announced';
+    } else if (count < 10) {
+      effectiveStatus = 'partial';
+    } else {
+      effectiveStatus = 'lineup';
+    }
+    
     const statusConfig: Record<string, { label: string; color: string }> = {
       announced: { label: 'Announced', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+      partial: { label: `${count} Artists`, color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
       lineup: { label: 'Lineup Out', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
       scheduled: { label: 'Schedule Out', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
       ongoing: { label: 'Happening Now', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30 animate-pulse' },
       completed: { label: 'Completed', color: 'bg-gray-500/20 text-gray-400 border-gray-500/30' },
     };
     
-    const config = statusConfig[status] || statusConfig.announced;
+    const config = statusConfig[effectiveStatus] || statusConfig.announced;
     return (
       <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${config.color}`}>
         {config.label}
@@ -198,7 +215,7 @@ export function Festivals({ onFestivalClick }: FestivalsProps) {
                         >
                           {/* Status Badge */}
                           <div className="mb-4">
-                            {getStatusBadge(festival.status)}
+                            {getStatusBadge(festival.status, festival.artistCount)}
                           </div>
                           
                           {/* Festival Name */}
@@ -339,7 +356,7 @@ export function Festivals({ onFestivalClick }: FestivalsProps) {
                   
                   {/* Status Badge */}
                   <div className="absolute top-3 right-3">
-                    {getStatusBadge(festival.status)}
+                    {getStatusBadge(festival.status, festival.artistCount)}
                   </div>
                 </div>
 
