@@ -145,6 +145,7 @@ const applicationTables = {
       v.literal("pending"),
       v.literal("importing"),
       v.literal("completed"),
+      v.literal("not_found"), // Setlist.fm doesn't have data for this show yet
       v.literal("failed"),
       v.literal("not_found")
     )),

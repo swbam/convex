@@ -832,7 +832,13 @@ export const getAllInternal = internalQuery({
 export const updateImportStatus = internalMutation({
   args: {
     showId: v.id("shows"),
-    status: v.union(v.literal("pending"), v.literal("importing"), v.literal("completed"), v.literal("failed")),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("importing"),
+      v.literal("completed"),
+      v.literal("failed"),
+      v.literal("not_found") // Setlist.fm doesn't have data for this show yet
+    ),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
