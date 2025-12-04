@@ -105,6 +105,7 @@ const applicationTables = {
     location: v.string(),                 // "Indio, CA" (denormalized)
     imageUrl: v.optional(v.string()),
     websiteUrl: v.optional(v.string()),
+    ticketUrl: v.optional(v.string()),    // Direct Ticketmaster link for affiliate revenue
     wikiUrl: v.optional(v.string()),      // Wikipedia source
     genres: v.optional(v.array(v.string())),
     status: v.union(

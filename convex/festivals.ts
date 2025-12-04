@@ -362,6 +362,7 @@ export const upsertFestival = internalMutation({
     location: v.string(),
     imageUrl: v.optional(v.string()),
     websiteUrl: v.optional(v.string()),
+    ticketUrl: v.optional(v.string()), // Direct Ticketmaster link for affiliate revenue
     wikiUrl: v.optional(v.string()),
     genres: v.optional(v.array(v.string())),
   },
@@ -382,6 +383,7 @@ export const upsertFestival = internalMutation({
         location: args.location,
         imageUrl: args.imageUrl || existing.imageUrl,
         websiteUrl: args.websiteUrl || existing.websiteUrl,
+        ticketUrl: args.ticketUrl || existing.ticketUrl, // Preserve existing ticketUrl
         wikiUrl: args.wikiUrl || existing.wikiUrl,
         genres: args.genres || existing.genres,
         lastSynced: Date.now(),
@@ -399,6 +401,7 @@ export const upsertFestival = internalMutation({
       location: args.location,
       imageUrl: args.imageUrl,
       websiteUrl: args.websiteUrl,
+      ticketUrl: args.ticketUrl, // Store ticket URL for affiliate revenue
       wikiUrl: args.wikiUrl,
       genres: args.genres || [],
       status: "announced",
@@ -548,12 +551,14 @@ export const updateImage = internalMutation({
     festivalId: v.id("festivals"),
     imageUrl: v.optional(v.string()),
     websiteUrl: v.optional(v.string()),
+    ticketUrl: v.optional(v.string()), // Direct Ticketmaster link for affiliate revenue
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     const updates: Record<string, string | undefined> = {};
     if (args.imageUrl) updates.imageUrl = args.imageUrl;
     if (args.websiteUrl) updates.websiteUrl = args.websiteUrl;
+    if (args.ticketUrl) updates.ticketUrl = args.ticketUrl;
     
     if (Object.keys(updates).length > 0) {
       await ctx.db.patch(args.festivalId, updates);

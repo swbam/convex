@@ -10,6 +10,7 @@ import { motion } from 'framer-motion';
 import { MagicCard } from './ui/magic-card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { useNavigate } from 'react-router-dom';
+import { buildTicketmasterAffiliateUrl } from '../utils/ticketmaster';
 
 interface FestivalDetailProps {
   festivalSlug: string;
@@ -206,9 +207,28 @@ export function FestivalDetail({
                   </div>
                 </div>
                 
-                {/* Website Link */}
-                {festival.websiteUrl && (
-                  <div className="mt-6">
+                {/* Action Buttons */}
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  {/* Get Tickets - Primary CTA for affiliate revenue */}
+                  {(festival.ticketUrl || festival.websiteUrl) && (
+                    <a
+                      href={buildTicketmasterAffiliateUrl(festival.ticketUrl || festival.websiteUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold transition-all duration-200 hover:scale-105 shadow-lg shadow-primary/25"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                        <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+                        <path d="M13 5v2" />
+                        <path d="M13 17v2" />
+                        <path d="M13 11v2" />
+                      </svg>
+                      <span>Get Tickets</span>
+                    </a>
+                  )}
+                  
+                  {/* Official Website - Secondary link */}
+                  {festival.websiteUrl && festival.ticketUrl && (
                     <a
                       href={festival.websiteUrl}
                       target="_blank"
@@ -218,8 +238,8 @@ export function FestivalDetail({
                       <ExternalLink className="h-4 w-4" />
                       <span className="text-sm font-medium">Official Website</span>
                     </a>
-                  </div>
-                )}
+                  )}
+                </div>
               </motion.div>
             </div>
           </div>

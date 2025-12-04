@@ -199,12 +199,13 @@ export const fetchFestivalImage = internalAction({
     imageUrl: v.optional(v.string()),
     ticketmasterId: v.optional(v.string()),
     websiteUrl: v.optional(v.string()),
+    ticketUrl: v.optional(v.string()), // Direct ticket purchase URL for affiliate revenue
   }),
   handler: async (ctx, args) => {
     const apiKey = process.env.TICKETMASTER_API_KEY;
     if (!apiKey) {
       console.log("⚠️ Ticketmaster API key not configured");
-      return { imageUrl: undefined, ticketmasterId: undefined, websiteUrl: undefined };
+      return { imageUrl: undefined, ticketmasterId: undefined, websiteUrl: undefined, ticketUrl: undefined };
     }
 
     try {
@@ -239,7 +240,7 @@ export const fetchFestivalImage = internalAction({
       
       if (items.length === 0) {
         console.log(`  No Ticketmaster results for ${args.festivalName}`);
-        return { imageUrl: undefined, ticketmasterId: undefined, websiteUrl: undefined };
+        return { imageUrl: undefined, ticketmasterId: undefined, websiteUrl: undefined, ticketUrl: undefined };
       }
       
       // Find the best matching item (prefer exact name match)
@@ -261,16 +262,18 @@ export const fetchFestivalImage = internalAction({
         })[0];
       
       const imageUrl = bestImage?.url;
-      console.log(`  ✅ Found ${items.length} results, image: ${imageUrl ? "yes" : "no"}`);
+      const ticketUrl = bestItem.url || undefined;
+      console.log(`  ✅ Found ${items.length} results, image: ${imageUrl ? "yes" : "no"}, ticketUrl: ${ticketUrl ? "yes" : "no"}`);
       
       return {
         imageUrl: imageUrl || undefined,
         ticketmasterId: bestItem.id || undefined,
-        websiteUrl: bestItem.url || undefined,
+        websiteUrl: ticketUrl, // Keep for backwards compatibility
+        ticketUrl: ticketUrl, // Explicit ticket URL for affiliate revenue
       };
     } catch (error) {
       console.error(`❌ Ticketmaster fetch failed: ${error instanceof Error ? error.message : "Unknown"}`);
-      return { imageUrl: undefined, ticketmasterId: undefined, websiteUrl: undefined };
+      return { imageUrl: undefined, ticketmasterId: undefined, websiteUrl: undefined, ticketUrl: undefined };
     }
   },
 });
@@ -481,7 +484,7 @@ export const bootstrapFestivals = internalAction({
           year,
         });
         
-        // Step 2: Create/update festival record with image
+        // Step 2: Create/update festival record with image and ticket URL
         const festivalId = await ctx.runMutation(internalRef.festivals.upsertFestival, {
           name: `${source.name} ${year}`,
           slug,
@@ -493,6 +496,7 @@ export const bootstrapFestivals = internalAction({
           genres: source.genres,
           imageUrl: tmData.imageUrl,
           websiteUrl: tmData.websiteUrl,
+          ticketUrl: tmData.ticketUrl, // Direct Ticketmaster link for affiliate revenue
         });
         
         festivalsCreated++;
@@ -633,14 +637,15 @@ export const updateFestivalImages = action({
           year,
         });
         
-        if (tmData.imageUrl) {
+        if (tmData.imageUrl || tmData.ticketUrl) {
           await ctx.runMutation(internalRef.festivals.updateImage, {
             festivalId: festival._id,
             imageUrl: tmData.imageUrl,
             websiteUrl: tmData.websiteUrl,
+            ticketUrl: tmData.ticketUrl, // Add ticket URL for affiliate revenue
           });
           updated++;
-          console.log(`✅ Updated image for ${festival.name}`);
+          console.log(`✅ Updated ${festival.name} - image: ${tmData.imageUrl ? 'yes' : 'no'}, ticketUrl: ${tmData.ticketUrl ? 'yes' : 'no'}`);
         }
         
         // Rate limit
@@ -651,6 +656,77 @@ export const updateFestivalImages = action({
     }
     
     return { updated, errors };
+  },
+});
+
+// Backfill ticket URLs for all festivals (including those that already have images)
+export const backfillFestivalTicketUrls = action({
+  args: {},
+  returns: v.object({
+    processed: v.number(),
+    updated: v.number(),
+    alreadyHadTickets: v.number(),
+    errors: v.array(v.string()),
+  }),
+  handler: async (ctx) => {
+    const errors: string[] = [];
+    let processed = 0;
+    let updated = 0;
+    let alreadyHadTickets = 0;
+    
+    console.log("🎫 Starting festival ticket URL backfill...");
+    
+    // Get all festivals
+    const festivals = await ctx.runQuery(internalRef.festivals.listAll);
+    
+    for (const festival of festivals) {
+      processed++;
+      
+      // Skip if already has ticketUrl
+      if (festival.ticketUrl) {
+        alreadyHadTickets++;
+        console.log(`⏭️ ${festival.name} already has ticket URL`);
+        continue;
+      }
+      
+      // Extract base name and year from festival name
+      const nameMatch = festival.name.match(/^(.+?)\s+(\d{4})$/);
+      if (!nameMatch) {
+        console.log(`⚠️ Could not parse festival name: ${festival.name}`);
+        continue;
+      }
+      
+      const baseName = nameMatch[1];
+      const year = parseInt(nameMatch[2]);
+      
+      try {
+        const tmData = await ctx.runAction(internalRef.festivalBootstrap.fetchFestivalImage, {
+          festivalName: baseName,
+          year,
+        });
+        
+        if (tmData.ticketUrl) {
+          await ctx.runMutation(internalRef.festivals.updateImage, {
+            festivalId: festival._id,
+            imageUrl: tmData.imageUrl, // Also update image if we got a better one
+            websiteUrl: tmData.websiteUrl,
+            ticketUrl: tmData.ticketUrl,
+          });
+          updated++;
+          console.log(`✅ Added ticket URL for ${festival.name}`);
+        } else {
+          console.log(`⚠️ No ticket URL found for ${festival.name}`);
+        }
+        
+        // Rate limit to avoid API throttling
+        await new Promise((r) => setTimeout(r, 600));
+      } catch (error) {
+        errors.push(`${festival.name}: ${error instanceof Error ? error.message : "Unknown"}`);
+      }
+    }
+    
+    console.log(`\n📊 Backfill complete: ${updated} updated, ${alreadyHadTickets} already had tickets, ${errors.length} errors`);
+    return { processed, updated, alreadyHadTickets, errors };
   },
 });
 

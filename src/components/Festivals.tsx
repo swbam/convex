@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { Calendar, MapPin, Music, Users, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, MapPin, Music, Users, Sparkles, ChevronLeft, ChevronRight, Ticket } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MagicCard } from './ui/magic-card';
+import { buildTicketmasterAffiliateUrl } from '../utils/ticketmaster';
 
 interface FestivalsProps {
   onFestivalClick: (slug: string) => void;
@@ -245,6 +246,35 @@ export function Festivals({ onFestivalClick }: FestivalsProps) {
                             )}
                           </div>
                           
+                          {/* Action Buttons */}
+                          <div className="flex flex-wrap items-center gap-3 mb-4">
+                            {/* Get Tickets - Primary CTA for affiliate revenue */}
+                            {(festival.ticketUrl || festival.websiteUrl) && (
+                              <a
+                                href={buildTicketmasterAffiliateUrl(festival.ticketUrl || festival.websiteUrl)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold transition-all duration-200 hover:scale-105 shadow-lg shadow-primary/25"
+                              >
+                                <Ticket className="h-5 w-5" />
+                                <span>Get Tickets</span>
+                              </a>
+                            )}
+                            
+                            {/* View Lineup - Secondary CTA */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onFestivalClick(festival.slug);
+                              }}
+                              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white transition-all duration-200 hover:scale-105"
+                            >
+                              <Music className="h-4 w-4" />
+                              <span className="text-sm font-medium">View Lineup</span>
+                            </button>
+                          </div>
+                          
                           {/* Genres */}
                           {festival.genres && festival.genres.length > 0 && (
                             <div className="flex flex-wrap gap-2">
@@ -376,20 +406,36 @@ export function Festivals({ onFestivalClick }: FestivalsProps) {
                     <span className="truncate">{festival.location}</span>
                   </div>
 
-                  {/* Stats */}
-                  <div className="flex items-center gap-3 pt-2 border-t border-border/50">
-                    {festival.artistCount && festival.artistCount > 0 && (
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <Users className="h-3.5 w-3.5 text-primary" />
-                        <span className="font-medium text-foreground">{festival.artistCount}</span>
-                      </div>
-                    )}
+                  {/* Stats Row */}
+                  <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                    <div className="flex items-center gap-3">
+                      {festival.artistCount && festival.artistCount > 0 && (
+                        <div className="flex items-center gap-1.5 text-sm">
+                          <Users className="h-3.5 w-3.5 text-primary" />
+                          <span className="font-medium text-foreground">{festival.artistCount}</span>
+                        </div>
+                      )}
+                      
+                      {festival.genres && festival.genres.length > 0 && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
+                          <Music className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <span className="truncate">{festival.genres.slice(0, 2).join(', ')}</span>
+                        </div>
+                      )}
+                    </div>
                     
-                    {festival.genres && festival.genres.length > 0 && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
-                        <Music className="h-3.5 w-3.5 text-primary shrink-0" />
-                        <span className="truncate">{festival.genres.slice(0, 2).join(', ')}</span>
-                      </div>
+                    {/* Get Tickets Button */}
+                    {(festival.ticketUrl || festival.websiteUrl) && (
+                      <a
+                        href={buildTicketmasterAffiliateUrl(festival.ticketUrl || festival.websiteUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition-all duration-200 hover:scale-105"
+                      >
+                        <Ticket className="h-3.5 w-3.5" />
+                        <span>Tickets</span>
+                      </a>
                     )}
                   </div>
                 </div>
