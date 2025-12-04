@@ -459,7 +459,7 @@ export function ShowDetail({
           
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             
-            <MagicCard className="p-0 rounded-2xl border border-border bg-card">
+            <MagicCard className="p-0 rounded-xl border border-border bg-card">
               <div className="px-4 py-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
@@ -643,8 +643,8 @@ export function ShowDetail({
                   </div>
                 ) : (
                   <div className="mt-6 touch-manipulation">
-                    {/* Setlist - Native iOS style with dividers */}
-                    <div className="divide-y divide-border -mx-4 sm:mx-0">
+                    {/* Setlist */}
+                    <div className="space-y-2">
                         {(predictionSetlist.songs || [])
                           .map((s: any) =>
                             typeof s === "string" ? s : s?.title
@@ -685,7 +685,7 @@ export function ShowDetail({
               if (unplayedSongs.length === 0) return null;
               
               return (
-                <MagicCard className="p-0 rounded-2xl border border-border bg-card">
+                <MagicCard className="p-0 rounded-xl border border-border bg-card">
                   <div className="p-4 sm:p-6">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center">
@@ -716,7 +716,7 @@ export function ShowDetail({
             })()}
 
             {/* Venue Details */}
-            <MagicCard className="p-0 rounded-2xl border border-border bg-card">
+            <MagicCard className="p-0 rounded-xl border border-border bg-card">
               <div className="p-4 sm:p-6">
                 <h3 className="text-lg sm:text-xl font-bold mb-4 text-foreground">
                   Venue Details
@@ -751,7 +751,7 @@ export function ShowDetail({
             </MagicCard>
 
             {/* Show Stats */}
-            <MagicCard className="p-0 rounded-2xl border border-border bg-card">
+            <MagicCard className="p-0 rounded-xl border border-border bg-card">
               <div className="p-4 sm:p-6">
                 <h3 className="text-lg sm:text-xl font-bold mb-4 text-foreground">
                   Show Stats
@@ -834,7 +834,7 @@ export function ShowDetail({
 
             {/* Call to Action - Only for upcoming shows */}
             {!user && isUpcoming && (
-              <MagicCard className="p-0 rounded-2xl border border-border bg-card">
+              <MagicCard className="p-0 rounded-xl border border-border bg-card">
                 <div className="p-4 sm:p-6 text-center">
                   <div className="flex items-center justify-center gap-3 mb-4">
                     <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
@@ -993,7 +993,7 @@ function FanRequestSongRow({
 
   return (
     <div
-      className="flex items-center justify-between py-4 px-4 sm:px-0 active:bg-secondary sm:hover:bg-secondary transition-all duration-150 active:scale-[0.98] min-h-[56px]"
+      className="flex items-center justify-between py-3 px-4 rounded-lg hover:bg-secondary active:bg-secondary transition-all duration-150 active:scale-[0.98] min-h-[52px]"
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         {/* Minimal status indicator */}

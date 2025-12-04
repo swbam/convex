@@ -219,12 +219,12 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         </div>
 
         {/* Main Content */}
-        <div className="container mx-auto px-0 sm:px-6 pb-4 sm:pb-8">
+        <div className="container mx-auto px-4 sm:px-6 pb-4 sm:pb-8">
           <FadeIn delay={0} duration={0.3}>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 sm:gap-6 lg:gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* Upcoming Shows - Main Content */}
         <div className="lg:col-span-2">
-          <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 bg-card border-t border-b border-border sm:border">
+          <MagicCard className="p-0 rounded-xl border border-border bg-card">
             <div className="px-4 py-4 sm:p-6">
                 <Tabs defaultValue="upcoming" className="w-full">
                 <div className="flex items-center gap-4 mb-4">
@@ -248,9 +248,9 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 
                 <TabsContent value="upcoming" className="mt-6">
                   {!shows ? (
-              <div className="divide-y divide-border -mx-4 sm:mx-0 sm:space-y-0 sm:divide-y-0 sm:space-y-3">
+              <div className="space-y-3">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="px-4 py-5 sm:p-5 sm:rounded-lg sm:border sm:border-border min-h-[56px] flex items-center animate-pulse">
+                  <div key={i} className="p-4 rounded-lg border border-border min-h-[56px] flex items-center animate-pulse">
                     <div className="flex-1">
                       <div className="h-5 bg-secondary rounded w-3/4 mb-2"></div>
                       <div className="h-4 bg-secondary rounded w-1/2"></div>
@@ -297,11 +297,11 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 <p className="text-sm mt-1">Check back later for tour announcements</p>
               </div>
             ) : (
-              <div className="divide-y divide-border -mx-4 sm:mx-0 sm:space-y-0 sm:divide-y-0 sm:space-y-3">
+              <div className="space-y-3">
                 {upcomingShows.map((show, idx) => (
                   <div
                     key={show._id}
-                    className="px-4 py-5 sm:p-5 sm:rounded-xl sm:border sm:border-border bg-transparent sm:bg-secondary active:bg-secondary sm:hover:bg-secondary cursor-pointer transition-all duration-150 active:scale-[0.98] min-h-[56px] flex items-center"
+                    className="p-4 rounded-xl border border-border bg-secondary/50 hover:bg-secondary active:bg-secondary cursor-pointer transition-all duration-150 active:scale-[0.98] min-h-[56px] flex items-center"
                     onClick={() => onShowClick(show._id, (show as any).slug)}
                   >
                     <div className="flex justify-between items-start w-full">
@@ -352,9 +352,9 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 
                 <TabsContent value="past" className="mt-6">
                   {!shows ? (
-                    <div className="divide-y divide-border -mx-4 sm:mx-0 sm:space-y-0 sm:divide-y-0 sm:space-y-3">
+                    <div className="space-y-3">
                       {[...Array(5)].map((_, i) => (
-                        <div key={i} className="px-4 py-5 sm:p-5 sm:rounded-lg sm:border sm:border-border min-h-[56px] flex items-center animate-pulse">
+                        <div key={i} className="p-4 rounded-lg border border-border min-h-[56px] flex items-center animate-pulse">
                           <div className="flex-1">
                             <div className="h-5 bg-secondary rounded w-3/4 mb-2"></div>
                             <div className="h-4 bg-secondary rounded w-1/2"></div>
@@ -369,11 +369,11 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                       <p className="text-sm mt-1">Past shows will appear here after they happen</p>
                     </div>
                   ) : (
-                    <div className="divide-y divide-border -mx-4 sm:mx-0 sm:space-y-0 sm:divide-y-0 sm:space-y-3">
+                    <div className="space-y-3">
                       {recentShows.map((show) => (
                     <div
                       key={show._id}
-                      className="px-4 py-5 sm:p-5 sm:rounded-xl sm:border sm:border-border bg-transparent sm:bg-secondary active:bg-secondary sm:hover:bg-secondary cursor-pointer transition-all duration-150 active:scale-[0.98] min-h-[56px] flex items-center"
+                      className="p-4 rounded-xl border border-border bg-secondary/50 hover:bg-secondary active:bg-secondary cursor-pointer transition-all duration-150 active:scale-[0.98] min-h-[56px] flex items-center"
                       onClick={() => onShowClick(show._id, (show as any).slug)}
                     >
                       <div className="flex justify-between items-start w-full">
@@ -422,8 +422,8 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         </div>
 
         {/* Top Songs - Right Sidebar */}
-        <div className="space-y-0 sm:space-y-6">
-          <MagicCard className="p-0 rounded-none sm:rounded-2xl border-0 bg-background border-t border-b border-border sm:border">
+        <div className="space-y-4 sm:space-y-6">
+          <MagicCard className="p-0 rounded-xl border border-border bg-card">
             <div className="px-4 py-4 sm:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
@@ -433,9 +433,9 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
               </div>
             
             {!songs ? (
-              <div className="divide-y divide-border -mx-4 sm:mx-0 sm:divide-y-0 sm:space-y-1">
+              <div className="space-y-1">
                 {[...Array(10)].map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 px-4 py-3 sm:px-2 sm:py-2 min-h-[56px] animate-pulse">
+                  <div key={i} className="flex items-center gap-3 px-3 py-2 min-h-[44px] animate-pulse">
                     <div className="w-4 h-4 bg-secondary rounded"></div>
                     <div className="flex-1 space-y-1.5">
                       <div className="h-3.5 bg-secondary rounded w-3/4"></div>
@@ -450,13 +450,13 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 <p className="text-sm">No songs available yet</p>
               </div>
             ) : (
-              <div className="divide-y divide-border -mx-4 sm:mx-0 sm:divide-y-0 sm:space-y-1">
+              <div className="space-y-1">
                 {songs.filter(Boolean).filter(song => song && !song.isLive && !song.isRemix).slice(0, 10).map((song, index) => {
                   if (!song) return null;
                   return (
                     <div
                       key={song._id}
-                      className="group flex items-center gap-3 px-4 py-3 sm:px-2 sm:py-2 sm:rounded-lg active:bg-secondary sm:hover:bg-accent/50 transition-all duration-150 active:scale-[0.98] min-h-[56px]"
+                      className="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent/50 active:bg-secondary transition-all duration-150 active:scale-[0.98] min-h-[44px]"
                     >
                       <div className="w-4 text-center text-xs text-muted-foreground">
                         {index + 1}
@@ -489,7 +489,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
           </div>
 
           {/* Artist Stats */}
-          <div className="bg-card rounded-none sm:rounded-2xl px-4 py-6 sm:p-6 border-0 border-t border-b border-border sm:border">
+          <div className="bg-card rounded-xl px-4 py-6 sm:p-6 border border-border">
             <h3 className="text-xl font-bold mb-4">Artist Stats</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
