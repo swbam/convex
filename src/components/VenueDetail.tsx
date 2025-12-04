@@ -50,12 +50,12 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
       </button>
 
       {/* Venue Header - Consistent with other pages */}
-      <MagicCard className="relative overflow-hidden rounded-xl sm:rounded-2xl p-0 border border-border bg-card">
+      <MagicCard className="relative overflow-hidden rounded-xl sm:rounded-xl p-0 border border-border bg-card">
         <div className="relative z-10 p-4 sm:p-6 lg:p-8">
           <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-6">
             {/* Venue Icon */}
             <div className="flex-shrink-0">
-              <div className="w-16 h-16 sm:w-24 sm:h-24 lg:w-28 lg:h-28 bg-gradient-to-br from-blue-500/30 to-cyan-500/30 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl ring-2 ring-border">
+              <div className="w-16 h-16 sm:w-24 sm:h-24 lg:w-28 lg:h-28 bg-gradient-to-br from-blue-500/30 to-cyan-500/30 rounded-xl sm:rounded-xl flex items-center justify-center shadow-2xl ring-2 ring-border">
                 <Building2 className="h-8 w-8 sm:h-12 sm:w-12 lg:h-14 lg:w-14 text-blue-400" />
               </div>
             </div>
@@ -127,7 +127,7 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
       {/* Content Grid - Mobile Optimized */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
         {/* Upcoming Shows */}
-        <MagicCard className="p-0 rounded-xl sm:rounded-2xl border border-border bg-card">
+        <MagicCard className="p-0 rounded-xl sm:rounded-xl border border-border bg-card">
           <div className="p-4 sm:p-6">
             <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
               <div className="w-8 h-8 sm:w-10 sm:h-10 bg-secondary rounded-lg sm:rounded-xl flex items-center justify-center">
@@ -168,7 +168,7 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
         </MagicCard>
 
         {/* Past Shows */}
-        <MagicCard className="p-0 rounded-xl sm:rounded-2xl border border-border bg-card">
+        <MagicCard className="p-0 rounded-xl sm:rounded-xl border border-border bg-card">
           <div className="p-4 sm:p-6">
             <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
               <div className="w-8 h-8 sm:w-10 sm:h-10 bg-secondary rounded-lg sm:rounded-xl flex items-center justify-center">

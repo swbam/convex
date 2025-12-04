@@ -45,7 +45,7 @@ export function Venues({ onVenueClick }: VenuesProps) {
       </div>
 
       {/* Tabs */}
-      <div className="bg-card rounded-2xl p-6 border border-border">
+      <div className="bg-card rounded-xl p-6 border border-border">
         <div className="flex border-b border-border mb-6">
           <button
             onClick={() => setSelectedTab('search')}
@@ -163,7 +163,7 @@ function VenueListCard({ venue, onClick }: { venue: any; onClick: () => void }) 
     >
       <div className="flex items-start gap-5">
         <div className="relative">
-          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+          <div className="w-16 h-16 rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
             <MapPin className="h-8 w-8 text-zinc-400" />
           </div>
         </div>

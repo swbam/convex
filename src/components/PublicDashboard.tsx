@@ -193,7 +193,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
           >
-            <MagicCard className="p-0 rounded-2xl border-0 bg-card overflow-hidden">
+            <MagicCard className="p-0 rounded-xl border-0 bg-card overflow-hidden">
               <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
@@ -275,7 +275,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
           >
-            <MagicCard className="p-0 rounded-2xl border-0 bg-gradient-to-br from-green-500/10 to-green-500/5 overflow-hidden">
+            <MagicCard className="p-0 rounded-xl border-0 bg-gradient-to-br from-green-500/10 to-green-500/5 overflow-hidden">
               <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -306,7 +306,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
           >
-            <MagicCard className="p-0 rounded-2xl border-0 bg-gradient-to-br from-green-500/10 via-card to-card overflow-hidden">
+            <MagicCard className="p-0 rounded-xl border-0 bg-gradient-to-br from-green-500/10 via-card to-card overflow-hidden">
               <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center flex-shrink-0">

@@ -72,7 +72,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
     // Definitely NOT signed in (Convex query returned null)
     return (
       <div className="container mx-auto px-4 py-8 text-center">
-        <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <div className="w-16 h-16 bg-primary/20 rounded-xl flex items-center justify-center mx-auto mb-4">
           <Activity className="h-8 w-8 text-primary" />
         </div>
         <h2 className="text-2xl font-bold text-foreground mb-2">Activity Feed</h2>
@@ -101,7 +101,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
     <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 relative z-10">
       {/* Header */}
       <FadeIn delay={0} duration={0.5}>
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 bg-background border-t border-b border-border">
+      <MagicCard className="relative overflow-hidden rounded-xl p-0 border-0 bg-background border-t border-b border-border">
       <div className="relative z-10 p-4 sm:p-6 lg:p-8">
         <div className="flex items-center justify-between mb-4">
           <Button 
@@ -116,7 +116,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-secondary rounded-2xl flex items-center justify-center backdrop-blur-sm">
+          <div className="w-12 h-12 bg-secondary rounded-xl flex items-center justify-center backdrop-blur-sm">
             <Activity className="h-6 w-6 text-foreground" />
           </div>
           <div>
@@ -206,7 +206,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
 
       {/* Activity List - Apple Music Style */}
       <FadeIn delay={0.6} duration={0.5}>
-      <MagicCard className="p-0 rounded-2xl border-0 bg-background border-t border-b border-border">
+      <MagicCard className="p-0 rounded-xl border-0 bg-background border-t border-b border-border">
         <div className="p-4 sm:p-6">
           <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
             <Clock className="h-5 w-5 text-muted-foreground" />
@@ -277,7 +277,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
 
       {/* Recent Predictions */}
       <FadeIn delay={0.8} duration={0.5}>
-        <MagicCard className="p-0 rounded-2xl border-0 bg-background border-t border-b border-border">
+        <MagicCard className="p-0 rounded-xl border-0 bg-background border-t border-b border-border">
           <div className="p-4 sm:p-6">
             <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
               <Star className="h-5 w-5 text-yellow-400" />
@@ -304,7 +304,7 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
               ) : (
                 // Empty state with better CTA
                 <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <div className="w-16 h-16 bg-secondary rounded-xl flex items-center justify-center mx-auto mb-4">
                     <Star className="h-8 w-8 text-muted-foreground" />
                   </div>
                   <p className="text-foreground font-medium mb-2">No Predictions Yet</p>

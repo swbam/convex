@@ -547,7 +547,7 @@ export function ShowDetail({
                       predictionSetlist.songs &&
                       predictionSetlist.songs.length > 0 && (
                         <div className="mt-6">
-                          <div className="p-6 bg-secondary border border-border rounded-2xl">
+                          <div className="p-6 bg-secondary border border-border rounded-xl">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center">

@@ -137,7 +137,7 @@ export function Festivals({ onFestivalClick }: FestivalsProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="animate-pulse">
-                <div className="bg-card rounded-2xl overflow-hidden">
+                <div className="bg-card rounded-xl overflow-hidden">
                   <div className="h-40 bg-secondary/50" />
                   <div className="p-4 space-y-3">
                     <div className="h-5 bg-secondary rounded w-3/4"></div>
@@ -156,7 +156,7 @@ export function Festivals({ onFestivalClick }: FestivalsProps) {
   if (allFestivals.length === 0) {
     return (
       <div className="container mx-auto px-4 py-12">
-        <MagicCard className="p-8 rounded-2xl text-center max-w-lg mx-auto">
+        <MagicCard className="p-8 rounded-xl text-center max-w-lg mx-auto">
           <div className="w-20 h-20 mx-auto bg-primary/10 rounded-full flex items-center justify-center mb-6">
             <Sparkles className="h-10 w-10 text-primary" />
           </div>

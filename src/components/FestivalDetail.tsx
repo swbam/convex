@@ -114,7 +114,7 @@ export function FestivalDetail({
   if (!festival) {
     return (
       <div className="container mx-auto px-4 py-12">
-        <MagicCard className="p-8 rounded-2xl text-center max-w-lg mx-auto">
+        <MagicCard className="p-8 rounded-xl text-center max-w-lg mx-auto">
           <div className="w-20 h-20 mx-auto bg-red-500/10 rounded-full flex items-center justify-center mb-6">
             <Sparkles className="h-10 w-10 text-red-400" />
           </div>

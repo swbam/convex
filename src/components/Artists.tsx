@@ -119,7 +119,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
           animate={{ opacity: 1, scale: 1 }}
           className="text-center py-16"
         >
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-secondary flex items-center justify-center border border-border">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-secondary flex items-center justify-center border border-border">
             <Music className="h-8 w-8 text-muted-foreground" />
           </div>
           <h3 className="text-xl font-bold text-foreground mb-2">No artists found</h3>

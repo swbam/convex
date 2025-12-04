@@ -58,7 +58,7 @@ export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
   }
 
   return (
-    <MagicCard className="p-0 rounded-2xl border-0 bg-card" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
+    <MagicCard className="p-0 rounded-xl border-0 bg-card" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
       <div className="p-4 sm:p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">

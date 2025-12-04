@@ -112,11 +112,11 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
       >
-        <div className="glass-card rounded-2xl p-8 space-y-6 relative overflow-hidden">
+        <div className="glass-card rounded-xl p-8 space-y-6 relative overflow-hidden">
           <div className="animate-pulse space-y-6">
             {/* Header skeleton */}
             <div className="flex items-center gap-6">
-              <div className="w-40 h-40 bg-secondary rounded-2xl" />
+              <div className="w-40 h-40 bg-secondary rounded-xl" />
               <div className="flex-1 space-y-4">
                 <div className="h-10 bg-secondary rounded w-2/3" />
                 <div className="h-5 bg-secondary rounded w-1/2" />
@@ -126,7 +126,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
             {/* Shows skeleton */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-48 bg-secondary rounded-2xl" />
+                <div key={i} className="h-48 bg-secondary rounded-xl" />
               ))}
             </div>
           </div>
@@ -260,7 +260,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 ))}
               </div>
             ) : isImportingShows ? (
-                <MagicCard className="p-8 rounded-2xl border-0 bg-card">
+                <MagicCard className="p-8 rounded-xl border-0 bg-card">
                   <div className="flex flex-col items-center justify-center space-y-4">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     <div className="text-center">
@@ -277,7 +277,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                   <BorderBeam size={150} duration={8} className="opacity-30" />
                 </MagicCard>
             ) : hasImportError ? (
-              <MagicCard className="p-8 rounded-2xl border-0 bg-red-500/10 border border-red-500/20">
+              <MagicCard className="p-8 rounded-xl border-0 bg-red-500/10 border border-red-500/20">
                 <div className="text-center space-y-4">
                   <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto">
                     <Music className="h-8 w-8 text-red-400" />

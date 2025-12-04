@@ -39,7 +39,7 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
   if (!user) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
-        <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <div className="w-16 h-16 bg-primary/20 rounded-xl flex items-center justify-center mx-auto mb-4">
           <User className="h-8 w-8 text-primary" />
         </div>
         <h1 className="text-2xl font-bold text-foreground mb-2">Welcome to setlists.live</h1>
@@ -54,7 +54,7 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
   if (appUser === null) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
-        <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <div className="w-16 h-16 bg-primary/20 rounded-xl flex items-center justify-center mx-auto mb-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
         <h1 className="text-2xl font-bold text-foreground mb-2">Finishing account setup…</h1>
@@ -222,7 +222,7 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
         >
           <MagicCard className="p-0 rounded-xl border-0 bg-card/50">
             <div className="p-8 text-center">
-              <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-primary/20 rounded-xl flex items-center justify-center mx-auto mb-4">
                 <TrendingUp className="h-8 w-8 text-primary" />
               </div>
               <h3 className="text-2xl font-bold text-foreground mb-2">Start Voting!</h3>

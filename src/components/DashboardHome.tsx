@@ -136,7 +136,7 @@ export function DashboardHome({
   return (
     <div className="container mx-auto px-6 py-8 space-y-8">
       {/* Search Section */}
-      <div className="bg-card rounded-2xl p-6 border border-border">
+      <div className="bg-card rounded-xl p-6 border border-border">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold mb-2">Discover Artists & Shows</h1>
           <p className="text-muted-foreground">
@@ -213,7 +213,7 @@ export function DashboardHome({
       {/* Content Grid with compact horizontal carousels */}
       <div className="space-y-8">
         {/* Trending Artists */}
-        <div className="bg-card rounded-2xl p-6 border border-border">
+        <div className="bg-card rounded-xl p-6 border border-border">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-2xl font-bold">Trending Artists</h2>
@@ -294,7 +294,7 @@ export function DashboardHome({
         </div>
 
         {/* Trending Shows */}
-        <div className="bg-card rounded-2xl p-6 border border-border">
+        <div className="bg-card rounded-xl p-6 border border-border">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-2xl font-bold">Trending Shows</h2>
