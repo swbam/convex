@@ -368,35 +368,39 @@ export function ShowDetail({
       >
         <SEOHead />
 
-        {/* Hero Header - Full width with proper height */}
-        <div className="relative w-full overflow-hidden bg-card">
-          {heroImage && (
-            <div className="absolute inset-0 z-0">
-              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-25 dark:opacity-40 blur-[2px]" />
-              <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/60 dark:from-black/90 dark:via-black/70 dark:to-black/50" />
-            </div>
-          )}
+        {/* Hero Header - Full width with fixed min-height to prevent layout shift */}
+        <div className="relative w-full overflow-hidden bg-card min-h-[140px] sm:min-h-[180px] lg:min-h-[200px]">
+          {/* Background Image - uses CSS transition for smooth appearance */}
+          <div className="absolute inset-0 z-0">
+            <div 
+              className={`w-full h-full bg-cover bg-center transition-opacity duration-300 ${heroImage ? 'opacity-25 dark:opacity-40' : 'opacity-0'}`}
+              style={heroImage ? { backgroundImage: `url(${heroImage})`, filter: 'blur(2px)' } : undefined}
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/60 dark:from-black/90 dark:via-black/70 dark:to-black/50" />
+          </div>
 
           <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
             <div className="flex flex-row items-center gap-4 sm:gap-6 lg:gap-8 max-w-6xl mx-auto">
-              {/* Profile Image - larger */}
-              {(avatarImage || heroImage) && (
-                <div className="flex-shrink-0">
-                  <a
-                    href={spotifyLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={spotifyLink ? "View artist on Spotify" : undefined}
-                    className="relative block"
-                  >
+              {/* Profile Image - always reserve space with skeleton placeholder */}
+              <div className="flex-shrink-0">
+                <a
+                  href={spotifyLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={spotifyLink ? "View artist on Spotify" : undefined}
+                  className="relative block w-20 h-20 sm:w-28 sm:h-28 lg:w-36 lg:h-36 rounded-xl overflow-hidden bg-secondary ring-1 ring-border shadow-xl"
+                >
+                  {(avatarImage || heroImage) ? (
                     <img
                       src={avatarImage || heroImage}
                       alt={show?.artist?.name}
-                      className="w-20 h-20 sm:w-28 sm:h-28 lg:w-36 lg:h-36 rounded-xl object-cover shadow-xl ring-1 ring-border"
+                      className="w-full h-full object-cover transition-opacity duration-300"
                     />
-                  </a>
-                </div>
-              )}
+                  ) : (
+                    <div className="w-full h-full bg-secondary animate-pulse" />
+                  )}
+                </a>
+              </div>
 
               {/* Show Info */}
               <div className="flex-1 min-w-0">

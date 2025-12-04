@@ -96,21 +96,20 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
 
   const isLoading = dbTrendingShows === undefined || dbTrendingArtists === undefined;
 
-  // Animation variants
+  // Animation variants - smooth opacity-only to prevent layout shift
   const heroVariants = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
-      transition: { staggerChildren: 0.15, delayChildren: 0.1 }
+      transition: { staggerChildren: 0.1, delayChildren: 0.05 }
     }
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0 },
     show: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
+      opacity: 1,
+      transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] }
     }
   };
 
@@ -118,16 +117,15 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
-      transition: { staggerChildren: 0.08 }
+      transition: { staggerChildren: 0.05 }
     }
   };
 
   const cardVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0 },
     show: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] }
+      opacity: 1,
+      transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] }
     }
   };
 
@@ -191,9 +189,9 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
         {/* State 1: Logged in WITH Spotify - Show their artists on tour */}
         {isClerkLoaded && isSignedIn && hasSpotify && sortedSpotifyArtists.length > 0 && (
           <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
           >
             <MagicCard className="p-0 rounded-2xl border-0 bg-card overflow-hidden">
               <div className="p-4 sm:p-6">
@@ -273,9 +271,9 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
         {/* State 2: Logged in WITHOUT Spotify - Show connect CTA */}
         {isClerkLoaded && isSignedIn && !hasSpotify && (
           <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
           >
             <MagicCard className="p-0 rounded-2xl border-0 bg-gradient-to-br from-green-500/10 to-green-500/5 overflow-hidden">
               <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -304,9 +302,9 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
         {/* State 3: Logged OUT (or Clerk not loaded) - Show sign up with Spotify CTA */}
         {(!isClerkLoaded || !isSignedIn) && (
           <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
           >
             <MagicCard className="p-0 rounded-2xl border-0 bg-gradient-to-br from-green-500/10 via-card to-card overflow-hidden">
               <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -346,9 +344,9 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
         
         {/* Trending Artists */}
         <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
         >
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
@@ -385,9 +383,9 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                   return (
                     <motion.div
                       key={`${artistId}-${index}`}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.3) }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.2) }}
                     >
                       <ArtistCard 
                         artist={artist} 
@@ -403,9 +401,9 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
 
         {/* Upcoming Shows */}
         <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.15 }}
         >
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
@@ -434,9 +432,9 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 {(trendingShows as any[]).map((show: any, index: number) => (
                   <motion.div
                     key={`${show._id || show.showId}-${index}`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.3) }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.2) }}
                   >
                     <ShowCard
                       show={show}

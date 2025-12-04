@@ -11,7 +11,6 @@ import { SEOHead } from "./SEOHead";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { FadeIn } from "./animations/FadeIn";
 import { motion } from "framer-motion";
 import { useAction } from "convex/react";
 
@@ -154,37 +153,40 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         animate={{ opacity: 1 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
       >
-        {/* Hero Header - Full width, no border radius */}
-        <div className="relative w-full overflow-hidden bg-card">
-          {/* Background Image with Overlay */}
-          {heroImage && (
-            <div className="absolute inset-0 z-0">
-              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-25 dark:opacity-40 blur-[2px]" />
-              <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/60 dark:from-black/90 dark:via-black/70 dark:to-black/50" />
-            </div>
-          )}
+        {/* Hero Header - Full width with fixed min-height to prevent layout shift */}
+        <div className="relative w-full overflow-hidden bg-card min-h-[160px] sm:min-h-[200px] lg:min-h-[240px]">
+          {/* Background Image - uses CSS transition for smooth appearance */}
+          <div className="absolute inset-0 z-0">
+            <div 
+              className={`w-full h-full bg-cover bg-center transition-opacity duration-300 ${heroImage ? 'opacity-25 dark:opacity-40' : 'opacity-0'}`}
+              style={heroImage ? { backgroundImage: `url(${heroImage})`, filter: 'blur(2px)' } : undefined}
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/60 dark:from-black/90 dark:via-black/70 dark:to-black/50" />
+          </div>
 
           {/* Content - TALLER header with LARGER artist name */}
           <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-10 lg:py-14">
             <div className="flex flex-row items-center gap-4 sm:gap-6 lg:gap-8 max-w-6xl mx-auto">
-              {/* Artist Image - LARGER */}
-              {(avatarImage || heroImage) && (
-                <div className="flex-shrink-0">
-                  <a
-                    href={spotifyLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={spotifyLink ? "View artist on Spotify" : undefined}
-                    className="relative block"
-                  >
+              {/* Artist Image - always reserve space with skeleton placeholder */}
+              <div className="flex-shrink-0">
+                <a
+                  href={spotifyLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={spotifyLink ? "View artist on Spotify" : undefined}
+                  className="relative block w-20 h-20 sm:w-28 sm:h-28 lg:w-36 lg:h-36 rounded-xl overflow-hidden bg-secondary ring-1 ring-border shadow-xl"
+                >
+                  {(avatarImage || heroImage) ? (
                     <img
                       src={(avatarImage || heroImage)!}
                       alt={artist.name}
-                      className="w-20 h-20 sm:w-28 sm:h-28 lg:w-36 lg:h-36 rounded-xl object-cover shadow-xl ring-1 ring-border"
+                      className="w-full h-full object-cover transition-opacity duration-300"
                     />
-                  </a>
-                </div>
-              )}
+                  ) : (
+                    <div className="w-full h-full bg-secondary animate-pulse" />
+                  )}
+                </a>
+              </div>
 
               {/* Info */}
               <div className="flex-1 min-w-0">
@@ -220,7 +222,6 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
 
         {/* Main Content */}
         <div className="container mx-auto px-4 sm:px-6 pb-4 sm:pb-8">
-          <FadeIn delay={0} duration={0.3}>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* Upcoming Shows - Main Content */}
         <div className="lg:col-span-2">
@@ -259,7 +260,6 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 ))}
               </div>
             ) : isImportingShows ? (
-              <FadeIn>
                 <MagicCard className="p-8 rounded-2xl border-0 bg-card">
                   <div className="flex flex-col items-center justify-center space-y-4">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -276,7 +276,6 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                   </div>
                   <BorderBeam size={150} duration={8} className="opacity-30" />
                 </MagicCard>
-              </FadeIn>
             ) : hasImportError ? (
               <MagicCard className="p-8 rounded-2xl border-0 bg-red-500/10 border border-red-500/20">
                 <div className="text-center space-y-4">
@@ -521,7 +520,6 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
           </MagicCard>
         </div>
         </div>
-      </FadeIn>
       </div>
     </motion.div>
 

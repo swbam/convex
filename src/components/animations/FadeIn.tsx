@@ -86,7 +86,8 @@ export function StaggerChildren({
 }
 
 /**
- * Individual stagger item
+ * Individual stagger item - smooth opacity-only animation
+ * No vertical offset to prevent layout shift
  */
 export function StaggerItem({
   children,
@@ -98,12 +99,11 @@ export function StaggerItem({
   return (
     <motion.div
       variants={{
-        hidden: { opacity: 0, y: 20 },
+        hidden: { opacity: 0 },
         visible: {
           opacity: 1,
-          y: 0,
           transition: {
-            duration: 0.5,
+            duration: 0.25,
             ease: [0.25, 0.1, 0.25, 1],
           },
         },
