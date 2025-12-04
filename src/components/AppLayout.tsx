@@ -45,7 +45,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, [location.pathname])
 
   return (
-    <div className="flex min-h-dvh bg-transparent text-foreground supports-[overflow:clip]:overflow-clip overflow-x-hidden relative max-w-[100vw]">
+    <div className="flex min-h-dvh bg-transparent text-foreground relative w-full max-w-[100vw]" style={{ overflowX: 'clip' }}>
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
@@ -272,7 +272,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       </aside>
       
       {/* Enhanced Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0 w-full">
+      <div className="flex-1 flex flex-col min-w-0 w-full max-w-[100vw]" style={{ overflowX: 'clip' }}>
         {/* Desktop top navigation */}
         <div className="sticky top-0 z-40 border-b border-border bg-background safe-area-top shadow-sm">
           <header className="px-4 sm:px-6 lg:px-8 h-14 flex items-center relative z-40">
@@ -381,8 +381,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
         
         {/* Main Content Area with Enhanced Background */}
-        <main className="flex-1 overflow-y-auto bg-transparent flex flex-col min-w-0">
-          <div className="flex-1 min-w-0 relative">
+        <main className="flex-1 overflow-y-auto bg-transparent flex flex-col min-w-0 w-full" style={{ overflowX: 'clip' }}>
+          <div className="flex-1 min-w-0 relative w-full max-w-[100vw]">
             <PageContainer 
               variant={location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists') ? 'full' : (location.pathname === '/' ? 'wide' : 'narrow')}
               noPadding={location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists')}

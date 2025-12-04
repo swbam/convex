@@ -372,7 +372,7 @@ export function ShowDetail({
         <div className="relative w-full overflow-hidden bg-card">
           {heroImage && (
             <div className="absolute inset-0 z-0">
-              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-25 dark:opacity-40 blur-[2px] scale-105" />
+              <img src={heroImage} alt="" className="w-full h-full object-cover opacity-25 dark:opacity-40 blur-[2px]" />
               <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/60 dark:from-black/90 dark:via-black/70 dark:to-black/50" />
             </div>
           )}

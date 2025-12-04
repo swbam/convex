@@ -25,7 +25,7 @@ export function ShowHeader({
           <img 
             src={heroImage} 
             alt="" 
-            className="w-full h-full object-cover opacity-20 dark:opacity-30 blur-sm scale-105" 
+            className="w-full h-full object-cover opacity-20 dark:opacity-30 blur-sm" 
           />
           <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/60 dark:from-black/90 dark:via-black/70 dark:to-black/50" />
         </div>

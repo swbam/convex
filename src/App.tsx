@@ -443,14 +443,14 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+    <div className="min-h-screen min-h-dvh bg-background text-foreground w-full max-w-[100vw]" style={{ overflowX: 'clip' }}>
       {/* Backend error monitoring - sends Convex errors to Sentry */}
       <BackendErrorMonitor />
       
       {/* Theme-aware gradient background */}
-      <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-background dark:from-black dark:via-gray-950 dark:to-black" />
+      <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-background dark:from-black dark:via-gray-950 dark:to-black pointer-events-none" />
       
-      <div className="relative z-10 overflow-x-hidden w-full">
+      <div className="relative z-10 w-full max-w-[100vw]" style={{ overflowX: 'clip' }}>
         <ErrorBoundary
           fallback={
             <div className="min-h-screen bg-background flex items-center justify-center p-4">
