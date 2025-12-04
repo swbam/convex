@@ -44,10 +44,10 @@ export const getUpcoming = query({
     const limit = args.limit || 20;
     const currentYear = args.year || new Date().getFullYear();
     
+    // Get festivals for the specified year (status doesn't matter - dates determine if upcoming)
     const festivals = await ctx.db
       .query("festivals")
       .withIndex("by_year", (q) => q.eq("year", currentYear))
-      .filter((q) => q.neq(q.field("status"), "completed"))
       .take(limit);
     
     // Sort by start date
