@@ -855,6 +855,9 @@ export const refreshMissingAutoSetlists = internalMutation({
     }
 
     let scheduled = 0;
+    
+    // Track artists we've already scheduled catalog sync for to avoid duplicates
+    const artistsWithCatalogSyncScheduled = new Set<string>();
 
     // CRITICAL FIX: Add delays between scheduling to prevent write conflicts
     // Instead of scheduling all at once, space them out over time
@@ -875,17 +878,48 @@ export const refreshMissingAutoSetlists = internalMutation({
         continue;
       }
 
+      // CRITICAL FIX: Check if artist has songs before scheduling setlist generation
+      // If no songs exist, schedule catalog sync first!
+      const artistSongs = await ctx.db
+        .query("artistSongs")
+        .withIndex("by_artist", (q) => q.eq("artistId", show.artistId))
+        .first();
+      
+      const hasSongs = artistSongs !== null;
+      
       // Schedule each setlist generation with STAGGERED delays
       // This prevents 60+ simultaneous updates to the same artist
       // Delay = i * 10 seconds = max 200 seconds (3.3 minutes) for 20 shows
       const delayMs = i * 10000; // 10 seconds between each job
 
       try {
-        void ctx.scheduler.runAfter(delayMs, internalRef.setlists.autoGenerateSetlist, {
-          showId: show._id,
-          artistId: show.artistId,
-        });
-        scheduled += 1;
+        if (!hasSongs && !artistsWithCatalogSyncScheduled.has(show.artistId)) {
+          // Artist has no songs - schedule catalog sync FIRST
+          const artist = await ctx.db.get(show.artistId);
+          if (artist && artist.name) {
+            // Schedule catalog sync immediately
+            void ctx.scheduler.runAfter(delayMs, internalRef.spotify.syncArtistCatalog, {
+              artistId: show.artistId,
+              artistName: artist.name,
+            });
+            artistsWithCatalogSyncScheduled.add(show.artistId);
+            
+            // Schedule setlist generation AFTER catalog sync has time to complete (60s later)
+            void ctx.scheduler.runAfter(delayMs + 60000, internalRef.setlists.autoGenerateSetlist, {
+              showId: show._id,
+              artistId: show.artistId,
+            });
+            scheduled += 1;
+            console.log(`📥 Scheduled catalog sync + setlist for ${artist.name} (show: ${show._id})`);
+          }
+        } else {
+          // Artist has songs - just schedule setlist generation
+          void ctx.scheduler.runAfter(delayMs, internalRef.setlists.autoGenerateSetlist, {
+            showId: show._id,
+            artistId: show.artistId,
+          });
+          scheduled += 1;
+        }
       } catch {
         // Failed to schedule - continue with other shows
       }
