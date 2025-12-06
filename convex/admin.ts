@@ -1782,3 +1782,252 @@ export const testBackfillMissingSetlists = action({
     }
   },
 });
+
+// ============================================================
+// CLEANUP FUNCTIONS FOR ARTISTS WITH NO SONGS
+// ============================================================
+
+/**
+ * Remove artists with 0 songs from trending cache
+ * These artists break the setlist functionality when clicked
+ */
+export const cleanupEmptyTrendingArtists = internalMutation({
+  args: {},
+  returns: v.object({
+    removed: v.number(),
+    kept: v.number(),
+    checked: v.number(),
+  }),
+  handler: async (ctx) => {
+    const trendingArtists = await ctx.db.query("trendingArtists").collect();
+    
+    let removed = 0;
+    let kept = 0;
+    
+    for (const cached of trendingArtists) {
+      // Check if the artist has songs in the database
+      if (cached.artistId) {
+        const artistSongs = await ctx.db
+          .query("artistSongs")
+          .withIndex("by_artist", (q) => q.eq("artistId", cached.artistId))
+          .first();
+        
+        if (!artistSongs) {
+          // No songs - remove from trending cache
+          await ctx.db.delete(cached._id);
+          console.log(`🗑️ Removed empty artist from trending: ${cached.name}`);
+          removed++;
+        } else {
+          kept++;
+        }
+      } else {
+        // No artistId linked - remove stale cache entry
+        await ctx.db.delete(cached._id);
+        console.log(`🗑️ Removed orphan trending entry: ${cached.name}`);
+        removed++;
+      }
+    }
+    
+    console.log(`✅ Trending cleanup complete: removed ${removed}, kept ${kept}`);
+    return { removed, kept, checked: trendingArtists.length };
+  },
+});
+
+/**
+ * Delete artists with 0 songs that have failed catalog sync
+ * These are cluttering the database and will never have setlists
+ */
+export const deleteEmptyArtists = internalMutation({
+  args: {
+    dryRun: v.optional(v.boolean()),
+    limit: v.optional(v.number()),
+  },
+  returns: v.object({
+    deleted: v.number(),
+    skipped: v.number(),
+    checked: v.number(),
+    deletedNames: v.array(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const dryRun = args.dryRun ?? true; // Default to dry run for safety
+    const limit = args.limit || 100;
+    
+    // Get artists with failed catalog sync
+    const artists = await ctx.db
+      .query("artists")
+      .filter((q) => 
+        q.or(
+          q.eq(q.field("catalogSyncStatus"), "failed"),
+          // Also check for "completed" with no songs (sync bug)
+          q.and(
+            q.eq(q.field("catalogSyncStatus"), "completed"),
+            q.or(
+              q.eq(q.field("syncStatus.songCount"), 0),
+              q.eq(q.field("syncStatus.songCount"), undefined)
+            )
+          )
+        )
+      )
+      .take(limit * 2);
+    
+    let deleted = 0;
+    let skipped = 0;
+    const deletedNames: string[] = [];
+    
+    for (const artist of artists) {
+      if (deleted >= limit) break;
+      
+      // Verify no songs exist
+      const artistSongs = await ctx.db
+        .query("artistSongs")
+        .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
+        .first();
+      
+      if (artistSongs) {
+        // Has songs - don't delete
+        skipped++;
+        continue;
+      }
+      
+      // Check if artist has any shows (we might want to keep them for shows)
+      const shows = await ctx.db
+        .query("shows")
+        .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
+        .first();
+      
+      if (shows) {
+        // Has shows - keep the artist but mark for retry
+        console.log(`⏭️ Keeping ${artist.name} - has shows, will retry catalog sync`);
+        skipped++;
+        continue;
+      }
+      
+      // No songs and no shows - safe to delete
+      if (!dryRun) {
+        // Remove from trending cache first
+        const trendingEntry = await ctx.db
+          .query("trendingArtists")
+          .filter((q) => q.eq(q.field("artistId"), artist._id))
+          .first();
+        if (trendingEntry) {
+          await ctx.db.delete(trendingEntry._id);
+        }
+        
+        // Delete the artist
+        await ctx.db.delete(artist._id);
+        console.log(`🗑️ Deleted empty artist: ${artist.name}`);
+      } else {
+        console.log(`[DRY RUN] Would delete: ${artist.name}`);
+      }
+      
+      deletedNames.push(artist.name);
+      deleted++;
+    }
+    
+    console.log(`✅ Empty artist cleanup: ${dryRun ? '[DRY RUN] ' : ''}deleted ${deleted}, skipped ${skipped}`);
+    return { deleted, skipped, checked: artists.length, deletedNames };
+  },
+});
+
+/**
+ * Retry catalog sync for artists with shows but no songs
+ * These artists should have songs but sync failed
+ */
+export const retryFailedCatalogSyncs = action({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  returns: v.object({
+    scheduled: v.number(),
+    skipped: v.number(),
+    errors: v.array(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const limit = args.limit || 20;
+    
+    // Get artists to retry
+    const artistsToRetry = await ctx.runQuery(internalRef.admin.getArtistsNeedingCatalogRetry, { limit });
+    
+    let scheduled = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+    
+    for (const artist of artistsToRetry) {
+      try {
+        // Reset the circuit breaker to allow retry
+        await ctx.runMutation(internalRef.artists.updateSyncStatus, {
+          artistId: artist._id,
+          catalogSyncStatus: "pending",
+          catalogSyncAttemptedAt: undefined,
+          catalogSyncBackoffUntil: undefined,
+          catalogSyncFailureCount: 0,
+        });
+        
+        // Schedule the catalog sync
+        await ctx.scheduler.runAfter(scheduled * 2000, internalRef.spotify.syncArtistCatalog, {
+          artistId: artist._id,
+          artistName: artist.name,
+        });
+        
+        console.log(`🔄 Scheduled catalog retry for: ${artist.name}`);
+        scheduled++;
+      } catch (error) {
+        const msg = `Failed to schedule retry for ${artist.name}: ${error instanceof Error ? error.message : String(error)}`;
+        console.error(msg);
+        errors.push(msg);
+        skipped++;
+      }
+    }
+    
+    console.log(`✅ Catalog retry complete: scheduled ${scheduled}, skipped ${skipped}`);
+    return { scheduled, skipped, errors };
+  },
+});
+
+/**
+ * Query to find artists that need catalog sync retry
+ */
+export const getArtistsNeedingCatalogRetry = internalQuery({
+  args: { limit: v.number() },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    // Get artists with shows but failed/no catalog
+    const artists = await ctx.db
+      .query("artists")
+      .filter((q) =>
+        q.and(
+          q.gt(q.field("upcomingShowsCount"), 0), // Has shows
+          q.or(
+            q.eq(q.field("catalogSyncStatus"), "failed"),
+            q.eq(q.field("catalogSyncStatus"), "pending"),
+            q.eq(q.field("catalogSyncStatus"), undefined)
+          )
+        )
+      )
+      .take(args.limit * 2);
+    
+    // Filter to only those with no songs
+    const needsRetry: any[] = [];
+    
+    for (const artist of artists) {
+      if (needsRetry.length >= args.limit) break;
+      
+      // Skip if in backoff period
+      if (artist.catalogSyncBackoffUntil && Date.now() < artist.catalogSyncBackoffUntil) {
+        continue;
+      }
+      
+      // Check if has songs
+      const artistSong = await ctx.db
+        .query("artistSongs")
+        .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
+        .first();
+      
+      if (!artistSong) {
+        needsRetry.push(artist);
+      }
+    }
+    
+    return needsRetry;
+  },
+});
