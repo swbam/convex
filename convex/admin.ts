@@ -842,6 +842,92 @@ export const ensureAutoSetlistsBulk = action({
   },
 });
 
+// Backfill setlists for festival shows that are missing them
+export const backfillFestivalSetlists = action({
+  args: { limit: v.optional(v.number()) },
+  returns: v.object({ 
+    processed: v.number(), 
+    scheduled: v.number(),
+    skipped: v.number(),
+    errors: v.array(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const limit = args.limit || 50;
+    const errors: string[] = [];
+    let processed = 0;
+    let scheduled = 0;
+    let skipped = 0;
+    
+    console.log(`🎪 Backfilling festival setlists (limit: ${limit})...`);
+    
+    // Get all festival shows
+    const festivalShows = await ctx.runQuery(internalRef.admin.getFestivalShowsWithoutSetlists, { limit });
+    
+    for (const show of festivalShows) {
+      processed++;
+      
+      try {
+        // Check if artist has songs
+        const songCount = await ctx.runQuery(internalRef.songs.countByArtist, { artistId: show.artistId });
+        
+        if (songCount === 0) {
+          console.log(`⏭️ Skipping ${show.slug} - artist has no songs`);
+          skipped++;
+          continue;
+        }
+        
+        // Schedule auto-generate setlist
+        await ctx.scheduler.runAfter(processed * 500, internalRef.setlists.autoGenerateSetlist, {
+          showId: show._id,
+          artistId: show.artistId,
+        });
+        
+        scheduled++;
+        console.log(`✅ Scheduled setlist for ${show.slug}`);
+      } catch (error) {
+        const msg = `Failed for ${show.slug}: ${error instanceof Error ? error.message : "Unknown"}`;
+        errors.push(msg);
+        console.error(`❌ ${msg}`);
+      }
+    }
+    
+    console.log(`\n📊 Backfill complete: ${scheduled} scheduled, ${skipped} skipped, ${errors.length} errors`);
+    return { processed, scheduled, skipped, errors };
+  },
+});
+
+// Helper query to get festival shows without setlists
+export const getFestivalShowsWithoutSetlists = internalQuery({
+  args: { limit: v.number() },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    // Get shows that are linked to festivals
+    const shows = await ctx.db
+      .query("shows")
+      .filter((q) => q.neq(q.field("festivalId"), undefined))
+      .take(args.limit * 2); // Get more to filter
+    
+    const result = [];
+    
+    for (const show of shows) {
+      if (result.length >= args.limit) break;
+      
+      // Check if show has a setlist
+      const setlist = await ctx.db
+        .query("setlists")
+        .withIndex("by_show", (q) => q.eq("showId", show._id))
+        .first();
+      
+      // Include if no setlist OR setlist has < 5 songs
+      if (!setlist || !setlist.songs || setlist.songs.length < 5) {
+        result.push(show);
+      }
+    }
+    
+    return result;
+  },
+});
+
 // Add public action for manual sync:
 export const triggerSetlistSyncManual = action({
   args: {},

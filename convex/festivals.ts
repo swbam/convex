@@ -343,6 +343,13 @@ export const addArtist = mutation({
       status: "lineup", // At least one artist means lineup is available
     });
     
+    // Schedule auto-setlist generation for this festival show
+    // (will be picked up by cron or executed immediately if artist has songs)
+    await ctx.scheduler.runAfter(1000, internalRef.setlists.autoGenerateSetlist, {
+      showId,
+      artistId: args.artistId,
+    });
+    
     return showId;
   },
 });
@@ -494,6 +501,13 @@ export const addArtistByName = internalMutation({
       status: "lineup",
     });
     
+    // Schedule auto-setlist generation for this festival show
+    // Uses scheduler to avoid blocking - will be picked up immediately if artist has songs
+    await ctx.scheduler.runAfter(1000, internalRef.setlists.autoGenerateSetlist, {
+      showId,
+      artistId: artist._id,
+    });
+    
     console.log(`✅ Added ${artist.name} to ${festival.name}`);
     return showId;
   },
@@ -563,6 +577,201 @@ export const updateImage = internalMutation({
     if (Object.keys(updates).length > 0) {
       await ctx.db.patch(args.festivalId, updates);
     }
+    return null;
+  },
+});
+
+// ============================================================================
+// DYNAMIC FESTIVAL CREATION (from Ticketmaster events)
+// ============================================================================
+
+/**
+ * Helper to extract a clean festival name from Ticketmaster event name
+ * e.g., "Railbird Festival 2025 - Day 1" → "Railbird Festival 2025"
+ */
+function extractFestivalName(eventName: string): string {
+  // Remove day/pass suffixes
+  let name = eventName
+    .replace(/\s*-\s*(Day|Night|Weekend|Pass|Ticket|GA|VIP|Camping).*$/i, "")
+    .replace(/\s*\(\s*(Day|Night|Pass|General|VIP).*\)$/i, "")
+    .trim();
+  
+  // If doesn't end with year, try to add it
+  if (!/\d{4}$/.test(name)) {
+    const yearMatch = eventName.match(/\b(20\d{2})\b/);
+    if (yearMatch) {
+      name = `${name} ${yearMatch[1]}`;
+    }
+  }
+  
+  return name;
+}
+
+/**
+ * Helper to generate a slug from festival name
+ */
+function generateFestivalSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .trim();
+}
+
+/**
+ * Create or find a festival from a Ticketmaster event.
+ * Used when dynamic festival detection identifies a show as being part of a festival.
+ * This is FAST and returns immediately - enrichment happens in background.
+ */
+export const upsertFestivalFromEvent = internalMutation({
+  args: {
+    eventName: v.string(),           // Original Ticketmaster event name
+    eventDate: v.string(),           // YYYY-MM-DD
+    ticketmasterId: v.optional(v.string()), // TM event ID (for deduplication)
+    venueName: v.optional(v.string()),
+    venueCity: v.optional(v.string()),
+    venueState: v.optional(v.string()),
+    ticketUrl: v.optional(v.string()),
+  },
+  returns: v.union(v.id("festivals"), v.null()),
+  handler: async (ctx, args) => {
+    // Extract clean festival name
+    const festivalName = extractFestivalName(args.eventName);
+    
+    // Extract year from event date
+    const year = new Date(args.eventDate).getFullYear();
+    if (!year || year < 2020 || year > 2030) {
+      console.log(`⚠️ Invalid year from event date: ${args.eventDate}`);
+      return null;
+    }
+    
+    // Generate slug
+    const slug = generateFestivalSlug(festivalName);
+    if (!slug || slug.length < 3) {
+      console.log(`⚠️ Could not generate valid slug for: ${festivalName}`);
+      return null;
+    }
+    
+    // Try to find existing festival by slug (most reliable)
+    let existing = await ctx.db
+      .query("festivals")
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .first();
+    
+    // Also try by ticketmasterId if provided
+    if (!existing && args.ticketmasterId) {
+      existing = await ctx.db
+        .query("festivals")
+        .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.ticketmasterId))
+        .first();
+    }
+    
+    if (existing) {
+      console.log(`✅ Found existing festival: ${existing.name} (${existing._id})`);
+      
+      // Update ticketmasterId if not set
+      if (!existing.ticketmasterId && args.ticketmasterId) {
+        await ctx.db.patch(existing._id, { 
+          ticketmasterId: args.ticketmasterId,
+          ticketUrl: args.ticketUrl || existing.ticketUrl,
+          lastSynced: Date.now(),
+        });
+      }
+      
+      return existing._id;
+    }
+    
+    // Build location string
+    const location = [args.venueCity, args.venueState].filter(Boolean).join(", ") || "TBA";
+    
+    // Estimate festival dates (most US festivals are 3-day weekends)
+    const eventDate = new Date(args.eventDate);
+    const dayOfWeek = eventDate.getDay();
+    
+    // Assume festival starts on Friday if event is on weekend
+    let startDate = args.eventDate;
+    let endDate = args.eventDate;
+    
+    if (dayOfWeek === 0) { // Sunday - assume started Friday
+      const friday = new Date(eventDate);
+      friday.setDate(friday.getDate() - 2);
+      startDate = friday.toISOString().split("T")[0];
+      endDate = args.eventDate;
+    } else if (dayOfWeek === 6) { // Saturday - assume started Friday
+      const friday = new Date(eventDate);
+      friday.setDate(friday.getDate() - 1);
+      startDate = friday.toISOString().split("T")[0];
+      const sunday = new Date(eventDate);
+      sunday.setDate(sunday.getDate() + 1);
+      endDate = sunday.toISOString().split("T")[0];
+    } else if (dayOfWeek === 5) { // Friday - assume ends Sunday
+      const sunday = new Date(eventDate);
+      sunday.setDate(sunday.getDate() + 2);
+      endDate = sunday.toISOString().split("T")[0];
+    }
+    
+    // Determine initial status based on date
+    const today = new Date().toISOString().split("T")[0];
+    let status: "announced" | "lineup" | "scheduled" | "ongoing" | "completed" = "announced";
+    if (endDate < today) {
+      status = "completed";
+    } else if (startDate <= today && endDate >= today) {
+      status = "ongoing";
+    }
+    
+    // Create new festival
+    const festivalId = await ctx.db.insert("festivals", {
+      name: festivalName,
+      slug,
+      year,
+      startDate,
+      endDate,
+      location,
+      ticketmasterId: args.ticketmasterId,
+      ticketUrl: args.ticketUrl,
+      status,
+      artistCount: 0,
+      totalVotes: 0,
+      lastSynced: Date.now(),
+    });
+    
+    console.log(`🎪 Created new festival: ${festivalName} (${festivalId})`);
+    
+    return festivalId;
+  },
+});
+
+/**
+ * Link an existing show to a festival (used when festival is detected after show creation)
+ */
+export const linkShowToFestival = internalMutation({
+  args: {
+    showId: v.id("shows"),
+    festivalId: v.id("festivals"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const show = await ctx.db.get(args.showId);
+    if (!show) return null;
+    
+    // Don't overwrite if already linked
+    if (show.festivalId) return null;
+    
+    await ctx.db.patch(args.showId, {
+      festivalId: args.festivalId,
+      isFestivalSet: true,
+    });
+    
+    // Increment festival artist count
+    const festival = await ctx.db.get(args.festivalId);
+    if (festival) {
+      await ctx.db.patch(args.festivalId, {
+        artistCount: (festival.artistCount || 0) + 1,
+        status: festival.status === "announced" ? "lineup" : festival.status,
+      });
+    }
+    
     return null;
   },
 });

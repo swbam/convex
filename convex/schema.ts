@@ -107,6 +107,7 @@ const applicationTables = {
     websiteUrl: v.optional(v.string()),
     ticketUrl: v.optional(v.string()),    // Direct Ticketmaster link for affiliate revenue
     wikiUrl: v.optional(v.string()),      // Wikipedia source
+    ticketmasterId: v.optional(v.string()), // For dynamic festival detection/deduplication
     genres: v.optional(v.array(v.string())),
     status: v.union(
       v.literal("announced"),             // Dates announced, no lineup
@@ -122,7 +123,8 @@ const applicationTables = {
     .index("by_slug", ["slug"])
     .index("by_year", ["year"])
     .index("by_status", ["status"])
-    .index("by_start_date", ["startDate"]),
+    .index("by_start_date", ["startDate"])
+    .index("by_ticketmaster_id", ["ticketmasterId"]),
 
   shows: defineTable({
     slug: v.optional(v.string()),

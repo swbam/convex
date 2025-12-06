@@ -9,6 +9,80 @@ import { Id } from "./_generated/dataModel";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const internalRef = internal as any;
 
+// ============================================================================
+// FESTIVAL DETECTION HELPERS
+// ============================================================================
+
+/**
+ * Known major festival name patterns for detection
+ */
+const KNOWN_FESTIVAL_PATTERNS = [
+  /\brailbird\b/i,
+  /\bcoachella\b/i,
+  /\bbonnaroo\b/i,
+  /\blollapalooza\b/i,
+  /\bstagecoach\b/i,
+  /\bbottlerock\b/i,
+  /\belectric forest\b/i,
+  /\bedc\b/i,
+  /\bultra\s+(music\s+)?festival\b/i,
+  /\bgovernors\s+ball\b/i,
+  /\bfirefly\s+(music\s+)?festival\b/i,
+  /\boutside\s+lands\b/i,
+  /\brolling\s+loud\b/i,
+  /\bsummerfest\b/i,
+  /\briot\s+fest\b/i,
+  /\bshaky\s+knees\b/i,
+  /\bangout\s+(music\s+)?fest/i,
+  /\bpitchfork\s+(music\s+)?fest/i,
+  /\blife\s+is\s+beautiful\b/i,
+  /\bwhen\s+we\s+were\s+young\b/i,
+  /\bacl\s+fest/i,
+  /\baustin\s+city\s+limits\b/i,
+  /\bsxsw\b/i,
+];
+
+/**
+ * Detect if a Ticketmaster event is a music festival
+ */
+function isFestivalEvent(event: any): boolean {
+  const eventName = String(event.name || "").toLowerCase();
+  const venueName = String(event._embedded?.venues?.[0]?.name || "").toLowerCase();
+  
+  // Check for "festival" in the name (common pattern)
+  if (/\bfestival\b/i.test(eventName) || /\bfest\b/i.test(eventName)) {
+    // Exclude false positives like "Festival of Lights" or non-music
+    const isNonMusic = /\b(lights?|food|beer|wine|art|film|comedy|dance)\s*(festival|fest)\b/i.test(eventName);
+    if (!isNonMusic) return true;
+  }
+  
+  // Check against known festival patterns
+  for (const pattern of KNOWN_FESTIVAL_PATTERNS) {
+    if (pattern.test(eventName) || pattern.test(venueName)) {
+      return true;
+    }
+  }
+  
+  // Check Ticketmaster classifications
+  const classifications = event.classifications || [];
+  for (const classification of classifications) {
+    const genreName = String(classification.genre?.name || "").toLowerCase();
+    const subGenreName = String(classification.subGenre?.name || "").toLowerCase();
+    const segmentName = String(classification.segment?.name || "").toLowerCase();
+    
+    if (genreName === "festival" || subGenreName === "festival") {
+      return true;
+    }
+    
+    // Music segment with festival in type
+    if (segmentName === "music" && /festival/i.test(String(classification.type?.name || ""))) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 const TICKETMASTER_HTTP_TIMEOUT_MS = 30_000;
 const TICKETMASTER_MAX_ATTEMPTS = 3;
 
@@ -503,6 +577,37 @@ export const syncArtistShows = internalAction({
         }
         
         console.log(`✅ Created show ${showId} for ${event.name || 'Unknown Event'} ${priceRange ? `(${priceRange})` : ''}`);
+        
+        // FESTIVAL DETECTION: Check if this event is part of a festival
+        if (isFestivalEvent(event)) {
+          try {
+            const eventDate = String(event.dates?.start?.localDate || '').trim();
+            if (eventDate && /\d{4}-\d{2}-\d{2}/.test(eventDate)) {
+              // Create or find the festival
+              const festivalId = await ctx.runMutation(internalRef.festivals.upsertFestivalFromEvent, {
+                eventName: String(event.name || ''),
+                eventDate,
+                ticketmasterId: String(event.id || ''),
+                venueName: venue?.name ? String(venue.name) : undefined,
+                venueCity: venue?.city?.name ? String(venue.city.name) : undefined,
+                venueState: venue?.state?.stateCode ? String(venue.state.stateCode) : undefined,
+                ticketUrl: event.url ? String(event.url) : undefined,
+              });
+              
+              if (festivalId) {
+                // Link the show to the festival
+                await ctx.runMutation(internalRef.festivals.linkShowToFestival, {
+                  showId,
+                  festivalId,
+                });
+                console.log(`🎪 Linked show to festival: ${event.name}`);
+              }
+            }
+          } catch (festivalError) {
+            console.warn(`⚠️ Failed to link show to festival:`, festivalError);
+            // Non-blocking - show was still created successfully
+          }
+        }
         
         // gentle backoff to respect API
         await new Promise(r => setTimeout(r, 75));
