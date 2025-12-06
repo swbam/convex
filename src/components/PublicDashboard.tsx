@@ -219,15 +219,14 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                   </button>
                 </div>
                 
-                {/* Horizontal scroll carousel */}
-                <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
-                  {sortedSpotifyArtists.slice(0, 15).map((item) => (
-                    <div key={item.artist._id} className="flex-shrink-0 w-[120px] sm:w-[140px] snap-start">
-                      <SpotifyArtistCard
-                        item={item}
-                        onClick={() => onArtistClick(item.artist._id)}
-                      />
-                    </div>
+                {/* Grid layout for Spotify artists */}
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                  {sortedSpotifyArtists.slice(0, 12).map((item) => (
+                    <SpotifyArtistCard
+                      key={item.artist._id}
+                      item={item}
+                      onClick={() => onArtistClick(item.artist._id)}
+                    />
                   ))}
                 </div>
               </div>
@@ -345,8 +344,8 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 <p className="text-muted-foreground">No trending artists yet</p>
               </div>
             ) : (
-              <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
-                {(trendingArtists as any[]).map((artist: any, index: number) => {
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                {(trendingArtists as any[]).slice(0, 12).map((artist: any, index: number) => {
                   const artistId = artist?._id || artist?.artistId;
                   const slug = artist?.slug 
                     || artist?.cachedTrending?.slug 
@@ -355,12 +354,11 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                         : undefined);
                   
                   return (
-                    <div key={`${artistId}-${index}`} className="flex-shrink-0 w-[160px] sm:w-[180px] md:w-[200px] snap-start">
-                      <ArtistCard 
-                        artist={artist} 
-                        onClick={() => onArtistClick(artistId || slug || artist.ticketmasterId)} 
-                      />
-                    </div>
+                    <ArtistCard 
+                      key={`${artistId}-${index}`}
+                      artist={artist} 
+                      onClick={() => onArtistClick(artistId || slug || artist.ticketmasterId)} 
+                    />
                   );
                 })}
               </div>
@@ -393,14 +391,13 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
               </button>
             </div>
             
-            <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
-              {featuredFestivals.map((festival: any) => (
-                <div key={festival._id} className="flex-shrink-0 w-[180px] sm:w-[200px] md:w-[240px] snap-start">
-                  <FestivalCard
-                    festival={festival}
-                    onClick={() => navigateTo(`/festivals/${festival.slug}`)}
-                  />
-                </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {featuredFestivals.slice(0, 6).map((festival: any) => (
+                <FestivalCard
+                  key={festival._id}
+                  festival={festival}
+                  onClick={() => navigateTo(`/festivals/${festival.slug}`)}
+                />
               ))}
             </div>
           </motion.section>
@@ -441,18 +438,17 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 <p className="text-muted-foreground">No shows available</p>
               </div>
             ) : (
-              <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
-                {(trendingShows as any[]).map((show: any, index: number) => (
-                  <div key={`${show._id || show.showId}-${index}`} className="flex-shrink-0 w-[160px] sm:w-[180px] md:w-[200px] snap-start">
-                    <ShowCard
-                      show={show}
-                      onClick={() => {
-                        const showId = show._id || show.showId;
-                        const slug = show.slug || show.cachedTrending?.showSlug;
-                        onShowClick(showId || slug || show.ticketmasterId, slug);
-                      }}
-                    />
-                  </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                {(trendingShows as any[]).slice(0, 12).map((show: any, index: number) => (
+                  <ShowCard
+                    key={`${show._id || show.showId}-${index}`}
+                    show={show}
+                    onClick={() => {
+                      const showId = show._id || show.showId;
+                      const slug = show.slug || show.cachedTrending?.showSlug;
+                      onShowClick(showId || slug || show.ticketmasterId, slug);
+                    }}
+                  />
                 ))}
               </div>
             )}
