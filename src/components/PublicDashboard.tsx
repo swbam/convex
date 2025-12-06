@@ -309,12 +309,8 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
       {/* Content Sections */}
       <div className="container mx-auto px-4 space-y-12 pb-16">
         
-        {/* Trending Artists - Gametime-style carousel */}
-        <motion.section
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-        >
+        {/* Trending Artists */}
+        <section className="relative">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-secondary flex items-center justify-center border border-border">
@@ -364,15 +360,11 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
               </div>
             )}
           </div>
-        </motion.section>
+        </section>
 
-        {/* Featured Festivals - Gametime-style carousel */}
+        {/* Featured Festivals */}
         {featuredFestivals && featuredFestivals.length > 0 && (
-          <motion.section
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3, delay: 0.12 }}
-          >
+          <section className="relative">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center border border-border">
@@ -400,15 +392,11 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 />
               ))}
             </div>
-          </motion.section>
+          </section>
         )}
 
-        {/* Upcoming Shows - Gametime-style carousel */}
-        <motion.section
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3, delay: 0.15 }}
-        >
+        {/* Upcoming Shows */}
+        <section className="relative">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-secondary flex items-center justify-center border border-border">
@@ -453,7 +441,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
               </div>
             )}
           </div>
-        </motion.section>
+        </section>
       </div>
     </div>
   );
