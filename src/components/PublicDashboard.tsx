@@ -3,14 +3,15 @@ import { useQuery } from "convex/react";
 import { useUser } from "@clerk/clerk-react";
 import { api } from "../../convex/_generated/api";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, Users, MapPin, Music, Sparkles, ArrowRight } from "lucide-react";
+import { TrendingUp, Users, MapPin, Music, Sparkles, ArrowRight, Ticket } from "lucide-react";
 import { SearchBar } from "./SearchBar";
 import { Id } from "../../convex/_generated/dataModel";
-import { ArtistCardSkeleton, ShowCardSkeleton } from "./LoadingSkeleton";
+import { ArtistCardSkeleton, ShowCardSkeleton, FestivalCardSkeleton } from "./LoadingSkeleton";
 import { motion } from "framer-motion";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { FaSpotify } from "react-icons/fa";
+import { EmblaCarousel, SLIDE_SIZES } from "./ui/embla-carousel";
 
 interface PublicDashboardProps {
   onArtistClick: (artistKey: Id<"artists"> | string) => void;
@@ -26,6 +27,9 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
   // Load trending data
   const dbTrendingShowsResult = useQuery(api.trending.getTrendingShows, { limit: 20 });
   const dbTrendingArtistsResult = useQuery(api.trending.getTrendingArtists, { limit: 20 });
+  
+  // Load featured festivals
+  const featuredFestivals = useQuery(api.festivals.getFeatured, { limit: 8 });
   
   // Load user data for personalization
   const appUser = useQuery(api.auth.loggedInUser);
@@ -215,53 +219,21 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                   </button>
                 </div>
                 
-                {/* Horizontal scrolling artist cards */}
-                <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
-                  <div className="flex gap-3">
-                    {sortedSpotifyArtists.slice(0, 10).map((item, index) => (
-                      <motion.div
-                        key={item.artist._id}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
-                        onClick={() => onArtistClick(item.artist._id)}
-                        className="flex-shrink-0 w-28 sm:w-32 cursor-pointer group"
-                      >
-                        <div className="relative">
-                          <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-secondary">
-                            {item.artist.images?.[0] ? (
-                              <img 
-                                src={item.artist.images[0]} 
-                                alt={item.artist.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-foreground/40 font-bold text-xl">
-                                {item.artist.name?.slice(0, 2).toUpperCase()}
-                              </div>
-                            )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                            
-                            {/* Top artist badge */}
-                            {item.isTopArtist && item.topArtistRank && item.topArtistRank <= 5 && (
-                              <div className="absolute top-1.5 left-1.5 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
-                                #{item.topArtistRank}
-                              </div>
-                            )}
-                            
-                            {/* Show count badge */}
-                            <div className="absolute bottom-1.5 right-1.5 bg-background/90 backdrop-blur-sm rounded-md px-1.5 py-0.5 text-[10px] font-medium text-foreground">
-                              {item.upcomingShowsCount} {item.upcomingShowsCount === 1 ? 'show' : 'shows'}
-                            </div>
-                          </div>
-                          <p className="mt-2 text-xs sm:text-sm font-medium text-foreground truncate text-center">
-                            {item.artist.name}
-                          </p>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
+                {/* Gametime-style horizontal carousel */}
+                <EmblaCarousel
+                  slideClassName="w-[120px] sm:w-[140px]"
+                  autoScroll={false}
+                  showArrows={true}
+                  showDots={true}
+                >
+                  {sortedSpotifyArtists.slice(0, 15).map((item) => (
+                    <SpotifyArtistCard
+                      key={item.artist._id}
+                      item={item}
+                      onClick={() => onArtistClick(item.artist._id)}
+                    />
+                  ))}
+                </EmblaCarousel>
               </div>
               <BorderBeam size={100} duration={12} className="opacity-20" />
             </MagicCard>
@@ -342,7 +314,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
       {/* Content Sections */}
       <div className="container mx-auto px-4 space-y-12 pb-16">
         
-        {/* Trending Artists */}
+        {/* Trending Artists - Gametime-style carousel */}
         <motion.section
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -358,12 +330,18 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 <p className="text-xs sm:text-sm text-muted-foreground">Popular artists with upcoming shows</p>
               </div>
             </div>
+            <button
+              onClick={() => navigateTo('/trending')}
+              className="text-xs sm:text-sm text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+            >
+              View all <ArrowRight className="h-3 w-3" />
+            </button>
           </div>
           
           <div>
             {isLoading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-                {[...Array(5)].map((_, i) => <ArtistCardSkeleton key={i} />)}
+              <div className="flex gap-4 overflow-hidden">
+                {[...Array(6)].map((_, i) => <ArtistCardSkeleton key={i} />)}
               </div>
             ) : (trendingArtists as any[])?.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -371,7 +349,12 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 <p className="text-muted-foreground">No trending artists yet</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+              <EmblaCarousel
+                slideClassName={SLIDE_SIZES.artist}
+                autoScroll={true}
+                autoScrollSpeed={0.8}
+                showDots={true}
+              >
                 {(trendingArtists as any[]).map((artist: any, index: number) => {
                   const artistId = artist?._id || artist?.artistId;
                   const slug = artist?.slug 
@@ -381,25 +364,61 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                         : undefined);
                   
                   return (
-                    <motion.div
+                    <ArtistCard 
                       key={`${artistId}-${index}`}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.2) }}
-                    >
-                      <ArtistCard 
-                        artist={artist} 
-                        onClick={() => onArtistClick(artistId || slug || artist.ticketmasterId)} 
-                      />
-                    </motion.div>
+                      artist={artist} 
+                      onClick={() => onArtistClick(artistId || slug || artist.ticketmasterId)} 
+                    />
                   );
                 })}
-              </div>
+              </EmblaCarousel>
             )}
           </div>
         </motion.section>
 
-        {/* Upcoming Shows */}
+        {/* Featured Festivals - Gametime-style carousel */}
+        {featuredFestivals && featuredFestivals.length > 0 && (
+          <motion.section
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: 0.12 }}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center border border-border">
+                  <Ticket className="h-5 w-5 sm:h-6 sm:w-6 text-purple-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-foreground">Upcoming Festivals</h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Major music festivals this year</p>
+                </div>
+              </div>
+              <button
+                onClick={() => navigateTo('/festivals')}
+                className="text-xs sm:text-sm text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+              >
+                View all <ArrowRight className="h-3 w-3" />
+              </button>
+            </div>
+            
+            <EmblaCarousel
+              slideClassName={SLIDE_SIZES.festival}
+              autoScroll={true}
+              autoScrollSpeed={0.6}
+              showDots={true}
+            >
+              {featuredFestivals.map((festival: any) => (
+                <FestivalCard
+                  key={festival._id}
+                  festival={festival}
+                  onClick={() => navigateTo(`/festivals/${festival.slug}`)}
+                />
+              ))}
+            </EmblaCarousel>
+          </motion.section>
+        )}
+
+        {/* Upcoming Shows - Gametime-style carousel */}
         <motion.section
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -415,12 +434,18 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 <p className="text-xs sm:text-sm text-muted-foreground">Popular upcoming concerts</p>
               </div>
             </div>
+            <button
+              onClick={() => navigateTo('/shows')}
+              className="text-xs sm:text-sm text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+            >
+              View all <ArrowRight className="h-3 w-3" />
+            </button>
           </div>
 
           <div>
             {isLoading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-                {[...Array(5)].map((_, i) => <ShowCardSkeleton key={i} />)}
+              <div className="flex gap-4 overflow-hidden">
+                {[...Array(6)].map((_, i) => <ShowCardSkeleton key={i} />)}
               </div>
             ) : (trendingShows as any[])?.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -428,25 +453,24 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 <p className="text-muted-foreground">No shows available</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+              <EmblaCarousel
+                slideClassName={SLIDE_SIZES.show}
+                autoScroll={true}
+                autoScrollSpeed={1}
+                showDots={true}
+              >
                 {(trendingShows as any[]).map((show: any, index: number) => (
-                  <motion.div
+                  <ShowCard
                     key={`${show._id || show.showId}-${index}`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.2) }}
-                  >
-                    <ShowCard
-                      show={show}
-                      onClick={() => {
-                        const showId = show._id || show.showId;
-                        const slug = show.slug || show.cachedTrending?.showSlug;
-                        onShowClick(showId || slug || show.ticketmasterId, slug);
-                      }}
-                    />
-                  </motion.div>
+                    show={show}
+                    onClick={() => {
+                      const showId = show._id || show.showId;
+                      const slug = show.slug || show.cachedTrending?.showSlug;
+                      onShowClick(showId || slug || show.ticketmasterId, slug);
+                    }}
+                  />
                 ))}
-              </div>
+              </EmblaCarousel>
             )}
           </div>
         </motion.section>
@@ -554,6 +578,129 @@ function ShowCard({ show, onClick }: { show: any; onClick: () => void }) {
               </p>
             </div>
           )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// Spotify Artist Card - Compact card for Your Artists section
+function SpotifyArtistCard({ item, onClick }: { item: any; onClick: () => void }) {
+  return (
+    <motion.div
+      className="w-full cursor-pointer group"
+      onClick={onClick}
+      whileHover={{ y: -4 }}
+      whileTap={{ scale: 0.98 }}
+    >
+      <div className="relative">
+        <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-secondary">
+          {item.artist.images?.[0] ? (
+            <img 
+              src={item.artist.images[0]} 
+              alt={item.artist.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-foreground/40 font-bold text-xl">
+              {item.artist.name?.slice(0, 2).toUpperCase()}
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+          
+          {/* Top artist badge */}
+          {item.isTopArtist && item.topArtistRank && item.topArtistRank <= 5 && (
+            <div className="absolute top-1.5 left-1.5 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+              #{item.topArtistRank}
+            </div>
+          )}
+          
+          {/* Show count badge */}
+          <div className="absolute bottom-1.5 right-1.5 bg-background/90 backdrop-blur-sm rounded-md px-1.5 py-0.5 text-[10px] font-medium text-foreground">
+            {item.upcomingShowsCount} {item.upcomingShowsCount === 1 ? 'show' : 'shows'}
+          </div>
+        </div>
+        <p className="mt-2 text-xs sm:text-sm font-medium text-foreground truncate text-center">
+          {item.artist.name}
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
+// Festival Card - Vibrant and eye-catching
+function FestivalCard({ festival, onClick }: { festival: any; onClick: () => void }) {
+  const startDate = new Date(festival.startDate);
+  const endDate = new Date(festival.endDate);
+  
+  // Format date range
+  const formatDateRange = () => {
+    const startMonth = startDate.toLocaleDateString('en-US', { month: 'short' });
+    const endMonth = endDate.toLocaleDateString('en-US', { month: 'short' });
+    const startDay = startDate.getDate();
+    const endDay = endDate.getDate();
+    
+    if (startMonth === endMonth) {
+      return `${startMonth} ${startDay}-${endDay}`;
+    }
+    return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
+  };
+
+  return (
+    <motion.div 
+      className="w-full cursor-pointer"
+      onClick={onClick}
+      whileHover={{ y: -4 }}
+      whileTap={{ scale: 0.98 }}
+    >
+      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated border-purple-500/20">
+        <div className="relative w-full aspect-square overflow-hidden">
+          {festival.imageUrl ? (
+            <img
+              src={festival.imageUrl}
+              alt={festival.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-purple-600/40 to-pink-600/40 flex items-center justify-center">
+              <span className="text-white/80 font-bold text-xl">
+                {(festival.name || '??').slice(0, 2).toUpperCase()}
+              </span>
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          
+          {/* Date Badge */}
+          <div className="absolute top-1.5 right-1.5">
+            <div className="bg-purple-500/90 backdrop-blur-sm rounded-md px-1.5 py-0.5">
+              <p className="text-white text-[10px] font-semibold">
+                {formatDateRange()}
+              </p>
+            </div>
+          </div>
+          
+          {/* Artist Count Badge */}
+          {festival.artistCount > 0 && (
+            <div className="absolute bottom-1.5 left-1.5">
+              <div className="bg-background/90 backdrop-blur-sm rounded-md px-1.5 py-0.5 border border-border/50">
+                <p className="text-foreground text-[10px] font-medium">
+                  {festival.artistCount} artists
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="p-2.5 sm:p-3">
+          <h3 className="text-foreground font-semibold text-xs sm:text-sm line-clamp-1">
+            {festival.name}
+          </h3>
+          <div className="mt-1">
+            <p className="text-muted-foreground text-[10px] sm:text-xs flex items-center gap-1">
+              <MapPin className="h-2.5 w-2.5 flex-shrink-0" />
+              <span className="truncate">{festival.city}{festival.state ? `, ${festival.state}` : ''}</span>
+            </p>
+          </div>
         </div>
       </div>
     </motion.div>

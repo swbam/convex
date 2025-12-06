@@ -50,4 +50,25 @@ export function ShowCardSkeleton() {
   );
 }
 
-
+export function FestivalCardSkeleton() {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex-shrink-0 overflow-hidden bg-card min-h-[240px] flex flex-col rounded-xl"
+      style={{
+        borderTop: '1px solid rgba(168, 85, 247, 0.1)',
+        borderBottom: '1px solid rgba(168, 85, 247, 0.1)',
+      }}
+    >
+      {/* Image skeleton */}
+      <div className="relative w-full aspect-square bg-gradient-to-r from-purple-900/30 via-pink-900/30 to-purple-900/30 animate-shimmer bg-[length:200%_100%]" />
+      
+      {/* Content skeleton */}
+      <div className="p-3 space-y-2">
+        <div className="h-4 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 animate-shimmer bg-[length:200%_100%] rounded w-4/5" />
+        <div className="h-3 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 animate-shimmer bg-[length:200%_100%] rounded w-2/3" />
+      </div>
+    </motion.div>
+  );
+}

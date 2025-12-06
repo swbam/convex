@@ -28,11 +28,13 @@ export function ArtistSearch({ onArtistClick }: ArtistSearchProps) {
 
     try {
       // Trigger sync
+      // AUTO-OUTRANKING: Pass upcomingEvents for immediate trending score calculation
       const syncResult = await triggerSync({
         ticketmasterId: artist.ticketmasterId,
         artistName: artist.name,
         genres: artist.genres,
         images: artist.images,
+        upcomingEvents: artist.upcomingEvents || 0, // For auto-ranking massive artists
       });
 
       // Handle both artist and festival results

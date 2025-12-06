@@ -57,6 +57,48 @@ export const getUpcoming = query({
   },
 });
 
+ // Get featured festivals for homepage (with images, sorted by artist count)
+export const getFeatured = query({
+  args: { 
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const limit = args.limit || 12;
+    const today = new Date().toISOString().split("T")[0];
+    const currentYear = new Date().getFullYear();
+    
+    // Get all festivals from current and next year
+    const festivalsThisYear = await ctx.db
+      .query("festivals")
+      .withIndex("by_year", (q) => q.eq("year", currentYear))
+      .collect();
+    
+    const festivalsNextYear = await ctx.db
+      .query("festivals")
+      .withIndex("by_year", (q) => q.eq("year", currentYear + 1))
+      .collect();
+    
+    const allFestivals = [...festivalsThisYear, ...festivalsNextYear];
+    
+    // Filter to upcoming festivals (end date >= today) and those with images
+    const upcomingFestivals = allFestivals.filter(f => 
+      f.endDate >= today && f.imageUrl
+    );
+    
+    // Sort by: artist count (desc), then by start date (asc)
+    upcomingFestivals.sort((a, b) => {
+      // Prioritize festivals with more artists
+      const artistDiff = (b.artistCount || 0) - (a.artistCount || 0);
+      if (artistDiff !== 0) return artistDiff;
+      // Then by start date (sooner first)
+      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+    });
+    
+    return upcomingFestivals.slice(0, limit);
+  },
+});
+
 // Get festival lineup (all artists performing)
 export const getLineup = query({
   args: { festivalId: v.id("festivals") },

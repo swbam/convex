@@ -178,12 +178,14 @@ export const searchArtists = action({
 // OPTIMIZED: Non-blocking artist sync with progressive loading
 // Returns artistId immediately, imports run in background
 // Also handles festivals - returns festival info if detected
+// AUTO-OUTRANKING: Passes upcomingEvents for immediate trending score calculation
 export const triggerFullArtistSync = action({
   args: {
     ticketmasterId: v.string(),
     artistName: v.string(),
     genres: v.optional(v.array(v.string())),
     images: v.optional(v.array(v.string())),
+    upcomingEvents: v.optional(v.number()), // For auto-ranking massive artists
   },
   returns: v.object({
     type: v.union(v.literal("artist"), v.literal("festival")),
@@ -192,7 +194,8 @@ export const triggerFullArtistSync = action({
     slug: v.string(),
   }),
   handler: async (ctx, args) => {
-    console.log(`🚀 Starting optimized sync for: ${args.artistName}`);
+    const upcomingEvents = args.upcomingEvents || 0;
+    console.log(`🚀 Starting optimized sync for: ${args.artistName} (${upcomingEvents} upcoming events)`);
     
     // FESTIVAL DETECTION: Check if this is a festival, not an artist
     const nameLower = args.artistName.toLowerCase();
@@ -244,11 +247,13 @@ export const triggerFullArtistSync = action({
     } as const;
 
     // Phase 1: Create basic artist (FAST - < 1 second)
+    // AUTO-OUTRANKING: Pass upcomingEvents for immediate trending score calculation
     const artistId = await ctx.runMutation(internalRef.artists.createFromTicketmaster, {
       ticketmasterId: args.ticketmasterId,
       name: args.artistName,
       genres: args.genres || [],
       images: args.images || [],
+      upcomingEvents, // For auto-ranking massive artists
     });
     
     // Handle null return (non-concert entity that wasn't caught as festival)

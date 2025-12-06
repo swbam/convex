@@ -14,6 +14,7 @@ interface SearchResult {
   image?: string
   metadata?: string
   slug?: string
+  upcomingEvents?: number // For auto-ranking massive artists
 }
 
 interface SearchBarProps {
@@ -103,7 +104,8 @@ export function SearchBar({
           subtitle: (artist.genres?.slice(0, 2) || []).join(', '),
           image: artist.images?.[0],
           metadata: artist.upcomingEvents ? `${artist.upcomingEvents} upcoming shows` : undefined,
-          slug: undefined // Ticketmaster results don't have slugs
+          slug: undefined, // Ticketmaster results don't have slugs
+          upcomingEvents: artist.upcomingEvents || 0, // For auto-ranking
         }))
         
         setSearchResults(transformedResults)
@@ -151,11 +153,13 @@ export function SearchBar({
     if (result.type === 'artist' && !result.slug) {
       try {
         // Trigger the sync to create the artist/festival and get the real Convex ID
+        // AUTO-OUTRANKING: Pass upcomingEvents for immediate trending score calculation
         const syncResult = await triggerFullArtistSync({
           ticketmasterId: result.id,
           artistName: result.title,
           genres: result.subtitle ? result.subtitle.split(', ').filter(Boolean) : undefined,
           images: result.image ? [result.image] : undefined,
+          upcomingEvents: result.upcomingEvents, // For auto-ranking massive artists
         });
 
         // Navigate based on whether it's an artist or festival

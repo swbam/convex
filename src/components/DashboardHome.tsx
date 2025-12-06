@@ -110,11 +110,13 @@ export function DashboardHome({
       }
 
       toast.info(`Starting full import for ${result.name}...`);
+      // AUTO-OUTRANKING: Pass upcomingEvents for immediate trending score calculation
       const syncResult = await triggerArtistSync({
         ticketmasterId: result.ticketmasterId,
         artistName: result.name,
         genres: result.genres || [],
         images: result.images || [],
+        upcomingEvents: result.upcomingEvents?.ticketmaster || 0, // For auto-ranking massive artists
       });
 
       // Handle both artist and festival results

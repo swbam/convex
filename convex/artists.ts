@@ -268,10 +268,25 @@ export const createFromTicketmaster = internalMutation({
     name: v.string(),
     genres: v.optional(v.array(v.string())),
     images: v.optional(v.array(v.string())),
+    upcomingEvents: v.optional(v.number()), // For auto-ranking massive artists
   },
   returns: v.union(v.id("artists"), v.null()),
   handler: async (ctx, args): Promise<any> => {
     const lowerName = args.name.toLowerCase();
+    
+    // AUTO-OUTRANKING: Calculate initial trending score based on popularity
+    // Massive artists (Taylor Swift, etc.) should immediately rank at the top
+    const calculateInitialTrendingScore = (upcomingEvents: number): number => {
+      if (upcomingEvents >= 100) return 10000; // Stadium-level artists (Taylor Swift, Beyoncé)
+      if (upcomingEvents >= 50) return 5000;   // Major touring artists
+      if (upcomingEvents >= 30) return 2500;   // Popular artists
+      if (upcomingEvents >= 15) return 1000;   // Growing artists
+      if (upcomingEvents >= 5) return 250;     // Active artists
+      return 0; // Normal/new artists
+    };
+    
+    const upcomingEvents = args.upcomingEvents || 0;
+    const initialTrendingScore = calculateInitialTrendingScore(upcomingEvents);
     
     // CRITICAL: Only allow actual CONCERT genres (rock/pop/country/hip-hop/electronic/metal/indie/etc)
     const concertGenres = [
@@ -348,6 +363,15 @@ export const createFromTicketmaster = internalMutation({
     }
 
     if (existing) {
+      // AUTO-OUTRANKING: Boost existing artist if their popularity warrants it
+      // Only boost if the new calculated score is higher than existing
+      const newTrendingScore = Math.max(existing.trendingScore || 0, initialTrendingScore);
+      const shouldBoost = initialTrendingScore > (existing.trendingScore || 0);
+      
+      if (shouldBoost) {
+        console.log(`🚀 AUTO-BOOST: ${args.name} trending score ${existing.trendingScore || 0} → ${newTrendingScore} (${upcomingEvents} upcoming events)`);
+      }
+      
       // Merge: Patch with new data
       await ctx.db.patch(existing._id, {
         genres: args.genres || existing.genres || [],
@@ -356,8 +380,8 @@ export const createFromTicketmaster = internalMutation({
         lastSynced: Date.now(),
         popularity: existing.popularity || 0,
         followers: existing.followers || 0,
-        upcomingShowsCount: existing.upcomingShowsCount || 0,
-        trendingScore: existing.trendingScore || 0,
+        upcomingShowsCount: Math.max(existing.upcomingShowsCount || 0, upcomingEvents),
+        trendingScore: newTrendingScore,
         trendingRank: existing.trendingRank || 0,
       });
       // CRITICAL FIX: Don't schedule shows sync here - it's handled by triggerFullArtistSync
@@ -386,6 +410,22 @@ export const createFromTicketmaster = internalMutation({
       }
     }
 
+    // AUTO-OUTRANKING: Calculate initial rank based on score
+    // Higher scores get lower (better) ranks
+    const calculateInitialRank = (score: number): number => {
+      if (score >= 10000) return 1;  // Top-tier artists immediately at #1
+      if (score >= 5000) return 5;   // Major artists in top 5
+      if (score >= 2500) return 15;  // Popular artists in top 15
+      if (score >= 1000) return 30;  // Growing artists in top 30
+      return 0; // Not ranked until cron runs
+    };
+    
+    const initialRank = calculateInitialRank(initialTrendingScore);
+    
+    if (initialTrendingScore > 0) {
+      console.log(`🚀 AUTO-RANK: New artist ${args.name} → score: ${initialTrendingScore}, rank: ${initialRank} (${upcomingEvents} upcoming events)`);
+    }
+
     const artistId = await ctx.db.insert("artists", {
       slug,
       name: args.name,
@@ -396,9 +436,9 @@ export const createFromTicketmaster = internalMutation({
       popularity: 0,
       followers: 0,
       lastSynced: Date.now(),
-      trendingScore: 0,
-      trendingRank: 0,
-      upcomingShowsCount: 0,
+      trendingScore: initialTrendingScore,
+      trendingRank: initialRank,
+      upcomingShowsCount: upcomingEvents,
       lastTrendingUpdate: Date.now(),
       lowerName,
     });
