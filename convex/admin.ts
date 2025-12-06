@@ -1806,10 +1806,11 @@ export const cleanupEmptyTrendingArtists = internalMutation({
     
     for (const cached of trendingArtists) {
       // Check if the artist has songs in the database
-      if (cached.artistId) {
+      const artistId = cached.artistId;
+      if (artistId) {
         const artistSongs = await ctx.db
           .query("artistSongs")
-          .withIndex("by_artist", (q) => q.eq("artistId", cached.artistId))
+          .withIndex("by_artist", (q) => q.eq("artistId", artistId))
           .first();
         
         if (!artistSongs) {
