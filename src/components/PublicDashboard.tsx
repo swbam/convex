@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { FaSpotify } from "react-icons/fa";
-import { EmblaCarousel, SLIDE_SIZES } from "./ui/embla-carousel";
+// Removed EmblaCarousel - using simple CSS-based horizontal scroll for reliability
 
 interface PublicDashboardProps {
   onArtistClick: (artistKey: Id<"artists"> | string) => void;
@@ -219,21 +219,17 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                   </button>
                 </div>
                 
-                {/* Gametime-style horizontal carousel */}
-                <EmblaCarousel
-                  slideClassName="w-[120px] sm:w-[140px]"
-                  autoScroll={false}
-                  showArrows={true}
-                  showDots={true}
-                >
+                {/* Horizontal scroll carousel */}
+                <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
                   {sortedSpotifyArtists.slice(0, 15).map((item) => (
-                    <SpotifyArtistCard
-                      key={item.artist._id}
-                      item={item}
-                      onClick={() => onArtistClick(item.artist._id)}
-                    />
+                    <div key={item.artist._id} className="flex-shrink-0 w-[120px] sm:w-[140px] snap-start">
+                      <SpotifyArtistCard
+                        item={item}
+                        onClick={() => onArtistClick(item.artist._id)}
+                      />
+                    </div>
                   ))}
-                </EmblaCarousel>
+                </div>
               </div>
               <BorderBeam size={100} duration={12} className="opacity-20" />
             </MagicCard>
@@ -349,12 +345,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 <p className="text-muted-foreground">No trending artists yet</p>
               </div>
             ) : (
-              <EmblaCarousel
-                slideClassName={SLIDE_SIZES.artist}
-                autoScroll={true}
-                autoScrollSpeed={0.8}
-                showDots={true}
-              >
+              <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
                 {(trendingArtists as any[]).map((artist: any, index: number) => {
                   const artistId = artist?._id || artist?.artistId;
                   const slug = artist?.slug 
@@ -364,14 +355,15 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                         : undefined);
                   
                   return (
-                    <ArtistCard 
-                      key={`${artistId}-${index}`}
-                      artist={artist} 
-                      onClick={() => onArtistClick(artistId || slug || artist.ticketmasterId)} 
-                    />
+                    <div key={`${artistId}-${index}`} className="flex-shrink-0 w-[160px] sm:w-[180px] md:w-[200px] snap-start">
+                      <ArtistCard 
+                        artist={artist} 
+                        onClick={() => onArtistClick(artistId || slug || artist.ticketmasterId)} 
+                      />
+                    </div>
                   );
                 })}
-              </EmblaCarousel>
+              </div>
             )}
           </div>
         </motion.section>
@@ -401,20 +393,16 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
               </button>
             </div>
             
-            <EmblaCarousel
-              slideClassName={SLIDE_SIZES.festival}
-              autoScroll={true}
-              autoScrollSpeed={0.6}
-              showDots={true}
-            >
+            <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
               {featuredFestivals.map((festival: any) => (
-                <FestivalCard
-                  key={festival._id}
-                  festival={festival}
-                  onClick={() => navigateTo(`/festivals/${festival.slug}`)}
-                />
+                <div key={festival._id} className="flex-shrink-0 w-[180px] sm:w-[200px] md:w-[240px] snap-start">
+                  <FestivalCard
+                    festival={festival}
+                    onClick={() => navigateTo(`/festivals/${festival.slug}`)}
+                  />
+                </div>
               ))}
-            </EmblaCarousel>
+            </div>
           </motion.section>
         )}
 
@@ -453,24 +441,20 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 <p className="text-muted-foreground">No shows available</p>
               </div>
             ) : (
-              <EmblaCarousel
-                slideClassName={SLIDE_SIZES.show}
-                autoScroll={true}
-                autoScrollSpeed={1}
-                showDots={true}
-              >
+              <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
                 {(trendingShows as any[]).map((show: any, index: number) => (
-                  <ShowCard
-                    key={`${show._id || show.showId}-${index}`}
-                    show={show}
-                    onClick={() => {
-                      const showId = show._id || show.showId;
-                      const slug = show.slug || show.cachedTrending?.showSlug;
-                      onShowClick(showId || slug || show.ticketmasterId, slug);
-                    }}
-                  />
+                  <div key={`${show._id || show.showId}-${index}`} className="flex-shrink-0 w-[160px] sm:w-[180px] md:w-[200px] snap-start">
+                    <ShowCard
+                      show={show}
+                      onClick={() => {
+                        const showId = show._id || show.showId;
+                        const slug = show.slug || show.cachedTrending?.showSlug;
+                        onShowClick(showId || slug || show.ticketmasterId, slug);
+                      }}
+                    />
+                  </div>
                 ))}
-              </EmblaCarousel>
+              </div>
             )}
           </div>
         </motion.section>
