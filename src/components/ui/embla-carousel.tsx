@@ -190,7 +190,7 @@ export function EmblaCarousel({
               key={index}
               className={cn(
                 'embla__slide flex-shrink-0',
-                slideClassName
+                slideClassName || 'w-[200px]' // Default width if not specified
               )}
             >
               {child}
