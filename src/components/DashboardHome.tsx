@@ -110,26 +110,28 @@ export function DashboardHome({
       }
 
       toast.info(`Starting full import for ${result.name}...`);
-      await triggerArtistSync({
+      const syncResult = await triggerArtistSync({
         ticketmasterId: result.ticketmasterId,
         artistName: result.name,
         genres: result.genres || [],
         images: result.images || [],
       });
 
-      toast.success(
-        `Import started for ${result.name}. Fetching shows now...`,
-      );
-      const navigateSlug = result.name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "");
-      void navigate(`/artists/${navigateSlug}`);
+      // Handle both artist and festival results
+      if (syncResult.type === 'festival') {
+        toast.success(`Opening ${result.name} festival...`);
+        void navigate(`/festivals/${syncResult.slug}`);
+      } else {
+        toast.success(`Import started for ${result.name}. Fetching shows now...`);
+        void navigate(`/artists/${syncResult.slug}`);
+      }
+      
       setSearchQuery("");
       setSearchResults([]);
     } catch (error) {
       console.error("Failed to start sync:", error);
-      toast.error("Failed to import artist data");
+      const message = error instanceof Error ? error.message : "Failed to import data";
+      toast.error(message);
     }
   };
 
@@ -383,3 +385,24 @@ export function DashboardHome({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Call to Action for Anonymous Users */}
+      {shouldShowSignInPrompt && (
+        <div className="bg-card rounded-xl p-6 border border-border text-center">
+          <Users className="h-12 w-12 mx-auto mb-4 text-primary" />
+          <h3 className="text-xl font-bold mb-2">Join the Community</h3>
+          <p className="text-muted-foreground mb-6">
+            Sign in to follow artists, create setlist predictions, and compete with other fans
+          </p>
+          <button
+            onClick={onSignInRequired}
+            className="px-8 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+          >
+            Sign In to Get Started
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

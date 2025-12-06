@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAction } from "convex/react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Loader2, Search } from "lucide-react";
@@ -19,6 +20,7 @@ export function ArtistSearch({ onArtistClick }: ArtistSearchProps) {
   const [results, setResults] = useState<any[]>([]);
   const searchArtists = useAction(api.ticketmaster.searchArtists);
   const triggerSync = useAction(api.ticketmaster.triggerFullArtistSync);
+  const navigate = useNavigate();
 
   const handleArtistSelect = async (artist: any) => {
     const artistKey = artist.ticketmasterId || artist._id;
@@ -26,20 +28,27 @@ export function ArtistSearch({ onArtistClick }: ArtistSearchProps) {
 
     try {
       // Trigger sync
-      const artistId = await triggerSync({
+      const syncResult = await triggerSync({
         ticketmasterId: artist.ticketmasterId,
         artistName: artist.name,
         genres: artist.genres,
         images: artist.images,
       });
 
-      // Navigate immediately using ID; app will canonicalize to slug when available
-      onArtistClick(artistId);
-      toast.success(`Importing ${artist.name} data...`);
+      // Handle both artist and festival results
+      if (syncResult.type === 'festival') {
+        toast.success(`Opening ${artist.name} festival...`);
+        navigate(`/festivals/${syncResult.slug}`);
+      } else if (syncResult.artistId) {
+        // Navigate immediately using ID; app will canonicalize to slug when available
+        onArtistClick(syncResult.artistId);
+        toast.success(`Importing ${artist.name} data...`);
+      }
 
     } catch (error) {
       setIsSyncing(prev => ({ ...prev, [artistKey]: false }));
-      toast.error("Failed to sync artist");
+      const message = error instanceof Error ? error.message : "Failed to sync";
+      toast.error(message);
     }
   };
 

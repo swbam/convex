@@ -150,22 +150,30 @@ export function SearchBar({
     // If this is a Ticketmaster result (no slug), kick off sync and navigate by ID
     if (result.type === 'artist' && !result.slug) {
       try {
-        // Trigger the sync to create the artist and get the real Convex ID
-        const artistId = await triggerFullArtistSync({
+        // Trigger the sync to create the artist/festival and get the real Convex ID
+        const syncResult = await triggerFullArtistSync({
           ticketmasterId: result.id,
           artistName: result.title,
           genres: result.subtitle ? result.subtitle.split(', ').filter(Boolean) : undefined,
           images: result.image ? [result.image] : undefined,
         });
 
-        // Navigate using the canonical ID; the app will canonicalize to slug when available
-        onResultClick(result.type, artistId);
+        // Navigate based on whether it's an artist or festival
+        if (syncResult.type === 'festival' && syncResult.festivalId) {
+          // Navigate to festival page
+          onResultClick('festival' as any, syncResult.festivalId, syncResult.slug);
+          toast.success(`Opening ${result.title} festival...`);
+        } else if (syncResult.type === 'artist' && syncResult.artistId) {
+          // Navigate using the canonical ID; the app will canonicalize to slug when available
+          onResultClick(result.type, syncResult.artistId);
+          toast.success(`Importing ${result.title} data...`);
+        }
+        
         setIsOpen(false);
         setQuery('');
-
-        toast.success(`Importing ${result.title} data...`);
-      } catch {
-        toast.error('Failed to import artist data');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to import data';
+        toast.error(message);
       }
 
       return;

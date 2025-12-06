@@ -177,6 +177,7 @@ export const searchArtists = action({
 
 // OPTIMIZED: Non-blocking artist sync with progressive loading
 // Returns artistId immediately, imports run in background
+// Also handles festivals - returns festival info if detected
 export const triggerFullArtistSync = action({
   args: {
     ticketmasterId: v.string(),
@@ -184,9 +185,55 @@ export const triggerFullArtistSync = action({
     genres: v.optional(v.array(v.string())),
     images: v.optional(v.array(v.string())),
   },
-  returns: v.id("artists"),
-  handler: async (ctx, args): Promise<Id<"artists">> => {
-    console.log(`🚀 Starting optimized sync for artist: ${args.artistName}`);
+  returns: v.object({
+    type: v.union(v.literal("artist"), v.literal("festival")),
+    artistId: v.optional(v.id("artists")),
+    festivalId: v.optional(v.id("festivals")),
+    slug: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    console.log(`🚀 Starting optimized sync for: ${args.artistName}`);
+    
+    // FESTIVAL DETECTION: Check if this is a festival, not an artist
+    const nameLower = args.artistName.toLowerCase();
+    const isFestival = /\bfestival\b/i.test(nameLower) || 
+                       /\bfest\b/i.test(nameLower) ||
+                       isFestivalEvent({ name: args.artistName });
+    
+    if (isFestival) {
+      console.log(`🎪 Detected festival: ${args.artistName}`);
+      
+      // Extract year from name or use current year
+      const yearMatch = args.artistName.match(/\b(20\d{2})\b/);
+      const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+      
+      // Create festival slug
+      const slug = args.artistName
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .trim();
+      
+      // Try to create or find the festival
+      const festivalId = await ctx.runMutation(internalRef.festivals.upsertFestivalFromEvent, {
+        eventName: args.artistName,
+        eventDate: `${year}-06-01`, // Default to June 1 if no date
+        ticketmasterId: args.ticketmasterId,
+      });
+      
+      if (festivalId) {
+        console.log(`✅ Festival created/found: ${festivalId}`);
+        return {
+          type: "festival" as const,
+          festivalId,
+          slug,
+        };
+      } else {
+        // Fallback: throw error with helpful message
+        throw new Error(`Could not create festival for "${args.artistName}". This appears to be a festival, not an artist.`);
+      }
+    }
 
     // Centralized scheduler delays for progressive phases
     const SCHEDULER_DELAYS = {
@@ -197,17 +244,26 @@ export const triggerFullArtistSync = action({
     } as const;
 
     // Phase 1: Create basic artist (FAST - < 1 second)
-    const artistId: Id<"artists"> = await ctx.runMutation(internalRef.artists.createFromTicketmaster, {
+    const artistId = await ctx.runMutation(internalRef.artists.createFromTicketmaster, {
       ticketmasterId: args.ticketmasterId,
       name: args.artistName,
       genres: args.genres || [],
       images: args.images || [],
     });
+    
+    // Handle null return (non-concert entity that wasn't caught as festival)
+    if (!artistId) {
+      throw new Error(`"${args.artistName}" is not a musical artist. Try searching for a band, singer, or musician.`);
+    }
 
     // Initialize sync status
     await ctx.runMutation(internalRef.artistSync.initializeSyncStatus, {
       artistId,
     });
+
+    // Get artist slug for navigation
+    const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: artistId });
+    const slug = artist?.slug || artistId;
 
     // RETURN IMMEDIATELY - frontend can navigate now!
     // Background imports scheduled below (non-blocking)
@@ -235,7 +291,11 @@ export const triggerFullArtistSync = action({
     void ctx.scheduler.runAfter(SCHEDULER_DELAYS.counts, internalRef.maintenance.updateArtistCounts, { artistId });
 
     console.log(`✅ Artist ${artistId} created, background sync scheduled`);
-    return artistId; // Returns in < 1 second!
+    return {
+      type: "artist" as const,
+      artistId,
+      slug,
+    };
   },
 });
 
