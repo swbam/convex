@@ -381,7 +381,7 @@ export const getTrendingArtists = query({
         return true;
       }).slice(0, limit * 3);
 
-      // STRICT filter: REQUIRE upcoming shows AND songs for "Trending Artists"
+      // STRICT filter: REQUIRE upcoming shows for "Trending Artists"
       // Also filter out non-concerts (plays, musicals, film screenings)
       const massive = unique.filter((a: any) => {
         // Check BOTH artist doc and cached data - use the higher value
@@ -398,18 +398,7 @@ export const getTrendingArtists = query({
         // Must be a real concert (not a play, musical, or film screening)
         if (!isRealConcert(name, genres)) return false;
         
-        // CRITICAL FIX: Must have songs imported for setlist functionality
-        // Artists without songs will show empty setlists when clicked
-        const syncStatus = a?.syncStatus;
-        const hasSongs = syncStatus?.songCount && syncStatus.songCount > 0;
-        const catalogCompleted = a?.catalogSyncStatus === 'completed';
-        // Allow if either has songs OR catalog is still syncing (give it time)
-        const catalogPending = !a?.catalogSyncStatus || a?.catalogSyncStatus === 'pending' || a?.catalogSyncStatus === 'syncing';
-        
-        // Only show artists that have songs OR are still being imported
-        if (!hasSongs && !catalogPending) return false;
-        
-        // All artists with shows + songs pass
+        // All artists with shows pass - songs will be fetched on demand
         return true;
       });
 
@@ -431,7 +420,7 @@ export const getTrendingArtists = query({
       (artist) => artist.isActive !== false
     );
 
-    // STRICT filter: REQUIRE upcoming shows + songs + filter non-concerts
+    // STRICT filter: REQUIRE upcoming shows + filter non-concerts
     const massiveRanked = filteredRanked.filter((a: any) => {
       const upcoming = a?.upcomingShowsCount ?? 0;
       const name = a?.name || '';
@@ -442,12 +431,6 @@ export const getTrendingArtists = query({
       
       // Must be a real concert (not a play, musical, or film screening)
       if (!isRealConcert(name, genres)) return false;
-      
-      // CRITICAL FIX: Must have songs imported
-      const syncStatus = a?.syncStatus;
-      const hasSongs = syncStatus?.songCount && syncStatus.songCount > 0;
-      const catalogPending = !a?.catalogSyncStatus || a?.catalogSyncStatus === 'pending' || a?.catalogSyncStatus === 'syncing';
-      if (!hasSongs && !catalogPending) return false;
       
       return true;
     });
@@ -466,13 +449,10 @@ export const getTrendingArtists = query({
       .filter((q) => q.eq(q.field("isActive"), true))
       .take(200);
 
-    // CRITICAL: Only include artists with upcoming shows AND songs
+    // CRITICAL: Only include artists with upcoming shows
     const withShows = activeArtists.filter((a: any) => {
       const upcoming = a?.upcomingShowsCount ?? 0;
-      const syncStatus = a?.syncStatus;
-      const hasSongs = syncStatus?.songCount && syncStatus.songCount > 0;
-      const catalogPending = !a?.catalogSyncStatus || a?.catalogSyncStatus === 'pending' || a?.catalogSyncStatus === 'syncing';
-      return upcoming > 0 && isRealConcert(a.name, a.genres) && (hasSongs || catalogPending);
+      return upcoming > 0 && isRealConcert(a.name, a.genres);
     });
 
     const scored = withShows
