@@ -363,92 +363,115 @@ export function ShowDetail({
       <div className="space-y-4 sm:space-y-6 relative z-10">
         <SEOHead />
 
-        {/* Hero Header - Full width with fixed min-height to prevent layout shift */}
-        <div className="relative w-full overflow-hidden bg-card min-h-[140px] sm:min-h-[180px] lg:min-h-[200px]">
-          {/* Background Image - uses CSS transition for smooth appearance */}
+        {/* Hero Header - Apple Music/Spotify-inspired immersive design */}
+        <div className="relative w-full overflow-hidden min-h-[180px] sm:min-h-[240px] lg:min-h-[280px]">
+          {/* Background Image Layer - Full bleed, high quality */}
           <div className="absolute inset-0 z-0">
-            <div 
-              className={`w-full h-full bg-cover bg-center transition-opacity duration-300 ${heroImage ? 'opacity-50 dark:opacity-40' : 'opacity-0'}`}
-              style={heroImage ? { backgroundImage: `url(${heroImage})`, filter: 'blur(2px)' } : undefined}
-            />
-            {/* Light mode: softer gradient to show more image; Dark mode: stronger fade */}
-            <div className="absolute inset-0 bg-gradient-to-r from-background/80 via-background/60 to-background/40 dark:from-black/90 dark:via-black/70 dark:to-black/50" />
+            {heroImage ? (
+              <img
+                src={heroImage}
+                alt=""
+                className="w-full h-full object-cover object-center scale-105"
+                style={{ imageRendering: 'auto' }}
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-primary/20 via-secondary to-background" />
+            )}
+          </div>
+          
+          {/* Multi-layer gradient system for depth - works in both light and dark mode */}
+          <div className="absolute inset-0 z-[1]">
+            {/* Bottom fade - ensures text readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
+            {/* Side vignette - Apple Music style */}
+            <div className="absolute inset-0 bg-gradient-to-r from-background/60 via-transparent to-background/60" />
+            {/* Top subtle fade */}
+            <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-transparent" />
+            {/* Center spotlight effect */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,transparent_40%,rgba(0,0,0,0.3)_100%)] dark:bg-[radial-gradient(ellipse_at_center,transparent_0%,transparent_40%,rgba(0,0,0,0.5)_100%)]" />
           </div>
 
-          <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
-            <div className="flex flex-row items-center gap-4 sm:gap-6 lg:gap-8 max-w-6xl mx-auto">
-              {/* Profile Image - always reserve space with skeleton placeholder */}
-              <div className="flex-shrink-0">
-                <a
-                  href={spotifyLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={spotifyLink ? "View artist on Spotify" : undefined}
-                  className="relative block w-20 h-20 sm:w-28 sm:h-28 lg:w-36 lg:h-36 rounded-xl overflow-hidden bg-secondary ring-1 ring-border shadow-xl"
-                >
-                  {(avatarImage || heroImage) ? (
-                    <img
-                      src={avatarImage || heroImage}
-                      alt={show?.artist?.name}
-                      className="w-full h-full object-cover transition-opacity duration-300"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-secondary animate-pulse" />
-                  )}
-                </a>
-              </div>
-
-              {/* Show Info */}
-              <div className="flex-1 min-w-0">
-                {/* Artist Name - larger font */}
-                <button
-                  onClick={() => {
-                    if (show?.artistId) onArtistClick(show.artistId);
-                  }}
-                  className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground hover:text-primary transition-colors leading-tight tracking-tight text-left line-clamp-2"
-                >
-                  {show?.artist?.name}
-                </button>
-
-                {/* Venue & Date */}
-                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm sm:text-base lg:text-lg text-muted-foreground mt-2 sm:mt-3">
-                  <div className="flex items-center gap-1.5">
-                    <MapPin className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                    <span className="truncate max-w-[150px] sm:max-w-none">{show?.venue?.name}</span>
-                  </div>
-                  <span className="text-muted-foreground/40 hidden sm:inline">•</span>
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                    <span>
-                      {showDate.toLocaleDateString("en-US", { weekday: 'short', month: "short", day: "numeric", year: 'numeric' })}
-                      {show?.startTime && ` • ${(() => {
-                        const [hours, minutes] = show.startTime.split(':');
-                        const hour = parseInt(hours);
-                        const ampm = hour >= 12 ? 'PM' : 'AM';
-                        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-                        return `${displayHour}:${minutes} ${ampm}`;
-                      })()}`}
-                    </span>
-                  </div>
+          {/* Content - Positioned at bottom for Apple Music style */}
+          <div className="relative z-10 h-full flex items-end">
+            <div className="w-full px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8 pt-16 sm:pt-20">
+              <div className="flex flex-row items-end gap-4 sm:gap-6 lg:gap-8 max-w-6xl mx-auto">
+                {/* Artist Image - Premium shadow and border treatment */}
+                <div className="flex-shrink-0">
+                  <a
+                    href={spotifyLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={spotifyLink ? "View artist on Spotify" : undefined}
+                    className="relative block w-24 h-24 sm:w-32 sm:h-32 lg:w-36 lg:h-36 rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10 dark:ring-white/20"
+                  >
+                    {(avatarImage || heroImage) ? (
+                      <img
+                        src={avatarImage || heroImage}
+                        alt={show?.artist?.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-secondary flex items-center justify-center">
+                        <span className="text-3xl font-bold text-muted-foreground">
+                          {show?.artist?.name?.slice(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                  </a>
                 </div>
 
-                {/* Get Tickets */}
-                {isUpcoming && show?.ticketUrl && (
-                  <div className="flex items-center gap-2 mt-3 sm:mt-4">
-                    <button
-                      onClick={() =>
-                        window.open(
-                          buildTicketmasterAffiliateUrl(show.ticketUrl || ""),
-                          "_blank"
-                        )
-                      }
-                      className="inline-flex items-center px-4 py-2 sm:px-5 sm:py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg text-sm sm:text-base transition-all"
-                    >
-                      <Ticket className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                      Get Tickets
-                    </button>
+                {/* Show Info - Text with enhanced contrast */}
+                <div className="flex-1 min-w-0 pb-1">
+                  {/* Artist Name - Bold, clickable */}
+                  <button
+                    onClick={() => {
+                      if (show?.artistId) onArtistClick(show.artistId);
+                    }}
+                    className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground hover:text-primary transition-colors leading-tight tracking-tight text-left line-clamp-2 drop-shadow-sm"
+                  >
+                    {show?.artist?.name}
+                  </button>
+
+                  {/* Venue & Date - Subtle but readable */}
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm sm:text-base text-foreground/80 mt-2 sm:mt-3">
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 opacity-70" />
+                      <span className="truncate max-w-[150px] sm:max-w-none font-medium">{show?.venue?.name}</span>
+                    </div>
+                    <span className="text-foreground/40 hidden sm:inline">•</span>
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 opacity-70" />
+                      <span className="font-medium">
+                        {showDate.toLocaleDateString("en-US", { weekday: 'short', month: "short", day: "numeric", year: 'numeric' })}
+                        {show?.startTime && ` • ${(() => {
+                          const [hours, minutes] = show.startTime.split(':');
+                          const hour = parseInt(hours);
+                          const ampm = hour >= 12 ? 'PM' : 'AM';
+                          const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                          return `${displayHour}:${minutes} ${ampm}`;
+                        })()}`}
+                      </span>
+                    </div>
                   </div>
-                )}
+
+                  {/* Get Tickets - Premium button */}
+                  {isUpcoming && show?.ticketUrl && (
+                    <div className="flex items-center gap-2 mt-3 sm:mt-4">
+                      <button
+                        onClick={() =>
+                          window.open(
+                            buildTicketmasterAffiliateUrl(show.ticketUrl || ""),
+                            "_blank"
+                          )
+                        }
+                        className="inline-flex items-center px-4 py-2 sm:px-5 sm:py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg text-sm sm:text-base transition-all shadow-lg hover:shadow-xl"
+                      >
+                        <Ticket className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                        Get Tickets
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

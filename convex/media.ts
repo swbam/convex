@@ -60,17 +60,38 @@ export const getArtistImages = action({
   },
 });
 
+// Ticketmaster image type priority (highest quality first)
+const IMAGE_TYPE_PRIORITY = [
+  'TABLET_LANDSCAPE_LARGE_16_9',  // 2048x1152 - Best for full-width hero
+  'RETINA_LANDSCAPE_16_9',         // 1136x639
+  'TABLET_LANDSCAPE_16_9',         // 1024x576
+  'RETINA_PORTRAIT_16_9',          // 640x360
+];
+
 function selectBestHero(images: any[]): string | undefined {
   if (!Array.isArray(images) || images.length === 0) return undefined;
+  
+  // First, try to find images by preferred type (checking URL pattern)
+  for (const preferredType of IMAGE_TYPE_PRIORITY) {
+    const match = images.find(img => 
+      img?.url && String(img.url).includes(preferredType)
+    );
+    if (match) return String(match.url);
+  }
+  
+  // Fallback: sort by width (largest first) with 16:9 preference
   const sorted = images
     .filter((img) => img && img.url && img.width && img.height)
     .sort((a: any, b: any) => {
-      // Prefer 16:9 aspect ratio; otherwise pick the widest
-      const aRatioDelta = Math.abs(a.width / a.height - 16 / 9);
-      const bRatioDelta = Math.abs(b.width / b.height - 16 / 9);
-      if (Math.abs(aRatioDelta - bRatioDelta) > 0.1) return aRatioDelta - bRatioDelta;
+      // Strongly prefer 16:9 aspect ratio
+      const aIs16x9 = Math.abs(a.width / a.height - 16 / 9) < 0.1;
+      const bIs16x9 = Math.abs(b.width / b.height - 16 / 9) < 0.1;
+      if (aIs16x9 && !bIs16x9) return -1;
+      if (!aIs16x9 && bIs16x9) return 1;
+      // Then by width (largest first)
       return b.width - a.width;
     });
+  
   return sorted[0]?.url ? String(sorted[0].url) : undefined;
 }
 
