@@ -9,6 +9,8 @@ import { SpotifyConnectPage } from './pages/SpotifyConnectPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { TermsPage } from './pages/TermsPage';
 import { AboutPage } from './pages/AboutPage';
+import { BlogPage } from './pages/BlogPage';
+import { BlogPostPage } from './pages/BlogPostPage';
 import { ArtistNotFound } from './components/ArtistNotFound';
 import { ShowNotFound } from './components/ShowNotFound'; // Assume similar for shows
 
@@ -102,6 +104,15 @@ export const router = createBrowserRouter([
   {
     path: '/terms',
     element: <TermsPage />,
+  },
+  // Blog routes
+  {
+    path: '/blog',
+    element: <BlogPage />,
+  },
+  {
+    path: '/blog/:slug',
+    element: <BlogPostPage />,
   },
   {
     path: '*',

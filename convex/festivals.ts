@@ -818,3 +818,13 @@ export const linkShowToFestival = internalMutation({
   },
 });
 
+// Get all festival slugs for sitemap generation
+export const getAllSlugs = internalQuery({
+  args: {},
+  returns: v.array(v.string()),
+  handler: async (ctx) => {
+    const festivals = await ctx.db.query("festivals").collect();
+    return festivals.map((f) => f.slug).filter((slug): slug is string => !!slug);
+  },
+});
+

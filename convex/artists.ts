@@ -934,3 +934,16 @@ export const deleteArtistInternal = internalMutation({
     return null;
   },
 });
+
+// Get all artist slugs for sitemap generation
+export const getAllSlugs = internalQuery({
+  args: {},
+  returns: v.array(v.string()),
+  handler: async (ctx) => {
+    const artists = await ctx.db
+      .query("artists")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
+    return artists.map((a) => a.slug).filter((s): s is string => !!s);
+  },
+});

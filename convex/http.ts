@@ -64,4 +64,85 @@ http.route({
   }),
 });
 
+// Dynamic sitemap.xml generation
+http.route({
+  path: "/sitemap.xml",
+  method: "GET",
+  handler: httpAction(async (ctx) => {
+    const baseUrl = "https://www.setlists.live";
+    
+    // Fetch all artists, shows, and festivals for the sitemap
+    const [artists, shows, festivals] = await Promise.all([
+      ctx.runQuery(internalRef.artists.getAllSlugs),
+      ctx.runQuery(internalRef.shows.getAllSlugs),
+      ctx.runQuery(internalRef.festivals.getAllSlugs),
+    ]);
+    
+    const staticPages = [
+      { loc: "/", priority: "1.0", changefreq: "daily" },
+      { loc: "/artists", priority: "0.9", changefreq: "daily" },
+      { loc: "/shows", priority: "0.9", changefreq: "daily" },
+      { loc: "/trending", priority: "0.8", changefreq: "hourly" },
+      { loc: "/festivals", priority: "0.8", changefreq: "weekly" },
+      { loc: "/blog", priority: "0.8", changefreq: "daily" },
+      { loc: "/about", priority: "0.5", changefreq: "monthly" },
+      { loc: "/privacy", priority: "0.3", changefreq: "monthly" },
+      { loc: "/terms", priority: "0.3", changefreq: "monthly" },
+    ];
+    
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
+
+    // Add static pages
+    for (const page of staticPages) {
+      xml += `
+  <url>
+    <loc>${baseUrl}${page.loc}</loc>
+    <changefreq>${page.changefreq}</changefreq>
+    <priority>${page.priority}</priority>
+  </url>`;
+    }
+    
+    // Add artist pages
+    for (const slug of artists || []) {
+      xml += `
+  <url>
+    <loc>${baseUrl}/artists/${slug}</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>`;
+    }
+    
+    // Add show pages
+    for (const slug of shows || []) {
+      xml += `
+  <url>
+    <loc>${baseUrl}/shows/${slug}</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>`;
+    }
+    
+    // Add festival pages
+    for (const slug of festivals || []) {
+      xml += `
+  <url>
+    <loc>${baseUrl}/festivals/${slug}</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>`;
+    }
+    
+    xml += `
+</urlset>`;
+
+    return new Response(xml, {
+      headers: {
+        "Content-Type": "application/xml",
+        "Cache-Control": "public, max-age=3600", // Cache for 1 hour
+      },
+    });
+  }),
+});
+
 export default http;

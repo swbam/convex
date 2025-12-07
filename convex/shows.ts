@@ -984,3 +984,13 @@ export const getUpcomingCountByArtist = internalQuery({
     return shows.length;
   },
 });
+
+// Get all show slugs for sitemap generation
+export const getAllSlugs = internalQuery({
+  args: {},
+  returns: v.array(v.string()),
+  handler: async (ctx) => {
+    const shows = await ctx.db.query("shows").collect();
+    return shows.map((s) => s.slug).filter((slug): slug is string => !!slug);
+  },
+});

@@ -1,2 +1,14 @@
+# Allow all search engines to crawl the site
 User-agent: *
-Disallow: /
+Allow: /
+
+# Block admin and API routes
+Disallow: /admin
+Disallow: /api/
+
+# Block auth pages from indexing
+Disallow: /sign-in
+Disallow: /sign-up
+
+# Sitemap location
+Sitemap: https://www.setlists.live/sitemap.xml

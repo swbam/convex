@@ -34,6 +34,9 @@ export function Footer() {
               <a href="/trending" className="hidden sm:block text-responsive-xs sm:text-responsive-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
                 Trending Now
               </a>
+              <a href="/blog" className="block text-responsive-xs sm:text-responsive-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
+                Blog
+              </a>
               <a href="/profile" className="hidden sm:block text-responsive-xs sm:text-responsive-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
                 My Dashboard
               </a>
