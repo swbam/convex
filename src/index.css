@@ -626,14 +626,27 @@
     background-attachment: fixed;
   }
 
-  /* LIGHT MODE body background - white to light grey gradient */
+  /* LIGHT MODE body background - Apple-inspired subtle gradient */
   html.light body {
-    background-color: hsl(0 0% 97%);
+    background-color: hsl(220 14% 96%);
     background-image:
-      radial-gradient(ellipse 1800px 900px at 20% -15%, hsl(0 0% 100%), transparent 60%),
-      radial-gradient(ellipse 1600px 800px at 80% 0%, hsl(0 0% 98%), transparent 55%),
-      radial-gradient(ellipse 1200px 600px at 50% 100%, hsl(0 0% 92%), transparent 70%),
-      linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 96%) 30%, hsl(0 0% 93%) 70%, hsl(0 0% 95%) 100%);
+      /* Top-left warm highlight */
+      radial-gradient(ellipse 1600px 800px at 5% -10%, hsl(35 30% 98%), transparent 50%),
+      /* Top-right cool accent */
+      radial-gradient(ellipse 1400px 700px at 95% -5%, hsl(220 20% 97%), transparent 45%),
+      /* Center subtle warmth */
+      radial-gradient(ellipse 2000px 1000px at 50% 30%, hsl(0 0% 99%), transparent 60%),
+      /* Bottom edge definition */
+      radial-gradient(ellipse 1800px 600px at 50% 110%, hsl(220 10% 92%), transparent 50%),
+      /* Base gradient - warm white to cool grey */
+      linear-gradient(
+        175deg,
+        hsl(40 20% 99%) 0%,
+        hsl(220 10% 98%) 25%,
+        hsl(220 8% 96%) 50%,
+        hsl(220 6% 94%) 75%,
+        hsl(220 10% 95%) 100%
+      );
     background-attachment: fixed;
   }
 
