@@ -35,8 +35,7 @@
     max-width: 100vw;
     min-height: 100vh;
     min-height: 100dvh;
-    /* Contain layout prevents children from affecting parent */
-    contain: layout style;
+    /* NOTE: Do NOT use 'contain: layout' here - it breaks position:fixed elements */
   }
   
   /* Ensure all containers respect viewport width */
