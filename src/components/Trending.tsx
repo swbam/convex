@@ -104,11 +104,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
   return (
     <div className="container mx-auto px-4 py-6 space-y-6 relative z-10">
       {/* Streamlined Header with Tabs */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-      >
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         {/* Tab Navigation */}
         <div className="flex gap-1 p-1 bg-secondary rounded-xl border border-border">
           {tabs.map((tab) => (
@@ -133,18 +129,13 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
           <span>•</span>
           <span>{trendingShows?.page?.length || 0} shows</span>
         </div>
-      </motion.div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-3">
           {activeTab === 'artists' && (
-            <motion.div
-              key="artists"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4"
-            >
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
               {!trendingArtists ? (
                 [...Array(10)].map((_, i) => (
                   <div key={i} className="glass-card rounded-xl overflow-hidden animate-pulse">
@@ -162,30 +153,19 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                 </div>
               ) : (
                 trendingArtists.page.map((artist: any, index: number) => (
-                  <motion.div
+                  <ArtistCard
                     key={artist._id || index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.03 }}
-                  >
-                    <ArtistCard
-                      artist={artist}
-                      rank={index + 1}
-                      onClick={() => handleArtistClick(artist)}
-                    />
-                  </motion.div>
+                    artist={artist}
+                    rank={index + 1}
+                    onClick={() => handleArtistClick(artist)}
+                  />
                 ))
               )}
-            </motion.div>
+            </div>
           )}
 
           {activeTab === 'shows' && (
-            <motion.div
-              key="shows"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4"
-            >
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
               {!trendingShows ? (
                 [...Array(10)].map((_, i) => (
                   <div key={i} className="glass-card rounded-xl overflow-hidden animate-pulse">
@@ -203,30 +183,19 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                 </div>
               ) : (
                 trendingShows.page.map((show: any, index: number) => (
-                  <motion.div
+                  <ShowCard
                     key={show._id || index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.03 }}
-                  >
-                    <ShowCard
-                      show={show}
-                      rank={index + 1}
-                      onClick={() => handleShowClick(show)}
-                    />
-                  </motion.div>
+                    show={show}
+                    rank={index + 1}
+                    onClick={() => handleShowClick(show)}
+                  />
                 ))
               )}
-            </motion.div>
+            </div>
           )}
           
           {activeTab === 'setlists' && (
-            <motion.div
-              key="setlists"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="grid grid-cols-1 sm:grid-cols-2 gap-3"
-            >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {!trendingSetlists ? (
                 [...Array(8)].map((_, i) => (
                   <div key={i} className="glass-card rounded-xl p-4 animate-pulse">
@@ -246,12 +215,9 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                 </div>
               ) : (
                 trendingSetlists.map((setlist: any, index: number) => (
-                  <motion.div
+                  <div
                     key={setlist._id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.03 }}
-                    className="glass-card glass-card-hover rounded-xl p-3 cursor-pointer"
+                    className="glass-card glass-card-hover rounded-xl p-3 cursor-pointer transition-colors"
                     onClick={() => {
                       const showId = setlist.show?._id ?? setlist._id;
                       const showSlug = setlist.show?.slug as string | undefined;
@@ -285,10 +251,10 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 ))
               )}
-            </motion.div>
+            </div>
           )}
         </div>
 
@@ -314,12 +280,9 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
             ) : (
               <div className="space-y-2">
                 {recentActivity.slice(0, 6).map((activity, index) => (
-                  <motion.div 
+                  <div 
                     key={index} 
                     className="p-2 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors cursor-pointer"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: index * 0.05 }}
                     onClick={() => handleShowClick(activity)}
                   >
                     <div className="flex items-start gap-2">
@@ -333,7 +296,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                         </p>
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             )}

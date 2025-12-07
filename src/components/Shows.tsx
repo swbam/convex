@@ -99,11 +99,7 @@ export function Shows({ onShowClick }: ShowsProps) {
   return (
     <div className="container mx-auto px-4 py-6 space-y-6 relative z-10">
       {/* Streamlined Header with Search */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row sm:items-center gap-4"
-      >
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         {/* Search Bar - Full width on mobile, auto on desktop */}
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -128,7 +124,7 @@ export function Shows({ onShowClick }: ShowsProps) {
         <p className="text-muted-foreground text-sm">
           {displayShows.length} {displayShows.length === 1 ? 'show' : 'shows'}
         </p>
-      </motion.div>
+      </div>
 
       {/* Content */}
       {isLoading ? (
@@ -144,11 +140,7 @@ export function Shows({ onShowClick }: ShowsProps) {
           ))}
         </div>
       ) : displayShows.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center py-16"
-        >
+        <div className="text-center py-16">
           <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-secondary flex items-center justify-center border border-border">
             <Music className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -167,27 +159,17 @@ export function Shows({ onShowClick }: ShowsProps) {
               Clear Filter
             </button>
           )}
-        </motion.div>
+        </div>
       ) : (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="space-y-6"
-        >
+        <div className="space-y-6">
           {/* Shows Grid - More columns, smaller cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
             {paginatedShows.map((show, index) => (
-              <motion.div
+              <ShowCard
                 key={show._id || index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.03 }}
-              >
-                <ShowCard
-                  show={show}
-                  onClick={() => handleShowClick(show._id || show.showId, show.slug)}
-                />
-              </motion.div>
+                show={show}
+                onClick={() => handleShowClick(show._id || show.showId, show.slug)}
+              />
             ))}
           </div>
 
@@ -233,7 +215,7 @@ export function Shows({ onShowClick }: ShowsProps) {
               </button>
             </div>
           )}
-        </motion.div>
+        </div>
       )}
     </div>
   );

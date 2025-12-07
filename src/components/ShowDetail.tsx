@@ -360,12 +360,7 @@ export function ShowDetail({
 
   return (
     <>
-      <motion.div
-        className="space-y-4 sm:space-y-6 relative z-10"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-      >
+      <div className="space-y-4 sm:space-y-6 relative z-10">
         <SEOHead />
 
         {/* Hero Header - Full width with fixed min-height to prevent layout shift */}
@@ -373,10 +368,11 @@ export function ShowDetail({
           {/* Background Image - uses CSS transition for smooth appearance */}
           <div className="absolute inset-0 z-0">
             <div 
-              className={`w-full h-full bg-cover bg-center transition-opacity duration-300 ${heroImage ? 'opacity-25 dark:opacity-40' : 'opacity-0'}`}
+              className={`w-full h-full bg-cover bg-center transition-opacity duration-300 ${heroImage ? 'opacity-50 dark:opacity-40' : 'opacity-0'}`}
               style={heroImage ? { backgroundImage: `url(${heroImage})`, filter: 'blur(2px)' } : undefined}
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/60 dark:from-black/90 dark:via-black/70 dark:to-black/50" />
+            {/* Light mode: softer gradient to show more image; Dark mode: stronger fade */}
+            <div className="absolute inset-0 bg-gradient-to-r from-background/80 via-background/60 to-background/40 dark:from-black/90 dark:via-black/70 dark:to-black/50" />
           </div>
 
           <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
@@ -867,7 +863,7 @@ export function ShowDetail({
         </div>
 
         {/* Removed sticky mobile CTA; tickets button shown in header */}
-      </motion.div>
+      </div>
 
       {/* Auth Modal for Unauth Limits */}
       <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>

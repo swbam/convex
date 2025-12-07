@@ -107,11 +107,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   if (isLoading) {
     // Premium loading skeleton
     return (
-      <motion.div 
-        className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-8"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-      >
+      <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-8">
         <div className="glass-card rounded-xl p-8 space-y-6 relative overflow-hidden">
           <div className="animate-pulse space-y-6">
             {/* Header skeleton */}
@@ -132,7 +128,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
           </div>
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer-sweep" />
         </div>
-      </motion.div>
+      </div>
     );
   }
 
@@ -147,21 +143,17 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   return (
     <>
       <SEOHead />
-      <motion.div
-        className="space-y-4 sm:space-y-8 relative z-10"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-      >
+      <div className="space-y-4 sm:space-y-8 relative z-10">
         {/* Hero Header - Full width with fixed min-height to prevent layout shift */}
         <div className="relative w-full overflow-hidden bg-card min-h-[160px] sm:min-h-[200px] lg:min-h-[240px]">
           {/* Background Image - uses CSS transition for smooth appearance */}
           <div className="absolute inset-0 z-0">
             <div 
-              className={`w-full h-full bg-cover bg-center transition-opacity duration-300 ${heroImage ? 'opacity-25 dark:opacity-40' : 'opacity-0'}`}
+              className={`w-full h-full bg-cover bg-center transition-opacity duration-300 ${heroImage ? 'opacity-50 dark:opacity-40' : 'opacity-0'}`}
               style={heroImage ? { backgroundImage: `url(${heroImage})`, filter: 'blur(2px)' } : undefined}
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/60 dark:from-black/90 dark:via-black/70 dark:to-black/50" />
+            {/* Light mode: softer gradient to show more image; Dark mode: stronger fade */}
+            <div className="absolute inset-0 bg-gradient-to-r from-background/80 via-background/60 to-background/40 dark:from-black/90 dark:via-black/70 dark:to-black/50" />
           </div>
 
           {/* Content - TALLER header with LARGER artist name */}
@@ -521,7 +513,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         </div>
         </div>
       </div>
-    </motion.div>
+    </div>
 
     {/* Add to Setlist Modal */}
     <AddToSetlistModal

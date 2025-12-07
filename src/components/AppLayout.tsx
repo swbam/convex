@@ -273,8 +273,8 @@ export function AppLayout({ children }: AppLayoutProps) {
       
       {/* Enhanced Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 w-full max-w-[100vw]" style={{ overflowX: 'clip' }}>
-        {/* Desktop top navigation */}
-        <div className="sticky top-0 z-40 border-b border-border bg-background safe-area-top shadow-sm">
+        {/* Top navigation - FIXED to viewport for reliable sticky behavior */}
+        <div className="fixed top-0 left-0 right-0 z-40 border-b border-border bg-background/95 backdrop-blur-xl safe-area-top shadow-sm">
           <header className="px-4 sm:px-6 lg:px-8 h-14 flex items-center relative z-40">
             <div className="mx-auto w-full max-w-page-full flex items-center gap-4">
               <button onClick={(e)=>{e.preventDefault(); void navigate('/')}} className="flex items-center touch-target flex-shrink-0">
@@ -380,8 +380,11 @@ export function AppLayout({ children }: AppLayoutProps) {
           </header>
         </div>
         
+        {/* Spacer for fixed header */}
+        <div className="h-14 flex-shrink-0" />
+        
         {/* Main Content Area with Enhanced Background */}
-        <main className="flex-1 overflow-y-auto bg-transparent flex flex-col min-w-0 w-full" style={{ overflowX: 'clip' }}>
+        <main className="flex-1 overflow-y-auto bg-transparent flex flex-col min-w-0 w-full pb-16 md:pb-0" style={{ overflowX: 'clip' }}>
           <div className="flex-1 min-w-0 relative w-full max-w-[100vw]">
             <PageContainer 
               variant={location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists') ? 'full' : (location.pathname === '/' ? 'wide' : 'narrow')}

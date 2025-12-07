@@ -356,14 +356,9 @@ export function Festivals({ onFestivalClick }: FestivalsProps) {
 
         {/* Festival Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
-          {gridFestivals.map((festival, index) => (
-            <motion.div
-              key={festival._id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.5) }}
-            >
+          {gridFestivals.map((festival) => (
               <MagicCard
+                key={festival._id}
                 className="group cursor-pointer rounded-xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-xl h-full"
                 onClick={() => onFestivalClick(festival.slug)}
               >
@@ -440,7 +435,6 @@ export function Festivals({ onFestivalClick }: FestivalsProps) {
                   </div>
                 </div>
               </MagicCard>
-            </motion.div>
           ))}
         </div>
 
