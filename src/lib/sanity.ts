@@ -1,22 +1,37 @@
-import { createClient } from '@sanity/client';
+import { createClient, type SanityClient } from '@sanity/client';
 import imageUrlBuilder from '@sanity/image-url';
 import type { SanityImageSource } from '@sanity/image-url/lib/types/types';
+
+// Check if Sanity is configured
+const SANITY_PROJECT_ID = import.meta.env.VITE_SANITY_PROJECT_ID;
+const SANITY_DATASET = import.meta.env.VITE_SANITY_DATASET || 'production';
+export const isSanityConfigured = !!SANITY_PROJECT_ID;
 
 // Sanity client configuration
 // You'll need to set these environment variables in your .env file:
 // VITE_SANITY_PROJECT_ID=your-project-id
 // VITE_SANITY_DATASET=production
-export const sanityClient = createClient({
-  projectId: import.meta.env.VITE_SANITY_PROJECT_ID || '',
-  dataset: import.meta.env.VITE_SANITY_DATASET || 'production',
-  useCdn: true, // Use CDN for faster reads in production
-  apiVersion: '2024-01-01', // Use a date string
-});
+export const sanityClient: SanityClient | null = isSanityConfigured
+  ? createClient({
+      projectId: SANITY_PROJECT_ID,
+      dataset: SANITY_DATASET,
+      useCdn: true, // Use CDN for faster reads in production
+      apiVersion: '2024-01-01', // Use a date string
+    })
+  : null;
 
-// Image URL builder
-const builder = imageUrlBuilder(sanityClient);
+// Image URL builder (only if client exists)
+const builder = sanityClient ? imageUrlBuilder(sanityClient) : null;
 
 export function urlFor(source: SanityImageSource) {
+  if (!builder) {
+    // Return a placeholder image URL builder that returns empty string
+    return {
+      width: () => ({ height: () => ({ url: () => '' }) }),
+      height: () => ({ url: () => '' }),
+      url: () => '',
+    } as ReturnType<typeof imageUrlBuilder>['image'];
+  }
   return builder.image(source);
 }
 
@@ -122,7 +137,7 @@ export const blogQueries = {
 
 // Fetch functions
 export async function getAllPosts(): Promise<BlogPost[]> {
-  if (!sanityClient.config().projectId) {
+  if (!sanityClient) {
     return [];
   }
   try {
@@ -134,7 +149,7 @@ export async function getAllPosts(): Promise<BlogPost[]> {
 }
 
 export async function getRecentPosts(): Promise<BlogPost[]> {
-  if (!sanityClient.config().projectId) {
+  if (!sanityClient) {
     return [];
   }
   try {
@@ -146,7 +161,7 @@ export async function getRecentPosts(): Promise<BlogPost[]> {
 }
 
 export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
-  if (!sanityClient.config().projectId) {
+  if (!sanityClient) {
     return null;
   }
   try {
@@ -158,7 +173,7 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
 }
 
 export async function getPostsByCategory(categorySlug: string): Promise<BlogPost[]> {
-  if (!sanityClient.config().projectId) {
+  if (!sanityClient) {
     return [];
   }
   try {
@@ -170,7 +185,7 @@ export async function getPostsByCategory(categorySlug: string): Promise<BlogPost
 }
 
 export async function getAllCategories(): Promise<Category[]> {
-  if (!sanityClient.config().projectId) {
+  if (!sanityClient) {
     return [];
   }
   try {
