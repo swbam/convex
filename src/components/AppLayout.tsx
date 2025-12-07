@@ -6,7 +6,6 @@ import { api } from '../../convex/_generated/api'
 import { SearchBar } from './SearchBar'
 import { SyncProgress } from './SyncProgress'
 import { PublicDashboard } from './PublicDashboard'
-import { UserDashboard } from './UserDashboard'
 import { SignOutButton } from '../SignOutButton'
 import { MagicCard } from './ui/magic-card'
 import { BorderBeam } from './ui/border-beam'
@@ -271,120 +270,116 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
       </aside>
       
-      {/* Enhanced Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 w-full max-w-[100vw]" style={{ overflowX: 'clip' }}>
-        {/* Top navigation - FIXED to viewport for reliable sticky behavior */}
-        <div className="fixed top-0 left-0 right-0 z-40 border-b border-border bg-background/95 backdrop-blur-xl safe-area-top shadow-sm">
-          <header className="px-4 sm:px-6 lg:px-8 h-14 flex items-center relative z-40">
-            <div className="mx-auto w-full max-w-page-full flex items-center gap-4">
-              <button onClick={(e)=>{e.preventDefault(); void navigate('/')}} className="flex items-center touch-target flex-shrink-0">
-                <span className="text-xl sm:text-2xl font-bold text-foreground" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>setlists.live</span>
-              </button>
+      {/* Top navigation - FIXED at root level for reliable sticky behavior */}
+      <header className="fixed top-0 left-0 right-0 z-[100] border-b border-border bg-background/95 backdrop-blur-xl safe-area-top shadow-sm">
+        <div className="px-4 sm:px-6 lg:px-8 h-14 flex items-center">
+          <div className="mx-auto w-full max-w-page-full flex items-center gap-4">
+            <button onClick={(e)=>{e.preventDefault(); void navigate('/')}} className="flex items-center touch-target flex-shrink-0">
+              <span className="text-xl sm:text-2xl font-bold text-foreground" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>setlists.live</span>
+            </button>
 
-              <nav className="hidden md:flex items-center gap-1">
-                <button onClick={()=>void navigate('/')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname==='/'?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Home</button>
-                <button onClick={()=>void navigate('/artists')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/artists')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Artists</button>
-                <button onClick={()=>void navigate('/shows')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/shows')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Shows</button>
-                <button onClick={()=>void navigate('/trending')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/trending')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Trending</button>
-                {/* Admin link - only show for admin users */}
-                {appUser?.appUser?.role === 'admin' && (
-                  <button onClick={()=>void navigate('/admin')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/admin')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Admin</button>
-                )}
-              </nav>
+            <nav className="hidden md:flex items-center gap-1">
+              <button onClick={()=>void navigate('/')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname==='/'?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Home</button>
+              <button onClick={()=>void navigate('/artists')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/artists')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Artists</button>
+              <button onClick={()=>void navigate('/shows')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/shows')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Shows</button>
+              <button onClick={()=>void navigate('/trending')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/trending')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Trending</button>
+              {/* Admin link - only show for admin users */}
+              {appUser?.appUser?.role === 'admin' && (
+                <button onClick={()=>void navigate('/admin')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/admin')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Admin</button>
+              )}
+            </nav>
 
-              <div className="flex-1" />
+            <div className="flex-1" />
 
-              {/* Global search */}
-              <div className="hidden lg:block w-full max-w-md xl:max-w-lg relative z-[100]">
-                <SearchBar onResultClick={(type: string, id: string, slug?: string) => {
-                  if (type === 'artist') {
-                    // Prefer SEO slug when available; fallback to id
-                    const urlParam = slug || id;
-                    void navigate(`/artists/${urlParam}`)
-                  } else if (type === 'show') {
-                    const urlParam = slug || id;
-                    void navigate(`/shows/${urlParam}`)
-                  }
-                }} />
-              </div>
-
-              {/* User dropdown and mobile menu */}
-              <div className="flex items-center gap-2">
-                {/* Theme Toggle - Desktop */}
-                <div className="hidden md:block">
-                  <ThemeToggle />
-                </div>
-                
-                {/* User Account Dropdown */}
-                {isSignedIn && user ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="hidden md:flex items-center gap-2">
-                        <div className="w-6 h-6 bg-primary/20 border border-primary/30 rounded-full flex items-center justify-center text-xs font-semibold text-primary">
-                          {user.firstName?.[0] || user.emailAddresses[0]?.emailAddress[0]?.toUpperCase() || 'U'}
-                        </div>
-                        <span className="text-sm font-medium">{user.firstName || 'Account'}</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuItem onClick={() => void navigate('/profile')}>
-                        <Settings className="h-4 w-4 mr-2" />
-                        Settings
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => void navigate('/activity')}>
-                        <Activity className="h-4 w-4 mr-2" />
-                        My Activity
-                      </DropdownMenuItem>
-                      {appUser?.appUser?.role === 'admin' && (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => void navigate('/admin')}>
-                            <Shield className="h-4 w-4 mr-2" />
-                            Admin Dashboard
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <SignOutButton />
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <div className="hidden md:flex items-center gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => void navigate('/signin')}>
-                      <LogIn className="h-4 w-4 mr-2" />
-                      Sign In
-                    </Button>
-                    <Button variant="default" size="sm" onClick={() => void navigate('/signup')}>
-                      Sign Up
-                    </Button>
-                  </div>
-                )}
-
-                {/* Mobile theme toggle - subtle, to the left of hamburger */}
-                <div className="md:hidden">
-                  <MobileThemeToggle />
-                </div>
-
-                {/* Mobile menu button */}
-                <button 
-                  className="md:hidden touch-target flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all active:scale-95"
-                  onClick={() => setSidebarOpen(true)}
-                  aria-label="Open menu"
-                >
-                  <Menu className="h-5 w-5" />
-                </button>
-              </div>
+            {/* Global search */}
+            <div className="hidden lg:block w-full max-w-md xl:max-w-lg relative z-[100]">
+              <SearchBar onResultClick={(type: string, id: string, slug?: string) => {
+                if (type === 'artist') {
+                  const urlParam = slug || id;
+                  void navigate(`/artists/${urlParam}`)
+                } else if (type === 'show') {
+                  const urlParam = slug || id;
+                  void navigate(`/shows/${urlParam}`)
+                }
+              }} />
             </div>
-          </header>
+
+            {/* User dropdown and mobile menu */}
+            <div className="flex items-center gap-2">
+              {/* Theme Toggle - Desktop */}
+              <div className="hidden md:block">
+                <ThemeToggle />
+              </div>
+              
+              {/* User Account Dropdown */}
+              {isSignedIn && user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="hidden md:flex items-center gap-2">
+                      <div className="w-6 h-6 bg-primary/20 border border-primary/30 rounded-full flex items-center justify-center text-xs font-semibold text-primary">
+                        {user.firstName?.[0] || user.emailAddresses[0]?.emailAddress[0]?.toUpperCase() || 'U'}
+                      </div>
+                      <span className="text-sm font-medium">{user.firstName || 'Account'}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={() => void navigate('/profile')}>
+                      <Settings className="h-4 w-4 mr-2" />
+                      Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => void navigate('/activity')}>
+                      <Activity className="h-4 w-4 mr-2" />
+                      My Activity
+                    </DropdownMenuItem>
+                    {appUser?.appUser?.role === 'admin' && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => void navigate('/admin')}>
+                          <Shield className="h-4 w-4 mr-2" />
+                          Admin Dashboard
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <SignOutButton />
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <div className="hidden md:flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => void navigate('/signin')}>
+                    <LogIn className="h-4 w-4 mr-2" />
+                    Sign In
+                  </Button>
+                  <Button variant="default" size="sm" onClick={() => void navigate('/signup')}>
+                    Sign Up
+                  </Button>
+                </div>
+              )}
+
+              {/* Mobile theme toggle - subtle, to the left of hamburger */}
+              <div className="md:hidden">
+                <MobileThemeToggle />
+              </div>
+
+              {/* Mobile menu button */}
+              <button 
+                className="md:hidden touch-target flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all active:scale-95"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open menu"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
         </div>
-        
-        {/* Spacer for fixed header */}
-        <div className="h-14 flex-shrink-0" />
-        
+      </header>
+
+      {/* Main Content Area - with top padding for fixed header */}
+      <div className="flex-1 flex flex-col min-w-0 w-full max-w-[100vw] pt-14" style={{ overflowX: 'clip' }}>
         {/* Main Content Area with Enhanced Background */}
-        <main className="flex-1 overflow-y-auto bg-transparent flex flex-col min-w-0 w-full pb-16 md:pb-0" style={{ overflowX: 'clip' }}>
+        <main className="flex-1 bg-transparent flex flex-col min-w-0 w-full pb-16 md:pb-0" style={{ overflowX: 'clip' }}>
           <div className="flex-1 min-w-0 relative w-full max-w-[100vw]">
             <PageContainer 
               variant={location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists') ? 'full' : (location.pathname === '/' ? 'wide' : 'narrow')}
@@ -417,6 +412,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </main>
       </div>
       
+      {/* Mobile Bottom Nav - FIXED at root level */}
       <MobileBottomNav onMenuClick={() => setSidebarOpen(true)} />
     </div>
   )
