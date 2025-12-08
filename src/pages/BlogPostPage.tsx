@@ -7,20 +7,20 @@ import { getPostBySlug, getRecentPosts, urlFor, type BlogPost } from '../lib/san
 import { AppLayout } from '../components/AppLayout';
 import { SEOHead } from '../components/SEOHead';
 
-// Custom components for rendering Portable Text
+// Custom components for rendering Portable Text - optimized for readability
 const portableTextComponents = {
   types: {
     image: ({ value }: { value: { asset: { _ref: string }; alt?: string; caption?: string } }) => {
       if (!value?.asset?._ref) return null;
       return (
-        <figure className="my-8">
+        <figure className="my-6">
           <img
             src={urlFor(value).width(1200).url()}
             alt={value.alt || ''}
-            className="rounded-xl w-full"
+            className="rounded-lg w-full"
           />
           {value.caption && (
-            <figcaption className="text-center text-sm text-muted-foreground mt-2">
+            <figcaption className="text-center text-xs text-muted-foreground mt-2">
               {value.caption}
             </figcaption>
           )}
@@ -30,22 +30,22 @@ const portableTextComponents = {
   },
   block: {
     h1: ({ children }: { children?: React.ReactNode }) => (
-      <h1 className="text-3xl sm:text-4xl font-bold mt-10 mb-4">{children}</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold mt-8 mb-3">{children}</h1>
     ),
     h2: ({ children }: { children?: React.ReactNode }) => (
-      <h2 className="text-2xl sm:text-3xl font-bold mt-8 mb-4">{children}</h2>
+      <h2 className="text-xl sm:text-2xl font-bold mt-7 mb-3">{children}</h2>
     ),
     h3: ({ children }: { children?: React.ReactNode }) => (
-      <h3 className="text-xl sm:text-2xl font-semibold mt-6 mb-3">{children}</h3>
+      <h3 className="text-lg sm:text-xl font-semibold mt-5 mb-2">{children}</h3>
     ),
     h4: ({ children }: { children?: React.ReactNode }) => (
-      <h4 className="text-lg font-semibold mt-5 mb-2">{children}</h4>
+      <h4 className="text-base font-semibold mt-4 mb-2">{children}</h4>
     ),
     normal: ({ children }: { children?: React.ReactNode }) => (
-      <p className="text-base sm:text-lg leading-relaxed mb-4">{children}</p>
+      <p className="text-[15px] sm:text-base leading-relaxed mb-4 text-foreground/90">{children}</p>
     ),
     blockquote: ({ children }: { children?: React.ReactNode }) => (
-      <blockquote className="border-l-4 border-primary pl-6 my-6 italic text-muted-foreground">
+      <blockquote className="border-l-4 border-primary/50 pl-4 my-5 italic text-muted-foreground text-[15px]">
         {children}
       </blockquote>
     ),
@@ -66,29 +66,29 @@ const portableTextComponents = {
       );
     },
     strong: ({ children }: { children?: React.ReactNode }) => (
-      <strong className="font-semibold">{children}</strong>
+      <strong className="font-semibold text-foreground">{children}</strong>
     ),
     em: ({ children }: { children?: React.ReactNode }) => (
       <em className="italic">{children}</em>
     ),
     code: ({ children }: { children?: React.ReactNode }) => (
-      <code className="bg-secondary px-1.5 py-0.5 rounded text-sm font-mono">{children}</code>
+      <code className="bg-secondary px-1 py-0.5 rounded text-sm font-mono">{children}</code>
     ),
   },
   list: {
     bullet: ({ children }: { children?: React.ReactNode }) => (
-      <ul className="list-disc list-inside space-y-2 mb-4 ml-4">{children}</ul>
+      <ul className="list-disc list-outside space-y-1.5 mb-4 ml-5 text-[15px] sm:text-base">{children}</ul>
     ),
     number: ({ children }: { children?: React.ReactNode }) => (
-      <ol className="list-decimal list-inside space-y-2 mb-4 ml-4">{children}</ol>
+      <ol className="list-decimal list-outside space-y-1.5 mb-4 ml-5 text-[15px] sm:text-base">{children}</ol>
     ),
   },
   listItem: {
     bullet: ({ children }: { children?: React.ReactNode }) => (
-      <li className="text-base sm:text-lg">{children}</li>
+      <li className="text-foreground/90">{children}</li>
     ),
     number: ({ children }: { children?: React.ReactNode }) => (
-      <li className="text-base sm:text-lg">{children}</li>
+      <li className="text-foreground/90">{children}</li>
     ),
   },
 };
@@ -198,16 +198,17 @@ export function BlogPostPage() {
         ogType="article"
       />
 
-      <article>
-        {/* Hero Header - Medium Style */}
+      <article className="relative">
+        {/* Hero Header - Full Width Medium Style */}
         <motion.header
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6 }}
-          className="relative min-h-[70vh] sm:min-h-[75vh] flex items-end overflow-hidden"
+          className="relative min-h-[50vh] sm:min-h-[60vh] flex items-end overflow-hidden -mx-4 sm:-mx-6 lg:-mx-8"
+          style={{ width: 'calc(100% + 2rem)', marginLeft: '-1rem', marginRight: '-1rem' }}
         >
-          {/* Background Image or Gradient */}
-          <div className="absolute inset-0">
+          {/* Background Image or Gradient - True Full Width */}
+          <div className="absolute inset-0" style={{ left: '50%', right: '50%', marginLeft: '-50vw', marginRight: '-50vw', width: '100vw' }}>
             {heroImageUrl ? (
               <img
                 src={heroImageUrl}
@@ -224,37 +225,37 @@ export function BlogPostPage() {
           {/* Back Button - Floating */}
           <Link
             to="/blog"
-            className="absolute top-6 left-4 sm:left-8 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-white/90 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full transition-all"
+            className="absolute top-4 left-4 sm:left-6 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm text-white/90 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full transition-all"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             Back
           </Link>
 
           {/* Share Button - Floating */}
           <button
             onClick={handleShare}
-            className="absolute top-6 right-4 sm:right-8 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-white/90 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full transition-all"
+            className="absolute top-4 right-4 sm:right-6 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm text-white/90 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full transition-all"
           >
-            <Share2 className="w-4 h-4" />
+            <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             Share
           </button>
 
           {/* Content */}
-          <div className="relative z-10 w-full px-4 sm:px-8 pb-12 sm:pb-16">
-            <div className="max-w-4xl mx-auto">
+          <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 pb-8 sm:pb-12">
+            <div className="max-w-3xl mx-auto">
               {/* Categories */}
               {post.categories && post.categories.length > 0 && (
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.1 }}
-                  className="flex flex-wrap gap-2 mb-5"
+                  className="flex flex-wrap gap-2 mb-4"
                 >
                   {post.categories.map((cat) => (
                     <Link
                       key={cat.slug.current}
                       to={`/blog?category=${cat.slug.current}`}
-                      className="px-3 py-1 text-xs font-medium bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-sm transition-colors"
+                      className="px-2.5 py-1 text-xs font-medium bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-sm transition-colors"
                     >
                       {cat.title}
                     </Link>
@@ -267,7 +268,7 @@ export function BlogPostPage() {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
-                className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-white mb-5"
+                className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight text-white mb-4"
                 style={{ textShadow: '0 2px 20px rgba(0,0,0,0.5)' }}
               >
                 {post.title}
@@ -279,7 +280,7 @@ export function BlogPostPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.3 }}
-                  className="text-lg sm:text-xl text-white/80 mb-6 max-w-3xl"
+                  className="text-sm sm:text-base text-white/80 mb-5 max-w-2xl"
                 >
                   {post.excerpt}
                 </motion.p>
@@ -290,31 +291,31 @@ export function BlogPostPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.4 }}
-                className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm text-white/70"
+                className="flex flex-wrap items-center gap-3 sm:gap-5 text-xs sm:text-sm text-white/70"
               >
                 {post.author && (
                   <div className="flex items-center gap-2">
                     {post.author.image ? (
                       <img
-                        src={urlFor(post.author.image).width(40).height(40).url()}
+                        src={urlFor(post.author.image).width(32).height(32).url()}
                         alt={post.author.name}
-                        className="w-9 h-9 rounded-full object-cover border-2 border-white/30"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border-2 border-white/30"
                       />
                     ) : (
-                      <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
-                        <User className="w-5 h-5 text-white/80" />
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 flex items-center justify-center">
+                        <User className="w-4 h-4 text-white/80" />
                       </div>
                     )}
                     <span className="font-medium text-white">{post.author.name}</span>
                   </div>
                 )}
                 <span className="flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4" />
+                  <Calendar className="w-3.5 h-3.5" />
                   {formatDate(post.publishedAt)}
                 </span>
                 {post.readingTime && (
                   <span className="flex items-center gap-1.5">
-                    <Clock className="w-4 h-4" />
+                    <Clock className="w-3.5 h-3.5" />
                     {post.readingTime} min read
                   </span>
                 )}
@@ -325,12 +326,12 @@ export function BlogPostPage() {
 
         {/* Body Content */}
         <div className="bg-background">
-          <div className="container mx-auto px-4 sm:px-6 py-10 sm:py-14 max-w-3xl">
+          <div className="mx-auto px-4 sm:px-6 py-8 sm:py-10 max-w-2xl">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-p:text-muted-foreground prose-p:leading-relaxed prose-a:text-primary prose-strong:text-foreground"
+              className="prose prose-sm sm:prose-base dark:prose-invert max-w-none prose-headings:font-bold prose-p:text-muted-foreground prose-p:leading-relaxed prose-a:text-primary prose-strong:text-foreground"
             >
               {post.body && (
                 <PortableText value={post.body} components={portableTextComponents} />
@@ -343,36 +344,36 @@ export function BlogPostPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.3 }}
-                className="mt-12 p-6 bg-secondary/30 rounded-2xl flex items-center gap-4"
+                className="mt-10 p-4 sm:p-5 bg-secondary/30 rounded-xl flex items-center gap-3"
               >
                 {post.author.image ? (
                   <img
-                    src={urlFor(post.author.image).width(80).height(80).url()}
+                    src={urlFor(post.author.image).width(64).height(64).url()}
                     alt={post.author.name}
-                    className="w-16 h-16 rounded-full object-cover"
+                    className="w-12 h-12 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
-                    <User className="w-8 h-8 text-muted-foreground" />
+                  <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
+                    <User className="w-6 h-6 text-muted-foreground" />
                   </div>
                 )}
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Written by</p>
-                  <p className="font-semibold text-lg">{post.author.name}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">Written by</p>
+                  <p className="font-semibold text-sm sm:text-base">{post.author.name}</p>
                 </div>
               </motion.div>
             )}
 
             {/* Related Posts */}
             {relatedPosts.length > 0 && (
-              <div className="mt-16 pt-10 border-t border-border">
-                <h2 className="text-2xl font-bold mb-6">Continue Reading</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="mt-12 pt-8 border-t border-border">
+                <h2 className="text-lg sm:text-xl font-bold mb-4">Continue Reading</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {relatedPosts.map((relatedPost) => (
                     <motion.div
                       key={relatedPost._id}
-                      whileHover={{ y: -4 }}
-                      className="glass-card rounded-xl overflow-hidden group"
+                      whileHover={{ y: -2 }}
+                      className="glass-card rounded-lg overflow-hidden group"
                     >
                       <Link to={`/blog/${relatedPost.slug.current}`}>
                         <div className="aspect-[16/9] overflow-hidden">
@@ -383,17 +384,17 @@ export function BlogPostPage() {
                               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                             />
                           ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary flex items-center justify-center">
-                              <span className="text-3xl">🎵</span>
+                            <div className="w-full h-full bg-gradient-to-br from-slate-800 to-black flex items-center justify-center">
+                              <span className="text-2xl">🎵</span>
                             </div>
                           )}
                         </div>
-                        <div className="p-4">
-                          <h3 className="font-semibold line-clamp-2 group-hover:text-primary transition-colors">
+                        <div className="p-3">
+                          <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors">
                             {relatedPost.title}
                           </h3>
-                          <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-                            <Calendar className="w-3.5 h-3.5" />
+                          <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
+                            <Calendar className="w-3 h-3" />
                             {formatDate(relatedPost.publishedAt)}
                           </div>
                         </div>
@@ -405,17 +406,17 @@ export function BlogPostPage() {
             )}
 
             {/* CTA */}
-            <div className="mt-12 glass-card rounded-2xl p-8 sm:p-10 text-center bg-gradient-to-br from-primary/5 to-secondary/10">
-              <h3 className="text-2xl font-bold mb-3">Discover More Music</h3>
-              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+            <div className="mt-10 glass-card rounded-xl p-6 sm:p-8 text-center bg-gradient-to-br from-primary/5 to-secondary/10">
+              <h3 className="text-lg sm:text-xl font-bold mb-2">Discover More Music</h3>
+              <p className="text-sm text-muted-foreground mb-4 max-w-sm mx-auto">
                 Explore upcoming shows and vote on setlists for your favorite artists
               </p>
               <Link
                 to="/shows"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-foreground text-background rounded-full font-medium hover:opacity-90 transition-opacity"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-foreground text-background rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
               >
                 Browse Shows
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           </div>
