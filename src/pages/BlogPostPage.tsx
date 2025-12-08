@@ -215,7 +215,7 @@ export function BlogPostPage() {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900" />
+              <div className="w-full h-full bg-gradient-to-br from-slate-800 via-slate-900 to-black" />
             )}
             {/* Dark Overlay - Gradient from bottom for text readability */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
