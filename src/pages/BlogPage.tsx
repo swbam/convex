@@ -141,7 +141,7 @@ export function BlogPage() {
                 <Link to={`/blog/${post.slug.current}`}>
                   {/* Image */}
                   <div className="aspect-[16/9] overflow-hidden relative">
-                    {post.mainImage ? (
+                    {post.mainImage?.asset ? (
                       <img
                         src={urlFor(post.mainImage).width(600).height(338).url()}
                         alt={post.title}

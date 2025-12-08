@@ -189,7 +189,7 @@ export function BlogPostPage() {
         title={seoTitle}
         description={seoDescription}
         canonicalUrl={`/blog/${post.slug.current}`}
-        ogImage={post.mainImage ? urlFor(post.mainImage).width(1200).height(630).url() : undefined}
+        ogImage={post.mainImage?.asset ? urlFor(post.mainImage).width(1200).height(630).url() : undefined}
         ogType="article"
       />
 
@@ -274,7 +274,7 @@ export function BlogPostPage() {
         </motion.header>
 
         {/* Featured Image */}
-        {post.mainImage && (
+        {post.mainImage?.asset && (
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
