@@ -204,11 +204,16 @@ export function BlogPostPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6 }}
-          className="relative min-h-[50vh] sm:min-h-[60vh] flex items-end overflow-hidden -mx-4 sm:-mx-6 lg:-mx-8"
-          style={{ width: 'calc(100% + 2rem)', marginLeft: '-1rem', marginRight: '-1rem' }}
+          className="relative min-h-[50vh] sm:min-h-[55vh] flex items-end overflow-hidden"
+          style={{ 
+            marginLeft: 'calc(-50vw + 50%)', 
+            marginRight: 'calc(-50vw + 50%)', 
+            width: '100vw',
+            maxWidth: '100vw'
+          }}
         >
           {/* Background Image or Gradient - True Full Width */}
-          <div className="absolute inset-0" style={{ left: '50%', right: '50%', marginLeft: '-50vw', marginRight: '-50vw', width: '100vw' }}>
+          <div className="absolute inset-0">
             {heroImageUrl ? (
               <img
                 src={heroImageUrl}
