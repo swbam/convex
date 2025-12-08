@@ -828,3 +828,85 @@ export const getAllSlugs = internalQuery({
   },
 });
 
+// Search festivals by name for blog affiliate linking
+export const searchByName = query({
+  args: { names: v.array(v.string()) },
+  returns: v.array(v.object({
+    name: v.string(),
+    slug: v.string(),
+    ticketUrl: v.optional(v.string()),
+    websiteUrl: v.optional(v.string()),
+    year: v.number(),
+    location: v.string(),
+  })),
+  handler: async (ctx, args) => {
+    const results: Array<{
+      name: string;
+      slug: string;
+      ticketUrl?: string;
+      websiteUrl?: string;
+      year: number;
+      location: string;
+    }> = [];
+    
+    // Get all festivals and match against provided names
+    const festivals = await ctx.db.query("festivals").collect();
+    
+    for (const searchName of args.names) {
+      const lowerSearch = searchName.toLowerCase();
+      
+      // Find festivals that match the search term
+      const matches = festivals.filter(f => {
+        const lowerName = f.name.toLowerCase();
+        // Match if the festival name contains the search term or vice versa
+        return lowerName.includes(lowerSearch) || lowerSearch.includes(lowerName.replace(/\s+\d{4}$/, '').toLowerCase());
+      });
+      
+      for (const match of matches) {
+        // Avoid duplicates
+        if (!results.some(r => r.slug === match.slug)) {
+          results.push({
+            name: match.name,
+            slug: match.slug,
+            ticketUrl: match.ticketUrl,
+            websiteUrl: match.websiteUrl,
+            year: match.year,
+            location: match.location,
+          });
+        }
+      }
+    }
+    
+    return results;
+  },
+});
+
+// Get all festivals with affiliate links for blog content
+export const getAllWithAffiliateLinks = query({
+  args: {},
+  returns: v.array(v.object({
+    name: v.string(),
+    slug: v.string(),
+    ticketUrl: v.optional(v.string()),
+    websiteUrl: v.optional(v.string()),
+    year: v.number(),
+    location: v.string(),
+    startDate: v.string(),
+    endDate: v.string(),
+  })),
+  handler: async (ctx) => {
+    const festivals = await ctx.db.query("festivals").collect();
+    
+    return festivals.map(f => ({
+      name: f.name,
+      slug: f.slug,
+      ticketUrl: f.ticketUrl,
+      websiteUrl: f.websiteUrl,
+      year: f.year,
+      location: f.location,
+      startDate: f.startDate,
+      endDate: f.endDate,
+    }));
+  },
+});
+

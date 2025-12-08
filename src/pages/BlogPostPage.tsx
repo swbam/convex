@@ -1,11 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, ArrowLeft, User, Share2, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, ArrowLeft, User, Share2, ChevronRight, Ticket } from 'lucide-react';
 import { PortableText } from '@portabletext/react';
+import { useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { getPostBySlug, getRecentPosts, urlFor, type BlogPost } from '../lib/sanity';
 import { AppLayout } from '../components/AppLayout';
 import { SEOHead } from '../components/SEOHead';
+
+// Type for affiliate link data
+interface AffiliateLink {
+  name: string;
+  slug: string;
+  ticketUrl?: string;
+  websiteUrl?: string;
+  year: number;
+  location: string;
+}
 
 // Custom components for rendering Portable Text - optimized for readability
 const portableTextComponents = {
@@ -100,6 +112,9 @@ export function BlogPostPage() {
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Fetch all festivals with affiliate links from Convex
+  const allFestivals = useQuery(api.festivals.getAllWithAffiliateLinks) ?? [];
+
   useEffect(() => {
     async function fetchData() {
       if (!slug) return;
@@ -130,6 +145,70 @@ export function BlogPostPage() {
       day: 'numeric',
     });
   };
+
+  // Helper to find matching festival for a text string
+  const findMatchingFestival = useCallback((text: string): AffiliateLink | null => {
+    if (!allFestivals.length) return null;
+    
+    const lowerText = text.toLowerCase();
+    
+    // Festival name patterns to match (without year suffix)
+    const festivalPatterns = [
+      'coachella', 'bonnaroo', 'lollapalooza', 'austin city limits', 'acl',
+      'edc', 'electric daisy carnival', 'ultra', 'stagecoach', 
+      'governors ball', "governor's ball", 'firefly', 'bottlerock',
+      'outside lands', 'electric forest', 'summerfest', 'shaky knees',
+      'hangout', 'when we were young', 'rolling loud', 'primavera'
+    ];
+    
+    for (const pattern of festivalPatterns) {
+      if (lowerText.includes(pattern)) {
+        // Find the matching festival in our data
+        const match = allFestivals.find(f => 
+          f.name.toLowerCase().includes(pattern) ||
+          pattern.includes(f.name.toLowerCase().replace(/\s+\d{4}$/, ''))
+        );
+        if (match && (match.ticketUrl || match.websiteUrl)) {
+          return match;
+        }
+      }
+    }
+    
+    return null;
+  }, [allFestivals]);
+
+  // Create affiliate-enhanced PortableText components
+  const affiliateTextComponents = useMemo(() => ({
+    ...portableTextComponents,
+    block: {
+      ...portableTextComponents.block,
+      h2: ({ children }: { children?: React.ReactNode }) => {
+        // Check if heading contains a festival name
+        const text = typeof children === 'string' ? children : 
+          (Array.isArray(children) ? children.join('') : '');
+        const match = findMatchingFestival(text);
+        
+        if (match && (match.ticketUrl || match.websiteUrl)) {
+          return (
+            <h2 className="text-xl sm:text-2xl font-bold mt-7 mb-3 flex items-center gap-2 flex-wrap">
+              <span>{children}</span>
+              <a 
+                href={match.ticketUrl || match.websiteUrl}
+                target="_blank"
+                rel="noopener noreferrer sponsored"
+                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 transition-colors bg-primary/10 px-2 py-0.5 rounded-full"
+              >
+                <Ticket className="w-3.5 h-3.5" />
+                Get Tickets
+              </a>
+            </h2>
+          );
+        }
+        
+        return <h2 className="text-xl sm:text-2xl font-bold mt-7 mb-3">{children}</h2>;
+      },
+    },
+  }), [findMatchingFestival]);
 
   const handleShare = async () => {
     if (navigator.share && post) {
@@ -339,7 +418,7 @@ export function BlogPostPage() {
               className="prose prose-sm sm:prose-base dark:prose-invert max-w-none prose-headings:font-bold prose-p:text-muted-foreground prose-p:leading-relaxed prose-a:text-primary prose-strong:text-foreground"
             >
               {post.body && (
-                <PortableText value={post.body} components={portableTextComponents} />
+                <PortableText value={post.body} components={affiliateTextComponents} />
               )}
             </motion.div>
 
