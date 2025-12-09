@@ -19,20 +19,20 @@ interface AffiliateLink {
   location: string;
 }
 
-// Custom components for rendering Portable Text - optimized for readability
+// Custom components for rendering Portable Text - Medium/Substack inspired
 const portableTextComponents = {
   types: {
     image: ({ value }: { value: { asset: { _ref: string }; alt?: string; caption?: string } }) => {
       if (!value?.asset?._ref) return null;
       return (
-        <figure className="my-6">
+        <figure className="my-8 -mx-4 sm:mx-0">
           <img
             src={urlFor(value).width(1200).url()}
             alt={value.alt || ''}
-            className="rounded-lg w-full"
+            className="w-full sm:rounded-lg"
           />
           {value.caption && (
-            <figcaption className="text-center text-xs text-muted-foreground mt-2">
+            <figcaption className="text-center text-sm text-muted-foreground mt-3 px-4 sm:px-0">
               {value.caption}
             </figcaption>
           )}
@@ -42,22 +42,22 @@ const portableTextComponents = {
   },
   block: {
     h1: ({ children }: { children?: React.ReactNode }) => (
-      <h1 className="text-2xl sm:text-3xl font-bold mt-8 mb-3">{children}</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold mt-12 mb-4 text-foreground tracking-tight">{children}</h1>
     ),
     h2: ({ children }: { children?: React.ReactNode }) => (
-      <h2 className="text-xl sm:text-2xl font-bold mt-7 mb-3">{children}</h2>
+      <h2 className="text-xl sm:text-2xl font-bold mt-10 mb-4 text-foreground tracking-tight border-b border-border/50 pb-2">{children}</h2>
     ),
     h3: ({ children }: { children?: React.ReactNode }) => (
-      <h3 className="text-lg sm:text-xl font-semibold mt-5 mb-2">{children}</h3>
+      <h3 className="text-lg sm:text-xl font-semibold mt-8 mb-3 text-foreground">{children}</h3>
     ),
     h4: ({ children }: { children?: React.ReactNode }) => (
-      <h4 className="text-base font-semibold mt-4 mb-2">{children}</h4>
+      <h4 className="text-base sm:text-lg font-semibold mt-6 mb-2 text-foreground">{children}</h4>
     ),
     normal: ({ children }: { children?: React.ReactNode }) => (
-      <p className="text-[15px] sm:text-base leading-relaxed mb-4 text-foreground/90">{children}</p>
+      <p className="text-[17px] leading-[1.8] mb-6 text-foreground/85" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{children}</p>
     ),
     blockquote: ({ children }: { children?: React.ReactNode }) => (
-      <blockquote className="border-l-4 border-primary/50 pl-4 my-5 italic text-muted-foreground text-[15px]">
+      <blockquote className="border-l-[3px] border-primary pl-5 my-8 text-lg italic text-muted-foreground" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
         {children}
       </blockquote>
     ),
@@ -71,36 +71,36 @@ const portableTextComponents = {
           href={value?.href}
           rel={rel}
           target={target}
-          className="text-primary hover:underline"
+          className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary transition-colors"
         >
           {children}
         </a>
       );
     },
     strong: ({ children }: { children?: React.ReactNode }) => (
-      <strong className="font-semibold text-foreground">{children}</strong>
+      <strong className="font-bold text-foreground">{children}</strong>
     ),
     em: ({ children }: { children?: React.ReactNode }) => (
       <em className="italic">{children}</em>
     ),
     code: ({ children }: { children?: React.ReactNode }) => (
-      <code className="bg-secondary px-1 py-0.5 rounded text-sm font-mono">{children}</code>
+      <code className="bg-secondary/60 px-1.5 py-0.5 rounded text-sm font-mono text-foreground">{children}</code>
     ),
   },
   list: {
     bullet: ({ children }: { children?: React.ReactNode }) => (
-      <ul className="list-disc list-outside space-y-1.5 mb-4 ml-5 text-[15px] sm:text-base">{children}</ul>
+      <ul className="space-y-3 mb-6 ml-6 text-[17px]" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{children}</ul>
     ),
     number: ({ children }: { children?: React.ReactNode }) => (
-      <ol className="list-decimal list-outside space-y-1.5 mb-4 ml-5 text-[15px] sm:text-base">{children}</ol>
+      <ol className="list-decimal space-y-3 mb-6 ml-6 text-[17px]" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{children}</ol>
     ),
   },
   listItem: {
     bullet: ({ children }: { children?: React.ReactNode }) => (
-      <li className="text-foreground/90">{children}</li>
+      <li className="text-foreground/85 leading-[1.7] pl-2 relative before:content-['•'] before:absolute before:-left-4 before:text-primary before:font-bold">{children}</li>
     ),
     number: ({ children }: { children?: React.ReactNode }) => (
-      <li className="text-foreground/90">{children}</li>
+      <li className="text-foreground/85 leading-[1.7]">{children}</li>
     ),
   },
 };
@@ -190,13 +190,13 @@ export function BlogPostPage() {
         
         if (match && (match.ticketUrl || match.websiteUrl)) {
           return (
-            <h2 className="text-xl sm:text-2xl font-bold mt-7 mb-3 flex items-center gap-2 flex-wrap">
+            <h2 className="text-xl sm:text-2xl font-bold mt-10 mb-4 text-foreground tracking-tight border-b border-border/50 pb-2 flex items-center justify-between gap-3 flex-wrap">
               <span>{children}</span>
               <a 
                 href={match.ticketUrl || match.websiteUrl}
                 target="_blank"
                 rel="noopener noreferrer sponsored"
-                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 transition-colors bg-primary/10 px-2 py-0.5 rounded-full"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary/90 transition-colors px-3 py-1.5 rounded-full shadow-sm"
               >
                 <Ticket className="w-3.5 h-3.5" />
                 Get Tickets
@@ -205,7 +205,7 @@ export function BlogPostPage() {
           );
         }
         
-        return <h2 className="text-xl sm:text-2xl font-bold mt-7 mb-3">{children}</h2>;
+        return <h2 className="text-xl sm:text-2xl font-bold mt-10 mb-4 text-foreground tracking-tight border-b border-border/50 pb-2">{children}</h2>;
       },
     },
   }), [findMatchingFestival]);
