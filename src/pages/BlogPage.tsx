@@ -40,6 +40,22 @@ export function BlogPage() {
     });
   };
 
+  // Curated Unsplash images for blog posts (high-quality concert/festival photography)
+  const blogHeaderImages: Record<string, string> = {
+    'concert-tours-2025-2026-city-guide': 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=600&h=338&fit=crop&q=80',
+    'music-festivals-2026-complete-guide': 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=600&h=338&fit=crop&q=80',
+    'complete-guide-concert-setlists': 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&h=338&fit=crop&q=80',
+    'ultimate-guide-us-music-festivals-2026': 'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=600&h=338&fit=crop&q=80',
+    'best-setlist-apps-websites-2025': 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&h=338&fit=crop&q=80',
+  };
+
+  const getPostImage = (post: BlogPost): string | null => {
+    if (post.mainImage?.asset) {
+      return urlFor(post.mainImage).width(600).height(338).url();
+    }
+    return blogHeaderImages[post.slug.current] || null;
+  };
+
   return (
     <AppLayout>
       <SEOHead
@@ -141,17 +157,20 @@ export function BlogPage() {
                 <Link to={`/blog/${post.slug.current}`}>
                   {/* Image */}
                   <div className="aspect-[16/9] overflow-hidden relative">
-                    {post.mainImage?.asset ? (
-                      <img
-                        src={urlFor(post.mainImage).width(600).height(338).url()}
-                        alt={post.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary flex items-center justify-center">
-                        <span className="text-4xl">🎵</span>
-                      </div>
-                    )}
+                    {(() => {
+                      const imageUrl = getPostImage(post);
+                      return imageUrl ? (
+                        <img
+                          src={imageUrl}
+                          alt={post.title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-slate-800 via-slate-900 to-black flex items-center justify-center">
+                          <span className="text-4xl">🎵</span>
+                        </div>
+                      );
+                    })()}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                     
                     {/* Categories */}

@@ -262,10 +262,19 @@ export function BlogPostPage() {
   const seoDescription = post.seoDescription || post.excerpt || `Read "${post.title}" on the setlists.live blog.`;
   const seoTitle = post.seoTitle || `${post.title} | setlists.live Blog`;
 
-  // Generate a gradient background if no image
+  // Curated Unsplash images for blog posts (high-quality concert/festival photography)
+  const blogHeaderImages: Record<string, string> = {
+    'concert-tours-2025-2026-city-guide': 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=1920&h=1080&fit=crop&q=80', // Concert crowd with lights
+    'music-festivals-2026-complete-guide': 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1920&h=1080&fit=crop&q=80', // Festival crowd aerial
+    'complete-guide-concert-setlists': 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1920&h=1080&fit=crop&q=80', // Band on stage
+    'ultimate-guide-us-music-festivals-2026': 'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=1920&h=1080&fit=crop&q=80', // Festival at sunset
+    'best-setlist-apps-websites-2025': 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1920&h=1080&fit=crop&q=80', // Concert with phone lights
+  };
+
+  // Use Sanity image if available, then fallback to curated Unsplash image, then gradient
   const heroImageUrl = post.mainImage?.asset 
     ? urlFor(post.mainImage).width(1920).height(1080).url() 
-    : null;
+    : blogHeaderImages[post.slug.current] || null;
 
   return (
     <AppLayout>
@@ -273,7 +282,7 @@ export function BlogPostPage() {
         title={seoTitle}
         description={seoDescription}
         canonicalUrl={`/blog/${post.slug.current}`}
-        ogImage={post.mainImage?.asset ? urlFor(post.mainImage).width(1200).height(630).url() : undefined}
+        ogImage={post.mainImage?.asset ? urlFor(post.mainImage).width(1200).height(630).url() : (heroImageUrl || undefined)}
         ogType="article"
       />
 
