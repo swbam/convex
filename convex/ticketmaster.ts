@@ -737,9 +737,9 @@ export const getTrendingShows = action({
     
     // CRITICAL: Use Ticketmaster's discovery API with proper filters
     // - segmentId=KZFzniwnSyZfZ7v7nJ is the OFFICIAL Music segment ID (filters out theatre, film, sports)
-    // - This is more reliable than segmentName=Music
-    // - Sort by date ascending to get upcoming shows first
-    const url = `https://app.ticketmaster.com/discovery/v2/events.json?segmentId=KZFzniwnSyZfZ7v7nJ&countryCode=US&startDateTime=${startDate}T00:00:00Z&endDateTime=${endDate}T23:59:59Z&size=${limit * 2}&sort=date,asc&apikey=${apiKey}`;
+    // - sort=relevance,desc gives POPULARITY-based results (biggest/trending shows first)
+    // - This is the key difference - date,asc just gives today's shows (any random small venue)
+    const url = `https://app.ticketmaster.com/discovery/v2/events.json?segmentId=KZFzniwnSyZfZ7v7nJ&countryCode=US&startDateTime=${startDate}T00:00:00Z&endDateTime=${endDate}T23:59:59Z&size=${limit * 2}&sort=relevance,desc&apikey=${apiKey}`;
 
     try {
       console.log(`🎫 Fetching trending shows from Ticketmaster...`);
@@ -749,7 +749,8 @@ export const getTrendingShows = action({
         
         // FALLBACK: Try simpler query if detailed one fails - MUST include US filter
         // Use segmentId for Music to filter out theatre, film, sports
-        const fallbackUrl = `https://app.ticketmaster.com/discovery/v2/events.json?segmentId=KZFzniwnSyZfZ7v7nJ&countryCode=US&size=${limit}&sort=date,asc&apikey=${apiKey}`;
+        // sort=relevance,desc gives popularity-based results
+        const fallbackUrl = `https://app.ticketmaster.com/discovery/v2/events.json?segmentId=KZFzniwnSyZfZ7v7nJ&countryCode=US&size=${limit}&sort=relevance,desc&apikey=${apiKey}`;
         const fallbackResponse = await tmFetchWithRetry(fallbackUrl);
         if (!fallbackResponse.ok) return [];
         const fallbackData = await fallbackResponse.json();
@@ -901,21 +902,75 @@ export const getTrendingArtists = action({
     }
 
     const limit = args.limit || 30;
-    // US-only query - get ONLY Music segment attractions (filters out theatre, film, sports)
-    // segmentId=KZFzniwnSyZfZ7v7nJ is the official Ticketmaster Music segment ID
-    const url = `https://app.ticketmaster.com/discovery/v2/attractions.json?segmentId=KZFzniwnSyZfZ7v7nJ&countryCode=US&size=${limit}&apikey=${apiKey}`;
+    
+    // IMPROVED STRATEGY: Get ACTUALLY trending artists (not legacy acts)
+    // 1. Fetch events from Ticketmaster
+    // 2. Filter to artists with MANY upcoming events (= major touring acts, not residencies)
+    // 3. Sort by upcoming event count (more events = bigger tour = more trending)
+    // 4. Filter out artists with < 5 upcoming events
+    const now = new Date();
+    const startDate = now.toISOString().split('T')[0];
+    const futureDate = new Date(now.getTime() + (180 * 24 * 60 * 60 * 1000)); // Next 6 months for better data
+    const endDate = futureDate.toISOString().split('T')[0];
+    
+    // Fetch more events to get better artist diversity
+    const eventsUrl = `https://app.ticketmaster.com/discovery/v2/events.json?segmentId=KZFzniwnSyZfZ7v7nJ&countryCode=US&startDateTime=${startDate}T00:00:00Z&endDateTime=${endDate}T23:59:59Z&size=200&sort=relevance,desc&apikey=${apiKey}`;
 
     try {
-      const response = await tmFetchWithRetry(url);
+      console.log(`🎤 Fetching trending artists from popular events...`);
+      const response = await tmFetchWithRetry(eventsUrl);
       if (!response.ok) {
         console.error("Ticketmaster API error:", response.status, response.statusText);
         return [];
       }
 
       const data = await response.json();
-      const attractions = data._embedded?.attractions || [];
+      const events = data._embedded?.events || [];
+      
+      // Extract unique artists from popular events
+      const artistMap = new Map<string, any>();
+      for (const event of events) {
+        const attraction = event._embedded?.attractions?.[0];
+        if (!attraction?.id || artistMap.has(attraction.id)) continue;
+        
+        // Skip non-artist content
+        const name = (attraction.name || '').toLowerCase();
+        const isBadContent = name.includes('tribute') || name.includes('experience') ||
+                             name.includes('orchestra') || name.includes('symphony') ||
+                             name.includes('ballet') || name.includes('opera') ||
+                             name.includes('musical') || name.includes('christmas') ||
+                             name.includes('holiday') || name.includes('jingle') ||
+                             name.includes('on ice') || name.includes('cirque') ||
+                             name.includes(' stones') || // tribute bands like Sin City Stones
+                             name.includes('fab four') || // Beatles tribute
+                             name.includes('bingo') || // Bingo events
+                             name.includes('loco') || // Bingo Loco
+                             name.includes(' - ') && name.match(/[A-Z]{2}$/); // "Name - City, ST"
+        if (isBadContent) continue;
+        
+        const upcomingEvents = attraction.upcomingEvents?._total || 0;
+        // Skip residencies (60+ events likely at same venue, not touring)
+        // Real stadium tours typically have 20-50 shows max
+        if (upcomingEvents > 60) continue;
+        
+        artistMap.set(attraction.id, {
+          attraction,
+          upcomingEvents,
+        });
+      }
+      
+      // CRITICAL: Sort by upcoming event count (DESCENDING) to get major touring acts first
+      // Then filter to artists with at least 5 upcoming events (real tours, not residencies)
+      const artists = Array.from(artistMap.values())
+        .filter(a => a.upcomingEvents >= 5) // Only artists with real tours
+        .sort((a, b) => b.upcomingEvents - a.upcomingEvents) // Most events first
+        .slice(0, limit);
+      
+      console.log(`✅ Found ${artists.length} trending artists with 5+ events (sorted by tour size)`);
+      
+      console.log(`✅ Found ${artists.length} trending artists from popular events`);
 
-      return attractions.map((attraction: any) => ({
+      return artists.map(({ attraction }: { attraction: any }) => ({
         ticketmasterId: String(attraction.id || ''),
         name: String(attraction.name || ''),
         genres: attraction.classifications?.[0]?.genre?.name ? [String(attraction.classifications[0].genre.name)] : [],

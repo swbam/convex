@@ -2,14 +2,9 @@ import React, { useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
-import { TrendingUp, Music, MapPin, Calendar, Clock, ChevronRight, Users } from 'lucide-react';
+import { TrendingUp, Music, MapPin, Calendar, Clock, ChevronRight, Users, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-
-const toSlug = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
+import { useArtistImport, useShowImport } from '../hooks/useArtistImport';
 
 interface TrendingProps {
   onArtistClick: (artistKey: Id<'artists'> | string, slug?: string) => void;
@@ -19,6 +14,10 @@ interface TrendingProps {
 export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
   const [activeTab, setActiveTab] = useState<'artists' | 'shows' | 'setlists'>('artists');
   
+  // Import hooks for triggering full artist/show sync
+  const { handleArtistClick: importArtist, importingArtist } = useArtistImport();
+  const { handleShowClick: importShow, importingShow } = useShowImport();
+  
   // Get trending data directly from main tables with trending ranks!
   const trendingArtists = useQuery(api.trending.getTrendingArtists, { limit: 20 });
   const trendingShows = useQuery(api.trending.getTrendingShows, { limit: 20 });
@@ -27,72 +26,14 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
   // Get recent activity/updates
   const recentActivity = useQuery(api.shows.getRecentlyUpdated, { limit: 10 });
 
-  const handleArtistClick = (artist: any) => {
-    const fallbackSlug = typeof artist.slug === 'string' && artist.slug.trim().length > 0
-      ? artist.slug
-      : typeof artist.name === 'string'
-        ? toSlug(artist.name)
-        : undefined;
-
-    if (typeof artist.artistId === 'string' && artist.artistId.startsWith('k')) {
-      onArtistClick(artist.artistId as Id<'artists'>, fallbackSlug);
-      return;
-    }
-
-    if (typeof artist._id === 'string' && artist._id.startsWith('k')) {
-      onArtistClick(artist._id as Id<'artists'>, fallbackSlug);
-      return;
-    }
-
-    if (fallbackSlug) {
-      onArtistClick(fallbackSlug, fallbackSlug);
-      return;
-    }
-
-    if (typeof artist.ticketmasterId === 'string' && artist.ticketmasterId.length > 0) {
-      onArtistClick(artist.ticketmasterId, fallbackSlug);
-      return;
-    }
-
-    console.error('Unable to navigate to artist - no valid identifier found:', artist);
+  // Handler that triggers import if artist not in DB
+  const handleArtistClick = async (artist: any) => {
+    await importArtist(artist, onArtistClick);
   };
 
-  const handleShowClick = (show: any) => {
-    const localId = typeof show.showId === 'string'
-      ? show.showId
-      : typeof show._id === 'string'
-      ? show._id
-        : undefined;
-
-    const inferredSlug = typeof show.slug === 'string' && show.slug.trim().length > 0
-      ? show.slug
-      : typeof show.showSlug === 'string' && show.showSlug.trim().length > 0
-        ? show.showSlug
-        : toSlug([
-            show.artist?.name || show.artistName,
-            show.venue?.name || show.venueName,
-            show.venue?.city || show.venueCity,
-            show.date,
-          ]
-            .filter((part) => typeof part === 'string' && part.length > 0)
-            .join(' '));
-
-    if (localId && localId.startsWith('k')) {
-      onShowClick(localId as Id<'shows'>, inferredSlug);
-      return;
-    }
-
-    if (inferredSlug) {
-      onShowClick(inferredSlug, inferredSlug);
-      return;
-    }
-
-    if (typeof show.ticketmasterId === 'string' && show.ticketmasterId.length > 0) {
-      onShowClick(show.ticketmasterId, inferredSlug);
-      return;
-    }
-
-    console.error('Unable to navigate to show - no valid identifier found:', show);
+  // Handler that triggers import if show not in DB  
+  const handleShowClick = async (show: any) => {
+    await importShow(show, onShowClick);
   };
 
   const tabs = [
@@ -158,6 +99,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                     artist={artist}
                     rank={index + 1}
                     onClick={() => handleArtistClick(artist)}
+                    isImporting={importingArtist === artist.ticketmasterId}
                   />
                 ))
               )}
@@ -188,6 +130,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                     show={show}
                     rank={index + 1}
                     onClick={() => handleShowClick(show)}
+                    isImporting={importingShow === (show.ticketmasterId || show.artistTicketmasterId)}
                   />
                 ))
               )}
@@ -308,7 +251,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
 }
 
 // Compact Artist Card
-function ArtistCard({ artist, rank, onClick }: { artist: any; rank: number; onClick: () => void }) {
+function ArtistCard({ artist, rank, onClick, isImporting }: { artist: any; rank: number; onClick: () => void; isImporting?: boolean }) {
   const image = Array.isArray(artist.images) && artist.images.length > 0 ? artist.images[0] : undefined;
   const upcomingCount = typeof artist.upcomingShowsCount === 'number'
     ? artist.upcomingShowsCount
@@ -318,12 +261,17 @@ function ArtistCard({ artist, rank, onClick }: { artist: any; rank: number; onCl
 
   return (
     <motion.div
-      className="cursor-pointer"
+      className={`cursor-pointer ${isImporting ? 'pointer-events-none opacity-70' : ''}`}
       onClick={onClick}
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated">
+      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated relative">
+        {isImporting && (
+          <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        )}
         <div className="relative aspect-square overflow-hidden">
           {image ? (
             <img
@@ -377,7 +325,7 @@ function ArtistCard({ artist, rank, onClick }: { artist: any; rank: number; onCl
 }
 
 // Compact Show Card
-function ShowCard({ show, rank, onClick }: { show: any; rank: number; onClick: () => void }) {
+function ShowCard({ show, rank, onClick, isImporting }: { show: any; rank: number; onClick: () => void; isImporting?: boolean }) {
   const artistName = show.artist?.name || show.artistName || 'Unknown Artist';
   const artistImage = show.artist?.images?.[0] || show.artistImage;
   const venueCity = show.venue?.city || show.venueCity || '';
@@ -388,12 +336,17 @@ function ShowCard({ show, rank, onClick }: { show: any; rank: number; onClick: (
 
   return (
     <motion.div
-      className="cursor-pointer"
+      className={`cursor-pointer ${isImporting ? 'pointer-events-none opacity-70' : ''}`}
       onClick={onClick}
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated">
+      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated relative">
+        {isImporting && (
+          <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        )}
         <div className="relative aspect-square overflow-hidden">
           {artistImage ? (
             <img

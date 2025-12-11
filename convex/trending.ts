@@ -19,8 +19,15 @@ const isRealConcert = (name: string, genres?: string[]): boolean => {
     // Film/video game music performances (tagged as Music but are soundtrack screenings)
     'film with', '- film', 'in concert film', 'live to film',
     'video games live', 'festival of seasons',
+    // Soundtrack/score performances (Hans Zimmer, John Williams, etc.)
+    'music of hans zimmer', 'hans zimmer', 'john williams',
+    'movie scores', 'film scores', 'soundtrack',
     // Documentary/tribute screenings (sometimes tagged as Music)
     'documentary', 'at the max', 'making sense',
+    // Tribute bands (detected by common patterns)
+    'smells like nirvana', 'tribute', 'experience featuring',
+    // Award ceremonies and non-performance events
+    'hall of fame', 'induction ceremony', 'awards', 'gala',
     // Opera (sometimes leaks into Music segment)
     'opera', 'la traviata', 'rigoletto', 'carmen', 'tosca',
     // Kids entertainment (sometimes tagged as Music)
@@ -29,11 +36,11 @@ const isRealConcert = (name: string, genres?: string[]): boolean => {
   
   if (rejectPatterns.some(p => lowerName.includes(p))) return false;
   
-  // Check genres - reject classical/opera that slipped through
+  // Check genres - reject classical/opera/other non-concert genres
   if (genres && genres.length > 0) {
     const lowerGenres = genres.map(g => g.toLowerCase());
     const nonConcertGenres = [
-      'classical', 'opera', 'chamber music', 'choral'
+      'classical', 'opera', 'chamber music', 'choral', 'other', 'undefined'
     ];
     if (lowerGenres.some(g => nonConcertGenres.some(ng => g.includes(ng)))) return false;
   }
@@ -586,11 +593,18 @@ export const replaceTrendingArtistsCache = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     // CRITICAL: Filter to real concerts only (no orchestras, film screenings, etc.)
+    // Also filter out residencies (50+ shows = Vegas residency, not a real tour)
+    const MAX_EVENTS_FOR_TOUR = 50;
     const realConcertArtists = args.artists.filter((artist) => {
+      // Residency filter: 50+ events = not a touring act
+      if (artist.upcomingEvents > MAX_EVENTS_FOR_TOUR) {
+        console.log(`🚫 Skipping residency: ${artist.name} (${artist.upcomingEvents} events)`);
+        return false;
+      }
       return isRealConcert(artist.name, artist.genres);
     });
     
-    console.log(`📊 Processing ${realConcertArtists.length} real concert artists out of ${args.artists.length} total`);
+    console.log(`📊 Processing ${realConcertArtists.length} real concert artists out of ${args.artists.length} total (filtered residencies with 50+ events)`);
     
     const existing = await ctx.db.query("trendingArtists").collect();
     const existingMap = new Map(existing.map((doc) => [doc.ticketmasterId, doc]));
@@ -602,6 +616,14 @@ export const replaceTrendingArtistsCache = internalMutation({
       }
     }
 
+    // STEP 1: Build enriched artist data with Spotify popularity
+    const enrichedArtists: Array<{
+      ticketmasterId: string;
+      linkedArtist: any;
+      artist: typeof realConcertArtists[0];
+      spotifyPopularity: number;
+    }> = [];
+    
     for (const artist of realConcertArtists) {
       const linkedArtist = await ctx.db
         .query("artists")
@@ -609,7 +631,36 @@ export const replaceTrendingArtistsCache = internalMutation({
           q.eq("ticketmasterId", artist.ticketmasterId)
         )
         .first();
+      
+      // Get Spotify popularity (0-100) if available
+      const spotifyPopularity = linkedArtist?.popularity || 0;
+      
+      enrichedArtists.push({
+        ticketmasterId: artist.ticketmasterId,
+        linkedArtist,
+        artist,
+        spotifyPopularity,
+      });
+    }
+    
+    // STEP 2: Sort by Spotify popularity (DESC), then upcomingEvents as tiebreaker
+    // This ensures artists like Beyonce (popularity 90+) rank higher than Barry Manilow
+    enrichedArtists.sort((a, b) => {
+      // Primary: Spotify popularity (higher = more popular currently)
+      if (a.spotifyPopularity !== b.spotifyPopularity) {
+        return b.spotifyPopularity - a.spotifyPopularity;
+      }
+      // Secondary: Upcoming events (more events = bigger tour)
+      return b.artist.upcomingEvents - a.artist.upcomingEvents;
+    });
+    
+    console.log(`🎵 Top 5 by Spotify popularity: ${enrichedArtists.slice(0, 5).map(a => `${a.artist.name}(${a.spotifyPopularity})`).join(', ')}`);
 
+    // STEP 3: Update cache with new rankings
+    for (let i = 0; i < enrichedArtists.length; i++) {
+      const { ticketmasterId, linkedArtist, artist } = enrichedArtists[i];
+      const newRank = i + 1; // 1-based rank
+      
       const name = linkedArtist?.name || artist.name || "Unknown Artist";
       const genres =
         linkedArtist?.genres && linkedArtist.genres.length > 0
@@ -631,17 +682,17 @@ export const replaceTrendingArtistsCache = internalMutation({
         images,
         upcomingEvents,
         url: artist.url,
-        rank: artist.rank,
+        rank: newRank, // Use Spotify-sorted rank instead of Ticketmaster rank
         lastUpdated: args.fetchedAt,
       };
 
-      const existingDoc = existingMap.get(artist.ticketmasterId);
+      const existingDoc = existingMap.get(ticketmasterId);
       if (existingDoc) {
         await ctx.db.patch(existingDoc._id, payload);
-        existingMap.delete(artist.ticketmasterId);
+        existingMap.delete(ticketmasterId);
       } else {
         await ctx.db.insert("trendingArtists", {
-          ticketmasterId: artist.ticketmasterId,
+          ticketmasterId,
           ...payload,
         });
       }

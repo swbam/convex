@@ -2315,3 +2315,105 @@ export const getArtistsNeedingCatalogRetry = internalQuery({
     return needsRetry;
   },
 });
+
+// Delete residency artists (those with 50+ shows - Vegas residencies, etc.)
+export const deleteResidencyArtists = action({
+  args: { maxShows: v.optional(v.number()) },
+  returns: v.object({ 
+    success: v.boolean(), 
+    message: v.string(), 
+    deletedArtists: v.number(),
+    deletedShows: v.number(),
+    deletedSongs: v.number()
+  }),
+  handler: async (ctx, args): Promise<{ 
+    success: boolean; 
+    message: string; 
+    deletedArtists: number;
+    deletedShows: number;
+    deletedSongs: number;
+  }> => {
+    const maxShows = args.maxShows || 50; // Default: 50+ shows = residency
+    
+    console.log(`🗑️ Deleting residency artists with more than ${maxShows} shows...`);
+    
+    const result = await ctx.runMutation(internalRef.admin.deleteResidencyArtistsInternal, { maxShows });
+    
+    return {
+      success: true,
+      message: `Deleted ${result.deletedArtists} residency artists, ${result.deletedShows} shows, ${result.deletedSongs} songs`,
+      ...result
+    };
+  },
+});
+
+export const deleteResidencyArtistsInternal = internalMutation({
+  args: { maxShows: v.number() },
+  returns: v.object({ 
+    deletedArtists: v.number(),
+    deletedShows: v.number(),
+    deletedSongs: v.number()
+  }),
+  handler: async (ctx, args) => {
+    let deletedArtists = 0;
+    let deletedShows = 0;
+    let deletedSongs = 0;
+    
+    // Get all artists
+    const artists = await ctx.db.query("artists").collect();
+    
+    for (const artist of artists) {
+      // Count their shows
+      const shows = await ctx.db
+        .query("shows")
+        .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
+        .collect();
+      
+      if (shows.length > args.maxShows) {
+        console.log(`🗑️ Deleting residency artist: ${artist.name} (${shows.length} shows)`);
+        
+        // Delete all their shows and associated setlists
+        for (const show of shows) {
+          // Delete setlists for this show
+          const setlists = await ctx.db
+            .query("setlists")
+            .withIndex("by_show", (q) => q.eq("showId", show._id))
+            .collect();
+          for (const setlist of setlists) {
+            await ctx.db.delete(setlist._id);
+          }
+          
+          await ctx.db.delete(show._id);
+          deletedShows++;
+        }
+        
+        // Delete their songs
+        const artistSongs = await ctx.db
+          .query("artistSongs")
+          .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
+          .collect();
+        for (const as of artistSongs) {
+          await ctx.db.delete(as._id);
+          deletedSongs++;
+        }
+        
+        // Delete from trending cache
+        const trendingArtist = await ctx.db
+          .query("trendingArtists")
+          .filter((q) => q.eq(q.field("artistId"), artist._id))
+          .first();
+        if (trendingArtist) {
+          await ctx.db.delete(trendingArtist._id);
+        }
+        
+        // Delete the artist
+        await ctx.db.delete(artist._id);
+        deletedArtists++;
+      }
+    }
+    
+    console.log(`✅ Deleted ${deletedArtists} artists, ${deletedShows} shows, ${deletedSongs} song links`);
+    
+    return { deletedArtists, deletedShows, deletedSongs };
+  },
+});

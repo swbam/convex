@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
-import { useQuery } from "convex/react";
+import React, { useMemo, useState } from 'react';
+import { useQuery, useAction } from "convex/react";
 import { useUser } from "@clerk/clerk-react";
 import { api } from "../../convex/_generated/api";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, Users, MapPin, Music, Sparkles, ArrowRight, Ticket } from "lucide-react";
+import { TrendingUp, Users, MapPin, Music, Sparkles, ArrowRight, Ticket, Loader2 } from "lucide-react";
 import { SearchBar } from "./SearchBar";
 import { Id } from "../../convex/_generated/dataModel";
 import { ArtistCardSkeleton, ShowCardSkeleton, FestivalCardSkeleton } from "./LoadingSkeleton";
@@ -12,6 +12,7 @@ import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { FaSpotify } from "react-icons/fa";
 import { formatLocation } from "../lib/utils";
+import { toast } from "sonner";
 // Removed EmblaCarousel - using simple CSS-based horizontal scroll for reliability
 
 interface PublicDashboardProps {
@@ -24,6 +25,10 @@ interface PublicDashboardProps {
 export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardProps) {
   const navigateTo = useNavigate();
   const { user, isSignedIn, isLoaded: isClerkLoaded } = useUser();
+  
+  // Import action for artists not yet in DB
+  const triggerArtistSync = useAction(api.ticketmaster.triggerFullArtistSync);
+  const [importingArtist, setImportingArtist] = useState<string | null>(null);
 
   // Load trending data
   const dbTrendingShowsResult = useQuery(api.trending.getTrendingShows, { limit: 20 });
@@ -131,6 +136,55 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
     show: { 
       opacity: 1,
       transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] }
+    }
+  };
+
+  // Handler for clicking on trending artists - triggers import if not in DB
+  const handleTrendingArtistClick = async (artist: any) => {
+    const artistId = artist?.artistId || artist?._id;
+    const slug = artist?.slug;
+    
+    // If artist is already in the database, just navigate
+    if (artistId && typeof artistId === 'string' && artistId.startsWith('j')) {
+      onArtistClick(artistId as Id<"artists">);
+      return;
+    }
+    
+    // If we have a slug but no artistId, the artist is in cache but not in DB
+    // Trigger import first
+    if (artist?.ticketmasterId && artist?.name) {
+      setImportingArtist(artist.ticketmasterId);
+      try {
+        toast.info(`Loading ${artist.name}...`);
+        const result = await triggerArtistSync({
+          ticketmasterId: artist.ticketmasterId,
+          artistName: artist.name,
+          genres: artist.genres || [],
+          images: artist.images || [],
+          upcomingEvents: artist.upcomingEvents || 0,
+        });
+        
+        if (result.type === 'artist' && result.slug) {
+          navigateTo(`/artists/${result.slug}`);
+        } else if (result.type === 'festival' && result.slug) {
+          navigateTo(`/festivals/${result.slug}`);
+        }
+      } catch (error) {
+        console.error('Failed to import artist:', error);
+        toast.error(`Failed to load ${artist.name}`);
+        // Still try to navigate using the slug as fallback
+        if (slug) {
+          navigateTo(`/artists/${slug}`);
+        }
+      } finally {
+        setImportingArtist(null);
+      }
+      return;
+    }
+    
+    // Fallback: just navigate to slug
+    if (slug) {
+      onArtistClick(slug);
     }
   };
 
@@ -344,17 +398,14 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {(trendingArtists as any[]).slice(0, 12).map((artist: any, index: number) => {
                   const artistId = artist?._id || artist?.artistId;
-                  const slug = artist?.slug 
-                    || artist?.cachedTrending?.slug 
-                    || (typeof artist.name === 'string' && artist.name.length > 0 
-                        ? artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-                        : undefined);
+                  const isImporting = importingArtist === artist.ticketmasterId;
                   
                   return (
                     <ArtistCard 
-                      key={`${artistId}-${index}`}
+                      key={`${artistId || artist.ticketmasterId}-${index}`}
                       artist={artist} 
-                      onClick={() => onArtistClick(artistId || slug || artist.ticketmasterId)} 
+                      onClick={() => handleTrendingArtistClick(artist)}
+                      isLoading={isImporting}
                     />
                   );
                 })}
@@ -449,15 +500,20 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
 }
 
 // Artist Card - Compact and consistent
-function ArtistCard({ artist, onClick }: { artist: any; onClick: () => void }) {
+function ArtistCard({ artist, onClick, isLoading }: { artist: any; onClick: () => void; isLoading?: boolean }) {
   return (
     <motion.div 
-      className="w-full cursor-pointer"
+      className={`w-full cursor-pointer ${isLoading ? 'pointer-events-none' : ''}`}
       onClick={onClick}
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated">
+      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated relative">
+        {isLoading && (
+          <div className="absolute inset-0 z-10 bg-black/50 flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-white" />
+          </div>
+        )}
         <div className="relative w-full aspect-square overflow-hidden">
           {artist.images?.[0] ? (
             <img 
@@ -480,7 +536,7 @@ function ArtistCard({ artist, onClick }: { artist: any; onClick: () => void }) {
           </h3>
           <div className="flex items-center justify-between mt-1">
             <p className="text-muted-foreground text-[10px] sm:text-xs">
-              {artist.upcomingShowsCount || 0} shows
+              {artist.upcomingEvents || artist.upcomingShowsCount || 0} shows
             </p>
             {artist.genres?.[0] && (
               <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full bg-secondary/50 text-muted-foreground truncate max-w-[50px]">

@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
-import { Search, Music, ChevronLeft, ChevronRight, Calendar, Users } from 'lucide-react';
+import { Search, Music, ChevronLeft, ChevronRight, Calendar, Users, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useArtistImport } from '../hooks/useArtistImport';
 
 interface ArtistsProps {
   onArtistClick: (artistId: Id<'artists'>, slug?: string) => void;
@@ -13,6 +14,9 @@ export function Artists({ onArtistClick }: ArtistsProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const pageSize = 20;
+  
+  // Import hook for triggering full artist sync
+  const { handleArtistClick: importArtist, importingArtist } = useArtistImport();
 
   // Use API-imported trending artists (from Ticketmaster cache)
   const trendingArtistsResult = useQuery(api.trending.getTrendingArtists, { limit: 200 });
@@ -57,8 +61,9 @@ export function Artists({ onArtistClick }: ArtistsProps) {
     return filteredArtists.slice(start, start + pageSize);
   }, [filteredArtists, page]);
 
-  const handleArtistClick = (artistId: Id<'artists'>, slug?: string) => {
-    onArtistClick(artistId, slug);
+  // Handler that triggers import if artist not in DB
+  const handleArtistClick = async (artist: any) => {
+    await importArtist(artist, onArtistClick);
   };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,7 +143,8 @@ export function Artists({ onArtistClick }: ArtistsProps) {
               <ArtistCard
                 key={artist._id || index}
                 artist={artist}
-                onClick={() => handleArtistClick(artist._id || artist.artistId, artist.slug)}
+                onClick={() => handleArtistClick(artist)}
+                isImporting={importingArtist === artist.ticketmasterId}
               />
             ))}
           </div>
@@ -192,7 +198,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
 }
 
 // Compact Artist Card - Matching Homepage Style
-function ArtistCard({ artist, onClick }: { artist: any; onClick: () => void }) {
+function ArtistCard({ artist, onClick, isImporting }: { artist: any; onClick: () => void; isImporting?: boolean }) {
   const artistImage = Array.isArray(artist.images) && artist.images.length > 0 ? artist.images[0] : undefined;
   const upcomingCount = typeof artist.upcomingShowsCount === 'number'
     ? artist.upcomingShowsCount
@@ -202,12 +208,17 @@ function ArtistCard({ artist, onClick }: { artist: any; onClick: () => void }) {
 
   return (
     <motion.div 
-      className="cursor-pointer"
+      className={`cursor-pointer ${isImporting ? 'pointer-events-none opacity-70' : ''}`}
       onClick={onClick}
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated">
+      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated relative">
+        {isImporting && (
+          <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        )}
         {/* Artist Image */}
         <div className="relative w-full aspect-square overflow-hidden">
           {artistImage ? (

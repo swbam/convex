@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
-import { Calendar, MapPin, Music, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, MapPin, Music, Search, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatLocation, formatTimeCompact } from '../lib/utils';
+import { useShowImport } from '../hooks/useArtistImport';
 
 interface ShowsProps {
   onShowClick: (showId: Id<'shows'>, slug?: string) => void;
@@ -14,6 +15,9 @@ export function Shows({ onShowClick }: ShowsProps) {
   const [locationFilter, setLocationFilter] = useState('');
   const [page, setPage] = useState(1);
   const pageSize = 20;
+  
+  // Import hook for triggering full show sync
+  const { handleShowClick: importShow, importingShow } = useShowImport();
 
   // Fetch shows from trending cache
   const trendingShowsResult = useQuery(api.trending.getTrendingShows, { limit: 200 });
@@ -93,8 +97,9 @@ export function Shows({ onShowClick }: ShowsProps) {
     return displayShows.slice(start, start + pageSize);
   }, [displayShows, page]);
 
-  const handleShowClick = (showId: Id<'shows'>, slug?: string) => {
-    onShowClick(showId, slug);
+  // Handler that triggers import if show not in DB
+  const handleShowClick = async (show: any) => {
+    await importShow(show, onShowClick);
   };
 
   return (
@@ -169,7 +174,8 @@ export function Shows({ onShowClick }: ShowsProps) {
               <ShowCard
                 key={show._id || index}
                 show={show}
-                onClick={() => handleShowClick(show._id || show.showId, show.slug)}
+                onClick={() => handleShowClick(show)}
+                isImporting={importingShow === (show.ticketmasterId || show.artist?.ticketmasterId)}
               />
             ))}
           </div>
@@ -223,7 +229,7 @@ export function Shows({ onShowClick }: ShowsProps) {
 }
 
 // Compact Show Card - Matching Homepage Style
-function ShowCard({ show, onClick }: { show: any; onClick: () => void }) {
+function ShowCard({ show, onClick, isImporting }: { show: any; onClick: () => void; isImporting?: boolean }) {
   const artistImage = Array.isArray(show.artist?.images) && show.artist.images.length > 0 
     ? show.artist.images[0] 
     : undefined;
@@ -235,12 +241,17 @@ function ShowCard({ show, onClick }: { show: any; onClick: () => void }) {
 
   return (
     <motion.div 
-      className="cursor-pointer"
+      className={`cursor-pointer ${isImporting ? 'pointer-events-none opacity-70' : ''}`}
       onClick={onClick}
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated">
+      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated relative">
+        {isImporting && (
+          <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        )}
         {/* Show Image */}
         <div className="relative w-full aspect-square overflow-hidden">
           {artistImage ? (
