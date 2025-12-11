@@ -2,7 +2,6 @@ import { query, internalMutation, internalAction, internalQuery } from "./_gener
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { internal } from "./_generated/api";
-import { isMassiveArtist } from "./massivenessFilter";
 
 // Helper to filter out non-concert content (secondary filter after API segmentId filtering)
 // The API now uses segmentId=KZFzniwnSyZfZ7v7nJ which is Music-only
