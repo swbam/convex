@@ -3,6 +3,7 @@ import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import { MapPin, Search, Loader2, Music } from "lucide-react";
+import { formatTimeCompact } from "../lib/utils";
 
 export function VenueSearch() {
   const [zipCode, setZipCode] = useState("");
@@ -132,7 +133,7 @@ function ShowCard({ show }: { show: any }) {
           <div className="flex items-center gap-4 text-sm">
             <span className="text-muted-foreground">
               {formatDate(show.date)}
-              {show.startTime && ` • ${show.startTime}`}
+              {show.startTime && ` • ${formatTimeCompact(show.startTime)}`}
             </span>
             
             {show.priceRange && (

@@ -7,6 +7,7 @@ import { ArrowLeft, MapPin, Users, Calendar, Clock, Building2 } from "lucide-rea
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { motion } from "framer-motion";
+import { formatLocation } from "../lib/utils";
 
 interface VenueDetailProps {
   venueId: Id<"venues">;
@@ -76,7 +77,7 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3 text-[11px] sm:text-sm text-foreground/70 mt-2 sm:mt-3">
                 <div className="flex items-center gap-1">
                   <MapPin className="h-3 w-3 sm:h-4 sm:w-4" />
-                  <span className="font-medium">{venue.city}, {venue.country}</span>
+                  <span className="font-medium">{formatLocation(venue.city, venue.state)}</span>
                 </div>
                 {venue.capacity && (
                   <>

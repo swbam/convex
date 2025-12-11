@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Id } from "../../convex/_generated/dataModel";
 import { Calendar, MapPin, ChevronRight, Ticket } from "lucide-react";
+import { formatLocation, formatShowTime } from "../lib/utils";
 
 interface ShowCardProps {
   show: any;
@@ -32,12 +33,7 @@ function ShowCardComponent({
   };
 
   const getTime = () => {
-    if (!show.startTime) return null;
-    const [hours, minutes] = show.startTime.split(':');
-    if (!hours || !minutes) return null;
-    const date = new Date();
-    date.setHours(Number(hours), Number(minutes), 0, 0);
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return formatShowTime(show.startTime, show.venue?.state);
   };
 
   const handleTicketClick = (e: React.MouseEvent) => {
@@ -84,7 +80,7 @@ function ShowCardComponent({
                 <MapPin className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
                 <span className="line-clamp-1">
                   {show.venue.name}
-                  {show.venue.city && `, ${show.venue.city}`}
+                  {show.venue.city && ` · ${formatLocation(show.venue.city, show.venue.state)}`}
                 </span>
               </div>
             )}

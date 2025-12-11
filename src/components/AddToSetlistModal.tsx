@@ -4,6 +4,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { X, Calendar, MapPin, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { formatTimeCompact } from "../lib/utils";
 
 interface AddToSetlistModalProps {
   isOpen: boolean;
@@ -130,7 +131,7 @@ export function AddToSetlistModal({
                             day: 'numeric'
                           })}
                         </span>
-                        {show.startTime && <span className="hidden sm:inline">{show.startTime}</span>}
+                        {show.startTime && <span className="hidden sm:inline">{formatTimeCompact(show.startTime)}</span>}
                       </div>
                     </div>
                     <Plus className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />

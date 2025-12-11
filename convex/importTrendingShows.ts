@@ -7,6 +7,38 @@ import { internal } from "./_generated/api";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const internalRef = internal as any;
 
+// Helper to filter out non-concert content (plays, musicals, film screenings, etc.)
+const isRealConcert = (name: string): boolean => {
+  const lowerName = (name || '').toLowerCase();
+  
+  // Reject patterns for non-concert content
+  const rejectPatterns = [
+    // Theatrical/Stage productions
+    'tribute', 'experience', 'orchestra', 'symphony', 'chamber', 
+    'ballet', 'opera', 'broadway', 'musical', 'playhouse',
+    'cirque', 'comedy', 'film with', '- film', 'live in concert',
+    'ensemble', 'philharmonic', 'chorale', 'choir', 'choral',
+    // Film screenings
+    'film score', 'movie score', 'cinema', 'screening',
+    'live to film', 'in concert film', 'soundtrack live',
+    // Holiday/Themed shows
+    'charlie brown', 'a christmas', 'christmas story', 'holiday spectacular',
+    'on ice', 'disney on', 'sesame street', 'paw patrol', 'peppa pig',
+    'bluey', 'baby shark', 'cocomelon', 'nick jr', 'nutcracker',
+    // Non-music entertainment
+    'magic show', 'illusionist', 'hypnotist', 'speaker', 'lecture',
+    'podcast', 'wrestling', 'ufc', 'boxing', 'esports',
+    'stand-up', 'standup', 'comedian', 'line dancing', 'game night',
+    // Known theatrical productions
+    'wicked', 'hamilton', 'phantom', 'les mis', 'cats the musical',
+    'lion king', 'book of mormon', 'dear evan', 'moulin rouge',
+    // Classical
+    'recital', 'concerto', 'twilight in concert'
+  ];
+  
+  return !rejectPatterns.some(p => lowerName.includes(p));
+};
+
 /**
  * SIMPLE, ATOMIC APPROACH: Import trending shows in a single mutation
  * No complex action/query chains - just pure mutation logic
@@ -47,6 +79,23 @@ export const importTrendingShowsBatch = internalMutation({
         // Validate required fields
         if (!cached.artistName || !cached.venueName || !cached.date) {
           stats.errors.push(`Missing data: ${cached.ticketmasterId}`);
+          continue;
+        }
+        
+        // CRITICAL: US-only filter - skip non-US shows
+        const country = (cached.venueCountry || '').toLowerCase();
+        const isUS = country === 'united states of america' || 
+                     country === 'united states' || 
+                     country === 'usa' || 
+                     country === 'us';
+        if (!isUS) {
+          stats.skipped++;
+          continue;
+        }
+        
+        // CRITICAL: Concert-only filter - skip non-concert events
+        if (!isRealConcert(cached.artistName)) {
+          stats.skipped++;
           continue;
         }
         

@@ -13,6 +13,7 @@ import { BorderBeam } from "./ui/border-beam";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { motion } from "framer-motion";
 import { useAction } from "convex/react";
+import { formatLocation, formatTimeCompact } from "../lib/utils";
 
 interface ArtistDetailProps {
   artistId: Id<"artists">;
@@ -335,7 +336,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                             </span>
                           </div>
                           {show.startTime && (
-                            <span className="text-xs">{show.startTime}</span>
+                            <span className="text-xs">{formatTimeCompact(show.startTime)}</span>
                           )}
                         </div>
                       </div>

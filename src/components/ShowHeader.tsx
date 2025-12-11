@@ -1,6 +1,7 @@
 import React from 'react';
 import { Calendar, MapPin, ExternalLink, Ticket } from 'lucide-react';
 import { Id } from '../../convex/_generated/dataModel';
+import { formatShowTime } from '../lib/utils';
 
 export function ShowHeader({
   show,
@@ -69,7 +70,7 @@ export function ShowHeader({
               {show?.startTime && (
                 <>
                   <span className="text-muted-foreground/40 hidden sm:inline">•</span>
-                  <span className="hidden sm:inline">{show?.startTime}</span>
+                  <span className="hidden sm:inline">{formatShowTime(show?.startTime, show?.venue?.state)}</span>
                 </>
               )}
             </div>

@@ -4,6 +4,7 @@ import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { VenueSearch } from './VenueSearch';
 import { Search, MapPin, Users, Calendar, Filter } from 'lucide-react';
+import { formatLocation } from '../lib/utils';
 
 interface VenuesProps {
   onVenueClick?: (venueId: Id<'venues'>) => void;
@@ -22,7 +23,7 @@ export function Venues({ onVenueClick }: VenuesProps) {
     return allVenues.filter(venue => 
       venue.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       venue.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      venue.country.toLowerCase().includes(searchQuery.toLowerCase())
+      (venue.state || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [allVenues, searchQuery]);
 
@@ -176,7 +177,7 @@ function VenueListCard({ venue, onClick }: { venue: any; onClick: () => void }) 
               </h3>
               <div className="flex items-center gap-1 text-muted-foreground text-sm mb-2">
                 <MapPin className="h-4 w-4" />
-                <span>{venue.city}, {venue.country}</span>
+                <span>{formatLocation(venue.city, venue.state)}</span>
               </div>
               {venue.address && (
                 <p className="text-sm text-muted-foreground truncate">

@@ -701,6 +701,289 @@ export const testSyncTrendingShows = action({
   },
 });
 
+// Refresh trending cache from Ticketmaster API (fetches fresh data)
+export const refreshTrendingCache = action({
+  args: {},
+  returns: v.object({ success: v.boolean(), message: v.string(), showsImported: v.number() }),
+  handler: async (ctx) => {
+    try {
+      console.log("🔄 Refreshing trending cache from Ticketmaster...");
+      
+      // Step 1: Fetch fresh trending shows from Ticketmaster API
+      const freshShows = await ctx.runAction(internalRef.ticketmaster.getTrendingShows, { limit: 100 });
+      console.log(`📊 Fetched ${freshShows.length} shows from Ticketmaster`);
+      
+      // Step 2: Replace the trending cache with fresh data
+      if (freshShows.length > 0) {
+        await ctx.runMutation(internalRef.trending.replaceTrendingShowsCache, {
+          fetchedAt: Date.now(),
+          shows: freshShows.map((show: any, index: number) => ({
+            ticketmasterId: show.ticketmasterId,
+            artistTicketmasterId: show.artistTicketmasterId,
+            artistName: show.artistName,
+            venueName: show.venueName,
+            venueCity: show.venueCity,
+            venueCountry: show.venueCountry,
+            date: show.date,
+            startTime: show.startTime,
+            artistImage: show.artistImage,
+            ticketUrl: show.ticketUrl,
+            priceRange: show.priceRange,
+            status: show.status || "upcoming",
+            rank: index + 1,
+          })),
+        });
+        console.log("✅ Trending shows cache updated");
+      }
+      
+      // Step 3: Fetch fresh trending artists from Ticketmaster
+      const freshArtists = await ctx.runAction(internalRef.ticketmaster.getTrendingArtists, { limit: 50 });
+      console.log(`📊 Fetched ${freshArtists.length} artists from Ticketmaster`);
+      
+      if (freshArtists.length > 0) {
+        await ctx.runMutation(internalRef.trending.replaceTrendingArtistsCache, {
+          fetchedAt: Date.now(),
+          artists: freshArtists.map((artist: any, index: number) => ({
+            name: artist.name,
+            ticketmasterId: artist.ticketmasterId,
+            genres: artist.genres || [],
+            images: artist.images || [],
+            upcomingEvents: artist.upcomingEvents || 0,
+            rank: index + 1,
+          })),
+        });
+        console.log("✅ Trending artists cache updated");
+      }
+      
+      // Step 4: Import fresh shows into main database
+      const importResult = await ctx.runMutation(internalRef.importTrendingShows.importTrendingShowsBatch, { limit: 100 });
+      console.log(`✅ Imported ${importResult.imported} new shows`);
+      
+      return { 
+        success: true, 
+        message: `Refreshed cache: ${freshShows.length} shows, ${freshArtists.length} artists. Imported ${importResult.imported} new shows.`,
+        showsImported: importResult.imported,
+      };
+    } catch (e) {
+      console.error("❌ Failed to refresh trending cache:", e);
+      return { 
+        success: false, 
+        message: e instanceof Error ? e.message : "Unknown error",
+        showsImported: 0,
+      };
+    }
+  },
+});
+
+// Internal version for cron job
+export const refreshTrendingCacheInternal = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    try {
+      console.log("🔄 [CRON] Refreshing trending cache from Ticketmaster...");
+      
+      // Step 1: Fetch fresh trending shows from Ticketmaster API
+      const freshShows = await ctx.runAction(internalRef.ticketmaster.getTrendingShows, { limit: 100 });
+      console.log(`📊 Fetched ${freshShows.length} shows from Ticketmaster`);
+      
+      // Step 2: Replace the trending cache with fresh data
+      if (freshShows.length > 0) {
+        await ctx.runMutation(internalRef.trending.replaceTrendingShowsCache, {
+          fetchedAt: Date.now(),
+          shows: freshShows.map((show: any, index: number) => ({
+            ticketmasterId: show.ticketmasterId,
+            artistTicketmasterId: show.artistTicketmasterId,
+            artistName: show.artistName,
+            venueName: show.venueName,
+            venueCity: show.venueCity,
+            venueCountry: show.venueCountry,
+            date: show.date,
+            startTime: show.startTime,
+            artistImage: show.artistImage,
+            ticketUrl: show.ticketUrl,
+            priceRange: show.priceRange,
+            status: show.status || "upcoming",
+            rank: index + 1,
+          })),
+        });
+        console.log("✅ Trending shows cache updated");
+      }
+      
+      // Step 3: Fetch fresh trending artists and import them with full sync
+      const freshArtists = await ctx.runAction(internalRef.ticketmaster.getTrendingArtists, { limit: 50 });
+      console.log(`📊 Fetched ${freshArtists.length} artists from Ticketmaster`);
+      
+      if (freshArtists.length > 0) {
+        // Filter out non-concert artists before caching
+        await ctx.runMutation(internalRef.trending.replaceTrendingArtistsCache, {
+          fetchedAt: Date.now(),
+          artists: freshArtists.map((artist: any, index: number) => ({
+            name: artist.name,
+            ticketmasterId: artist.ticketmasterId,
+            genres: artist.genres || [],
+            images: artist.images || [],
+            upcomingEvents: artist.upcomingEvents || 0,
+            rank: index + 1,
+          })),
+        });
+        console.log("✅ Trending artists cache updated");
+        
+        // Import top artists with full sync (only if they don't exist)
+        let imported = 0;
+        for (const artist of freshArtists.slice(0, 20)) {
+          try {
+            const existing = await ctx.runQuery(internalRef.artists.getByTicketmasterIdInternal, {
+              ticketmasterId: artist.ticketmasterId,
+            });
+            
+            if (!existing) {
+              console.log(`🆕 Importing trending artist: ${artist.name}`);
+              await ctx.runAction(api.ticketmaster.triggerFullArtistSync, {
+                ticketmasterId: artist.ticketmasterId,
+                artistName: artist.name,
+                genres: artist.genres,
+                images: artist.images,
+                upcomingEvents: artist.upcomingEvents,
+              });
+              imported++;
+              // Rate limit to avoid overwhelming APIs
+              await new Promise(r => setTimeout(r, 2000));
+            }
+          } catch (e) {
+            console.error(`Failed to import ${artist.name}:`, e);
+          }
+        }
+        console.log(`✅ Imported ${imported} new trending artists`);
+      }
+      
+      // Step 4: Import fresh shows into main database
+      const importResult = await ctx.runMutation(internalRef.importTrendingShows.importTrendingShowsBatch, { limit: 100 });
+      console.log(`✅ Imported ${importResult.imported} new shows`);
+      
+      console.log("🎉 [CRON] Trending cache refresh complete");
+    } catch (e) {
+      console.error("❌ [CRON] Failed to refresh trending cache:", e);
+    }
+    return null;
+  },
+});
+
+// Clean up non-US shows from trending cache and main shows table
+export const cleanupNonUSShows = action({
+  args: {},
+  returns: v.object({ 
+    success: v.boolean(), 
+    message: v.string(), 
+    cacheDeleted: v.number(), 
+    showsDeleted: v.number() 
+  }),
+  handler: async (ctx) => {
+    try {
+      console.log("🧹 Cleaning up non-US shows...");
+      
+      const result = await ctx.runMutation(internalRef.admin.cleanupNonUSShowsInternal, {});
+      
+      return { 
+        success: true, 
+        message: `Cleaned up ${result.cacheDeleted} cache entries and ${result.showsDeleted} shows`,
+        cacheDeleted: result.cacheDeleted,
+        showsDeleted: result.showsDeleted,
+      };
+    } catch (e) {
+      console.error("❌ Failed to clean up non-US shows:", e);
+      return { 
+        success: false, 
+        message: e instanceof Error ? e.message : "Unknown error",
+        cacheDeleted: 0,
+        showsDeleted: 0,
+      };
+    }
+  },
+});
+
+// Helper to filter out non-concert content
+const isRealConcertAdmin = (name: string): boolean => {
+  const lowerName = (name || '').toLowerCase();
+  const rejectPatterns = [
+    'tribute', 'experience', 'orchestra', 'symphony', 'chamber', 
+    'ballet', 'opera', 'broadway', 'musical', 'playhouse',
+    'cirque', 'comedy', 'film with', '- film', 'live in concert',
+    'ensemble', 'philharmonic', 'chorale', 'choir', 'choral',
+    'film score', 'movie score', 'cinema', 'screening',
+    'live to film', 'in concert film', 'soundtrack live',
+    'charlie brown', 'a christmas', 'christmas story', 'holiday spectacular',
+    'on ice', 'disney on', 'sesame street', 'paw patrol', 'peppa pig',
+    'bluey', 'baby shark', 'cocomelon', 'nick jr', 'nutcracker',
+    'magic show', 'illusionist', 'hypnotist', 'speaker', 'lecture',
+    'podcast', 'wrestling', 'ufc', 'boxing', 'esports',
+    'stand-up', 'standup', 'comedian', 'line dancing', 'game night',
+    'wicked', 'hamilton', 'phantom', 'les mis', 'cats the musical',
+    'lion king', 'book of mormon', 'dear evan', 'moulin rouge',
+    'recital', 'concerto', 'twilight in concert', 'gaither vocal',
+    'celtic woman', 'engelbert humperdinck', 'new york philharmonic'
+  ];
+  return !rejectPatterns.some(p => lowerName.includes(p));
+};
+
+export const cleanupNonUSShowsInternal = internalMutation({
+  args: {},
+  returns: v.object({ cacheDeleted: v.number(), showsDeleted: v.number() }),
+  handler: async (ctx) => {
+    let cacheDeleted = 0;
+    let showsDeleted = 0;
+    
+    // Helper function to check if a country is US
+    const isUS = (country: string | undefined): boolean => {
+      if (!country) return false;
+      const lower = country.toLowerCase();
+      return lower === 'united states of america' || 
+             lower === 'united states' || 
+             lower === 'usa' || 
+             lower === 'us';
+    };
+    
+    // Clean up trending shows cache - both non-US AND non-concert events
+    const cachedShows = await ctx.db.query("trendingShows").collect();
+    for (const show of cachedShows) {
+      const shouldDelete = !isUS(show.venueCountry) || !isRealConcertAdmin(show.artistName || '');
+      if (shouldDelete) {
+        await ctx.db.delete(show._id);
+        cacheDeleted++;
+      }
+    }
+    console.log(`🗑️ Deleted ${cacheDeleted} non-US/non-concert entries from trending cache`);
+    
+    // Clean up main shows table
+    const allShows = await ctx.db.query("shows").collect();
+    for (const show of allShows) {
+      const venue = await ctx.db.get(show.venueId);
+      const artist = await ctx.db.get(show.artistId);
+      
+      const isNonUS = venue && !isUS(venue.country);
+      const isNonConcert = artist && !isRealConcertAdmin(artist.name);
+      
+      if (isNonUS || isNonConcert) {
+        // Delete associated setlists first
+        const setlists = await ctx.db
+          .query("setlists")
+          .withIndex("by_show", (q) => q.eq("showId", show._id))
+          .collect();
+        for (const setlist of setlists) {
+          await ctx.db.delete(setlist._id);
+        }
+        
+        // Delete the show
+        await ctx.db.delete(show._id);
+        showsDeleted++;
+      }
+    }
+    console.log(`🗑️ Deleted ${showsDeleted} non-US/non-concert shows from main database`);
+    
+    return { cacheDeleted, showsDeleted };
+  },
+});
+
 // ===== SETLIST.FM INTEGRATION =====
 
 export const syncSetlistForShow = action({

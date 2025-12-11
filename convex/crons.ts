@@ -36,6 +36,10 @@ crons.cron("transition-festival-status", "0 5 * * *", internalRef.festivals.tran
 // Trending data sync: Every 6 hours (4x daily is sufficient for discovery)
 crons.interval("update-trending", { hours: 6 }, internalRef.maintenance.syncTrendingData, {});
 
+// CRITICAL: Refresh trending cache from Ticketmaster API every 12 hours
+// This fetches fresh trending artists/shows and imports them with full sync
+crons.interval("refresh-trending-cache", { hours: 12 }, internalRef.admin.refreshTrendingCacheInternal, {});
+
 // Artist trending scores: Every 6 hours
 crons.interval("update-artist-trending", { hours: 6 }, internalRef.trending.updateArtistTrending, {});
 

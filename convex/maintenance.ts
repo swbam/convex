@@ -339,6 +339,14 @@ export const importTrendingShows = internalMutation({
       try {
         if (!show.artistName || !show.venueName || !show.date) continue;
         
+        // CRITICAL: US-only filter - skip non-US shows
+        const country = (show.venueCountry || '').toLowerCase();
+        const isUS = country === 'united states of america' || 
+                     country === 'united states' || 
+                     country === 'usa' || 
+                     country === 'us';
+        if (!isUS) continue;
+        
         // Get/create artist
         let artistId = show.artistId;
         if (!artistId) {

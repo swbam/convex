@@ -13,6 +13,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useUser } from "@clerk/clerk-react";
+import { formatLocation, formatShowTime } from "../lib/utils";
 
 interface DashboardHomeProps {
   onArtistClick: (artistId: Id<"artists">) => void;
@@ -362,10 +363,7 @@ export function DashboardHome({
                           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1">
                             <MapPin className="h-3 w-3" />
                             <span className="truncate">
-                              {show.venue?.city}
-                              {show.venue?.country
-                                ? `, ${show.venue.country}`
-                                : ""}
+                              {formatLocation(show.venue?.city, show.venue?.state)}
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1">
@@ -376,7 +374,7 @@ export function DashboardHome({
                                 day: "numeric",
                                 year: "numeric",
                               })}
-                              {show.startTime && ` • ${show.startTime}`}
+                              {show.startTime && ` • ${formatShowTime(show.startTime, show.venue?.state)}`}
                             </span>
                           </div>
                         </div>

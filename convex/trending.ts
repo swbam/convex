@@ -4,63 +4,37 @@ import { api } from "./_generated/api";
 import { internal } from "./_generated/api";
 import { isMassiveArtist } from "./massivenessFilter";
 
-// Helper to filter out non-concert content (plays, musicals, film screenings, etc.)
+// Helper to filter out non-concert content (secondary filter after API segmentId filtering)
+// The API now uses segmentId=KZFzniwnSyZfZ7v7nJ which is Music-only
+// This is a lightweight fallback filter for edge cases that slip through
 const isRealConcert = (name: string, genres?: string[]): boolean => {
   const lowerName = (name || '').toLowerCase();
   
-  // Reject patterns for non-concert content
+  // Reject patterns for non-concert content that might still appear in Music segment
   const rejectPatterns = [
-    // Theatrical/Stage productions
-    'tribute', 'experience', 'orchestra', 'symphony', 'chamber', 
-    'ballet', 'opera', 'broadway', 'musical', 'playhouse',
-    'cirque', 'comedy', 'film with', '- film', 'live in concert',
-    'ensemble', 'philharmonic', 'chorale', 'choir', 'choral society',
-    // Academic/College performances (usually classical or choral)
-    'college choir', 'college choral', 'college orchestra', 'college ensemble',
-    'queens college', 'university choir', 'university orchestra',
-    // Plays and theater
-    'play', 'theatre', 'theater', 'stage production',
-    'drama', 'pantomime', 'puppet', 'improv',
-    // Film screenings
-    'film score', 'movie score', 'cinema', 'screening',
-    'live to film', 'in concert film', 'soundtrack live',
-    // Holiday/Themed shows (almost always theatrical, not concerts)
-    'holiday inn', 'christmas carol', 'nutcracker', 'swan lake',
-    'charlie brown', 'a christmas', 'christmas story', 'holiday spectacular',
-    'carols', 'carol collection', 'hymns', 'greatest carols',
-    'on ice', 'disney on', 'sesame street', 'paw patrol', 'peppa pig',
-    'bluey', 'baby shark', 'cocomelon', 'nick jr',
-    // Specific theatrical productions
-    'wicked', 'hamilton', 'phantom', 'les mis', 'cats the musical',
-    'lion king', 'book of mormon', 'dear evan', 'moulin rouge',
-    'hadestown', 'beetlejuice', 'aladdin', 'frozen', 'mean girls',
-    'chicago the musical', 'mamma mia', 'jersey boys', 'hairspray',
-    // Non-music entertainment
-    'magic show', 'illusionist', 'hypnotist', 'speaker', 'lecture',
-    'podcast', 'wrestling', 'ufc', 'boxing', 'esports',
-    'stand-up', 'standup', 'comedian',
-    // Orchestra/Classical performances & soloists
-    'performed by orchestra', 'symphonic tribute', 'classical rendition',
-    'piano recital', 'violin recital', 'recital', 'concerto',
-    'jazz fantasy', 'fantasy on mozart', 'plays mozart', 'plays beethoven',
-    // Known classical musicians (not pop/rock artists)
-    'fazil say', 'gina alice', 'lang lang', 'yuja wang', 'itzhak perlman',
-    // Festival of seasons and video game concerts
-    'festival of seasons', 'video games live', 'game symphony',
-    // Other non-concert patterns
-    'storytime', 'story time', 'sing-along', 'singalong'
+    // Orchestral performances (often tagged as Music but aren't pop/rock concerts)
+    'orchestra', 'symphony', 'philharmonic', 'chamber',
+    'ensemble', 'chorale', 'choir',
+    // Classical music soloists
+    'recital', 'concerto',
+    // Film/video game music performances (tagged as Music but are soundtrack screenings)
+    'film with', '- film', 'in concert film', 'live to film',
+    'video games live', 'festival of seasons',
+    // Documentary/tribute screenings (sometimes tagged as Music)
+    'documentary', 'at the max', 'making sense',
+    // Opera (sometimes leaks into Music segment)
+    'opera', 'la traviata', 'rigoletto', 'carmen', 'tosca',
+    // Kids entertainment (sometimes tagged as Music)
+    'sesame street', 'paw patrol', 'peppa pig', 'bluey', 'baby shark'
   ];
   
   if (rejectPatterns.some(p => lowerName.includes(p))) return false;
   
-  // Check genres
+  // Check genres - reject classical/opera that slipped through
   if (genres && genres.length > 0) {
     const lowerGenres = genres.map(g => g.toLowerCase());
     const nonConcertGenres = [
-      'broadway', 'musical theater', 'theatre', 'theater',
-      'soundtrack', 'film score', 'children\'s music', 'kids',
-      'spoken word', 'audiobook', 'podcast', 'comedy',
-      'classical', 'choral', 'christmas', 'holiday'
+      'classical', 'opera', 'chamber music', 'choral'
     ];
     if (lowerGenres.some(g => nonConcertGenres.some(ng => g.includes(ng)))) return false;
   }
@@ -500,9 +474,26 @@ export const replaceTrendingShowsCache = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    // CRITICAL: Filter to US-only shows AND real concerts before processing
+    const usShows = args.shows.filter((show) => {
+      const country = (show.venueCountry || '').toLowerCase();
+      const isUS = country === 'united states of america' || 
+             country === 'united states' || 
+             country === 'usa' || 
+             country === 'us';
+      
+      // Also filter out non-concert events
+      const artistName = (show.artistName || '').toLowerCase();
+      const isConcert = isRealConcert(artistName, []);
+      
+      return isUS && isConcert;
+    });
+    
+    console.log(`📊 Processing ${usShows.length} US concert shows out of ${args.shows.length} total`);
+    
     const existing = await ctx.db.query("trendingShows").collect();
     const existingMap = new Map(existing.map((doc) => [doc.ticketmasterId, doc]));
-    const keep = new Set(args.shows.map((show) => show.ticketmasterId));
+    const keep = new Set(usShows.map((show) => show.ticketmasterId));
 
     for (const doc of existing) {
       if (!keep.has(doc.ticketmasterId)) {
@@ -510,7 +501,7 @@ export const replaceTrendingShowsCache = internalMutation({
       }
     }
 
-    for (const show of args.shows) {
+    for (const show of usShows) {
       const linkedShow = await ctx.db
         .query("shows")
         .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", show.ticketmasterId))
@@ -595,9 +586,16 @@ export const replaceTrendingArtistsCache = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    // CRITICAL: Filter to real concerts only (no orchestras, film screenings, etc.)
+    const realConcertArtists = args.artists.filter((artist) => {
+      return isRealConcert(artist.name, artist.genres);
+    });
+    
+    console.log(`📊 Processing ${realConcertArtists.length} real concert artists out of ${args.artists.length} total`);
+    
     const existing = await ctx.db.query("trendingArtists").collect();
     const existingMap = new Map(existing.map((doc) => [doc.ticketmasterId, doc]));
-    const keep = new Set(args.artists.map((artist) => artist.ticketmasterId));
+    const keep = new Set(realConcertArtists.map((artist) => artist.ticketmasterId));
 
     for (const doc of existing) {
       if (!keep.has(doc.ticketmasterId)) {
@@ -605,7 +603,7 @@ export const replaceTrendingArtistsCache = internalMutation({
       }
     }
 
-    for (const artist of args.artists) {
+    for (const artist of realConcertArtists) {
       const linkedArtist = await ctx.db
         .query("artists")
         .withIndex("by_ticketmaster_id", (q) =>

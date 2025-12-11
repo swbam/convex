@@ -4,6 +4,7 @@ import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { Calendar, MapPin, Music, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { formatLocation, formatTimeCompact } from '../lib/utils';
 
 interface ShowsProps {
   onShowClick: (showId: Id<'shows'>, slug?: string) => void;
@@ -273,8 +274,7 @@ function ShowCard({ show, onClick }: { show: any; onClick: () => void }) {
           <div className="flex items-center gap-1 mt-1 text-muted-foreground text-[10px] sm:text-xs">
             <MapPin className="h-3 w-3 flex-shrink-0" />
             <span className="truncate">
-              {show.venue?.city || 'TBA'}
-              {show.venue?.state ? `, ${show.venue.state}` : ''}
+              {formatLocation(show.venue?.city, show.venue?.state)}
             </span>
           </div>
         </div>

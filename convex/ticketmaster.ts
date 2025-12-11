@@ -736,11 +736,10 @@ export const getTrendingShows = action({
     const endDate = futureDate.toISOString().split('T')[0];
     
     // CRITICAL: Use Ticketmaster's discovery API with proper filters
-    // - segmentName=Music (not classificationName)
-    // - stateCode for major markets (CA, NY, FL, TX, NV, IL)
+    // - segmentId=KZFzniwnSyZfZ7v7nJ is the OFFICIAL Music segment ID (filters out theatre, film, sports)
+    // - This is more reliable than segmentName=Music
     // - Sort by date ascending to get upcoming shows first
-    // - Filter onsale status only
-    const url = `https://app.ticketmaster.com/discovery/v2/events.json?segmentName=Music&countryCode=US&startDateTime=${startDate}T00:00:00Z&endDateTime=${endDate}T23:59:59Z&size=${limit * 2}&sort=date,asc&apikey=${apiKey}`;
+    const url = `https://app.ticketmaster.com/discovery/v2/events.json?segmentId=KZFzniwnSyZfZ7v7nJ&countryCode=US&startDateTime=${startDate}T00:00:00Z&endDateTime=${endDate}T23:59:59Z&size=${limit * 2}&sort=date,asc&apikey=${apiKey}`;
 
     try {
       console.log(`🎫 Fetching trending shows from Ticketmaster...`);
@@ -748,8 +747,9 @@ export const getTrendingShows = action({
       if (!response.ok) {
         console.error("Ticketmaster API error:", response.status, response.statusText);
         
-        // FALLBACK: Try simpler query if detailed one fails
-        const fallbackUrl = `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&size=${limit}&sort=date,asc&apikey=${apiKey}`;
+        // FALLBACK: Try simpler query if detailed one fails - MUST include US filter
+        // Use segmentId for Music to filter out theatre, film, sports
+        const fallbackUrl = `https://app.ticketmaster.com/discovery/v2/events.json?segmentId=KZFzniwnSyZfZ7v7nJ&countryCode=US&size=${limit}&sort=date,asc&apikey=${apiKey}`;
         const fallbackResponse = await tmFetchWithRetry(fallbackUrl);
         if (!fallbackResponse.ok) return [];
         const fallbackData = await fallbackResponse.json();
@@ -901,8 +901,9 @@ export const getTrendingArtists = action({
     }
 
     const limit = args.limit || 30;
-    // Simplified query - just get music attractions
-    const url = `https://app.ticketmaster.com/discovery/v2/attractions.json?classificationName=music&size=${limit}&apikey=${apiKey}`;
+    // US-only query - get ONLY Music segment attractions (filters out theatre, film, sports)
+    // segmentId=KZFzniwnSyZfZ7v7nJ is the official Ticketmaster Music segment ID
+    const url = `https://app.ticketmaster.com/discovery/v2/attractions.json?segmentId=KZFzniwnSyZfZ7v7nJ&countryCode=US&size=${limit}&apikey=${apiKey}`;
 
     try {
       const response = await tmFetchWithRetry(url);

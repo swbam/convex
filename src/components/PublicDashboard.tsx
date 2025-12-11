@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { FaSpotify } from "react-icons/fa";
+import { formatLocation } from "../lib/utils";
 // Removed EmblaCarousel - using simple CSS-based horizontal scroll for reliability
 
 interface PublicDashboardProps {
@@ -542,7 +543,7 @@ function ShowCard({ show, onClick }: { show: any; onClick: () => void }) {
             <div className="mt-1">
               <p className="text-muted-foreground text-[10px] sm:text-xs flex items-center gap-1">
                 <MapPin className="h-2.5 w-2.5 flex-shrink-0" />
-                <span className="truncate">{show.venue.city}{show.venue.state ? `, ${show.venue.state}` : ''}</span>
+                <span className="truncate">{formatLocation(show.venue.city, show.venue.state)}</span>
               </p>
             </div>
           )}
