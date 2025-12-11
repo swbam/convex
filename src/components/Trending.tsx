@@ -5,6 +5,7 @@ import { Id } from '../../convex/_generated/dataModel';
 import { TrendingUp, Music, MapPin, Calendar, Clock, ChevronRight, Users, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useArtistImport, useShowImport } from '../hooks/useArtistImport';
+import { formatLocation } from '../lib/utils';
 
 interface TrendingProps {
   onArtistClick: (artistKey: Id<'artists'> | string, slug?: string) => void;
@@ -328,7 +329,7 @@ function ArtistCard({ artist, rank, onClick, isImporting }: { artist: any; rank:
 function ShowCard({ show, rank, onClick, isImporting }: { show: any; rank: number; onClick: () => void; isImporting?: boolean }) {
   const artistName = show.artist?.name || show.artistName || 'Unknown Artist';
   const artistImage = show.artist?.images?.[0] || show.artistImage;
-  const venueCity = show.venue?.city || show.venueCity || '';
+  const locationDisplay = formatLocation(show.venue?.city || show.venueCity, show.venue?.state || show.venueState);
   const eventDate = new Date(show.date);
   const dateLabel = Number.isNaN(eventDate.getTime())
     ? show.date
@@ -383,7 +384,7 @@ function ShowCard({ show, rank, onClick, isImporting }: { show: any; rank: numbe
           <h3 className="font-semibold text-foreground text-xs sm:text-sm line-clamp-1">{artistName}</h3>
           <div className="flex items-center gap-1 mt-1 text-muted-foreground text-[10px] sm:text-xs">
             <MapPin className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">{venueCity}</span>
+            <span className="truncate">{locationDisplay}</span>
           </div>
         </div>
       </div>

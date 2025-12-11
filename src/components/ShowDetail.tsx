@@ -31,6 +31,7 @@ import { buildTicketmasterAffiliateUrl } from "../utils/ticketmaster";
 import { Badge } from "./ui/badge";
 import { motion } from "framer-motion";
 import { SongCombobox } from "./SongCombobox";
+import { formatLocation } from "../lib/utils";
 
 interface ShowDetailProps {
   showId: Id<"shows">;
@@ -136,6 +137,13 @@ export function ShowDetail({
     return setlists.find((s: any) => !s.isOfficial) ?? null;
   }, [setlists]);
 
+  // Fetch all song votes for the prediction setlist to enable sorting by vote count
+  const predictionSetlistId = predictionSetlist?._id as Id<"setlists"> | undefined;
+  const allSongVotes = useQuery(
+    api.songVotes.getSetlistSongVotes,
+    predictionSetlistId ? { setlistId: predictionSetlistId } : "skip"
+  );
+
   const actualSetlistRecord = useMemo(() => {
     if (!setlists) return null;
     const officialWithActual = setlists.find(
@@ -174,9 +182,33 @@ export function ShowDetail({
     return new Set<string>(titles);
   }, [actualSetlistSongs]);
 
-  const predictionSetlistId = predictionSetlist?._id as
-    | Id<"setlists">
-    | undefined;
+  // Sort songs by vote count (most voted first)
+  const sortedPredictionSongs = useMemo(() => {
+    if (!predictionSetlist?.songs) return [];
+    
+    // Get all song titles
+    const songTitles = (predictionSetlist.songs as any[])
+      .map((s: any) => typeof s === "string" ? s : s?.title)
+      .filter(Boolean) as string[];
+    
+    // Create a map of song title -> vote count
+    const voteCountMap = new Map<string, number>();
+    if (allSongVotes) {
+      for (const vote of allSongVotes) {
+        voteCountMap.set(vote.songTitle.toLowerCase().trim(), vote.upvotes);
+      }
+    }
+    
+    // Sort by vote count (descending), then alphabetically for ties
+    return [...songTitles].sort((a, b) => {
+      const aVotes = voteCountMap.get(a.toLowerCase().trim()) || 0;
+      const bVotes = voteCountMap.get(b.toLowerCase().trim()) || 0;
+      if (bVotes !== aVotes) {
+        return bVotes - aVotes;
+      }
+      return a.localeCompare(b);
+    });
+  }, [predictionSetlist?.songs, allSongVotes]);
 
   // Simple analytics
   const catalogCount = songs?.length || 0;
@@ -257,7 +289,7 @@ export function ShowDetail({
       const selectedSong = songs?.find((s) => s?.title === songTitle);
       if (!selectedSong) return;
 
-      await addSongToSetlist({
+      const setlistId = await addSongToSetlist({
         showId,
         song: {
           title: selectedSong.title,
@@ -267,6 +299,20 @@ export function ShowDetail({
         },
         ...(!user && { anonId }),
       });
+
+      // Automatically upvote the song when adding it (so it appears at top)
+      if (setlistId) {
+        try {
+          await voteOnSong({
+            setlistId,
+            songTitle: selectedSong.title,
+            voteType: "upvote",
+            ...(!user && { anonId }),
+          });
+        } catch {
+          // Ignore vote errors (might have already voted)
+        }
+      }
 
       toast.success(`Added "${songTitle}" to the setlist`);
     } catch {
@@ -666,14 +712,9 @@ export function ShowDetail({
                   </div>
                 ) : (
                   <div className="mt-6 touch-manipulation">
-                    {/* Setlist */}
+                    {/* Setlist - sorted by vote count */}
                     <div className="space-y-2">
-                        {(predictionSetlist.songs || [])
-                          .map((s: any) =>
-                            typeof s === "string" ? s : s?.title
-                          )
-                          .filter(Boolean)
-                          .map((songTitle: string, index: number) => (
+                        {sortedPredictionSongs.map((songTitle: string, index: number) => (
                             <FanRequestSongRow
                               key={`setlist-song-${songTitle}-${index}`}
                               songTitle={songTitle}
@@ -750,7 +791,7 @@ export function ShowDetail({
                       {show?.venue?.name}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {show?.venue?.city}, {show?.venue?.country}
+                      {formatLocation(show?.venue?.city, show?.venue?.state)}
                     </div>
                   </div>
 

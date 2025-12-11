@@ -79,8 +79,8 @@ function ShowCardComponent({
               <div className="flex items-center gap-1.5 line-clamp-1">
                 <MapPin className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
                 <span className="line-clamp-1">
-                  {show.venue.name}
-                  {show.venue.city && ` · ${formatLocation(show.venue.city, show.venue.state)}`}
+                  {show.venue?.name || show.venueName}
+                  {(show.venue?.city || show.venueCity) && ` · ${formatLocation(show.venue?.city || show.venueCity, show.venue?.state || show.venueState)}`}
                 </span>
               </div>
             )}

@@ -307,6 +307,7 @@ const applicationTables = {
     artistName: v.string(),
     venueName: v.string(),
     venueCity: v.string(),
+    venueState: v.optional(v.string()),
     venueCountry: v.string(),
     date: v.string(),
     startTime: v.optional(v.string()),

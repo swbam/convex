@@ -139,23 +139,33 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
     }
   };
 
-  // Handler for clicking on trending artists - triggers import if not in DB
+  // Handler for clicking on trending artists - navigates instantly if already in DB
   const handleTrendingArtistClick = async (artist: any) => {
-    const artistId = artist?.artistId || artist?._id;
+    // Check if the artist has a linked artistId from the main artists table
+    // (trendingArtists records may have an artistId field pointing to the real artist)
+    const linkedArtistId = artist?.artistId;
     const slug = artist?.slug;
     
-    // If artist is already in the database, just navigate
-    if (artistId && typeof artistId === 'string' && artistId.startsWith('j')) {
-      onArtistClick(artistId as Id<"artists">);
+    // If artist is already linked to main artists table, navigate instantly (no import needed)
+    // Real artist IDs from the artists table start with 'j' (e.g., j97...)
+    if (linkedArtistId && typeof linkedArtistId === 'string' && linkedArtistId.startsWith('j')) {
+      // Navigate instantly - no loading toast needed
+      navigateTo(`/artists/${slug || linkedArtistId}`);
       return;
     }
     
-    // If we have a slug but no artistId, the artist is in cache but not in DB
-    // Trigger import first
+    // Also check if the artist has sync status indicating it's fully imported
+    if (artist?.syncStatus?.catalogImported && slug) {
+      // Already imported, navigate instantly
+      navigateTo(`/artists/${slug}`);
+      return;
+    }
+    
+    // Artist is in cache but not in main DB - trigger import
     if (artist?.ticketmasterId && artist?.name) {
       setImportingArtist(artist.ticketmasterId);
       try {
-        toast.info(`Loading ${artist.name}...`);
+        toast.info(`Loading ${artist.name}...`, { duration: 2000 });
         const result = await triggerArtistSync({
           ticketmasterId: artist.ticketmasterId,
           artistName: artist.name,
@@ -184,7 +194,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
     
     // Fallback: just navigate to slug
     if (slug) {
-      onArtistClick(slug);
+      navigateTo(`/artists/${slug}`);
     }
   };
 
@@ -599,7 +609,7 @@ function ShowCard({ show, onClick }: { show: any; onClick: () => void }) {
             <div className="mt-1">
               <p className="text-muted-foreground text-[10px] sm:text-xs flex items-center gap-1">
                 <MapPin className="h-2.5 w-2.5 flex-shrink-0" />
-                <span className="truncate">{formatLocation(show.venue.city, show.venue.state)}</span>
+                <span className="truncate">{formatLocation(show.venue?.city || show.venueCity, show.venue?.state || show.venueState)}</span>
               </p>
             </div>
           )}

@@ -2,6 +2,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Calendar, MapPin } from "lucide-react";
+import { formatLocation } from "../lib/utils";
 
 interface UpcomingShowsProps {
   onShowClick: (showId: Id<"shows">) => void;
@@ -58,7 +59,7 @@ export function UpcomingShows({ onShowClick, onArtistClick }: UpcomingShowsProps
             <span>{show.venue?.name}</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            {show.venue?.city}, {show.venue?.country}
+            {formatLocation(show.venue?.city, show.venue?.state)}
           </p>
           <div className="flex items-center gap-1 mt-2 text-xs text-primary">
             <Calendar className="h-3 w-3" />

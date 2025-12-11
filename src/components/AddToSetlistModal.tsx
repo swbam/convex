@@ -4,7 +4,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { X, Calendar, MapPin, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { formatTimeCompact } from "../lib/utils";
+import { formatTimeCompact, formatLocation } from "../lib/utils";
 
 interface AddToSetlistModalProps {
   isOpen: boolean;
@@ -120,7 +120,7 @@ export function AddToSetlistModal({
                       <div className="font-medium truncate text-responsive-sm">{show.venue?.name}</div>
                       <div className="flex items-center gap-1.5 sm:gap-2 text-responsive-xs text-muted-foreground mt-0.5 sm:mt-1">
                         <MapPin className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{show.venue?.city}, {show.venue?.country}</span>
+                        <span className="truncate">{formatLocation(show.venue?.city, show.venue?.state)}</span>
                       </div>
                       <div className="flex items-center gap-1.5 sm:gap-2 text-responsive-xs text-muted-foreground">
                         <Calendar className="h-3 w-3 flex-shrink-0" />

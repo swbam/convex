@@ -3,7 +3,7 @@ import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import { MapPin, Search, Loader2, Music } from "lucide-react";
-import { formatTimeCompact } from "../lib/utils";
+import { formatTimeCompact, formatLocation } from "../lib/utils";
 
 export function VenueSearch() {
   const [zipCode, setZipCode] = useState("");
@@ -126,7 +126,7 @@ function ShowCard({ show }: { show: any }) {
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
             <MapPin className="h-4 w-4 flex-shrink-0" />
             <span className="truncate">
-              {show.venueName} • {show.venueCity}{show.venueState ? `, ${show.venueState}` : ''}
+              {show.venueName} • {formatLocation(show.venueCity, show.venueState)}
             </span>
           </div>
           

@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 
 /**
  * Shared hook for handling artist clicks with automatic import
- * Mirrors the homepage behavior: if artist not in DB, triggers full import
+ * Navigates instantly if artist is already in DB, otherwise triggers import
  */
 export function useArtistImport() {
   const [importingArtist, setImportingArtist] = useState<string | null>(null);
@@ -16,7 +16,7 @@ export function useArtistImport() {
 
   const handleArtistClick = useCallback(async (
     artist: {
-      _id?: Id<"artists">;
+      _id?: Id<"artists"> | string;
       artistId?: Id<"artists">;
       ticketmasterId?: string;
       name?: string;
@@ -24,27 +24,51 @@ export function useArtistImport() {
       genres?: string[];
       images?: string[];
       upcomingEvents?: number;
+      syncStatus?: { catalogImported?: boolean };
     },
     onNavigate?: (artistKey: Id<"artists"> | string, slug?: string) => void
   ) => {
-    const artistId = artist?.artistId || artist?._id;
+    // Check if the artist has a linked artistId from the main artists table
+    // (trendingArtists records may have an artistId field pointing to the real artist)
+    const linkedArtistId = artist?.artistId;
     const slug = artist?.slug;
     
-    // If artist is already in the database (has a valid Convex ID), just navigate
-    if (artistId && typeof artistId === 'string' && artistId.startsWith('j')) {
+    // If artist is already linked to main artists table, navigate instantly
+    // Real artist IDs from the artists table start with 'j' (e.g., j97...)
+    if (linkedArtistId && typeof linkedArtistId === 'string' && linkedArtistId.startsWith('j')) {
+      // Navigate instantly - no loading toast needed
       if (onNavigate) {
-        onNavigate(artistId as Id<"artists">, slug);
+        onNavigate(linkedArtistId as Id<"artists">, slug);
       } else {
-        navigate(`/artists/${slug || artistId}`);
+        navigate(`/artists/${slug || linkedArtistId}`);
       }
       return;
     }
     
-    // If we have Ticketmaster data but no artistId, trigger import
+    // Also check if the _id itself is a real artist ID (starts with j)
+    const docId = artist?._id;
+    if (docId && typeof docId === 'string' && docId.startsWith('j')) {
+      // This is a real artist doc, navigate instantly
+      if (onNavigate) {
+        onNavigate(docId as Id<"artists">, slug);
+      } else {
+        navigate(`/artists/${slug || docId}`);
+      }
+      return;
+    }
+    
+    // Check if the artist has sync status indicating it's fully imported
+    if (artist?.syncStatus?.catalogImported && slug) {
+      // Already imported, navigate instantly
+      navigate(`/artists/${slug}`);
+      return;
+    }
+    
+    // Artist is in cache but not in main DB - trigger import
     if (artist?.ticketmasterId && artist?.name) {
       setImportingArtist(artist.ticketmasterId);
       try {
-        toast.info(`Loading ${artist.name}...`, { duration: 3000 });
+        toast.info(`Loading ${artist.name}...`, { duration: 2000 });
         const result = await triggerArtistSync({
           ticketmasterId: artist.ticketmasterId,
           artistName: artist.name,
@@ -54,10 +78,8 @@ export function useArtistImport() {
         });
         
         if (result.type === 'artist' && result.slug) {
-          toast.success(`Importing ${artist.name} data...`);
           navigate(`/artists/${result.slug}`);
         } else if (result.type === 'festival' && result.slug) {
-          toast.success(`Opening ${artist.name} festival...`);
           navigate(`/festivals/${result.slug}`);
         }
       } catch (error) {

@@ -323,7 +323,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1.5">
                             <MapPin className="h-3.5 w-3.5" />
-                            <span>{show.venue?.city}, {show.venue?.country}</span>
+                            <span>{formatLocation(show.venue?.city, show.venue?.state)}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <Calendar className="h-3.5 w-3.5" />
@@ -395,7 +395,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
                             <div className="flex items-center gap-1.5">
                               <MapPin className="h-3.5 w-3.5" />
-                              <span>{show.venue?.city}, {show.venue?.country}</span>
+                              <span>{formatLocation(show.venue?.city, show.venue?.state)}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
                               <Calendar className="h-3.5 w-3.5" />
