@@ -8,6 +8,8 @@ import { internal, api } from "./_generated/api";
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const internalRef = internal as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const apiRef = api as any;
 
 const ENCRYPTION_SECRET = process.env.SPOTIFY_TOKEN_ENC_KEY;
 
@@ -84,7 +86,7 @@ export const storeSpotifyTokens = action({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    const user: any = await ctx.runQuery(api.auth.loggedInUser, {});
+    const user: any = await ctx.runQuery(apiRef.auth.loggedInUser, {});
     if (!user?.appUser) throw new Error("User not found");
     
     await ctx.runMutation(internalRef.spotifyAuthQueries.setUserSpotifyId, {
@@ -157,7 +159,7 @@ export const importUserSpotifyArtistsWithToken = action({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    const user = await ctx.runQuery(api.auth.loggedInUser);
+    const user = await ctx.runQuery(apiRef.auth.loggedInUser, {});
     if (!user?.appUser) throw new Error("User not found");
     
     console.log("🎵 Importing user's Spotify artists...");
@@ -204,7 +206,7 @@ export const importUserSpotifyArtistsWithToken = action({
       console.log(`📊 Found ${allArtists.size} unique artists from Spotify`);
       
       // Get user ID
-      const user = await ctx.runQuery(api.auth.loggedInUser);
+      const user = await ctx.runQuery(apiRef.auth.loggedInUser, {});
       if (!user?.appUser) throw new Error("User not found");
       
       let imported = 0;
@@ -226,7 +228,7 @@ export const importUserSpotifyArtistsWithToken = action({
       for (const spotifyArtist of sortedArtists) {
         try {
           // Check if artist exists in our DB by Spotify ID
-          const existingArtist = await ctx.runQuery(api.artists.getBySpotifyId, {
+          const existingArtist = await ctx.runQuery(apiRef.artists.getBySpotifyId, {
             spotifyId: spotifyArtist.spotifyId,
           });
           
@@ -234,7 +236,7 @@ export const importUserSpotifyArtistsWithToken = action({
           
           if (!existingArtist) {
             // Search by name as fallback
-            const byName = await ctx.runQuery(api.artists.getByName, {
+            const byName = await ctx.runQuery(apiRef.artists.getByName, {
               name: spotifyArtist.name,
             });
             

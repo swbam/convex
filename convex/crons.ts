@@ -33,30 +33,9 @@ crons.cron("transition-festival-status", "0 5 * * *", internalRef.festivals.tran
 // PERIODIC JOBS (run multiple times per day)
 // -------------------------------------------
 
-// Trending data sync: Every 6 hours (4x daily is sufficient for discovery)
-crons.interval("update-trending", { hours: 6 }, internalRef.maintenance.syncTrendingData, {});
-
-// CRITICAL: Refresh trending cache from Ticketmaster API every 12 hours
-// This fetches fresh trending artists/shows and imports them with full sync
-crons.interval("refresh-trending-cache", { hours: 12 }, internalRef.admin.refreshTrendingCacheInternal, {});
-
-// Artist trending scores: Every 6 hours
-crons.interval("update-artist-trending", { hours: 6 }, internalRef.trending.updateArtistTrending, {});
-
-// Show trending scores: Every 6 hours
-crons.interval("update-show-trending", { hours: 6 }, internalRef.trending.updateShowTrending, {});
-
-// Artist show counts: Every 6 hours
-crons.interval("update-artist-show-counts", { hours: 6 }, internalRef.trending.updateArtistShowCounts, {});
-
-// Auto-transition show statuses: Every 4 hours (marks shows as completed after date passes)
-crons.interval("auto-transition-shows", { hours: 4 }, internalRef.shows.autoTransitionStatuses, {});
-
-// Populate missing fields: Every 8 hours (not urgent, fills in gaps)
-crons.interval("populate-missing-fields", { hours: 8 }, internalRef.maintenance.populateMissingFields, {});
-
-// Spotify token refresh: Every 12 hours (tokens valid for 1 hour, but we only refresh active users)
-crons.interval("spotify-refresh", { hours: 12 }, internalRef.spotifyAuth.refreshUserTokens, {});
+// Cron Orchestrator: checks cronSettings and runs due jobs
+// This enables runtime interval edits + enable/disable + run-now via the admin dashboard.
+crons.interval("cron-orchestrator", { minutes: 10 }, internalRef.cronOrchestrator.tick, {});
 
 // REMOVED - These were redundant with check-completed-shows:
 // - setlistfm-scan (scanPendingImports) - duplicated work

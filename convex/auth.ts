@@ -172,7 +172,11 @@ export const ensureUserExists = mutation({
       
       // Update fields that may have changed in Clerk
       const updates: any = {};
-      if (desiredRole !== existing.role) updates.role = desiredRole;
+      // SECURITY: Never auto-downgrade an existing admin due to missing/changed claims.
+      // Only allow upgrade to admin when explicitly present in identity claims.
+      if (existing.role !== "admin" && desiredRole === "admin") {
+        updates.role = "admin";
+      }
       if (avatar && avatar !== existing.avatar) updates.avatar = avatar;
       if (spotifyId && spotifyId !== existing.spotifyId) updates.spotifyId = spotifyId;
       if (email !== existing.email) updates.email = email;

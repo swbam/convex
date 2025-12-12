@@ -4,6 +4,10 @@ import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const apiRef = api as any;
+
 // Returns best hero (banner) and avatar (profile) image URLs for an artist
 // - avatarUrl prefers the first Spotify image saved on the artist (square, images[0])
 // - heroUrl prefers the widest Ticketmaster attraction image (ideally 16:9, largest width)
@@ -16,7 +20,7 @@ export const getArtistImages = action({
     spotifyUrl: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
-    const artist: any = await ctx.runQuery(api.artists.getById, { id: args.artistId });
+    const artist: any = await ctx.runQuery(apiRef.artists.getById, { id: args.artistId });
     if (!artist) {
       return { };
     }

@@ -23,7 +23,8 @@ const applicationTables = {
     .index("by_email", ["email"])
     .index("by_username", ["username"]) 
     .index("by_spotify_id", ["spotifyId"]) 
-    .index("by_google_id", ["googleId"]),
+    .index("by_google_id", ["googleId"])
+    .index("by_created_at", ["createdAt"]),
 
   artists: defineTable({
     slug: v.string(),
@@ -76,7 +77,8 @@ const applicationTables = {
     .index("by_trending_rank", ["trendingRank"]) 
     .index("by_spotify_id", ["spotifyId"]) 
     .index("by_ticketmaster_id", ["ticketmasterId"]) 
-    .index("by_lower_name", ["lowerName"]),
+    .index("by_lower_name", ["lowerName"])
+    .index("by_last_synced", ["lastSynced"]),
 
   venues: defineTable({
     name: v.string(),
@@ -242,7 +244,8 @@ const applicationTables = {
   })
     .index("by_setlist", ["setlistId"])
     .index("by_user", ["userId"])
-    .index("by_user_and_setlist", ["userId", "setlistId"]),
+    .index("by_user_and_setlist", ["userId", "setlistId"])
+    .index("by_created_at", ["createdAt"]),
 
   // Individual song upvotes within setlists (supports anonymous by string ID)
   songVotes: defineTable({
@@ -255,7 +258,8 @@ const applicationTables = {
     .index("by_user_setlist_song", ["userId", "setlistId", "songTitle"]) 
     .index("by_user", ["userId"]) 
     .index("by_setlist_song", ["setlistId", "songTitle"]) 
-    .index("by_setlist", ["setlistId"]),
+    .index("by_setlist", ["setlistId"])
+    .index("by_created_at", ["createdAt"]),
 
   // Per-user Spotify artist relationships
   userSpotifyArtists: defineTable({
@@ -361,7 +365,8 @@ const applicationTables = {
       v.literal("trending_sync"),
       v.literal("active_sync"),
       v.literal("full_sync"),
-      v.literal("setlist_import")
+      v.literal("setlist_import"),
+      v.literal("festival_lineup_import")
     ),
     entityId: v.optional(v.string()),
     priority: v.number(),
@@ -438,8 +443,34 @@ const applicationTables = {
     intervalMs: v.number(),
     enabled: v.boolean(),
     lastRunAt: v.optional(v.number()),
+    // Admin-triggered one-off run request (cleared by orchestrator after execution)
+    runNowRequestedAt: v.optional(v.number()),
+    // Lightweight status snapshots for admin UI (also backed by cronRuns)
+    lastSuccessAt: v.optional(v.number()),
+    lastFailureAt: v.optional(v.number()),
+    lastError: v.optional(v.string()),
+    lastDurationMs: v.optional(v.number()),
   })
     .index("by_name", ["name"]),
+
+  // Cron run history for observability and debugging
+  cronRuns: defineTable({
+    name: v.string(),
+    startedAt: v.number(),
+    finishedAt: v.optional(v.number()),
+    status: v.union(
+      v.literal("running"),
+      v.literal("success"),
+      v.literal("failure"),
+      v.literal("skipped"),
+    ),
+    error: v.optional(v.string()),
+    durationMs: v.optional(v.number()),
+    stats: v.optional(v.any()),
+  })
+    .index("by_name", ["name"])
+    .index("by_started_at", ["startedAt"])
+    .index("by_name_and_started_at", ["name", "startedAt"]),
 
   // Idempotency tracking for Clerk webhooks
   clerkWebhookEvents: defineTable({
@@ -448,6 +479,18 @@ const applicationTables = {
     processedAt: v.number(),
   })
     .index("by_event_id", ["eventId"]),
+
+  // Admin audit log (who did what, when, outcome)
+  adminAuditLogs: defineTable({
+    actorUserId: v.id("users"),
+    action: v.string(),
+    args: v.optional(v.any()),
+    createdAt: v.number(),
+    success: v.boolean(),
+    error: v.optional(v.string()),
+  })
+    .index("by_created_at", ["createdAt"])
+    .index("by_actor", ["actorUserId"]),
 };
 
 export default defineSchema({

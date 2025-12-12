@@ -211,6 +211,156 @@ export const enrichArtistBasics = internalAction({
   },
 });
 
+// Fast path: import a small set of Spotify top tracks for an artist.
+// This is used to quickly seed an initial prediction setlist (5 songs) without waiting
+// for a full catalog import (albums + all tracks).
+export const importArtistTopTracks = internalAction({
+  args: {
+    artistId: v.id("artists"),
+    artistName: v.string(),
+    maxTracks: v.optional(v.number()),
+  },
+  returns: v.object({
+    imported: v.number(),
+    reason: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const clientId = process.env.SPOTIFY_CLIENT_ID;
+    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      console.warn("⚠️ Spotify credentials not configured - skipping top tracks import");
+      return { imported: 0, reason: "missing_spotify_credentials" };
+    }
+
+    const maxTracks = Math.max(1, Math.min(args.maxTracks ?? 10, 25));
+
+    try {
+      // Get access token
+      const tokenResponse = await fetchWithRetry(
+        "https://accounts.spotify.com/api/token",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+          },
+          body: "grant_type=client_credentials",
+        }
+      );
+
+      if (!tokenResponse.ok) {
+        console.warn("Failed to get Spotify access token for top tracks");
+        return { imported: 0, reason: "spotify_token_failed" };
+      }
+
+      const tokenData = await tokenResponse.json();
+      const accessToken = tokenData.access_token;
+
+      // Search for artist
+      const searchResponse = await fetchWithRetry(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(args.artistName)}&type=artist&limit=1`,
+        {
+          headers: { "Authorization": `Bearer ${accessToken}` },
+        }
+      );
+
+      if (!searchResponse.ok) {
+        console.error(`❌ Spotify search failed for top tracks: ${args.artistName} (${searchResponse.status} ${searchResponse.statusText})`);
+        return { imported: 0, reason: "spotify_search_failed" };
+      }
+
+      const searchData: any = await searchResponse.json();
+      const artists = searchData.artists?.items || [];
+
+      if (artists.length === 0) {
+        console.log(`⚠️ No Spotify artist found for top tracks: ${args.artistName}`);
+        return { imported: 0, reason: "spotify_artist_not_found" };
+      }
+
+      const spotifyArtist = artists[0];
+
+      // Update artist basics (id + images + popularity) so the UI can show Spotify media quickly.
+      try {
+        await ctx.runMutation(internalRef.artists.updateSpotifyData, {
+          artistId: args.artistId,
+          spotifyId: spotifyArtist.id,
+          followers: (() => {
+            const followers = spotifyArtist.followers?.total;
+            return typeof followers === "number" && Number.isFinite(followers)
+              ? followers
+              : undefined;
+          })(),
+          popularity: (() => {
+            const popularity = spotifyArtist.popularity;
+            return typeof popularity === "number" && Number.isFinite(popularity)
+              ? popularity
+              : undefined;
+          })(),
+          genres: spotifyArtist.genres || [],
+          images: spotifyArtist.images?.map((img: any) => img.url) || [],
+        });
+      } catch {
+        // ignore
+      }
+
+      // Fetch top tracks
+      const topTracksResponse = await fetchWithRetry(
+        `https://api.spotify.com/v1/artists/${spotifyArtist.id}/top-tracks?market=US`,
+        {
+          headers: { "Authorization": `Bearer ${accessToken}` },
+        }
+      );
+
+      if (!topTracksResponse.ok) {
+        console.error(`❌ Spotify top-tracks failed for ${args.artistName}: ${topTracksResponse.status} ${topTracksResponse.statusText}`);
+        return { imported: 0, reason: "spotify_top_tracks_failed" };
+      }
+
+      const topTracksData: any = await topTracksResponse.json();
+      const tracks: any[] = Array.isArray(topTracksData.tracks) ? topTracksData.tracks : [];
+      const limited = tracks.slice(0, maxTracks);
+
+      let imported = 0;
+      for (const track of limited) {
+        if (!track?.id || !track?.name) continue;
+        const title = String(track.name);
+        const lowerTitle = title.toLowerCase();
+        const isLive = /\blive\b/.test(lowerTitle);
+        const isRemix = /\bremix\b/.test(lowerTitle);
+
+        try {
+          const songId = await ctx.runMutation(internalRef.songs.create, {
+            title,
+            album: track.album?.name ? String(track.album.name) : undefined,
+            spotifyId: String(track.id),
+            durationMs: typeof track.duration_ms === "number" ? track.duration_ms : undefined,
+            popularity: typeof track.popularity === "number" ? track.popularity : 0,
+            trackNo: typeof track.track_number === "number" ? track.track_number : undefined,
+            isLive,
+            isRemix,
+          });
+
+          await ctx.runMutation(internalRef.artistSongs.create, {
+            artistId: args.artistId,
+            songId,
+            isPrimaryArtist: true,
+          });
+
+          imported += 1;
+        } catch (error) {
+          console.error(`❌ Failed to import top track ${title} for ${args.artistName}:`, error);
+        }
+      }
+
+      return { imported };
+    } catch (error) {
+      console.error("Failed to import Spotify top tracks:", error);
+      return { imported: 0, reason: error instanceof Error ? error.message : String(error) };
+    }
+  },
+});
+
 export const syncArtistCatalog = internalAction({
   args: {
     artistId: v.id("artists"),

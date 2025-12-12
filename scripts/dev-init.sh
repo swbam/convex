@@ -4,8 +4,8 @@
 echo "⏳ Waiting for Convex dev server to initialize..."
 sleep 10
 
-# Trigger trending sync to populate homepage
+# Trigger trending cache refresh to populate homepage (Ticketmaster + ranks)
 echo "📊 Syncing trending artists and shows..."
-npx convex run maintenance:triggerTrendingSync
+npm run -s sync:trending
 
 echo "✅ Dev initialization complete! Trending data synced."

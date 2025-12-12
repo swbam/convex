@@ -2,6 +2,10 @@ import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const apiRef = api as any;
+
 /**
  * Fetch user's Spotify data using OAuth access token
  * This action is called after successful Spotify OAuth login
@@ -135,7 +139,7 @@ export const completeSpotifyImport = action({
           followers: { total: number };
           popularity: number;
         }>;
-      } = await ctx.runAction(api.spotifyOAuth.fetchUserSpotifyData, {
+      } = await ctx.runAction(apiRef.spotifyOAuth.fetchUserSpotifyData, {
         accessToken: args.accessToken,
       });
 
@@ -146,7 +150,7 @@ export const completeSpotifyImport = action({
         imported: number;
         correlated: number;
         message: string;
-      } = await ctx.runAction(api.spotifyAuth.importUserSpotifyArtistsWithToken, spotifyData);
+      } = await ctx.runAction(apiRef.spotifyAuth.importUserSpotifyArtistsWithToken, spotifyData);
 
       console.log(`✅ Import complete: ${result.imported} imported, ${result.correlated} correlated`);
 

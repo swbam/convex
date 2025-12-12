@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from 'convex/react';
+import { useAction, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { 
@@ -11,6 +11,7 @@ import { MagicCard } from './ui/magic-card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import { buildTicketmasterAffiliateUrl } from '../utils/ticketmaster';
+import { toast } from 'sonner';
 
 interface FestivalDetailProps {
   festivalSlug: string;
@@ -36,6 +37,22 @@ export function FestivalDetail({
   const totalArtists = scheduleData?.totalArtists || 0;
   
   const isLoading = scheduleData === undefined;
+
+  const isAdmin = useQuery(api.admin.isCurrentUserAdmin);
+  const startLineupImport = useAction((api as any).festivalLineupImport.startFestivalLineupImport);
+  const activeJobs = useQuery(api.syncJobs.getActive, isAdmin ? {} : "skip");
+  const activeFestivalImportJob = React.useMemo(() => {
+    if (!festival || !Array.isArray(activeJobs)) return null;
+    return (
+      activeJobs.find(
+        (j: any) =>
+          j?.type === "festival_lineup_import" &&
+          (j?.entityId === festival._id || j?.entityId === String(festival._id)),
+      ) ?? null
+    );
+  }, [activeJobs, festival]);
+
+  const [isStartingImport, setIsStartingImport] = useState(false);
 
   const formatDateRange = (startDate: string, endDate: string) => {
     const start = new Date(startDate);
@@ -255,10 +272,64 @@ export function FestivalDetail({
               <Music className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
               Lineup
             </h2>
-            <p className="text-sm text-muted-foreground hidden sm:block">
-              Click any artist to vote on their setlist
-            </p>
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-muted-foreground hidden sm:block">
+                Click any artist to vote on their setlist
+              </p>
+              {isAdmin && festival && (
+                <button
+                  disabled={isStartingImport}
+                  onClick={() => { void (async () => {
+                    try {
+                      setIsStartingImport(true);
+                      const res = await startLineupImport({
+                        festivalId: festival._id,
+                        batchSize: 10,
+                      });
+                      toast.success(`Lineup import started (${res.source}, ${res.total} artists)`);
+                    } catch (e) {
+                      const msg = e instanceof Error ? e.message : "Failed to start lineup import";
+                      toast.error(msg);
+                    } finally {
+                      setIsStartingImport(false);
+                    }
+                  })(); }}
+                  className="px-4 py-2 rounded-full bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground text-sm font-semibold transition-colors"
+                >
+                  {isStartingImport ? "Starting…" : "Import lineup"}
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Lineup completeness / import progress */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Imported artists: <span className="font-semibold text-foreground">{totalArtists}</span>
+              {activeFestivalImportJob?.totalItems
+                ? (
+                  <>
+                    {" "}
+                    / <span className="font-semibold text-foreground">{activeFestivalImportJob.totalItems}</span>
+                  </>
+                )
+                : null}
+            </p>
+            {activeFestivalImportJob && (
+              <p className="text-xs text-muted-foreground">
+                Importing… {activeFestivalImportJob.itemsProcessed ?? 0}/{activeFestivalImportJob.totalItems ?? "?"} (
+                {activeFestivalImportJob.progressPercentage ?? 0}%)
+              </p>
+            )}
+          </div>
+          {activeFestivalImportJob && (
+            <div className="w-full h-2 rounded-full bg-secondary overflow-hidden border border-border">
+              <div
+                className="h-full bg-primary"
+                style={{ width: `${Math.max(0, Math.min(100, Number(activeFestivalImportJob.progressPercentage ?? 0)))}%` }}
+              />
+            </div>
+          )}
 
           {/* Day Tabs */}
           {days.length > 1 ? (

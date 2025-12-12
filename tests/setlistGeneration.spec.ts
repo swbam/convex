@@ -30,7 +30,7 @@ describe('Setlist Generation Tests (requires ENABLE_CONVEX_RUN=true)', () => {
   });
 
   (enable ? it : it.skip)('backfill: can trigger backfill for missing setlists', () => {
-    const res = runConvex('admin:testBackfillMissingSetlists', { limit: 10 });
+    const res = runConvex('internal.admin:testBackfillMissingSetlists', { limit: 10 });
     expect(res.status).toBe(0);
     // Should return success and counts
     expect(res.stdout).toMatch(/(processed|generated)/i);

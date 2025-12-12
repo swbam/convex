@@ -29,6 +29,12 @@ export const handleClerkWebhook = internalAction({
         const msg = 'CLERK_WEBHOOK_SECRET not configured';
         if (isProd) {
           console.error(`❌ ${msg}`);
+          await ctx.runMutation(internalRef.errorTracking.logError, {
+            operation: "clerk_webhook_verification",
+            error: msg,
+            context: { additionalData: { reason: "missing_secret" } },
+            severity: "error",
+          });
           throw new Error('UNAUTHORIZED');
         } else {
           console.warn(`⚠️ ${msg} - skipping verification in development`);
@@ -40,6 +46,12 @@ export const handleClerkWebhook = internalAction({
           const msg = 'Missing Svix headers or raw body for verification';
           if (isProd) {
             console.error(`❌ ${msg}`);
+            await ctx.runMutation(internalRef.errorTracking.logError, {
+              operation: "clerk_webhook_verification",
+              error: msg,
+              context: { additionalData: { reason: "missing_headers" } },
+              severity: "error",
+            });
             throw new Error('UNAUTHORIZED');
           } else {
             console.warn(`⚠️ ${msg} - skipping verification in development`);
@@ -56,6 +68,12 @@ export const handleClerkWebhook = internalAction({
           } catch (e) {
             if (isProd) {
               console.error('❌ Webhook signature verification failed');
+              await ctx.runMutation(internalRef.errorTracking.logError, {
+                operation: "clerk_webhook_verification",
+                error: "signature_verification_failed",
+                context: { additionalData: { reason: "bad_signature" } },
+                severity: "error",
+              });
               throw new Error('UNAUTHORIZED');
             } else {
               console.warn('⚠️ Webhook signature verification failed - continuing in development', e);
@@ -74,10 +92,10 @@ export const handleClerkWebhook = internalAction({
     // Idempotency: skip if we've already processed this Clerk event id
     const eventId = (event as any).id as string | undefined;
     if (eventId) {
-      const existing = await (ctx as any).db
-        .query("clerkWebhookEvents")
-        .withIndex("by_event_id", (q: any) => q.eq("eventId", eventId))
-        .first();
+      const existing = await ctx.runQuery(
+        internalRef.clerkWebhookEvents.getProcessedClerkWebhookEventInternal,
+        { eventId },
+      );
       if (existing) {
         console.log(
           `⏭️ Duplicate Clerk webhook ${event.type} (${eventId}) – already processed`,
@@ -107,10 +125,9 @@ export const handleClerkWebhook = internalAction({
     }
 
     if (eventId) {
-      await (ctx as any).db.insert("clerkWebhookEvents", {
+      await ctx.runMutation(internalRef.clerkWebhookEvents.markClerkWebhookEventProcessedInternal, {
         eventId,
         eventType: event.type,
-        processedAt: Date.now(),
       });
     }
 

@@ -106,6 +106,37 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
 
   const isLoading = dbTrendingShows === undefined || dbTrendingArtists === undefined;
 
+  const formatUpdatedAt = (ts?: number) => {
+    if (!ts || !Number.isFinite(ts)) return null;
+    const diffMs = Date.now() - ts;
+    if (diffMs < 0) return "just now";
+    const min = Math.floor(diffMs / 60000);
+    if (min < 1) return "just now";
+    if (min < 60) return `${min}m ago`;
+    const hr = Math.floor(min / 60);
+    if (hr < 48) return `${hr}h ago`;
+    const days = Math.floor(hr / 24);
+    return `${days}d ago`;
+  };
+
+  const trendingArtistsMeta = useMemo(() => {
+    if (dbTrendingArtistsResult === undefined) return undefined;
+    if (!dbTrendingArtistsResult) return null;
+    const lastUpdated = (dbTrendingArtistsResult as any).lastUpdated as number | undefined;
+    const isFallback = Boolean((dbTrendingArtistsResult as any).isFallback);
+    const source = (dbTrendingArtistsResult as any).source as string | undefined;
+    return { lastUpdated, isFallback, source };
+  }, [dbTrendingArtistsResult]);
+
+  const trendingShowsMeta = useMemo(() => {
+    if (dbTrendingShowsResult === undefined) return undefined;
+    if (!dbTrendingShowsResult) return null;
+    const lastUpdated = (dbTrendingShowsResult as any).lastUpdated as number | undefined;
+    const isFallback = Boolean((dbTrendingShowsResult as any).isFallback);
+    const source = (dbTrendingShowsResult as any).source as string | undefined;
+    return { lastUpdated, isFallback, source };
+  }, [dbTrendingShowsResult]);
+
   // Animation variants - smooth opacity-only to prevent layout shift
   const heroVariants = {
     hidden: { opacity: 0 },
@@ -141,10 +172,17 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
 
   // Handler for clicking on trending artists - navigates instantly if already in DB
   const handleTrendingArtistClick = async (artist: any) => {
-    // Check if the artist has a linked artistId from the main artists table
-    // (trendingArtists records may have an artistId field pointing to the real artist)
-    const linkedArtistId = artist?.artistId;
+    // If this is already a real `artists` document, navigate instantly.
+    // (Cached `trendingArtists` rows can also be hydrated into full artist docs.)
     const slug = artist?.slug;
+    const isArtistDoc = typeof artist?.lowerName === "string" || typeof artist?.ticketmasterId === "string" && typeof artist?.lastSynced === "number";
+    if (isArtistDoc && slug) {
+      navigateTo(`/artists/${slug}`);
+      return;
+    }
+
+    // If the artist has a linked artists-table ID (from cachedTrending), navigate instantly.
+    const linkedArtistId = artist?.artistId || artist?.cachedTrending?.artistId;
     
     // If artist is already linked to main artists table, navigate instantly (no import needed)
     // Real artist IDs from the artists table start with 'j' (e.g., j97...)
@@ -383,7 +421,18 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
               </div>
               <div>
                 <h2 className="text-xl sm:text-2xl font-bold text-foreground">Trending Artists</h2>
-                <p className="text-xs sm:text-sm text-muted-foreground">Popular artists with upcoming shows</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Popular artists with upcoming shows
+                  {trendingArtistsMeta && (
+                    <>
+                      {" "}
+                      •{" "}
+                      {trendingArtistsMeta.isFallback
+                        ? "Refreshing… showing fallback"
+                        : `Updated ${formatUpdatedAt(trendingArtistsMeta.lastUpdated) ?? "recently"}`}
+                    </>
+                  )}
+                </p>
               </div>
             </div>
             <button
@@ -466,7 +515,18 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
               </div>
               <div>
                 <h2 className="text-xl sm:text-2xl font-bold text-foreground">Upcoming Shows</h2>
-                <p className="text-xs sm:text-sm text-muted-foreground">Popular upcoming concerts</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Popular upcoming concerts
+                  {trendingShowsMeta && (
+                    <>
+                      {" "}
+                      •{" "}
+                      {trendingShowsMeta.isFallback
+                        ? "Refreshing… showing fallback"
+                        : `Updated ${formatUpdatedAt(trendingShowsMeta.lastUpdated) ?? "recently"}`}
+                    </>
+                  )}
+                </p>
               </div>
             </div>
             <button

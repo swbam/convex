@@ -58,6 +58,14 @@ export function AdminDashboard() {
     (api as any).admin.getRecentActivity,
     isAdmin === true ? { limit: 50 } : "skip"
   );
+  const analytics = useQuery(
+    (api as any).adminAnalytics.getDashboard,
+    isAdmin === true ? { days: 30 } : "skip"
+  );
+  const auditLogs = useQuery(
+    (api as any).admin.getRecentAuditLogs,
+    isAdmin === true ? { limit: 50 } : "skip"
+  );
   const updateUserRole = useMutation((api as any).admin.updateUserRole);
   const recomputeEngagementCounts = useAction((api as any).admin.recomputeEngagementCounts);
   const forceCatalogSync = useAction((api as any).admin.forceArtistCatalogSync);
@@ -80,12 +88,13 @@ export function AdminDashboard() {
   );
   
   // Setlist sync actions
-  const triggerSetlistSync = useAction((api as any).admin.testTriggerSetlistSync);
-  const cleanupSongs = useAction((api as any).admin.testCleanupNonStudioSongs);
-  const backfillSetlists = useAction((api as any).admin.testBackfillMissingSetlists);
+  const triggerSetlistSync = useAction((api as any).admin.triggerSetlistSync);
+  const cleanupSongs = useAction((api as any).admin.cleanupNonStudioSongs);
+  const backfillSetlists = useAction((api as any).admin.backfillMissingSetlists);
   const resyncCatalogs = useAction((api as any).admin.resyncArtistCatalogs);
-  const importTrending = useAction((api as any).admin.testImportTrendingFromTicketmaster);
+  const importTrending = useAction((api as any).admin.refreshTrendingCache);
   const updateCron = useMutation((api as any).cronSettings.update);
+  const requestCronRunNow = useMutation((api as any).cronSettings.requestRunNow);
   const promoteByEmail = useMutation((api as any).admin.promoteUserByEmail);
   const setClerkRoleByEmail = useAction((api as any).admin.setClerkRoleByEmail);
   const testSpotifyClient = useAction((api as any).admin.testSpotifyClientCredentials);
@@ -181,6 +190,9 @@ export function AdminDashboard() {
   };
 
   const handleCleanupSongs = async () => {
+    if (!window.confirm("This will delete songs flagged as non-studio/duplicates. Continue?")) {
+      return;
+    }
     setCleanupSyncing(true);
     try {
       const res = await cleanupSongs();
@@ -195,6 +207,9 @@ export function AdminDashboard() {
   };
 
   const handleBackfillSetlists = async () => {
+    if (!window.confirm("This will schedule setlist generation backfills. Continue?")) {
+      return;
+    }
     setBackfillSyncing(true);
     try {
       const res = await backfillSetlists({ limit: 500 });
@@ -223,10 +238,17 @@ export function AdminDashboard() {
   };
 
   const handleImportTrending = async () => {
+    if (!window.confirm("Refresh Ticketmaster trending cache and import shows now?")) {
+      return;
+    }
     setImportSyncing(true);
     try {
       const res = await importTrending();
-      toast.success(`Imported ${res.artistsImported} new trending artists`);
+      if (res.success) {
+        toast.success(res.message);
+      } else {
+        toast.error(res.message);
+      }
     } finally {
       setImportSyncing(false);
     }
@@ -263,6 +285,9 @@ export function AdminDashboard() {
   };
 
   const handleRoleUpdate = async (userId: Id<'users'>, role: "user" | "admin") => {
+    if (!window.confirm(`Set this user role to \"${role}\"?`)) {
+      return;
+    }
     try {
       await updateUserRole({ userId, role });
       toast.success("Role updated");
@@ -472,6 +497,87 @@ export function AdminDashboard() {
               )}
             </div>
             <BorderBeam size={120} duration={8} className="opacity-20" />
+          </MagicCard>
+
+          {/* Analytics (last 30 days) */}
+          <MagicCard className="p-0 rounded-xl border border-border bg-card">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                  <BarChart3 className="h-4 w-4 text-purple-400" />
+                </div>
+                <h2 className="text-xl font-semibold text-foreground">Analytics (last 30 days)</h2>
+              </div>
+
+              {!analytics ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[...Array(8)].map((_, i) => (
+                    <div key={i} className="h-20 rounded-lg bg-secondary animate-pulse" />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <StatCard
+                      icon={<Users className="h-5 w-5 text-blue-400" />}
+                      label="Signups (30d)"
+                      value={analytics.signups?.total ?? 0}
+                    />
+                    <StatCard
+                      icon={<Music className="h-5 w-5 text-green-400" />}
+                      label="Spotify connected (30d)"
+                      value={analytics.signups?.spotifyConnected ?? 0}
+                    />
+                    <StatCard
+                      icon={<TrendingUp className="h-5 w-5 text-orange-400" />}
+                      label="Votes (30d)"
+                      value={analytics.engagement?.votes?.total ?? 0}
+                    />
+                    <StatCard
+                      icon={<TrendingUp className="h-5 w-5 text-purple-400" />}
+                      label="Song votes (30d)"
+                      value={analytics.engagement?.songVotes?.total ?? 0}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="bg-secondary border border-border rounded-xl p-4">
+                      <div className="text-sm font-semibold text-foreground mb-3">Ops health (by day)</div>
+                      <div className="space-y-2 max-h-56 overflow-auto">
+                        {(analytics.ops?.cronRuns?.byDay || []).slice(-14).map((d: any) => (
+                          <div key={d.day} className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">{d.day}</span>
+                            <span className="text-muted-foreground">
+                              cron ok {d.success ?? 0} / fail {d.failure ?? 0} • errors {(() => {
+                                const e = (analytics.ops?.errors?.byDay || []).find((x: any) => x.day === d.day);
+                                return e ? (e.error ?? 0) : 0;
+                              })()}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="bg-secondary border border-border rounded-xl p-4">
+                      <div className="text-sm font-semibold text-foreground mb-3">Top shows (internal rank)</div>
+                      <div className="space-y-2 max-h-56 overflow-auto">
+                        {(analytics.top?.shows || []).map((s: any) => (
+                          <div key={s._id} className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground truncate">
+                              {s.artist?.name || "Unknown"} • {s.venue?.city || ""} • {s.date}
+                            </span>
+                            <span className="text-muted-foreground flex-shrink-0">
+                              #{s.trendingRank ?? "—"} • {s.voteCount ?? 0} votes
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <BorderBeam size={120} duration={10} className="opacity-20" />
           </MagicCard>
 
           {/* Auth Diagnostics */}
@@ -1002,6 +1108,15 @@ export function AdminDashboard() {
                       <div className="text-xs text-muted-foreground">
                         Last run: {c.lastRunAt ? new Date(c.lastRunAt).toLocaleString() : "never"}
                       </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Last success: {c.lastSuccessAt ? new Date(c.lastSuccessAt).toLocaleString() : "—"}
+                        {c.lastFailureAt ? ` • Last failure: ${new Date(c.lastFailureAt).toLocaleString()}` : ""}
+                      </div>
+                      {c.lastError && (
+                        <div className="text-[11px] text-red-400 truncate">
+                          Error: {c.lastError}
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <Input
@@ -1032,6 +1147,20 @@ export function AdminDashboard() {
                         })(); }}
                       />
                       <span className="text-xs text-muted-foreground">Enabled</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { void (async () => {
+                          try {
+                            await requestCronRunNow({ name: c.name });
+                            toast.success("Run-now requested");
+                          } catch {
+                            toast.error("Failed to request run-now");
+                          }
+                        })(); }}
+                      >
+                        Run now
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -1111,6 +1240,54 @@ export function AdminDashboard() {
                           })}
                           {activity.user && ` • ${activity.user}`}
                         </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <BorderBeam size={80} duration={8} className="opacity-20" />
+          </MagicCard>
+
+          <MagicCard className="p-0 rounded-xl border border-border bg-card">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                  <Shield className="h-4 w-4 text-purple-400" />
+                </div>
+                <h2 className="text-xl font-semibold text-foreground">Admin Audit Log</h2>
+              </div>
+
+              {!auditLogs ? (
+                <div className="space-y-3">
+                  {[...Array(8)].map((_, i) => (
+                    <div key={i} className="animate-pulse bg-secondary rounded-lg p-4 h-14" />
+                  ))}
+                </div>
+              ) : auditLogs.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground">
+                  <Shield className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                  <p>No audit events yet</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {auditLogs.slice(0, 30).map((log: any) => (
+                    <div
+                      key={log._id}
+                      className="flex items-start justify-between gap-3 p-3 bg-secondary rounded-lg"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm text-foreground font-medium truncate">
+                          {log.action}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(log.createdAt).toLocaleString()} •{" "}
+                          {log.success ? "success" : "failed"}
+                          {log.error ? ` • ${log.error}` : ""}
+                        </p>
+                      </div>
+                      <div className={`text-xs font-semibold ${log.success ? "text-green-400" : "text-red-400"}`}>
+                        {log.success ? "OK" : "ERR"}
                       </div>
                     </div>
                   ))}

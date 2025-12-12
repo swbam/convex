@@ -16,6 +16,10 @@ export const onDeploy = internalAction({
     console.log("🚀 Running deployment tasks...");
     
     try {
+      // Ensure cron settings are seeded so the admin dashboard is immediately usable.
+      console.log("⏱️ Seeding cron settings defaults...");
+      await ctx.runAction(internalRef.cronOrchestrator.seedDefaults, {});
+
       // CRITICAL: Ensure admin user exists on deployment
       // Method 1: By exact Clerk authId (most reliable - this is the real user's Clerk ID)
       console.log("🔑 Promoting admin by authId...");

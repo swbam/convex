@@ -16,6 +16,7 @@ export const voteOnSong = mutation({
     voteType: v.literal("upvote"), // Only upvotes per ProductHunt style
     anonId: v.optional(v.string()),
   },
+  returns: v.union(v.object({ action: v.string() }), v.null()),
   handler: async (ctx, args) => {
     try {
     const authUserId = await getAuthUserId(ctx);
@@ -28,6 +29,11 @@ export const voteOnSong = mutation({
       effectiveUserId = args.anonId;
     } else {
       effectiveUserId = authUserId;
+    }
+
+    const setlist = await ctx.db.get(args.setlistId);
+    if (!setlist) {
+      throw new Error("Setlist not found");
     }
 
     // Check if user already voted on this song in this setlist
@@ -43,7 +49,16 @@ export const voteOnSong = mutation({
     if (existingVote) {
       // Remove existing vote (toggle off)
       await ctx.db.delete(existingVote._id);
-      return null;
+      // Decrement the parent show's voteCount (floor at 0)
+      if (setlist?.showId) {
+        const show = await ctx.db.get(setlist.showId);
+        if (show) {
+          await ctx.db.patch(setlist.showId, {
+            voteCount: Math.max(0, (show.voteCount || 0) - 1),
+          });
+        }
+      }
+      return { action: "removed" };
     }
 
     // Determine if this is an anonymous user by checking if authUserId is null
@@ -92,7 +107,17 @@ export const voteOnSong = mutation({
       createdAt: Date.now(),
     });
 
-    return null;
+    // Increment the parent show's voteCount (voteCount includes votes + songVotes)
+    if (setlist.showId) {
+      const show = await ctx.db.get(setlist.showId);
+      if (show) {
+        await ctx.db.patch(setlist.showId, {
+          voteCount: (show.voteCount || 0) + 1,
+        });
+      }
+    }
+
+    return { action: "added" };
     } catch (error) {
       // Track voting errors
       await ctx.runMutation(internalRef.errorTracking.logError, {

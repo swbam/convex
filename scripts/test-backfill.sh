@@ -12,7 +12,7 @@ npx convex run diagnostics:findArtistsWithoutSongs '{"limit": 50}'
 
 echo ""
 echo "🔄 Step 3: Running backfill to generate missing setlists..."
-npx convex run admin:testBackfillMissingSetlists '{"limit": 100}'
+npx convex run internal.admin:testBackfillMissingSetlists '{"limit": 100}'
 
 echo ""
 echo "✅ Backfill complete! Check the output above for results."

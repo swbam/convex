@@ -17,6 +17,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [hasTriedCreation, setHasTriedCreation] = useState(false);
   const [creationAttempts, setCreationAttempts] = useState(0);
+  const [hasTriedSync, setHasTriedSync] = useState(false);
+  const [syncAttempts, setSyncAttempts] = useState(0);
 
   useEffect(() => {
     // If user is logged in but app user doesn't exist, auto-create in background
@@ -52,6 +54,28 @@ export function AuthGuard({ children }: AuthGuardProps) {
         });
     }
   }, [user, ensureUser, hasTriedCreation, isCreatingUser, creationAttempts]);
+
+  useEffect(() => {
+    // If user exists, do a one-time background sync from identity (spotifyId, avatar, role upgrades, etc).
+    if (
+      user &&
+      !user.needsSetup &&
+      !hasTriedSync &&
+      !isCreatingUser &&
+      syncAttempts < MAX_CREATION_ATTEMPTS
+    ) {
+      setHasTriedSync(true);
+      setSyncAttempts((prev) => prev + 1);
+
+      ensureUser()
+        .catch(() => {
+          // Silent-ish failure; don't block UI.
+          setTimeout(() => {
+            setHasTriedSync(false);
+          }, RETRY_DELAY_MS);
+        });
+    }
+  }, [user, ensureUser, hasTriedSync, isCreatingUser, syncAttempts]);
 
   // Still loading initial auth state
   if (user === undefined) {

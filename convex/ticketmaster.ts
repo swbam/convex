@@ -818,6 +818,11 @@ export const getTrendingShows = action({
         const isNonConcert = artistName.includes('tribute') || 
                             artistName.includes('experience') ||
                             artistName.includes('cover') ||
+                            artistName.includes('bingo') ||
+                            artistName.includes('dance party') ||
+                            artistName.includes('silent disco') ||
+                            artistName.includes('karaoke') ||
+                            artistName.includes('trivia') ||
                             artistName.includes('film with') ||
                             artistName.includes('- film') ||
                             artistName.includes('orchestra') ||
@@ -835,7 +840,12 @@ export const getTrendingShows = action({
         const eventName = event.name?.toLowerCase() || '';
         const isPlay = eventName.includes('play') || 
                       eventName.includes('musical') ||
-                      eventName.includes('broadway');
+                      eventName.includes('broadway') ||
+                      eventName.includes('bingo') ||
+                      eventName.includes('dance party') ||
+                      eventName.includes('silent disco') ||
+                      eventName.includes('karaoke') ||
+                      eventName.includes('trivia');
         
         // Exclude very niche/small genres
         const hasGoodImage = event._embedded?.attractions?.[0]?.images?.length > 0;
@@ -938,23 +948,30 @@ export const getTrendingArtists = action({
         
         // Skip non-artist content
         const name = (attraction.name || '').toLowerCase();
-        const isBadContent = name.includes('tribute') || name.includes('experience') ||
-                             name.includes('orchestra') || name.includes('symphony') ||
-                             name.includes('ballet') || name.includes('opera') ||
-                             name.includes('musical') || name.includes('christmas') ||
-                             name.includes('holiday') || name.includes('jingle') ||
-                             name.includes('on ice') || name.includes('cirque') ||
-                             name.includes(' stones') || // tribute bands like Sin City Stones
-                             name.includes('fab four') || // Beatles tribute
-                             name.includes('bingo') || // Bingo events
-                             name.includes('loco') || // Bingo Loco
-                             name.includes(' - ') && name.match(/[A-Z]{2}$/); // "Name - City, ST"
+        const isBadContent =
+          name.includes('tribute') ||
+          name.includes('experience') ||
+          name.includes('cover') ||
+          name.includes('orchestra') ||
+          name.includes('symphony') ||
+          name.includes('ballet') ||
+          name.includes('opera') ||
+          name.includes('musical') ||
+          name.includes('on ice') ||
+          name.includes('cirque') ||
+          // Party / novelty events that leak into the Music segment
+          name.includes('bingo') ||
+          name.includes('dance party') ||
+          name.includes('silent disco') ||
+          name.includes('karaoke') ||
+          name.includes('trivia') ||
+          name.includes('game night');
         if (isBadContent) continue;
         
         const upcomingEvents = attraction.upcomingEvents?._total || 0;
-        // Skip residencies (60+ events likely at same venue, not touring)
-        // Real stadium tours typically have 20-50 shows max
-        if (upcomingEvents > 60) continue;
+        // Skip extreme "residency-like" attractions with huge event counts.
+        // NOTE: Big tours can exceed 50 events, so this needs to be a high threshold.
+        if (upcomingEvents > 200) continue;
         
         artistMap.set(attraction.id, {
           attraction,
@@ -963,13 +980,13 @@ export const getTrendingArtists = action({
       }
       
       // CRITICAL: Sort by upcoming event count (DESCENDING) to get major touring acts first
-      // Then filter to artists with at least 5 upcoming events (real tours, not residencies)
+      // Then filter to artists with at least 1 upcoming event (touring now)
       const artists = Array.from(artistMap.values())
-        .filter(a => a.upcomingEvents >= 5) // Only artists with real tours
+        .filter(a => a.upcomingEvents >= 1) // Touring now
         .sort((a, b) => b.upcomingEvents - a.upcomingEvents) // Most events first
         .slice(0, limit);
       
-      console.log(`✅ Found ${artists.length} trending artists with 5+ events (sorted by tour size)`);
+      console.log(`✅ Found ${artists.length} trending artists with 1+ upcoming events (sorted by tour size)`);
       
       console.log(`✅ Found ${artists.length} trending artists from popular events`);
 

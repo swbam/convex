@@ -144,6 +144,19 @@ export function ShowDetail({
     predictionSetlistId ? { setlistId: predictionSetlistId } : "skip"
   );
 
+  // Map of normalized song title -> vote count for this prediction setlist
+  const songVoteCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (allSongVotes) {
+      for (const row of allSongVotes as any[]) {
+        const title = (row?.songTitle || "").toString().toLowerCase().trim();
+        const upvotes = typeof row?.upvotes === "number" ? row.upvotes : 0;
+        if (title) map.set(title, upvotes);
+      }
+    }
+    return map;
+  }, [allSongVotes]);
+
   const actualSetlistRecord = useMemo(() => {
     if (!setlists) return null;
     const officialWithActual = setlists.find(
@@ -191,24 +204,16 @@ export function ShowDetail({
       .map((s: any) => typeof s === "string" ? s : s?.title)
       .filter(Boolean) as string[];
     
-    // Create a map of song title -> vote count
-    const voteCountMap = new Map<string, number>();
-    if (allSongVotes) {
-      for (const vote of allSongVotes) {
-        voteCountMap.set(vote.songTitle.toLowerCase().trim(), vote.upvotes);
-      }
-    }
-    
     // Sort by vote count (descending), then alphabetically for ties
     return [...songTitles].sort((a, b) => {
-      const aVotes = voteCountMap.get(a.toLowerCase().trim()) || 0;
-      const bVotes = voteCountMap.get(b.toLowerCase().trim()) || 0;
+      const aVotes = songVoteCountMap.get(a.toLowerCase().trim()) || 0;
+      const bVotes = songVoteCountMap.get(b.toLowerCase().trim()) || 0;
       if (bVotes !== aVotes) {
         return bVotes - aVotes;
       }
       return a.localeCompare(b);
     });
-  }, [predictionSetlist?.songs, allSongVotes]);
+  }, [predictionSetlist?.songs, songVoteCountMap]);
 
   // Simple analytics
   const catalogCount = songs?.length || 0;
@@ -260,7 +265,16 @@ export function ShowDetail({
     if (!setlists) return; // wait for load
     const hasSongs = !!predictionSetlist && Array.isArray(predictionSetlist.songs) && predictionSetlist.songs.length > 0;
     if (!hasSongs) {
-      void ensureAutoSetlist({ showId });
+      void (async () => {
+        try {
+          const res = await ensureAutoSetlist({ showId });
+          if (res && !res.created && res.message) {
+            toast.info(res.message, { duration: 2500 });
+          }
+        } catch {
+          // ignore
+        }
+      })();
     }
   }, [showId, setlists, predictionSetlist, ensureAutoSetlist]);
 
@@ -714,7 +728,13 @@ export function ShowDetail({
                   <div className="mt-6 touch-manipulation">
                     {/* Setlist - sorted by vote count */}
                     <div className="space-y-2">
-                        {sortedPredictionSongs.map((songTitle: string, index: number) => (
+                        {sortedPredictionSongs.map((songTitle: string, index: number) => {
+                          // Use pre-fetched vote data to avoid N+1 queries
+                          const normalizedTitle = songTitle.toLowerCase().trim();
+                          const voteData = (allSongVotes as any[] | undefined)?.find(
+                            (v: any) => (v?.songTitle || "").toLowerCase().trim() === normalizedTitle
+                          );
+                          return (
                             <FanRequestSongRow
                               key={`setlist-song-${songTitle}-${index}`}
                               songTitle={songTitle}
@@ -727,8 +747,11 @@ export function ShowDetail({
                               setShowAuthModal={setShowAuthModal}
                               anonId={anonId}
                               isUpcoming={isUpcoming}
+                              preloadedVoteCount={voteData?.upvotes ?? 0}
+                              preloadedUserVoted={voteData?.userVoted ?? false}
                             />
-                          ))}
+                          );
+                        })}
                     </div>
                   </div>
                 )}
@@ -744,7 +767,14 @@ export function ShowDetail({
               const unplayedSongs = (predictionSetlist.songs as any[])
                 .map((s: any) => typeof s === "string" ? s : s?.title)
                 .filter(Boolean)
-                .filter((title: string) => !actualSongTitleSet.has(title.toLowerCase().trim()));
+                .map((t: string) => t.toString())
+                .filter((title: string) => !actualSongTitleSet.has(title.toLowerCase().trim()))
+                .sort((a: string, b: string) => {
+                  const aVotes = songVoteCountMap.get(a.toLowerCase().trim()) || 0;
+                  const bVotes = songVoteCountMap.get(b.toLowerCase().trim()) || 0;
+                  if (bVotes !== aVotes) return bVotes - aVotes;
+                  return a.localeCompare(b);
+                });
               
               if (unplayedSongs.length === 0) return null;
               
@@ -770,6 +800,7 @@ export function ShowDetail({
                           key={`unplayed-${index}`}
                           songTitle={songTitle}
                           predictionSetlistId={predictionSetlistId}
+                          voteCount={songVoteCountMap.get(songTitle.toLowerCase().trim()) || 0}
                         />
                       ))}
                     </div>
@@ -991,6 +1022,8 @@ function FanRequestSongRow({
   setShowAuthModal,
   anonId,
   isUpcoming,
+  preloadedVoteCount,
+  preloadedUserVoted,
 }: {
   songTitle: string;
   index: number;
@@ -1002,14 +1035,17 @@ function FanRequestSongRow({
   setShowAuthModal: (show: boolean) => void;
   anonId: string;
   isUpcoming: boolean;
+  preloadedVoteCount?: number;
+  preloadedUserVoted?: boolean;
 }) {
   const normalizedTitle = songTitle.toLowerCase().trim();
   const wasPlayed = actualSongTitleSet.has(normalizedTitle);
 
-  // Get real vote count
+  // Use preloaded data if available, otherwise fall back to individual query
+  // This eliminates N+1 queries when parent provides the data
   const songVotes = useQuery(
     api.songVotes.getSongVotes,
-    predictionSetlistId
+    preloadedVoteCount === undefined && predictionSetlistId
       ? {
           setlistId: predictionSetlistId,
           songTitle,
@@ -1017,8 +1053,8 @@ function FanRequestSongRow({
       : "skip"
   );
 
-  const voteCount = songVotes?.upvotes || 0;
-  const userVoted = songVotes?.userVoted || false;
+  const voteCount = preloadedVoteCount ?? songVotes?.upvotes ?? 0;
+  const userVoted = preloadedUserVoted ?? songVotes?.userVoted ?? false;
 
   const handleVote = async () => {
     if (!predictionSetlistId) return;
@@ -1030,13 +1066,17 @@ function FanRequestSongRow({
       }
       // For anonymous, still call mutation if backend supports
       try {
-        await voteOnSong({
+        const result = await voteOnSong({
           setlistId: predictionSetlistId,
           songTitle,
           voteType: "upvote",
           anonId,
         });
-        toast.success("Vote added!");
+        if (result?.action === "removed") {
+          toast.success("Vote removed");
+        } else {
+          toast.success("Vote added!");
+        }
       } catch {
         toast.error("Vote failed");
       }
@@ -1044,12 +1084,16 @@ function FanRequestSongRow({
     }
 
     try {
-      await voteOnSong({
+      const result = await voteOnSong({
         setlistId: predictionSetlistId,
         songTitle,
         voteType: "upvote",
       });
-      toast.success("Vote added!");
+      if (result?.action === "removed") {
+        toast.success("Vote removed");
+      } else {
+        toast.success("Vote added!");
+      }
     } catch {
       toast.error("Vote failed");
     }
@@ -1221,19 +1265,12 @@ function ActualSetlistSongRow({
 function UnplayedRequestRow({
   songTitle,
   predictionSetlistId,
+  voteCount,
 }: {
   songTitle: string;
   predictionSetlistId?: Id<"setlists">;
+  voteCount: number;
 }) {
-  const songVotes = useQuery(
-    api.songVotes.getSongVotes,
-    predictionSetlistId
-      ? { setlistId: predictionSetlistId, songTitle }
-      : "skip"
-  );
-
-  const voteCount = songVotes?.upvotes || 0;
-
   return (
     <div className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-red-500/5 border border-red-500/10 hover:bg-red-500/10 transition-colors">
       <div className="flex items-center gap-2.5 flex-1 min-w-0">

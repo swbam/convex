@@ -5,6 +5,8 @@ import { internal, api } from "./_generated/api";
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const internalRef = internal as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const apiRef = api as any;
 
 // Simplified trending sync - just update scores in main tables
 export const syncTrendingData = internalAction({
@@ -23,10 +25,6 @@ export const syncTrendingData = internalAction({
     }
     
     try {
-      // Step 0: Ensure engagement counts are up-to-date before ranking
-      await ctx.runMutation(internalRef.trending.updateEngagementCounts, {});
-      console.log("✅ Engagement counts updated");
-
       // Step 1: Update artist show counts (cached)
       await ctx.runMutation(internalRef.trending.updateArtistShowCounts, {});
       console.log("✅ Updated artist show counts");
@@ -38,73 +36,11 @@ export const syncTrendingData = internalAction({
       // Step 3: Update show trending scores and ranks
       await ctx.runMutation(internalRef.trending.updateShowTrending, {});
       console.log("✅ Updated show trending ranks");
-
-      // Step 4: Refresh cached trending collections so UI has rich fallback
-      try {
-        const artistsTop = await ctx.runQuery(internalRef.trending.getTopRankedArtists, { limit: 50 });
-        await ctx.runMutation(internalRef.trending.replaceTrendingArtistsCache, {
-          fetchedAt: Date.now(),
-          artists: artistsTop
-            .filter((a: any) => typeof a.ticketmasterId === "string" && a.ticketmasterId.length > 0)
-            .map((a: any, i: number) => ({
-              name: a.name || "Unknown Artist",
-              genres: Array.isArray(a.genres) ? a.genres : [],
-              images: Array.isArray(a.images) ? a.images : [],
-              upcomingEvents: typeof a.upcomingShowsCount === "number" ? a.upcomingShowsCount : 0,
-              ticketmasterId: a.ticketmasterId,
-              rank: i + 1,
-            })),
-        });
-      } catch (e) {
-        console.warn("⚠️ Failed to refresh trending artists cache from DB", e);
-      }
-
-      // We rely on getTrendingShows reading directly from main tables; show cache refresh optional.
-      
-      const fetchedAt = Date.now();
-      let ticketmasterArtists: Array<any> = [];
-      let ticketmasterShows: Array<any> = [];
-
-      // REMOVED: Direct Ticketmaster API calls to avoid TS deep instantiation errors
-      // Trending data is already populated by importTrendingShows action
-      console.log("⚠️ Ticketmaster trending sync skipped - use importTrendingShows action instead");
-
-      if (ticketmasterShows.length > 0) {
-        await ctx.runMutation(internalRef.trending.replaceTrendingShowsCache, {
-          fetchedAt,
-          shows: ticketmasterShows.map((show, index) => ({
-            ...show,
-            rank: index + 1,
-          })),
-        });
-      }
-
-      if (ticketmasterArtists.length > 0) {
-        await ctx.runMutation(internalRef.trending.replaceTrendingArtistsCache, {
-          fetchedAt,
-          artists: ticketmasterArtists.map((artist, index) => ({
-            ...artist,
-            rank: index + 1,
-          })),
-        });
-
-        for (const tmArtist of ticketmasterArtists) {
-          try {
-            if (!tmArtist.ticketmasterId) continue;
-            const existing = await ctx.runQuery(internalRef.artists.getByTicketmasterIdInternal, {
-              ticketmasterId: tmArtist.ticketmasterId,
-            });
-
-            if (!existing) {
-              console.log(`🆕 Importing trending artist: ${tmArtist.name} (skipped - will be imported via regular sync)`);
-              // REMOVED: Direct artist sync to avoid TS deep instantiation errors
-              // Artists will be imported via importTrendingShows action instead
-            }
-          } catch (error) {
-            console.error(`Failed to import ${tmArtist.name}:`, error);
-          }
-        }
-      }
+      // NOTE:
+      // We intentionally do NOT write to `trendingArtists`/`trendingShows` here.
+      // Those tables are treated as external (Ticketmaster-driven) caches and are refreshed by
+      // `admin.refreshTrendingCacheInternal`. Mixing internal engagement-based ranking into those
+      // caches causes confusing homepage results (e.g. upcomingEvents=0 filtered out).
 
       console.log("✅ Trending data sync completed");
     } catch (error) {
@@ -421,17 +357,15 @@ export const fixMissingArtistData = internalAction({
         try {
           if (!artist.spotifyId && artist.name) {
             console.log(`🔍 Fixing Spotify data for: ${artist.name}`);
-            
-            await ctx.runAction(internalRef.spotify.syncArtistCatalog, {
+
+            const delayMs = fixedCount * 1500;
+            void ctx.scheduler.runAfter(delayMs, internalRef.spotify.syncArtistCatalog, {
               artistId: artist._id,
               artistName: artist.name,
             });
-            
+
             fixedCount++;
           }
-          
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
         } catch (error) {
           console.error(`❌ Failed to fix artist ${artist.name}:`, error);
         }
@@ -570,8 +504,20 @@ export const cleanupOldOperationalData = internalAction({
       limit: 500,
     });
 
+    // Delete old cron run history
+    const cronRunsDeleted = await ctx.runMutation(internalRef.maintenance.deleteOldCronRuns, {
+      cutoff,
+      limit: 500,
+    });
+
+    // Delete old admin audit logs
+    const adminAuditDeleted = await ctx.runMutation(internalRef.maintenance.deleteOldAdminAuditLogs, {
+      cutoff,
+      limit: 500,
+    });
+
     console.log(
-      `✅ cleanupOldOperationalData complete. Deleted ${logsDeleted} errorLogs and ${webhooksDeleted} clerkWebhookEvents`,
+      `✅ cleanupOldOperationalData complete. Deleted ${logsDeleted} errorLogs, ${webhooksDeleted} clerkWebhookEvents, ${cronRunsDeleted} cronRuns, ${adminAuditDeleted} adminAuditLogs`,
     );
     return null;
   },
@@ -596,26 +542,21 @@ export const syncTrendingDataWithLogging = internalAction({
     const startTime = Date.now();
     
     try {
-      // Step 1: Update engagement counts first (new)
-      await ctx.runMutation(internalRef.trending.updateEngagementCounts, {});
-      console.log("✅ Engagement counts updated");
-
-      // Step 2: Update artist show counts
+      // Step 1: Update artist show counts
       await ctx.runMutation(internalRef.trending.updateArtistShowCounts, {});
       console.log("✅ Artist show counts updated");
 
-      // Step 3: Update artist trending
+      // Step 2: Update artist trending
       await ctx.runMutation(internalRef.trending.updateArtistTrending, {});
       console.log("✅ Artist trending updated");
 
-      // Step 4: Update show trending with new weighting
+      // Step 3: Update show trending with new weighting
       await ctx.runMutation(internalRef.trending.updateShowTrending, {});
       console.log("✅ Show trending updated");
 
-      // Step 5: Optional Ticketmaster enrichment
+      // Step 4: Optional Ticketmaster enrichment
       try {
-        // @ts-expect-error - Avoiding deep instantiation error
-        const trendingArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 10 });
+        const trendingArtists: any[] = await ctx.runAction(apiRef.ticketmaster.getTrendingArtists, { limit: 10 });
         let imported = 0;
         for (const tmArtist of trendingArtists) {
           try {
@@ -625,7 +566,7 @@ export const syncTrendingDataWithLogging = internalAction({
             
             if (!existing) {
               console.log(`🆕 Importing trending artist: ${tmArtist.name}`);
-              await ctx.runAction(api.ticketmaster.triggerFullArtistSync, {
+              await ctx.runAction(apiRef.ticketmaster.triggerFullArtistSync, {
                 ticketmasterId: tmArtist.ticketmasterId,
                 artistName: tmArtist.name,
                 genres: tmArtist.genres,
@@ -662,63 +603,57 @@ export const populateMissingFields = internalAction({
     const now = Date.now();
     const staleThreshold = now - 24 * 60 * 60 * 1000; // 24h
 
-    // Scan artists: missing counts or stale
-    const incompleteArtists = await ctx.runQuery(internalRef.maintenance.getIncompleteArtists, { staleThreshold });
+    // Artists: prioritize stale artists with Ticketmaster IDs (cheap index-driven selection).
+    // Do not block on third-party APIs here; schedule staggered work instead.
+    const staleArtists = await ctx.runQuery(internalRef.maintenance.getIncompleteArtists, { staleThreshold });
+    const candidates = (staleArtists || [])
+      .filter((a: any) => Boolean(a?.ticketmasterId) && a?.isActive !== false)
+      .slice(0, 10);
 
-    for (const artist of incompleteArtists.slice(0, 10)) { // Limit to 10 per run
+    for (let i = 0; i < candidates.length; i++) {
+      const artist = candidates[i];
+      const delayMs = i * 2000;
       try {
-        if (artist.ticketmasterId) {
-          await ctx.runAction(internalRef.ticketmaster.syncArtistShows, {
-            artistId: artist._id,
-            ticketmasterId: artist.ticketmasterId,
-          });
-          await ctx.runAction(internalRef.spotify.enrichArtistBasics, {
-            artistId: artist._id,
-            artistName: artist.name,
-          });
-        }
-        const showCount = await ctx.runQuery(internalRef.shows.getUpcomingCountByArtist, { artistId: artist._id });
-        await ctx.runMutation(internalRef.maintenance.updateArtistFields, {
+        console.log(`🗓️ Scheduling field backfill for artist: ${artist.name} (delay: ${delayMs}ms)`);
+        void ctx.scheduler.runAfter(delayMs, internalRef.ticketmaster.syncArtistShowsWithTracking, {
           artistId: artist._id,
-          upcomingShowsCount: showCount,
-          lastSynced: now,
+          ticketmasterId: artist.ticketmasterId,
         });
-        console.log(`✅ Populated fields for artist ${artist.name}`);
+
+        // Spotify basics are secondary and can be rate-limited separately.
+        void ctx.scheduler.runAfter(delayMs + 5000, internalRef.spotify.enrichArtistBasics, {
+          artistId: artist._id,
+          artistName: artist.name,
+        });
       } catch (e) {
-        console.error(`❌ Failed to populate ${artist.name}:`, e);
+        console.error(`❌ Failed to schedule backfill for artist ${artist.name}:`, e);
       }
     }
 
-    // Scan shows: missing artist/venue embeds or importStatus
+    // Shows: focus on completed shows that still need setlist.fm import.
     const incompleteShows = await ctx.runQuery(internalRef.maintenance.getIncompleteShows, {});
 
+    let scheduledShows = 0;
     for (const show of incompleteShows) {
       try {
-        if (show.artistId) {
-          const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: show.artistId });
-          const venue = await ctx.runQuery(internalRef.venues.getByIdInternal, { id: show.venueId });
-          
-          if (artist || venue) {
-            await ctx.runMutation(internalRef.maintenance.updateShowEmbeds, {
-              showId: show._id,
-              artist: artist ? { name: artist.name, slug: artist.slug, images: artist.images } : undefined,
-              venue: venue ? { name: venue.name, city: venue.city, state: venue.state, country: venue.country } : undefined,
-            });
-          }
-        }
-        // Trigger setlist if completed and pending
         const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: show.artistId });
         const venue = await ctx.runQuery(internalRef.venues.getByIdInternal, { id: show.venueId });
         
-        if (show.status === "completed" && (show.importStatus === "pending" || !show.importStatus) && artist && venue) {
-          await ctx.scheduler.runAfter(0, internalRef.setlistfm.syncActualSetlist, {
+        const needsSetlistImport =
+          show.status === "completed" &&
+          (show.importStatus === "pending" || show.importStatus === "failed" || !show.importStatus) &&
+          !show.setlistfmId;
+
+        if (needsSetlistImport && artist && venue) {
+          const delayMs = scheduledShows * 1500;
+          scheduledShows += 1;
+          void ctx.scheduler.runAfter(delayMs, internalRef.setlistfm.syncActualSetlist, {
             showId: show._id,
             artistName: artist.name,
             venueCity: venue.city,
             showDate: show.date,
           });
         }
-        console.log(`✅ Fixed show ${show._id}`);
       } catch (e) {
         console.error(`❌ Failed to fix show ${show._id}:`, e);
       }
@@ -734,13 +669,13 @@ export const getIncompleteArtists = internalQuery({
   args: { staleThreshold: v.number() },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
+    // Index-driven: pull artists that haven't been synced recently.
+    // Note: artists without lastSynced won't appear here; they should be rare.
     return await ctx.db
       .query("artists")
-      .filter((q) => q.or(
-        q.eq(q.field("upcomingShowsCount"), 0),
-        q.lt(q.field("lastSynced"), args.staleThreshold)
-      ))
-      .take(10);
+      .withIndex("by_last_synced", (q) => q.lt("lastSynced", args.staleThreshold))
+      .order("asc")
+      .take(50);
   },
 });
 
@@ -748,10 +683,12 @@ export const getIncompleteShows = internalQuery({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx) => {
+    // Index-driven: recent completed shows. We do the finer filtering in the action.
     return await ctx.db
       .query("shows")
-      .filter((q) => q.eq(q.field("status"), "completed"))
-      .take(20);
+      .withIndex("by_status", (q) => q.eq("status", "completed"))
+      .order("desc")
+      .take(50);
   },
 });
 
@@ -763,20 +700,6 @@ export const updateArtistFields = internalMutation({
       upcomingShowsCount: args.upcomingShowsCount,
       lastSynced: args.lastSynced,
     });
-    return null;
-  },
-});
-
-export const updateShowEmbeds = internalMutation({
-  args: { 
-    showId: v.id("shows"), 
-    artist: v.optional(v.any()),
-    venue: v.optional(v.any()),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    // Schema doesn't support artist/venue embeds - they're populated at read time
-    // This mutation is a no-op to prevent schema errors
     return null;
   },
 });
@@ -828,6 +751,36 @@ export const deleteOldWebhookEvents = internalMutation({
     }
     
     return events.length;
+  },
+});
+
+export const deleteOldCronRuns = internalMutation({
+  args: { cutoff: v.number(), limit: v.number() },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const runs = await ctx.db
+      .query("cronRuns")
+      .withIndex("by_started_at", (q) => q.lt("startedAt", args.cutoff))
+      .take(args.limit);
+    for (const r of runs) {
+      await ctx.db.delete(r._id);
+    }
+    return runs.length;
+  },
+});
+
+export const deleteOldAdminAuditLogs = internalMutation({
+  args: { cutoff: v.number(), limit: v.number() },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const logs = await ctx.db
+      .query("adminAuditLogs")
+      .withIndex("by_created_at", (q) => q.lt("createdAt", args.cutoff))
+      .take(args.limit);
+    for (const l of logs) {
+      await ctx.db.delete(l._id);
+    }
+    return logs.length;
   },
 });
 

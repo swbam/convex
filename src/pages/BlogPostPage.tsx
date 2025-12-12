@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Calendar, Clock, ArrowLeft, User, Share2, ChevronRight, Ticket } from 'lucide-react';
+import { motion, useScroll, useSpring } from 'framer-motion';
+import { Calendar, Clock, ArrowLeft, User, Share2, ChevronRight, Ticket, ChevronUp, BookOpen, Info } from 'lucide-react';
 import { PortableText } from '@portabletext/react';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -19,48 +19,135 @@ interface AffiliateLink {
   location: string;
 }
 
+// Type for ToC items
+interface TocItem {
+  id: string;
+  text: string;
+  level: 'h2' | 'h3';
+}
+
+// Extract headings from Portable Text for Table of Contents
+function extractHeadings(body: unknown[]): TocItem[] {
+  if (!body || !Array.isArray(body)) return [];
+  
+  return body
+    .filter((block: any) => block._type === 'block' && (block.style === 'h2' || block.style === 'h3'))
+    .map((block: any, index: number) => {
+      const text = block.children?.map((child: any) => child.text || '').join('') || '';
+      const id = `heading-${index}-${text.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50)}`;
+      return {
+        id,
+        text,
+        level: block.style as 'h2' | 'h3',
+      };
+    });
+}
+
 // Custom components for rendering Portable Text - Medium/Substack inspired
-const portableTextComponents = {
+const createPortableTextComponents = (headingIndex: { current: number }) => ({
   types: {
     image: ({ value }: { value: { asset: { _ref: string }; alt?: string; caption?: string } }) => {
       if (!value?.asset?._ref) return null;
       return (
-        <figure className="my-8 -mx-4 sm:mx-0">
+        <figure className="my-10 -mx-4 sm:mx-0">
           <img
-            src={urlFor(value).width(1200).url()}
+            src={urlFor(value).width(1400).url()}
             alt={value.alt || ''}
-            className="w-full sm:rounded-lg"
+            className="w-full sm:rounded-xl shadow-lg"
           />
           {value.caption && (
-            <figcaption className="text-center text-sm text-muted-foreground mt-3 px-4 sm:px-0">
+            <figcaption className="text-center text-sm text-muted-foreground mt-4 px-4 sm:px-0 italic">
               {value.caption}
             </figcaption>
           )}
         </figure>
       );
     },
+    code: ({ value }: { value: { code: string; language?: string } }) => {
+      return (
+        <div className="my-8 -mx-4 sm:mx-0">
+          <div className="bg-slate-900 dark:bg-slate-950 rounded-none sm:rounded-xl overflow-hidden shadow-lg">
+            {value.language && (
+              <div className="px-4 py-2 bg-slate-800 dark:bg-slate-900 text-xs text-slate-400 font-mono border-b border-slate-700">
+                {value.language}
+              </div>
+            )}
+            <pre className="p-4 overflow-x-auto text-sm">
+              <code className="text-slate-100 font-mono whitespace-pre">
+                {value.code}
+              </code>
+            </pre>
+          </div>
+        </div>
+      );
+    },
   },
   block: {
-    h1: ({ children }: { children?: React.ReactNode }) => (
-      <h1 className="text-2xl sm:text-3xl font-bold mt-12 mb-4 text-foreground tracking-tight">{children}</h1>
-    ),
-    h2: ({ children }: { children?: React.ReactNode }) => (
-      <h2 className="text-xl sm:text-2xl font-bold mt-10 mb-4 text-foreground tracking-tight border-b border-border/50 pb-2">{children}</h2>
-    ),
-    h3: ({ children }: { children?: React.ReactNode }) => (
-      <h3 className="text-lg sm:text-xl font-semibold mt-8 mb-3 text-foreground">{children}</h3>
-    ),
+    h1: ({ children }: { children?: React.ReactNode }) => {
+      const text = typeof children === 'string' ? children : 
+        (Array.isArray(children) ? children.join('') : '');
+      const id = `heading-${headingIndex.current++}-${text.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50)}`;
+      return (
+        <h1 id={id} className="text-3xl sm:text-4xl font-bold mt-16 mb-6 text-foreground tracking-tight scroll-mt-24">
+          {children}
+        </h1>
+      );
+    },
+    h2: ({ children }: { children?: React.ReactNode }) => {
+      const text = typeof children === 'string' ? children : 
+        (Array.isArray(children) ? children.join('') : '');
+      const id = `heading-${headingIndex.current++}-${text.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50)}`;
+      return (
+        <h2 id={id} className="text-2xl sm:text-3xl font-bold mt-14 mb-5 text-foreground tracking-tight scroll-mt-24 border-b border-border/40 pb-3">
+          {children}
+        </h2>
+      );
+    },
+    h3: ({ children }: { children?: React.ReactNode }) => {
+      const text = typeof children === 'string' ? children : 
+        (Array.isArray(children) ? children.join('') : '');
+      const id = `heading-${headingIndex.current++}-${text.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50)}`;
+      return (
+        <h3 id={id} className="text-xl sm:text-2xl font-semibold mt-10 mb-4 text-foreground scroll-mt-24">
+          {children}
+        </h3>
+      );
+    },
     h4: ({ children }: { children?: React.ReactNode }) => (
-      <h4 className="text-base sm:text-lg font-semibold mt-6 mb-2 text-foreground">{children}</h4>
+      <h4 className="text-lg sm:text-xl font-semibold mt-8 mb-3 text-foreground">{children}</h4>
     ),
     normal: ({ children }: { children?: React.ReactNode }) => (
-      <p className="text-[17px] leading-[1.8] mb-6 text-foreground/85" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{children}</p>
-    ),
-    blockquote: ({ children }: { children?: React.ReactNode }) => (
-      <blockquote className="border-l-[3px] border-primary pl-5 my-8 text-lg italic text-muted-foreground" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+      <p className="text-lg leading-[1.85] mb-7 text-foreground/90" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
         {children}
-      </blockquote>
+      </p>
     ),
+    blockquote: ({ children }: { children?: React.ReactNode }) => {
+      // Check if this is a "Key Takeaways" or navigation block
+      const text = typeof children === 'string' ? children : '';
+      const isKeyTakeaways = text.toLowerCase().includes('key takeaway') || 
+                            text.toLowerCase().includes('quick navigation');
+      
+      if (isKeyTakeaways) {
+        return (
+          <div className="my-10 p-6 bg-primary/5 border border-primary/20 rounded-xl">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                <Info className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1 text-base leading-relaxed text-foreground/90" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+                {children}
+              </div>
+            </div>
+          </div>
+        );
+      }
+      
+      return (
+        <blockquote className="border-l-4 border-primary/60 pl-6 my-10 text-xl italic text-muted-foreground" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+          {children}
+        </blockquote>
+      );
+    },
   },
   marks: {
     link: ({ children, value }: { children?: React.ReactNode; value?: { href: string } }) => {
@@ -71,7 +158,7 @@ const portableTextComponents = {
           href={value?.href}
           rel={rel}
           target={target}
-          className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary transition-colors"
+          className="text-primary underline underline-offset-4 decoration-primary/40 hover:decoration-primary transition-colors font-medium"
         >
           {children}
         </a>
@@ -84,26 +171,28 @@ const portableTextComponents = {
       <em className="italic">{children}</em>
     ),
     code: ({ children }: { children?: React.ReactNode }) => (
-      <code className="bg-secondary/60 px-1.5 py-0.5 rounded text-sm font-mono text-foreground">{children}</code>
+      <code className="bg-secondary/80 px-2 py-1 rounded-md text-sm font-mono text-foreground">{children}</code>
     ),
   },
   list: {
     bullet: ({ children }: { children?: React.ReactNode }) => (
-      <ul className="space-y-3 mb-6 ml-6 text-[17px]" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{children}</ul>
+      <ul className="space-y-4 mb-8 text-lg" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{children}</ul>
     ),
     number: ({ children }: { children?: React.ReactNode }) => (
-      <ol className="list-decimal space-y-3 mb-6 ml-6 text-[17px]" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{children}</ol>
+      <ol className="list-decimal space-y-4 mb-8 ml-6 text-lg" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{children}</ol>
     ),
   },
   listItem: {
     bullet: ({ children }: { children?: React.ReactNode }) => (
-      <li className="text-foreground/85 leading-[1.7] pl-2 relative before:content-['•'] before:absolute before:-left-4 before:text-primary before:font-bold">{children}</li>
+      <li className="text-foreground/90 leading-[1.8] pl-2 ml-6 relative before:content-['•'] before:absolute before:-left-4 before:text-primary before:font-bold before:text-lg">
+        {children}
+      </li>
     ),
     number: ({ children }: { children?: React.ReactNode }) => (
-      <li className="text-foreground/85 leading-[1.7]">{children}</li>
+      <li className="text-foreground/90 leading-[1.8]">{children}</li>
     ),
   },
-};
+});
 
 export function BlogPostPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -111,6 +200,12 @@ export function BlogPostPage() {
   const [post, setPost] = useState<BlogPost | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeHeading, setActiveHeading] = useState<string>('');
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Reading progress
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
 
   // Fetch all festivals with affiliate links from Convex
   const allFestivals = useQuery(api.festivals.getAllWithAffiliateLinks) ?? [];
@@ -131,12 +226,32 @@ export function BlogPostPage() {
       }
       
       setPost(postData);
-      // Filter out current post from related posts
       setRelatedPosts(recentData.filter((p) => p.slug.current !== slug).slice(0, 3));
       setIsLoading(false);
     }
     fetchData();
   }, [slug, navigate]);
+
+  // Track scroll position for ToC highlighting and scroll-to-top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 500);
+      
+      // Find active heading
+      const headings = document.querySelectorAll('h2[id], h3[id]');
+      let current = '';
+      headings.forEach((heading) => {
+        const rect = heading.getBoundingClientRect();
+        if (rect.top <= 150) {
+          current = heading.id;
+        }
+      });
+      setActiveHeading(current);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -146,13 +261,17 @@ export function BlogPostPage() {
     });
   };
 
+  // Extract ToC from post body
+  const tocItems = useMemo(() => {
+    if (!post?.body) return [];
+    return extractHeadings(post.body as unknown[]);
+  }, [post?.body]);
+
   // Helper to find matching festival for a text string
   const findMatchingFestival = useCallback((text: string): AffiliateLink | null => {
     if (!allFestivals.length) return null;
     
     const lowerText = text.toLowerCase();
-    
-    // Festival name patterns to match (without year suffix)
     const festivalPatterns = [
       'coachella', 'bonnaroo', 'lollapalooza', 'austin city limits', 'acl',
       'edc', 'electric daisy carnival', 'ultra', 'stagecoach', 
@@ -163,7 +282,6 @@ export function BlogPostPage() {
     
     for (const pattern of festivalPatterns) {
       if (lowerText.includes(pattern)) {
-        // Find the matching festival in our data
         const match = allFestivals.find(f => 
           f.name.toLowerCase().includes(pattern) ||
           pattern.includes(f.name.toLowerCase().replace(/\s+\d{4}$/, ''))
@@ -178,37 +296,48 @@ export function BlogPostPage() {
   }, [allFestivals]);
 
   // Create affiliate-enhanced PortableText components
-  const affiliateTextComponents = useMemo(() => ({
-    ...portableTextComponents,
-    block: {
-      ...portableTextComponents.block,
-      h2: ({ children }: { children?: React.ReactNode }) => {
-        // Check if heading contains a festival name
-        const text = typeof children === 'string' ? children : 
-          (Array.isArray(children) ? children.join('') : '');
-        const match = findMatchingFestival(text);
-        
-        if (match && (match.ticketUrl || match.websiteUrl)) {
+  const headingIndexRef = useMemo(() => ({ current: 0 }), [post?.body]);
+  
+  const affiliateTextComponents = useMemo(() => {
+    headingIndexRef.current = 0;
+    const baseComponents = createPortableTextComponents(headingIndexRef);
+    
+    return {
+      ...baseComponents,
+      block: {
+        ...baseComponents.block,
+        h2: ({ children }: { children?: React.ReactNode }) => {
+          const text = typeof children === 'string' ? children : 
+            (Array.isArray(children) ? children.join('') : '');
+          const id = `heading-${headingIndexRef.current++}-${text.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50)}`;
+          const match = findMatchingFestival(text);
+          
+          if (match && (match.ticketUrl || match.websiteUrl)) {
+            return (
+              <h2 id={id} className="text-2xl sm:text-3xl font-bold mt-14 mb-5 text-foreground tracking-tight scroll-mt-24 border-b border-border/40 pb-3 flex items-center justify-between gap-4 flex-wrap">
+                <span>{children}</span>
+                <a 
+                  href={match.ticketUrl || match.websiteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer sponsored"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary/90 transition-colors px-4 py-2 rounded-full shadow-sm"
+                >
+                  <Ticket className="w-3.5 h-3.5" />
+                  Get Tickets
+                </a>
+              </h2>
+            );
+          }
+          
           return (
-            <h2 className="text-xl sm:text-2xl font-bold mt-10 mb-4 text-foreground tracking-tight border-b border-border/50 pb-2 flex items-center justify-between gap-3 flex-wrap">
-              <span>{children}</span>
-              <a 
-                href={match.ticketUrl || match.websiteUrl}
-                target="_blank"
-                rel="noopener noreferrer sponsored"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary/90 transition-colors px-3 py-1.5 rounded-full shadow-sm"
-              >
-                <Ticket className="w-3.5 h-3.5" />
-                Get Tickets
-              </a>
+            <h2 id={id} className="text-2xl sm:text-3xl font-bold mt-14 mb-5 text-foreground tracking-tight scroll-mt-24 border-b border-border/40 pb-3">
+              {children}
             </h2>
           );
-        }
-        
-        return <h2 className="text-xl sm:text-2xl font-bold mt-10 mb-4 text-foreground tracking-tight border-b border-border/50 pb-2">{children}</h2>;
+        },
       },
-    },
-  }), [findMatchingFestival]);
+    };
+  }, [findMatchingFestival, headingIndexRef]);
 
   const handleShare = async () => {
     if (navigator.share && post) {
@@ -219,8 +348,11 @@ export function BlogPostPage() {
       });
     } else {
       navigator.clipboard.writeText(window.location.href);
-      // Could show a toast here
     }
+  };
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   if (isLoading) {
@@ -262,16 +394,14 @@ export function BlogPostPage() {
   const seoDescription = post.seoDescription || post.excerpt || `Read "${post.title}" on the setlists.live blog.`;
   const seoTitle = post.seoTitle || `${post.title} | setlists.live Blog`;
 
-  // Curated Unsplash images for blog posts (high-quality concert/festival photography)
   const blogHeaderImages: Record<string, string> = {
-    'concert-tours-2025-2026-city-guide': 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=1920&h=1080&fit=crop&q=80', // Concert crowd with lights
-    'music-festivals-2026-complete-guide': 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1920&h=1080&fit=crop&q=80', // Festival crowd aerial
-    'complete-guide-concert-setlists': 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1920&h=1080&fit=crop&q=80', // Band on stage
-    'ultimate-guide-us-music-festivals-2026': 'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=1920&h=1080&fit=crop&q=80', // Festival at sunset
-    'best-setlist-apps-websites-2025': 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1920&h=1080&fit=crop&q=80', // Concert with phone lights
+    'concert-tours-2025-2026-city-guide': 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=1920&h=1080&fit=crop&q=80',
+    'music-festivals-2026-complete-guide': 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1920&h=1080&fit=crop&q=80',
+    'complete-guide-concert-setlists': 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1920&h=1080&fit=crop&q=80',
+    'ultimate-guide-us-music-festivals-2026': 'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=1920&h=1080&fit=crop&q=80',
+    'best-setlist-apps-websites-2025': 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1920&h=1080&fit=crop&q=80',
   };
 
-  // Use Sanity image if available, then fallback to curated Unsplash image, then gradient
   const heroImageUrl = post.mainImage?.asset 
     ? urlFor(post.mainImage).width(1920).height(1080).url() 
     : blogHeaderImages[post.slug.current] || null;
@@ -286,13 +416,41 @@ export function BlogPostPage() {
         ogType="article"
       />
 
+      {/* Reading Progress Bar */}
+      <motion.div
+        className="fixed top-14 left-0 right-0 h-1 bg-primary origin-left z-50"
+        style={{ scaleX }}
+      />
+
       <article className="relative">
-        {/* Hero Header - Full Width Medium Style */}
+        {/* Breadcrumbs */}
+        <div className="container mx-auto px-4 sm:px-6 pt-6 max-w-5xl">
+          <nav className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Link to="/" className="hover:text-foreground transition-colors">Home</Link>
+            <ChevronRight className="w-3.5 h-3.5" />
+            <Link to="/blog" className="hover:text-foreground transition-colors">Blog</Link>
+            {post.categories && post.categories.length > 0 && (
+              <>
+                <ChevronRight className="w-3.5 h-3.5" />
+                <Link 
+                  to={`/blog?category=${post.categories[0].slug.current}`}
+                  className="hover:text-foreground transition-colors"
+                >
+                  {post.categories[0].title}
+                </Link>
+              </>
+            )}
+            <ChevronRight className="w-3.5 h-3.5" />
+            <span className="text-foreground truncate max-w-[200px]">{post.title}</span>
+          </nav>
+        </div>
+
+        {/* Hero Header */}
         <motion.header
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6 }}
-          className="relative min-h-[50vh] sm:min-h-[55vh] flex items-end overflow-hidden"
+          className="relative min-h-[45vh] sm:min-h-[50vh] flex items-end overflow-hidden mt-6"
           style={{ 
             marginLeft: 'calc(-50vw + 50%)', 
             marginRight: 'calc(-50vw + 50%)', 
@@ -300,7 +458,6 @@ export function BlogPostPage() {
             maxWidth: '100vw'
           }}
         >
-          {/* Background Image or Gradient - True Full Width */}
           <div className="absolute inset-0">
             {heroImageUrl ? (
               <img
@@ -311,11 +468,9 @@ export function BlogPostPage() {
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-slate-800 via-slate-900 to-black" />
             )}
-            {/* Dark Overlay - Gradient from bottom for text readability */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
           </div>
 
-          {/* Back Button - Floating */}
           <Link
             to="/blog"
             className="absolute top-4 left-4 sm:left-6 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm text-white/90 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full transition-all"
@@ -324,7 +479,6 @@ export function BlogPostPage() {
             Back
           </Link>
 
-          {/* Share Button - Floating */}
           <button
             onClick={handleShare}
             className="absolute top-4 right-4 sm:right-6 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm text-white/90 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full transition-all"
@@ -333,22 +487,20 @@ export function BlogPostPage() {
             Share
           </button>
 
-          {/* Content */}
-          <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 pb-8 sm:pb-12">
-            <div className="max-w-3xl mx-auto">
-              {/* Categories */}
+          <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 pb-10 sm:pb-14">
+            <div className="max-w-4xl mx-auto">
               {post.categories && post.categories.length > 0 && (
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.1 }}
-                  className="flex flex-wrap gap-2 mb-4"
+                  className="flex flex-wrap gap-2 mb-5"
                 >
                   {post.categories.map((cat) => (
                     <Link
                       key={cat.slug.current}
                       to={`/blog?category=${cat.slug.current}`}
-                      className="px-2.5 py-1 text-xs font-medium bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-sm transition-colors"
+                      className="px-3 py-1.5 text-xs font-semibold bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-sm transition-colors uppercase tracking-wide"
                     >
                       {cat.title}
                     </Link>
@@ -356,59 +508,56 @@ export function BlogPostPage() {
                 </motion.div>
               )}
 
-              {/* Title */}
               <motion.h1 
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
-                className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight text-white mb-4"
+                className="text-3xl sm:text-4xl md:text-5xl font-bold leading-tight text-white mb-5"
                 style={{ textShadow: '0 2px 20px rgba(0,0,0,0.5)' }}
               >
                 {post.title}
               </motion.h1>
 
-              {/* Excerpt */}
               {post.excerpt && (
                 <motion.p 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.3 }}
-                  className="text-sm sm:text-base text-white/80 mb-5 max-w-2xl"
+                  className="text-base sm:text-lg text-white/85 mb-6 max-w-3xl leading-relaxed"
                 >
                   {post.excerpt}
                 </motion.p>
               )}
 
-              {/* Meta */}
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.4 }}
-                className="flex flex-wrap items-center gap-3 sm:gap-5 text-xs sm:text-sm text-white/70"
+                className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm text-white/70"
               >
                 {post.author && (
                   <div className="flex items-center gap-2">
                     {post.author.image ? (
                       <img
-                        src={urlFor(post.author.image).width(32).height(32).url()}
+                        src={urlFor(post.author.image).width(40).height(40).url()}
                         alt={post.author.name}
-                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border-2 border-white/30"
+                        className="w-9 h-9 rounded-full object-cover border-2 border-white/30"
                       />
                     ) : (
-                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 flex items-center justify-center">
+                      <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
                         <User className="w-4 h-4 text-white/80" />
                       </div>
                     )}
-                    <span className="font-medium text-white">{post.author.name}</span>
+                    <span className="font-semibold text-white">{post.author.name}</span>
                   </div>
                 )}
                 <span className="flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5" />
+                  <Calendar className="w-4 h-4" />
                   {formatDate(post.publishedAt)}
                 </span>
                 {post.readingTime && (
                   <span className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5" />
+                    <Clock className="w-4 h-4" />
                     {post.readingTime} min read
                   </span>
                 )}
@@ -417,105 +566,190 @@ export function BlogPostPage() {
           </div>
         </motion.header>
 
-        {/* Body Content */}
+        {/* Body Content with Sidebar ToC */}
         <div className="bg-background">
-          <div className="mx-auto px-4 sm:px-6 py-8 sm:py-10 max-w-2xl">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-              className="prose prose-sm sm:prose-base dark:prose-invert max-w-none prose-headings:font-bold prose-p:text-muted-foreground prose-p:leading-relaxed prose-a:text-primary prose-strong:text-foreground"
-            >
-              {post.body && (
-                <PortableText value={post.body} components={affiliateTextComponents} />
-              )}
-            </motion.div>
+          <div className="container mx-auto px-4 sm:px-6 py-10 sm:py-14 max-w-6xl">
+            <div className="flex gap-10 lg:gap-16">
+              {/* Main Content */}
+              <div className="flex-1 max-w-3xl">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.2 }}
+                >
+                  {post.body && (
+                    <PortableText value={post.body} components={affiliateTextComponents} />
+                  )}
+                </motion.div>
 
-            {/* Author Bio Card */}
-            {post.author && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.3 }}
-                className="mt-10 p-4 sm:p-5 bg-secondary/30 rounded-xl flex items-center gap-3"
-              >
-                {post.author.image ? (
-                  <img
-                    src={urlFor(post.author.image).width(64).height(64).url()}
-                    alt={post.author.name}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
-                    <User className="w-6 h-6 text-muted-foreground" />
+                {/* Author Bio Card */}
+                {post.author && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.3 }}
+                    className="mt-14 p-6 bg-secondary/30 rounded-2xl border border-border"
+                  >
+                    <div className="flex items-center gap-4">
+                      {post.author.image ? (
+                        <img
+                          src={urlFor(post.author.image).width(80).height(80).url()}
+                          alt={post.author.name}
+                          className="w-16 h-16 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
+                          <User className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Written by</p>
+                        <p className="font-bold text-lg">{post.author.name}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Newsletter CTA */}
+                <div className="mt-14 p-8 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent rounded-2xl border border-primary/20">
+                  <div className="text-center">
+                    <h3 className="text-2xl font-bold mb-3">Stay Updated</h3>
+                    <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                      Get the latest concert news, setlist predictions, and exclusive content delivered to your inbox.
+                    </p>
+                    <div className="flex gap-3 max-w-md mx-auto">
+                      <input 
+                        type="email" 
+                        placeholder="Enter your email"
+                        className="flex-1 px-4 py-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      />
+                      <button className="px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-colors">
+                        Subscribe
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Related Posts */}
+                {relatedPosts.length > 0 && (
+                  <div className="mt-16 pt-10 border-t border-border">
+                    <h2 className="text-2xl font-bold mb-8">Continue Reading</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      {relatedPosts.slice(0, 2).map((relatedPost) => (
+                        <motion.div
+                          key={relatedPost._id}
+                          whileHover={{ y: -4 }}
+                          className="glass-card rounded-xl overflow-hidden group"
+                        >
+                          <Link to={`/blog/${relatedPost.slug.current}`}>
+                            <div className="aspect-[16/9] overflow-hidden">
+                              {relatedPost.mainImage?.asset ? (
+                                <img
+                                  src={urlFor(relatedPost.mainImage).width(600).height(338).url()}
+                                  alt={relatedPost.title}
+                                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-slate-800 to-black flex items-center justify-center">
+                                  <span className="text-4xl">🎵</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-5">
+                              <h3 className="font-bold text-lg mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+                                {relatedPost.title}
+                              </h3>
+                              {relatedPost.excerpt && (
+                                <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                                  {relatedPost.excerpt}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Calendar className="w-3.5 h-3.5" />
+                                {formatDate(relatedPost.publishedAt)}
+                                {relatedPost.readingTime && (
+                                  <>
+                                    <span>•</span>
+                                    <span>{relatedPost.readingTime} min read</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </Link>
+                        </motion.div>
+                      ))}
+                    </div>
                   </div>
                 )}
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Written by</p>
-                  <p className="font-semibold text-sm sm:text-base">{post.author.name}</p>
-                </div>
-              </motion.div>
-            )}
 
-            {/* Related Posts */}
-            {relatedPosts.length > 0 && (
-              <div className="mt-12 pt-8 border-t border-border">
-                <h2 className="text-lg sm:text-xl font-bold mb-4">Continue Reading</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {relatedPosts.map((relatedPost) => (
-                    <motion.div
-                      key={relatedPost._id}
-                      whileHover={{ y: -2 }}
-                      className="glass-card rounded-lg overflow-hidden group"
-                    >
-                      <Link to={`/blog/${relatedPost.slug.current}`}>
-                        <div className="aspect-[16/9] overflow-hidden">
-                          {relatedPost.mainImage?.asset ? (
-                            <img
-                              src={urlFor(relatedPost.mainImage).width(400).height(225).url()}
-                              alt={relatedPost.title}
-                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-slate-800 to-black flex items-center justify-center">
-                              <span className="text-2xl">🎵</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="p-3">
-                          <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors">
-                            {relatedPost.title}
-                          </h3>
-                          <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
-                            <Calendar className="w-3 h-3" />
-                            {formatDate(relatedPost.publishedAt)}
-                          </div>
-                        </div>
-                      </Link>
-                    </motion.div>
-                  ))}
+                {/* Final CTA */}
+                <div className="mt-14 glass-card rounded-2xl p-8 text-center bg-gradient-to-br from-primary/5 to-secondary/10">
+                  <h3 className="text-xl font-bold mb-3">Discover More Music</h3>
+                  <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+                    Explore upcoming shows and vote on setlists for your favorite artists
+                  </p>
+                  <Link
+                    to="/shows"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-foreground text-background rounded-full font-semibold hover:opacity-90 transition-opacity"
+                  >
+                    Browse Shows
+                    <ChevronRight className="w-4 h-4" />
+                  </Link>
                 </div>
               </div>
-            )}
 
-            {/* CTA */}
-            <div className="mt-10 glass-card rounded-xl p-6 sm:p-8 text-center bg-gradient-to-br from-primary/5 to-secondary/10">
-              <h3 className="text-lg sm:text-xl font-bold mb-2">Discover More Music</h3>
-              <p className="text-sm text-muted-foreground mb-4 max-w-sm mx-auto">
-                Explore upcoming shows and vote on setlists for your favorite artists
-              </p>
-              <Link
-                to="/shows"
-                className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-foreground text-background rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
-              >
-                Browse Shows
-                <ChevronRight className="w-3.5 h-3.5" />
-              </Link>
+              {/* Sticky Sidebar ToC - Desktop Only */}
+              {tocItems.length > 3 && (
+                <aside className="hidden lg:block w-64 flex-shrink-0">
+                  <div className="sticky top-24">
+                    <div className="p-5 bg-secondary/30 rounded-xl border border-border">
+                      <div className="flex items-center gap-2 mb-4 text-sm font-semibold text-foreground">
+                        <BookOpen className="w-4 h-4" />
+                        On This Page
+                      </div>
+                      <nav className="space-y-1">
+                        {tocItems.map((item) => (
+                          <a
+                            key={item.id}
+                            href={`#${item.id}`}
+                            className={`block py-1.5 text-sm transition-colors ${
+                              item.level === 'h3' ? 'pl-4' : ''
+                            } ${
+                              activeHeading === item.id
+                                ? 'text-primary font-medium'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                          >
+                            {item.text}
+                          </a>
+                        ))}
+                      </nav>
+                    </div>
+                  </div>
+                </aside>
+              )}
             </div>
           </div>
         </div>
       </article>
+
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          onClick={scrollToTop}
+          className="fixed bottom-20 md:bottom-8 right-4 md:right-8 z-40 w-12 h-12 bg-primary text-primary-foreground rounded-full shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors"
+          aria-label="Scroll to top"
+        >
+          <ChevronUp className="w-5 h-5" />
+        </motion.button>
+      )}
     </AppLayout>
   );
 }
-

@@ -1,6 +1,9 @@
 import { action, mutation, query, internalAction, internalMutation, internalQuery, QueryCtx, MutationCtx, ActionCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const apiRef: any = require("./_generated/api").api;
 import { Id } from "./_generated/dataModel";
 
 // Type workaround for Convex deep type instantiation issues
@@ -47,6 +50,39 @@ export const checkAdminInternal = internalQuery({
   },
 });
 
+// Internal helper: write an admin audit log record
+export const logAdminAuditInternal = internalMutation({
+  args: {
+    actorUserId: v.id("users"),
+    action: v.string(),
+    args: v.optional(v.any()),
+    success: v.boolean(),
+    error: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.insert("adminAuditLogs", {
+      actorUserId: args.actorUserId,
+      action: args.action,
+      args: args.args,
+      createdAt: Date.now(),
+      success: args.success,
+      error: args.error,
+    });
+    return null;
+  },
+});
+
+export const getRecentAuditLogs = query({
+  args: { limit: v.optional(v.number()) },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const limit = args.limit ?? 100;
+    return await ctx.db.query("adminAuditLogs").withIndex("by_created_at").order("desc").take(limit);
+  },
+});
+
 // Helper for actions to require admin
 const requireAdminForAction = async (ctx: ActionCtx): Promise<void> => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -90,11 +126,19 @@ export const toggleUserBan = mutation({
   args: { userId: v.id("users") },
   returns: v.object({ success: v.boolean(), newRole: v.string() }),
   handler: async (ctx, args) => {
+    const actorUserId = await requireAdmin(ctx);
     const user = await ctx.db.get(args.userId);
     if (!user) throw new Error("User not found");
     // Simplify: toggle between admin and user (no banned role in schema)
     const newRole = user.role === "admin" ? "user" : "admin";
     await ctx.db.patch(args.userId, { role: newRole });
+    await ctx.db.insert("adminAuditLogs", {
+      actorUserId,
+      action: "toggleUserBan",
+      args: { userId: args.userId, newRole },
+      createdAt: Date.now(),
+      success: true,
+    });
     return { success: true, newRole };
   },
 });
@@ -130,13 +174,14 @@ export const promoteUserByEmail = mutation({
 export const setClerkRoleByEmail = action({
   args: { email: v.string(), role: v.union(v.literal("user"), v.literal("admin")) },
   returns: v.object({ success: v.boolean(), clerkUpdated: v.boolean(), message: v.string() }),
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
+    await requireAdminForAction(ctx);
     try {
       const secret = process.env.CLERK_SECRET_KEY;
       if (!secret) {
         return { success: true, clerkUpdated: false, message: "CLERK_SECRET_KEY not configured" };
       }
-      const base = "https://api.clerk.com/v1";
+      const base = "https://apiRef.clerk.com/v1";
       const search = await fetch(`${base}/users?email_address=${encodeURIComponent(args.email)}`, {
         headers: { Authorization: `Bearer ${secret}` },
       });
@@ -159,8 +204,29 @@ export const setClerkRoleByEmail = action({
       if (!patch.ok) {
         return { success: false, clerkUpdated: false, message: `Clerk update failed: ${patch.status}` };
       }
+      const loggedIn = await ctx.runQuery(apiRef.auth.loggedInUser, {});
+      const actorUserId = loggedIn?.appUser?._id;
+      if (actorUserId) {
+        await ctx.runMutation(internalRef.admin.logAdminAuditInternal, {
+          actorUserId,
+          action: "setClerkRoleByEmail",
+          args: { email: args.email, role: args.role },
+          success: true,
+        });
+      }
       return { success: true, clerkUpdated: true, message: "Clerk role updated" };
     } catch (e: any) {
+      const loggedIn = await ctx.runQuery(apiRef.auth.loggedInUser, {});
+      const actorUserId = loggedIn?.appUser?._id;
+      if (actorUserId) {
+        await ctx.runMutation(internalRef.admin.logAdminAuditInternal, {
+          actorUserId,
+          action: "setClerkRoleByEmail",
+          args: { email: args.email, role: args.role },
+          success: false,
+          error: e?.message || "Unknown error",
+        });
+      }
       return { success: false, clerkUpdated: false, message: e?.message || "Unknown error" };
     }
   },
@@ -173,7 +239,8 @@ export const testSpotifyClientCredentials = action({
     success: v.boolean(),
     message: v.string(),
   }),
-  handler: async (_ctx) => {
+  handler: async (ctx) => {
+    await requireAdminForAction(ctx);
     const clientId = process.env.SPOTIFY_CLIENT_ID;
     const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
 
@@ -185,9 +252,17 @@ export const testSpotifyClientCredentials = action({
     }
 
     try {
-      const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString(
-        "base64",
-      );
+      const authHeader = (() => {
+        const input = `${clientId}:${clientSecret}`;
+        // Prefer btoa in non-Node runtimes; fall back to Buffer if available.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const maybeBtoa = (globalThis as any).btoa as ((s: string) => string) | undefined;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const maybeBuffer = (globalThis as any).Buffer as any;
+        if (typeof maybeBtoa === "function") return maybeBtoa(input);
+        if (maybeBuffer?.from) return maybeBuffer.from(input).toString("base64");
+        throw new Error("No base64 encoder available for Spotify auth");
+      })();
       const response = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: {
@@ -587,7 +662,7 @@ export const syncTrending = action({
   }),
   handler: async (ctx) => {
     // Check admin permissions
-    const user: any = await ctx.runQuery(api.auth.loggedInUser);
+    const user: any = await ctx.runQuery(apiRef.auth.loggedInUser);
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
@@ -617,7 +692,7 @@ export const syncTrendingArtists = action({
   args: {},
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx) => {
-    const user = await ctx.runQuery(api.auth.loggedInUser);
+    const user = await ctx.runQuery(apiRef.auth.loggedInUser);
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
@@ -635,7 +710,7 @@ export const syncTrendingShows = action({
   args: {},
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx) => {
-    const user = await ctx.runQuery(api.auth.loggedInUser);
+    const user = await ctx.runQuery(apiRef.auth.loggedInUser);
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
@@ -650,7 +725,7 @@ export const syncTrendingShows = action({
 
 // ===== TEST FUNCTIONS (for development) =====
 
-export const testSyncTrending = action({
+export const testSyncTrending = internalAction({
   args: {},
   returns: v.object({
     success: v.boolean(),
@@ -674,7 +749,7 @@ export const testSyncTrending = action({
   },
 });
 
-export const testSyncTrendingArtists = action({
+export const testSyncTrendingArtists = internalAction({
   args: {},
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx) => {
@@ -688,7 +763,7 @@ export const testSyncTrendingArtists = action({
   },
 });
 
-export const testSyncTrendingShows = action({
+export const testSyncTrendingShows = internalAction({
   args: {},
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx) => {
@@ -706,6 +781,7 @@ export const refreshTrendingCache = action({
   args: {},
   returns: v.object({ success: v.boolean(), message: v.string(), showsImported: v.number() }),
   handler: async (ctx) => {
+    await requireAdminForAction(ctx);
     try {
       console.log("🔄 Refreshing trending cache from Ticketmaster...");
       
@@ -831,32 +907,37 @@ export const refreshTrendingCacheInternal = internalAction({
         });
         console.log("✅ Trending artists cache updated");
         
-        // Import top artists with full sync (only if they don't exist)
-        let imported = 0;
-        for (const artist of freshArtists.slice(0, 20)) {
+        // Import top artists with full sync (only if they don't exist).
+        // IMPORTANT: Do not `sleep` inside a cron action. Schedule staggered work instead so
+        // the cron completes quickly and we still respect third-party API rate limits.
+        let scheduled = 0;
+        const IMPORT_LIMIT = 20;
+        const STAGGER_MS = 2500; // ~2.5s spacing to avoid TM/Spotify rate limiting bursts
+
+        for (const artist of freshArtists.slice(0, IMPORT_LIMIT)) {
           try {
             const existing = await ctx.runQuery(internalRef.artists.getByTicketmasterIdInternal, {
               ticketmasterId: artist.ticketmasterId,
             });
-            
+
             if (!existing) {
-              console.log(`🆕 Importing trending artist: ${artist.name}`);
-              await ctx.runAction(api.ticketmaster.triggerFullArtistSync, {
+              const delayMs = scheduled * STAGGER_MS;
+              console.log(`🗓️ Scheduling trending artist import: ${artist.name} (delay: ${delayMs}ms)`);
+
+              void ctx.scheduler.runAfter(delayMs, apiRef.ticketmaster.triggerFullArtistSync, {
                 ticketmasterId: artist.ticketmasterId,
                 artistName: artist.name,
                 genres: artist.genres,
                 images: artist.images,
                 upcomingEvents: artist.upcomingEvents,
               });
-              imported++;
-              // Rate limit to avoid overwhelming APIs
-              await new Promise(r => setTimeout(r, 2000));
+              scheduled++;
             }
           } catch (e) {
-            console.error(`Failed to import ${artist.name}:`, e);
+            console.error(`Failed to schedule import for ${artist.name}:`, e);
           }
         }
-        console.log(`✅ Imported ${imported} new trending artists`);
+        console.log(`✅ Scheduled ${scheduled} new trending artist imports`);
       }
       
       // Step 4: Import fresh shows into main database
@@ -997,7 +1078,7 @@ export const syncSetlistForShow = action({
   },
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx, args): Promise<{ success: boolean; message: string }> => {
-    const user = await ctx.runQuery(api.auth.loggedInUser);
+    const user = await ctx.runQuery(apiRef.auth.loggedInUser);
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
@@ -1021,7 +1102,7 @@ export const triggerSetlistSync = action({
   args: {},
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx) => {
-    const user = await ctx.runQuery(api.auth.loggedInUser);
+    const user = await ctx.runQuery(apiRef.auth.loggedInUser);
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
@@ -1042,7 +1123,7 @@ export const triggerSetlistSync = action({
 });
 
 // Test versions for development
-export const testSyncSetlistForShow = action({
+export const testSyncSetlistForShow = internalAction({
   args: {
     showId: v.id("shows"),
     artistName: v.string(),
@@ -1067,7 +1148,7 @@ export const testSyncSetlistForShow = action({
 });
 
 // Test with specific setlist ID from the URL you provided
-export const testSyncSpecificSetlist = action({
+export const testSyncSpecificSetlist = internalAction({
   args: {
     showId: v.id("shows"),
     setlistfmId: v.string(),
@@ -1089,7 +1170,7 @@ export const testSyncSpecificSetlist = action({
   },
 });
 
-export const testTriggerSetlistSync = action({
+export const testTriggerSetlistSync = internalAction({
   args: {},
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx) => {
@@ -1228,7 +1309,7 @@ export const cleanupOrphanedShows = action({
   args: {},
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx) => {
-    const user = await ctx.runQuery(api.auth.loggedInUser);
+    const user = await ctx.runQuery(apiRef.auth.loggedInUser);
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
@@ -1248,7 +1329,7 @@ export const cleanupNonStudioSongs = action({
   args: {},
   returns: v.object({ success: v.boolean(), message: v.string(), cleanedCount: v.number() }),
   handler: async (ctx): Promise<{ success: boolean; message: string; cleanedCount: number }> => {
-    const user = await ctx.runQuery(api.auth.loggedInUser);
+    const user = await ctx.runQuery(apiRef.auth.loggedInUser);
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
@@ -1296,7 +1377,7 @@ export const resyncArtistCatalogs = action({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx, _args): Promise<{ success: boolean; message: string }> => {
-    const user = await ctx.runQuery(api.auth.loggedInUser);
+    const user = await ctx.runQuery(apiRef.auth.loggedInUser);
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
@@ -1318,7 +1399,7 @@ export const resyncArtistCatalogs = action({
 });
 
 // Test versions - execute directly to avoid type issues
-export const testCleanupNonStudioSongs = action({
+export const testCleanupNonStudioSongs = internalAction({
   args: {},
   returns: v.object({ success: v.boolean(), message: v.string(), cleanedCount: v.number() }),
   handler: async (ctx): Promise<{ success: boolean; message: string; cleanedCount: number }> => {
@@ -1366,13 +1447,13 @@ export const resyncArtistCatalog = action({
   args: { artistId: v.id("artists") },
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx, args): Promise<{ success: boolean; message: string }> => {
-    const user = await ctx.runQuery(api.auth.loggedInUser);
+    const user = await ctx.runQuery(apiRef.auth.loggedInUser);
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
     
     try {
-      const artist: any = await ctx.runQuery(api.artists.getById, { id: args.artistId });
+      const artist: any = await ctx.runQuery(apiRef.artists.getById, { id: args.artistId });
       if (!artist) {
         throw new Error("Artist not found");
       }
@@ -1396,12 +1477,12 @@ export const resyncArtistCatalog = action({
   },
 });
 
-export const testResyncArtistCatalog = action({
+export const testResyncArtistCatalog = internalAction({
   args: { artistId: v.id("artists") },
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx, args): Promise<{ success: boolean; message: string }> => {
     try {
-      const artist: any = await ctx.runQuery(api.artists.getById, { id: args.artistId });
+      const artist: any = await ctx.runQuery(apiRef.artists.getById, { id: args.artistId });
       if (!artist) {
         throw new Error("Artist not found");
       }
@@ -1442,7 +1523,7 @@ export const forceArtistCatalogSync = action({
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx, args): Promise<{ success: boolean; message: string }> => {
     await requireAdminForAction(ctx);
-    const artist: any = await ctx.runQuery(api.artists.getById, { id: args.artistId });
+    const artist: any = await ctx.runQuery(apiRef.artists.getById, { id: args.artistId });
     if (!artist) {
       return { success: false, message: "Artist not found" };
     }
@@ -1531,7 +1612,7 @@ export const importTrendingFromTicketmaster = action({
   }),
   handler: async (ctx) => {
     // Check admin permissions
-    const user = await ctx.runQuery(api.auth.loggedInUser);
+    const user = await ctx.runQuery(apiRef.auth.loggedInUser);
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
@@ -1540,7 +1621,7 @@ export const importTrendingFromTicketmaster = action({
       console.log("🎤 Importing trending artists from Ticketmaster...");
       
       // Fetch trending artists from Ticketmaster API
-      const trendingArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 50 });
+      const trendingArtists = await ctx.runAction(apiRef.ticketmaster.getTrendingArtists, { limit: 50 });
       
       if (!trendingArtists || trendingArtists.length === 0) {
         return {
@@ -1561,7 +1642,7 @@ export const importTrendingFromTicketmaster = action({
           
           if (!existing && artist.ticketmasterId && artist.name) {
             console.log(`📥 Importing new artist: ${artist.name}`);
-            await ctx.runAction(api.ticketmaster.triggerFullArtistSync, {
+            await ctx.runAction(apiRef.ticketmaster.triggerFullArtistSync, {
               ticketmasterId: artist.ticketmasterId,
               artistName: artist.name,
               genres: artist.genres || [],
@@ -1596,7 +1677,7 @@ export const importTrendingFromTicketmaster = action({
 });
 
 // Test version of import without auth for development
-export const testImportTrendingFromTicketmaster = action({
+export const testImportTrendingFromTicketmaster = internalAction({
   args: {},
   returns: v.object({
     success: v.boolean(),
@@ -1608,7 +1689,7 @@ export const testImportTrendingFromTicketmaster = action({
       console.log("🎤 [TEST] Importing trending artists from Ticketmaster...");
       
       // Fetch trending artists from Ticketmaster API
-      const trendingArtists = await ctx.runAction(api.ticketmaster.getTrendingArtists, { limit: 50 });
+      const trendingArtists = await ctx.runAction(apiRef.ticketmaster.getTrendingArtists, { limit: 50 });
       
       if (!trendingArtists || trendingArtists.length === 0) {
         return {
@@ -1629,7 +1710,7 @@ export const testImportTrendingFromTicketmaster = action({
           
           if (!existing && artist.ticketmasterId && artist.name) {
             console.log(`📥 Importing new artist: ${artist.name}`);
-            await ctx.runAction(api.ticketmaster.triggerFullArtistSync, {
+            await ctx.runAction(apiRef.ticketmaster.triggerFullArtistSync, {
               ticketmasterId: artist.ticketmasterId,
               artistName: artist.name,
               genres: artist.genres || [],
@@ -1834,8 +1915,16 @@ export const updateUserRole = mutation({
   args: { userId: v.id("users"), role: v.union(v.literal("user"), v.literal("admin")) },
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
+    const actorUserId = await requireAdmin(ctx);
     await ctx.db.patch(args.userId, { role: args.role });
     console.log(`Updated role for user ${args.userId} to ${args.role}`);
+    await ctx.db.insert("adminAuditLogs", {
+      actorUserId,
+      action: "updateUserRole",
+      args: { userId: args.userId, role: args.role },
+      createdAt: Date.now(),
+      success: true,
+    });
     return { success: true };
   },
 });
@@ -2012,7 +2101,7 @@ export const backfillMissingSetlists = action({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ success: v.boolean(), message: v.string(), scheduled: v.number() }),
   handler: async (ctx, args): Promise<{ success: boolean; message: string; scheduled: number }> => {
-    const user = await ctx.runQuery(api.auth.loggedInUser);
+    const user = await ctx.runQuery(apiRef.auth.loggedInUser);
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
@@ -2041,7 +2130,7 @@ export const backfillMissingSetlists = action({
 });
 
 // NEW: Test version without auth for development
-export const testBackfillMissingSetlists = action({
+export const testBackfillMissingSetlists = internalAction({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ success: v.boolean(), message: v.string(), scheduled: v.number() }),
   handler: async (ctx, args): Promise<{ success: boolean; message: string; scheduled: number }> => {

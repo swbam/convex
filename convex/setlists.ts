@@ -1,5 +1,8 @@
 import { query, mutation, internalMutation, action } from "./_generated/server";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const apiRef: any = require("./_generated/api").api;
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { getAuthUserId } from "./auth";
@@ -304,7 +307,7 @@ export const submitVote = mutation({
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     // Delegate to canonical votes.submitVote to avoid duplication
-    const result: { success: boolean } = await ctx.runMutation(api.votes.submitVote, args);
+    const result: { success: boolean } = await ctx.runMutation(apiRef.votes.submitVote, args);
     return result;
   },
 });
@@ -461,7 +464,9 @@ export const autoGenerateSetlist = internalMutation({
     const artistSongs = await ctx.db
       .query("artistSongs")
       .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
-      .collect();
+      // Cost safeguard: don't read an entire artist catalog just to pick 5 songs.
+      // This prevents hitting Convex's per-function document read limit for large catalogs.
+      .take(50);
 
     // If no songs exist yet, don't try to generate a prediction setlist here.
     // Catalog sync for this artist is orchestrated elsewhere (Ticketmaster + Spotify flows),
@@ -935,39 +940,50 @@ export const ensureAutoSetlistForShow = action({
   returns: v.object({ created: v.boolean(), message: v.string() }),
   handler: async (ctx, args): Promise<{ created: boolean; message: string }> => {
     // If a prediction setlist already exists with songs, do nothing
-    const setlists = await ctx.runQuery(api.setlists.getByShow, { showId: args.showId });
+    const setlists = await ctx.runQuery(apiRef.setlists.getByShow, { showId: args.showId });
     const hasPrediction = (setlists || []).some((s: any) => !s.isOfficial && !s.userId && Array.isArray(s.songs) && s.songs.length > 0);
     
     if (hasPrediction) {
       return { created: false, message: "Setlist already exists" };
     }
 
-    const show = await ctx.runQuery(api.shows.getById, { id: args.showId });
+    const show = await ctx.runQuery(apiRef.shows.getById, { id: args.showId });
     if (!show) {
       return { created: false, message: "Show not found" };
     }
 
     // First, check if artist has any songs in catalog
-    const artistSongs = await ctx.runQuery(api.songs.getByArtist, { 
+    const artistSongs = await ctx.runQuery(apiRef.songs.getByArtist, { 
       artistId: show.artistId, 
       limit: 1 
     });
 
-    // If no songs, trigger catalog sync and return - user should retry after a moment
+    // Get artist info (needed for any Spotify work)
+    const artist = await ctx.runQuery(apiRef.artists.getById, { id: show.artistId });
+    if (!artist) {
+      return { created: false, message: "Artist not found" };
+    }
+
+    // If no songs, try a FAST Spotify top-tracks import to seed a prediction setlist immediately.
+    // Then kick off the full catalog sync in the background for completeness.
     if (!artistSongs || artistSongs.length === 0) {
-      console.log(`🎵 No songs for artist, triggering catalog sync...`);
-      
-      // Get artist info
-      const artist = await ctx.runQuery(api.artists.getById, { id: show.artistId });
-      if (artist) {
-        // Schedule catalog sync (non-blocking)
-        void ctx.scheduler.runAfter(0, internalRef.spotify.syncArtistCatalog, {
+      console.log(`🎵 No songs for ${artist.name}. Importing Spotify top tracks to seed setlist...`);
+
+      try {
+        await ctx.runAction(internalRef.spotify.importArtistTopTracks, {
           artistId: show.artistId,
           artistName: artist.name,
+          maxTracks: 12,
         });
-        return { created: false, message: "Syncing song catalog, please refresh in a moment" };
+      } catch (error) {
+        console.warn("Top-tracks import failed, falling back to full catalog sync:", error);
       }
-      return { created: false, message: "Artist not found" };
+
+      // Always attempt full catalog sync in background (deduped internally)
+      void ctx.scheduler.runAfter(0, internalRef.spotify.syncArtistCatalog, {
+        artistId: show.artistId,
+        artistName: artist.name,
+      });
     }
 
     try {
@@ -979,7 +995,12 @@ export const ensureAutoSetlistForShow = action({
       if (setlistId) {
         return { created: true, message: "Setlist created successfully" };
       } else {
-        return { created: false, message: "No songs available to generate setlist" };
+        // If songs were just requested, schedule a retry after the catalog has time to populate.
+        void ctx.scheduler.runAfter(60_000, internalRef.setlists.autoGenerateSetlist, {
+          showId: args.showId,
+          artistId: show.artistId,
+        });
+        return { created: false, message: "Syncing songs… setlist will appear shortly" };
       }
     } catch (error) {
       return { created: false, message: error instanceof Error ? error.message : "Unknown error" };

@@ -3,6 +3,33 @@ import { internalMutation, internalQuery, mutation, query } from "./_generated/s
 import { internal } from "./_generated/api";
 import { getAuthUserId } from "./auth";
 
+const USERNAME_MAX_ATTEMPTS = 20;
+
+const sanitizeUsername = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 24);
+
+async function generateUniqueUsername(ctx: any, seed: string | null | undefined) {
+  const base = sanitizeUsername(seed ?? "");
+  const fallbackBase = base.length > 0 ? base : "user";
+
+  for (let attempt = 0; attempt < USERNAME_MAX_ATTEMPTS; attempt++) {
+    const suffix = attempt === 0 ? "" : `-${attempt + 1}`;
+    const candidate = `${fallbackBase}${suffix}`;
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_username", (q: any) => q.eq("username", candidate))
+      .first();
+    if (!existing) return candidate;
+  }
+
+  return `${fallbackBase}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 // Get current user profile
 export const getCurrentUser = query({
   args: {},
@@ -182,26 +209,35 @@ export const upsertFromClerk = internalMutation({
     const avatar = image_url;
     
     // CRITICAL: Extract Spotify ID from external_accounts (Clerk webhook payload)
-    const spotifyAccount = external_accounts?.find((acc: any) => acc.provider === 'oauth_spotify');
-    const spotifyId = spotifyAccount?.provider_user_id || unsafe_metadata?.spotifyId;
-    const role = (public_metadata?.role || unsafe_metadata?.role) === "admin" ? "admin" : "user";
+    const spotifyAccount = external_accounts?.find(
+      (acc: any) => acc.provider === "oauth_spotify" || acc.provider === "spotify",
+    );
+    const spotifyId =
+      spotifyAccount?.provider_user_id ||
+      spotifyAccount?.providerAccountId ||
+      unsafe_metadata?.spotifyId ||
+      public_metadata?.spotifyId;
+    const desiredRole = (public_metadata?.role || unsafe_metadata?.role) === "admin" ? "admin" : "user";
 
     // Check existing
-    const user = await ctx.db
+    const matches = await ctx.db
       .query("users")
-      .withIndex("by_auth_id", (q) => q.eq("authId", id))
-      .first();
+      .withIndex("by_auth_id", (q: any) => q.eq("authId", id))
+      .collect();
+    const user = matches[0] ?? null;
 
     let userId;
     if (!user) {
+      const usernameSeed = email ? email.split("@")[0] : name;
+      const username = await generateUniqueUsername(ctx, usernameSeed);
       userId = await ctx.db.insert("users", {
         authId: id,
         email,
         name,
-        username: email.split('@')[0] || name.toLowerCase().replace(/\s+/g, ''),
+        username,
         avatar,
         spotifyId,
-        role,
+        role: desiredRole,
         preferences: {
           emailNotifications: true,
           favoriteGenres: [],
@@ -210,6 +246,8 @@ export const upsertFromClerk = internalMutation({
       });
     } else {
       // CRITICAL: Preserve preferences when updating, only update if they don't exist
+      // SECURITY: Never auto-downgrade an existing admin due to missing/changed metadata.
+      const role = user.role === "admin" ? "admin" : desiredRole;
       const updateData: any = { email, name, avatar, spotifyId, role };
       if (!user.preferences) {
         updateData.preferences = {
@@ -247,9 +285,15 @@ export const updateFromClerk = internalMutation({
     const avatar = image_url;
 
     // CRITICAL: Extract Spotify ID from external_accounts (Clerk webhook payload)
-    const spotifyAccount = external_accounts?.find((acc: any) => acc.provider === 'oauth_spotify');
-    const spotifyId = spotifyAccount?.provider_user_id || unsafe_metadata?.spotifyId;
-    const role = (public_metadata?.role || unsafe_metadata?.role) === "admin" ? "admin" : "user";
+    const spotifyAccount = external_accounts?.find(
+      (acc: any) => acc.provider === "oauth_spotify" || acc.provider === "spotify",
+    );
+    const spotifyId =
+      spotifyAccount?.provider_user_id ||
+      spotifyAccount?.providerAccountId ||
+      unsafe_metadata?.spotifyId ||
+      public_metadata?.spotifyId;
+    const desiredRole = (public_metadata?.role || unsafe_metadata?.role) === "admin" ? "admin" : "user";
 
     const user = await ctx.db
       .query("users")
@@ -257,6 +301,7 @@ export const updateFromClerk = internalMutation({
       .first();
 
     if (user) {
+      const role = user.role === "admin" ? "admin" : desiredRole;
       await ctx.db.patch(user._id, { email, name, avatar, spotifyId, role });
     }
     return null;

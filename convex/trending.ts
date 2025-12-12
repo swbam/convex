@@ -31,7 +31,14 @@ const isRealConcert = (name: string, genres?: string[]): boolean => {
     // Opera (sometimes leaks into Music segment)
     'opera', 'la traviata', 'rigoletto', 'carmen', 'tosca',
     // Kids entertainment (sometimes tagged as Music)
-    'sesame street', 'paw patrol', 'peppa pig', 'bluey', 'baby shark'
+    'sesame street', 'paw patrol', 'peppa pig', 'bluey', 'baby shark',
+    // Party / novelty events that slip into Music segment
+    'bingo', 'bingo loco', 'dance party', 'silent disco', 'karaoke',
+    'trivia', 'game night', 'line dancing', 'brunch', 'drag brunch',
+    'drag show', 'burlesque',
+    // Other non-concert event types that sometimes leak into Music
+    'wrestling', 'ufc', 'boxing', 'esports', 'podcast', 'lecture', 'speaker',
+    'stand-up', 'standup', 'comedy show', 'comedy night'
   ];
   
   if (rejectPatterns.some(p => lowerName.includes(p))) return false;
@@ -126,6 +133,9 @@ export const getTrendingShows = query({
     page: v.array(v.any()),
     isDone: v.boolean(),
     continueCursor: v.optional(v.string()),
+    source: v.union(v.literal("ticketmaster_cache"), v.literal("db_fallback")),
+    isFallback: v.boolean(),
+    lastUpdated: v.optional(v.number()),
   }),
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
@@ -211,10 +221,14 @@ export const getTrendingShows = query({
         );
       });
 
+      const lastUpdated = cached.reduce((max, row) => Math.max(max, row.lastUpdated || 0), 0) || undefined;
       return {
         page: cleaned.slice(0, limit),
         isDone: cleaned.length < limit,
         continueCursor: undefined,
+        source: "ticketmaster_cache" as const,
+        isFallback: false,
+        lastUpdated,
       };
       }
     }
@@ -288,7 +302,14 @@ export const getTrendingShows = query({
       console.warn(`Trending filtered to ${filtered.length} items—check data population (popularity/images missing). Run syncs.`);
     }
 
-    return { page: filtered.slice(0, limit), isDone: filtered.length < limit, continueCursor: undefined };
+    return {
+      page: filtered.slice(0, limit),
+      isDone: filtered.length < limit,
+      continueCursor: undefined,
+      source: "db_fallback" as const,
+      isFallback: true,
+      lastUpdated: undefined,
+    };
   },
 });
 
@@ -300,6 +321,9 @@ export const getTrendingArtists = query({
     page: v.array(v.any()),
     isDone: v.boolean(),
     continueCursor: v.optional(v.string()),
+    source: v.union(v.literal("ticketmaster_cache"), v.literal("db_fallback")),
+    isFallback: v.boolean(),
+    lastUpdated: v.optional(v.number()),
   }),
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
@@ -309,7 +333,9 @@ export const getTrendingArtists = query({
       .query("trendingArtists")
       .withIndex("by_rank")
       .order("asc")
-      .take(limit * 3);
+      // Take significantly more than we display so we can drop non-touring / filtered items
+      // (e.g., globally popular artists with 0 upcoming shows).
+      .take(Math.max(limit * 10, 200));
 
     if (cached.length > 0) {
       const hydrated = await Promise.all(
@@ -382,10 +408,14 @@ export const getTrendingArtists = query({
         return true;
       });
 
+      const lastUpdated = cached.reduce((max, row) => Math.max(max, row.lastUpdated || 0), 0) || undefined;
       return {
         page: massive.slice(0, limit),
         isDone: massive.length < limit,
         continueCursor: undefined,
+        source: "ticketmaster_cache" as const,
+        isFallback: false,
+        lastUpdated,
       };
     }
 
@@ -420,6 +450,9 @@ export const getTrendingArtists = query({
         page: massiveRanked.slice(0, limit),
         isDone: massiveRanked.length < limit,
         continueCursor: undefined,
+        source: "db_fallback" as const,
+        isFallback: true,
+        lastUpdated: undefined,
       };
     }
 
@@ -453,6 +486,9 @@ export const getTrendingArtists = query({
       page: scored,
       isDone: scored.length < limit,
       continueCursor: undefined,
+      source: "db_fallback" as const,
+      isFallback: true,
+      lastUpdated: undefined,
     };
   },
 });
@@ -596,8 +632,12 @@ export const replaceTrendingArtistsCache = internalMutation({
   handler: async (ctx, args) => {
     // CRITICAL: Filter to real concerts only (no orchestras, film screenings, etc.)
     // Also filter out residencies (50+ shows = Vegas residency, not a real tour)
-    const MAX_EVENTS_FOR_TOUR = 50;
+    const MAX_EVENTS_FOR_TOUR = 200;
     const realConcertArtists = args.artists.filter((artist) => {
+      // Must have upcoming events (this cache is specifically "artists with upcoming concerts")
+      if (!Number.isFinite(artist.upcomingEvents) || artist.upcomingEvents <= 0) {
+        return false;
+      }
       // Residency filter: 50+ events = not a touring act
       if (artist.upcomingEvents > MAX_EVENTS_FOR_TOUR) {
         console.log(`🚫 Skipping residency: ${artist.name} (${artist.upcomingEvents} events)`);
