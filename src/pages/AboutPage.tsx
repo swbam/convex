@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Music, Vote, CheckCircle, Sparkles, Users, Zap } from "lucide-react";
+import { Music, Vote, CheckCircle, Sparkles, Users, Zap, ArrowRight } from "lucide-react";
 import { MagicCard } from "../components/ui/magic-card";
 import { motion } from "framer-motion";
 import { AppLayout } from "../components/AppLayout";
@@ -20,22 +20,51 @@ const itemVariants = {
 export function AboutPage() {
   return (
     <AppLayout>
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      {/* Full Width Hero Header */}
+      <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-0 right-1/4 w-96 h-96 bg-green-500/20 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl" />
+        </div>
+        
+        <div className="relative z-10 px-4 sm:px-6 py-16 sm:py-24">
+          <div className="max-w-4xl mx-auto text-center">
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-white/90 text-sm font-medium mb-6"
+            >
+              <Sparkles className="w-4 h-4" />
+              The Platform for Concert Fans
+            </motion.div>
+            <motion.h1 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-5 text-white"
+            >
+              How It Works
+            </motion.h1>
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-lg sm:text-xl text-white/70 max-w-2xl mx-auto"
+            >
+              setlists.live connects fans and artists through the setlist — before, during, and after the show.
+            </motion.p>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-12 sm:py-16 max-w-4xl">
         <motion.div
           variants={containerVariants}
           initial="hidden"
           animate="show"
           className="space-y-16"
         >
-          {/* Hero Section */}
-          <motion.section variants={itemVariants} className="text-center">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 gradient-text">
-              How It Works
-            </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              setlists.live connects fans and artists through the setlist — before, during, and after the show.
-            </p>
-          </motion.section>
 
           {/* 3-Step Process */}
           <motion.section variants={itemVariants}>

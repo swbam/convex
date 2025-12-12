@@ -83,16 +83,8 @@ const createPortableTextComponents = (headingIndex: { current: number }) => ({
     },
   },
   block: {
-    h1: ({ children }: { children?: React.ReactNode }) => {
-      const text = typeof children === 'string' ? children : 
-        (Array.isArray(children) ? children.join('') : '');
-      const id = `heading-${headingIndex.current++}-${text.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50)}`;
-      return (
-        <h1 id={id} className="text-3xl sm:text-4xl font-bold mt-16 mb-6 text-foreground tracking-tight scroll-mt-24">
-          {children}
-        </h1>
-      );
-    },
+    // Skip h1 blocks entirely - the title is already shown in the hero header
+    h1: () => null,
     h2: ({ children }: { children?: React.ReactNode }) => {
       const text = typeof children === 'string' ? children : 
         (Array.isArray(children) ? children.join('') : '');
@@ -447,16 +439,16 @@ export function BlogPostPage() {
           <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
             <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
               {/* Breadcrumbs */}
-              <nav className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-white/70 overflow-hidden">
-                <Link to="/" className="hover:text-white transition-colors flex-shrink-0">Home</Link>
-                <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
-                <Link to="/blog" className="hover:text-white transition-colors flex-shrink-0">Blog</Link>
+              <nav className="flex items-center text-xs sm:text-sm text-white/70">
+                <Link to="/" className="hover:text-white transition-colors whitespace-nowrap">Home</Link>
+                <ChevronRight className="w-3.5 h-3.5 mx-1.5 opacity-60 flex-shrink-0" />
+                <Link to="/blog" className="hover:text-white transition-colors whitespace-nowrap">Blog</Link>
                 {post.categories && post.categories.length > 0 && (
                   <>
-                    <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 mx-1.5 opacity-60 flex-shrink-0" />
                     <Link 
                       to={`/blog?category=${post.categories[0].slug.current}`}
-                      className="hover:text-white transition-colors flex-shrink-0"
+                      className="hover:text-white transition-colors whitespace-nowrap"
                     >
                       {post.categories[0].title}
                     </Link>
@@ -488,22 +480,17 @@ export function BlogPostPage() {
           <div className="relative z-10 flex-1 flex items-end w-full px-4 sm:px-6 lg:px-8 pb-8 sm:pb-12">
             <div className="max-w-4xl mx-auto w-full">
               {post.categories && post.categories.length > 0 && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.1 }}
-                  className="flex flex-wrap gap-2 mb-4"
-                >
+                <div className="flex flex-wrap gap-2 mb-4">
                   {post.categories.map((cat) => (
                     <Link
                       key={cat.slug.current}
                       to={`/blog?category=${cat.slug.current}`}
-                      className="px-3 py-1 text-xs font-semibold bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-sm transition-colors uppercase tracking-wide"
+                      className="inline-block px-3 py-1 text-xs font-semibold bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-sm transition-colors uppercase tracking-wide"
                     >
                       {cat.title}
                     </Link>
                   ))}
-                </motion.div>
+                </div>
               )}
 
               <motion.h1 

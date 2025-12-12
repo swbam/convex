@@ -1,4 +1,6 @@
 import React from 'react'
+import { motion } from 'framer-motion'
+import { useLocation } from 'react-router-dom'
 
 interface PageContainerProps {
   className?: string
@@ -7,8 +9,20 @@ interface PageContainerProps {
   noPadding?: boolean
 }
 
+// Page transition animation config - subtle fade with no layout shift
+const pageTransition = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  transition: { 
+    duration: 0.2,
+    ease: [0.25, 0.1, 0.25, 1] 
+  }
+}
+
 // Consistent centered page container with responsive spacing and proper mobile bottom nav clearance
 export function PageContainer({ className = '', children, variant = 'narrow', noPadding = false }: PageContainerProps) {
+  const location = useLocation()
+  
   // Base container classes with responsive padding
   const base = noPadding 
     ? 'mx-auto w-full' 
@@ -31,9 +45,15 @@ export function PageContainer({ className = '', children, variant = 'narrow', no
     : 'max-w-page-narrow md:max-w-page-wide lg:max-w-page-wide xl:max-w-page-full transition-all duration-300'
   
   return (
-    <div className={[base, topSpacing, bottomSpacing, width, className].filter(Boolean).join(' ')}>
+    <motion.div 
+      key={location.pathname}
+      initial={pageTransition.initial}
+      animate={pageTransition.animate}
+      transition={pageTransition.transition}
+      className={[base, topSpacing, bottomSpacing, width, className].filter(Boolean).join(' ')}
+    >
       {children}
-    </div>
+    </motion.div>
   )
 }
 
