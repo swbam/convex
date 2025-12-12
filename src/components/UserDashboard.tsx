@@ -25,10 +25,40 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
   const voteAccuracy = useQuery(api.activity.getVoteAccuracy, appUser?.appUser?._id ? { userId: appUser.appUser._id } : "skip");
   
   if (appUser === undefined) {
+    // Loading skeleton that matches the final layout to prevent shift
     return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-        <p className="text-muted-foreground">Loading your dashboard...</p>
+      <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6">
+        {/* Header skeleton */}
+        <div className="mb-6">
+          <div className="h-8 w-64 bg-secondary rounded-lg animate-pulse mb-2" />
+          <div className="h-4 w-48 bg-secondary/50 rounded animate-pulse" />
+        </div>
+        
+        {/* Stats skeleton */}
+        <div className="grid grid-cols-3 gap-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="p-4 rounded-xl bg-card/50 border border-border">
+              <div className="h-8 w-12 bg-secondary rounded animate-pulse mx-auto mb-2" />
+              <div className="h-3 w-16 bg-secondary/50 rounded animate-pulse mx-auto" />
+            </div>
+          ))}
+        </div>
+        
+        {/* Content skeleton */}
+        <div className="p-6 rounded-xl bg-card/50 border border-border">
+          <div className="h-6 w-48 bg-secondary rounded animate-pulse mb-4" />
+          <div className="space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30">
+                <div className="w-10 h-10 bg-secondary rounded-full animate-pulse" />
+                <div className="flex-1">
+                  <div className="h-4 w-32 bg-secondary rounded animate-pulse mb-1" />
+                  <div className="h-3 w-24 bg-secondary/50 rounded animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

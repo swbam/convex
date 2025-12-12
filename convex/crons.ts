@@ -30,6 +30,10 @@ crons.cron("refresh-auto-setlists", "0 6 * * *", internalRef.setlists.refreshMis
 // Festival status transitions: Daily at 5:00 AM UTC
 crons.cron("transition-festival-status", "0 5 * * *", internalRef.festivals.transitionStatuses, {});
 
+// Festival lineup refresh: Weekly on Sundays at 7:00 AM UTC
+// Finds festivals with partial lineups (<20 artists) and schedules imports
+crons.cron("refresh-partial-lineups", "0 7 * * 0", internalRef.festivals.refreshPartialLineups, {});
+
 // PERIODIC JOBS (run multiple times per day)
 // -------------------------------------------
 

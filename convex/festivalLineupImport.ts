@@ -108,60 +108,86 @@ export const startFestivalLineupImport = action({
   returns: v.object({ jobId: v.id("syncJobs"), total: v.number(), source: v.string() }),
   handler: async (ctx, args) => {
     await requireAdminForAction(ctx);
-
-    const festival: any = await ctx.runQuery(internalRef.festivals.getById, { festivalId: args.festivalId });
-    if (!festival) throw new Error("Festival not found");
-
-    const prefer = args.preferSource;
-
-    const ticketmasterNames = prefer !== "wiki" ? await fetchLineupFromTicketmaster(festival) : [];
-    const wikiNames = prefer !== "ticketmaster" && festival.wikiUrl
-      ? await fetchLineupFromWikipedia(ctx, festival)
-      : [];
-
-    // Choose best source; fallback if TM is too thin.
-    let chosen: { source: string; names: string[] };
-    if (prefer === "ticketmaster") {
-      chosen = { source: "ticketmaster", names: ticketmasterNames };
-      if (chosen.names.length < 10 && wikiNames.length > 0) {
-        chosen = { source: "wiki", names: wikiNames };
-      }
-    } else if (prefer === "wiki") {
-      chosen = { source: "wiki", names: wikiNames };
-      if (chosen.names.length < 10 && ticketmasterNames.length > 0) {
-        chosen = { source: "ticketmaster", names: ticketmasterNames };
-      }
-    } else {
-      chosen = ticketmasterNames.length >= 10 ? { source: "ticketmaster", names: ticketmasterNames } : { source: "wiki", names: wikiNames };
-      if (chosen.names.length === 0 && ticketmasterNames.length > 0) {
-        chosen = { source: "ticketmaster", names: ticketmasterNames };
-      }
-    }
-
-    const deduped = dedupeNames(chosen.names);
-    const batchSize = Math.max(1, Math.min(25, args.batchSize ?? 10));
-
-    const jobId: Id<"syncJobs"> = await ctx.runMutation(
-      internalRef.festivalLineupImport.createFestivalLineupImportJobInternal,
-      {
-        festivalId: args.festivalId,
-        totalItems: deduped.length,
-        source: chosen.source,
-      },
-    );
-
-    // Kick off the first batch quickly.
-    void ctx.scheduler.runAfter(0, internalRef.festivalLineupImport.processFestivalLineupBatch, {
-      jobId,
-      festivalId: args.festivalId,
-      names: deduped,
-      cursor: 0,
-      batchSize,
-    });
-
-    return { jobId, total: deduped.length, source: chosen.source };
+    return await runLineupImport(ctx, args);
   },
 });
+
+// Internal version for cron jobs (no admin check)
+export const startFestivalLineupImportInternal = internalAction({
+  args: {
+    festivalId: v.id("festivals"),
+    batchSize: v.optional(v.number()),
+    preferSource: v.optional(v.union(v.literal("ticketmaster"), v.literal("wiki"))),
+  },
+  returns: v.object({ jobId: v.id("syncJobs"), total: v.number(), source: v.string() }),
+  handler: async (ctx, args) => {
+    return await runLineupImport(ctx, args);
+  },
+});
+
+// Shared implementation for lineup import
+async function runLineupImport(
+  ctx: any,
+  args: {
+    festivalId: Id<"festivals">;
+    batchSize?: number;
+    preferSource?: "ticketmaster" | "wiki";
+  }
+): Promise<{ jobId: Id<"syncJobs">; total: number; source: string }> {
+  const festival: any = await ctx.runQuery(internalRef.festivals.getById, { festivalId: args.festivalId });
+  if (!festival) throw new Error("Festival not found");
+
+  const prefer = args.preferSource;
+
+  const ticketmasterNames = prefer !== "wiki" ? await fetchLineupFromTicketmaster(festival) : [];
+  const wikiNames = prefer !== "ticketmaster" && festival.wikiUrl
+    ? await fetchLineupFromWikipedia(ctx, festival)
+    : [];
+
+  // Choose best source; fallback if TM is too thin.
+  let chosen: { source: string; names: string[] };
+  if (prefer === "ticketmaster") {
+    chosen = { source: "ticketmaster", names: ticketmasterNames };
+    if (chosen.names.length < 10 && wikiNames.length > 0) {
+      chosen = { source: "wiki", names: wikiNames };
+    }
+  } else if (prefer === "wiki") {
+    chosen = { source: "wiki", names: wikiNames };
+    if (chosen.names.length < 10 && ticketmasterNames.length > 0) {
+      chosen = { source: "ticketmaster", names: ticketmasterNames };
+    }
+  } else {
+    chosen = ticketmasterNames.length >= 10 ? { source: "ticketmaster", names: ticketmasterNames } : { source: "wiki", names: wikiNames };
+    if (chosen.names.length === 0 && ticketmasterNames.length > 0) {
+      chosen = { source: "ticketmaster", names: ticketmasterNames };
+    }
+  }
+
+  const deduped = dedupeNames(chosen.names);
+  const batchSize = Math.max(1, Math.min(25, args.batchSize ?? 10));
+
+  console.log(`🎪 Starting lineup import for ${festival.name}: ${deduped.length} artists from ${chosen.source}`);
+
+  const jobId: Id<"syncJobs"> = await ctx.runMutation(
+    internalRef.festivalLineupImport.createFestivalLineupImportJobInternal,
+    {
+      festivalId: args.festivalId,
+      totalItems: deduped.length,
+      source: chosen.source,
+    },
+  );
+
+  // Kick off the first batch quickly.
+  void ctx.scheduler.runAfter(0, internalRef.festivalLineupImport.processFestivalLineupBatch, {
+    jobId,
+    festivalId: args.festivalId,
+    names: deduped,
+    cursor: 0,
+    batchSize,
+  });
+
+  return { jobId, total: deduped.length, source: chosen.source };
+}
 
 export const processFestivalLineupBatch = internalAction({
   args: {
@@ -216,18 +242,28 @@ export const processFestivalLineupBatch = internalAction({
           let artistId: Id<"artists"> | undefined;
           if (existingArtist?._id) {
             artistId = existingArtist._id as Id<"artists">;
+            console.log(`   ✓ Found existing artist: ${name}`);
           } else {
             // Ticketmaster-first resolution.
+            console.log(`   🔍 Searching Ticketmaster for: ${name}`);
             const searchResults: any[] = await ctx.runAction(apiRef.ticketmaster.searchArtists, {
               query: name,
-              limit: 1,
+              limit: 3, // Fetch more results to improve matching
             });
-            const top = Array.isArray(searchResults) ? searchResults[0] : null;
+            
+            // Find best match - prefer exact name match
+            const exactMatch = searchResults.find(r => 
+              normalizeName(r.name || "") === lower
+            );
+            const top = exactMatch || (Array.isArray(searchResults) ? searchResults[0] : null);
+            
             if (!top?.ticketmasterId) {
+              console.log(`   ⚠️ No Ticketmaster match for: ${name}`);
               skipped++;
               continue;
             }
 
+            console.log(`   📥 Importing artist: ${top.name} (TM: ${top.ticketmasterId})`);
             const syncResult: any = await ctx.runAction(apiRef.ticketmaster.triggerFullArtistSync, {
               ticketmasterId: String(top.ticketmasterId),
               artistName: String(top.name || name),
@@ -237,12 +273,14 @@ export const processFestivalLineupBatch = internalAction({
             });
 
             if (syncResult?.type !== "artist" || !syncResult.artistId) {
+              console.log(`   ⚠️ Sync returned non-artist for: ${name} (type: ${syncResult?.type})`);
               skipped++;
               continue;
             }
 
             artistId = syncResult.artistId as Id<"artists">;
             imported++;
+            console.log(`   ✓ Imported new artist: ${name} (ID: ${artistId})`);
           }
 
           if (artistId && !existingArtistIds.has(artistId)) {
@@ -252,12 +290,13 @@ export const processFestivalLineupBatch = internalAction({
             });
             existingArtistIds.add(artistId);
             linked++;
-          } else {
+          } else if (artistId) {
+            console.log(`   ⏭️ Already in festival: ${name}`);
             skipped++;
           }
         } catch (e) {
           failed++;
-          console.error(`Festival lineup import failed for ${name}:`, e);
+          console.error(`❌ Festival lineup import failed for ${name}:`, e);
         }
       }
 
@@ -341,41 +380,246 @@ async function fetchLineupFromWikipedia(ctx: any, festival: any): Promise<string
   }
 }
 
+/**
+ * Fetch lineup from Ticketmaster API with improved query strategies:
+ * 1. Try multiple keyword variations (with/without year, festival suffix)
+ * 2. Paginate through ALL results (not just first 200)
+ * 3. Aggregate artists from all multi-day events
+ * 4. Fall back to venue + date range search if keyword fails
+ */
 async function fetchLineupFromTicketmaster(festival: any): Promise<string[]> {
   const apiKey = process.env.TICKETMASTER_API_KEY;
-  if (!apiKey) return [];
+  if (!apiKey) {
+    console.warn("⚠️ TICKETMASTER_API_KEY not configured for festival lineup fetch");
+    return [];
+  }
 
   const startDate = String(festival.startDate || "").slice(0, 10);
   const endDate = String(festival.endDate || "").slice(0, 10);
+  const festivalName = String(festival.name || "");
+  const location = String(festival.location || "");
 
-  // Prefer a keyword without year suffix.
-  const keyword = String(festival.name || "")
-    .replace(/\b20\d{2}\b/g, "")
+  // Generate multiple keyword variations to maximize matches
+  const keywordVariations = generateKeywordVariations(festivalName);
+  
+  console.log(`🎪 Fetching Ticketmaster lineup for: ${festivalName}`);
+  console.log(`   Date range: ${startDate} to ${endDate}`);
+  console.log(`   Keywords to try: ${keywordVariations.join(", ")}`);
+
+  const allNames: string[] = [];
+  const seenEventIds = new Set<string>();
+
+  // Strategy 1: Try each keyword variation
+  for (const keyword of keywordVariations) {
+    const names = await fetchEventsWithKeyword(
+      apiKey,
+      keyword,
+      startDate,
+      endDate,
+      seenEventIds
+    );
+    allNames.push(...names);
+    
+    // If we found a good number of artists, we can stop
+    if (allNames.length >= 30) {
+      console.log(`   Found ${allNames.length} artists with keyword "${keyword}", stopping search`);
+      break;
+    }
+  }
+
+  // Strategy 2: If keyword search failed, try venue-based search
+  if (allNames.length < 10 && location) {
+    console.log(`   Keyword search found only ${allNames.length} artists, trying venue search...`);
+    const venueNames = await fetchEventsNearVenue(
+      apiKey,
+      location,
+      startDate,
+      endDate,
+      festivalName,
+      seenEventIds
+    );
+    allNames.push(...venueNames);
+  }
+
+  console.log(`   Total artists found from Ticketmaster: ${allNames.length}`);
+  return allNames;
+}
+
+/**
+ * Generate keyword variations for festival search
+ */
+function generateKeywordVariations(festivalName: string): string[] {
+  const variations: string[] = [];
+  const name = festivalName.trim();
+  
+  // Original name
+  if (name) variations.push(name);
+  
+  // Without year suffix
+  const withoutYear = name.replace(/\s*\b20\d{2}\b\s*/g, " ").trim();
+  if (withoutYear && withoutYear !== name) {
+    variations.push(withoutYear);
+  }
+  
+  // Without "Festival" suffix
+  const withoutFestival = withoutYear
+    .replace(/\s*(music\s+)?festival\s*/gi, " ")
+    .replace(/\s+/g, " ")
     .trim();
+  if (withoutFestival && !variations.includes(withoutFestival)) {
+    variations.push(withoutFestival);
+  }
+  
+  // Just the core name (first word or two for common festivals)
+  const words = withoutFestival.split(/\s+/);
+  if (words.length > 1) {
+    const coreNames = [
+      words[0], // "Stagecoach"
+      words.slice(0, 2).join(" "), // "Electric Daisy"
+    ];
+    for (const core of coreNames) {
+      if (core.length >= 4 && !variations.includes(core)) {
+        variations.push(core);
+      }
+    }
+  }
+  
+  return variations.filter(v => v.length >= 3);
+}
 
+/**
+ * Fetch events from Ticketmaster with pagination
+ */
+async function fetchEventsWithKeyword(
+  apiKey: string,
+  keyword: string,
+  startDate: string,
+  endDate: string,
+  seenEventIds: Set<string>
+): Promise<string[]> {
+  const names: string[] = [];
+  const base = "https://app.ticketmaster.com/discovery/v2/events.json";
+  
+  let page = 0;
+  const maxPages = 5; // Limit to prevent runaway pagination
+  
+  while (page < maxPages) {
+    const params = new URLSearchParams({
+      apikey: apiKey,
+      keyword: keyword,
+      segmentId: "KZFzniwnSyZfZ7v7nJ", // Music segment
+      countryCode: "US",
+      size: "200",
+      page: String(page),
+      sort: "relevance,desc",
+    });
+
+    if (startDate) params.set("startDateTime", `${startDate}T00:00:00Z`);
+    if (endDate) params.set("endDateTime", `${endDate}T23:59:59Z`);
+
+    const url = `${base}?${params.toString()}`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.warn(`   Ticketmaster API error for "${keyword}" page ${page}: ${response.status}`);
+        break;
+      }
+      
+      const data: any = await response.json();
+      const events: any[] = data?._embedded?.events || [];
+      
+      if (events.length === 0) break;
+
+      for (const event of events) {
+        // Skip if we've already processed this event
+        const eventId = event.id;
+        if (eventId && seenEventIds.has(eventId)) continue;
+        if (eventId) seenEventIds.add(eventId);
+        
+        // Extract attractions (artists) from the event
+        const attractions: any[] = event?._embedded?.attractions || [];
+        for (const a of attractions) {
+          const n = String(a?.name || "").trim();
+          if (!n) continue;
+          if (isProbablyFestivalName(n)) continue;
+          names.push(n);
+        }
+      }
+
+      // Check if there are more pages
+      const totalPages = data?.page?.totalPages || 1;
+      page++;
+      
+      if (page >= totalPages) break;
+      
+      // Rate limiting delay between pages
+      await new Promise(r => setTimeout(r, 300));
+      
+    } catch (e) {
+      console.warn(`   Ticketmaster fetch failed for "${keyword}" page ${page}:`, e);
+      break;
+    }
+  }
+
+  return names;
+}
+
+/**
+ * Fallback: Search for events near a venue location during festival dates
+ */
+async function fetchEventsNearVenue(
+  apiKey: string,
+  location: string,
+  startDate: string,
+  endDate: string,
+  festivalName: string,
+  seenEventIds: Set<string>
+): Promise<string[]> {
+  const names: string[] = [];
+  
+  // Extract city from location (e.g., "Indio, CA" -> "Indio")
+  const city = location.split(",")[0]?.trim();
+  if (!city) return names;
+  
+  // Search for events in the city during the festival dates
   const base = "https://app.ticketmaster.com/discovery/v2/events.json";
   const params = new URLSearchParams({
     apikey: apiKey,
-    segmentId: "KZFzniwnSyZfZ7v7nJ",
+    city: city,
+    segmentId: "KZFzniwnSyZfZ7v7nJ", // Music segment
     countryCode: "US",
     size: "200",
-    sort: "relevance,desc",
+    sort: "date,asc",
   });
 
-  if (keyword) params.set("keyword", keyword);
   if (startDate) params.set("startDateTime", `${startDate}T00:00:00Z`);
   if (endDate) params.set("endDateTime", `${endDate}T23:59:59Z`);
 
   const url = `${base}?${params.toString()}`;
-
+  
   try {
     const response = await fetch(url);
-    if (!response.ok) return [];
+    if (!response.ok) return names;
+    
     const data: any = await response.json();
     const events: any[] = data?._embedded?.events || [];
-
-    const names: string[] = [];
+    
+    // Filter events that look like they're part of the festival
+    const festivalKeywords = festivalName.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    
     for (const event of events) {
+      const eventId = event.id;
+      if (eventId && seenEventIds.has(eventId)) continue;
+      
+      const eventName = String(event.name || "").toLowerCase();
+      
+      // Check if event name contains festival keywords
+      const isRelated = festivalKeywords.some(kw => eventName.includes(kw));
+      if (!isRelated) continue;
+      
+      if (eventId) seenEventIds.add(eventId);
+      
       const attractions: any[] = event?._embedded?.attractions || [];
       for (const a of attractions) {
         const n = String(a?.name || "").trim();
@@ -384,11 +628,11 @@ async function fetchLineupFromTicketmaster(festival: any): Promise<string[]> {
         names.push(n);
       }
     }
-
-    return names;
+    
   } catch (e) {
-    console.warn("Ticketmaster festival lineup fetch failed", e);
-    return [];
+    console.warn(`   Venue-based search failed for ${city}:`, e);
   }
+
+  return names;
 }
 

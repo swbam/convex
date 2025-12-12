@@ -910,3 +910,106 @@ export const getAllWithAffiliateLinks = query({
   },
 });
 
+// ============================================================================
+// CRON: Auto-refresh partial lineups
+// ============================================================================
+
+/**
+ * Get festivals with partial lineups that need refresh.
+ * Criteria:
+ * - artistCount < 20 (partial lineup)
+ * - startDate is in the future (upcoming festival)
+ * - lastSynced was more than 24 hours ago
+ */
+export const getPartialLineupFestivals = internalQuery({
+  args: { limit: v.optional(v.number()) },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const limit = args.limit || 5;
+    const today = new Date().toISOString().split("T")[0];
+    const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+    
+    // Get all upcoming festivals
+    const festivals = await ctx.db
+      .query("festivals")
+      .collect();
+    
+    // Filter for partial lineups that need refresh
+    const needsRefresh = festivals.filter(f => {
+      // Must be upcoming
+      if (f.startDate <= today) return false;
+      // Must have partial lineup (< 20 artists) or no lineup at all
+      if ((f.artistCount || 0) >= 20) return false;
+      // Must not have been synced recently
+      if (f.lastSynced && f.lastSynced > oneDayAgo) return false;
+      return true;
+    });
+    
+    // Sort by start date (soonest first) and take limit
+    return needsRefresh
+      .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+      .slice(0, limit);
+  },
+});
+
+/**
+ * Cron job: Refresh partial festival lineups.
+ * Runs weekly to find and fill incomplete festival lineups.
+ */
+export const refreshPartialLineups = internalMutation({
+  args: {},
+  returns: v.object({
+    checked: v.number(),
+    scheduled: v.number(),
+    festivals: v.array(v.string()),
+  }),
+  handler: async (ctx) => {
+    console.log("🎪 Running partial lineup refresh cron...");
+    
+    // Get festivals with partial lineups
+    const festivals = await ctx.db
+      .query("festivals")
+      .collect();
+    
+    const today = new Date().toISOString().split("T")[0];
+    const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000);
+    
+    // Filter for partial lineups that need refresh
+    const needsRefresh = festivals.filter(f => {
+      if (f.startDate <= today) return false;
+      if ((f.artistCount || 0) >= 20) return false;
+      if (f.lastSynced && f.lastSynced > threeDaysAgo) return false;
+      return true;
+    });
+    
+    // Sort by start date (soonest first) and take top 3 to avoid API rate limits
+    const toProcess = needsRefresh
+      .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+      .slice(0, 3);
+    
+    const scheduledNames: string[] = [];
+    
+    for (const festival of toProcess) {
+      // Mark as synced to prevent duplicate processing
+      await ctx.db.patch(festival._id, { lastSynced: Date.now() });
+      
+      // Schedule the lineup import action
+      // Note: We can't call actions from mutations directly, so we schedule them
+      await ctx.scheduler.runAfter(0, internalRef.festivalLineupImport.startFestivalLineupImportInternal, {
+        festivalId: festival._id,
+      });
+      
+      scheduledNames.push(festival.name);
+      console.log(`   📅 Scheduled lineup import for: ${festival.name} (${festival.artistCount || 0} artists)`);
+    }
+    
+    console.log(`🎪 Partial lineup refresh: checked=${needsRefresh.length}, scheduled=${scheduledNames.length}`);
+    
+    return {
+      checked: needsRefresh.length,
+      scheduled: scheduledNames.length,
+      festivals: scheduledNames,
+    };
+  },
+});
+

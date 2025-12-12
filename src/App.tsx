@@ -30,7 +30,7 @@ import { BackendErrorMonitor } from "./components/BackendErrorMonitor";
 import { MagicCard } from "./components/ui/magic-card";
 import { DocsPage } from "./pages/Docs";
 
-type View = "home" | "artist" | "show" | "search" | "artists" | "shows" | "festivals" | "festival" | "activity" | "signin" | "trending" | "profile" | "following" | "predictions" | "admin" | "docs";
+type View = "home" | "dashboard" | "artist" | "show" | "search" | "artists" | "shows" | "festivals" | "festival" | "activity" | "signin" | "trending" | "profile" | "following" | "predictions" | "admin" | "docs";
 
 function App() {
   const location = useLocation();
@@ -157,6 +157,9 @@ function App() {
     } else if (path === '/trending') {
       setCurrentView('trending');
       document.title = 'Trending – setlists.live';
+    } else if (path === '/dashboard') {
+      setCurrentView('dashboard');
+      document.title = 'My Dashboard – setlists.live';
     } else if (path === '/activity') {
       setCurrentView('activity');
       document.title = 'Activity – setlists.live';
@@ -235,21 +238,19 @@ function App() {
     toast.info("Sign in to add more songs and create setlists");
   };
 
-  // Page transition variants
+  // Page transition variants - opacity-only to prevent layout shift
   const pageVariants = {
-    initial: { opacity: 0, y: 20 },
+    initial: { opacity: 0 },
     animate: { 
       opacity: 1, 
-      y: 0,
       transition: {
-        duration: 0.4,
-        ease: [0.16, 1, 0.3, 1] as any
+        duration: 0.2,
+        ease: [0.25, 0.1, 0.25, 1]
       }
     },
     exit: { 
       opacity: 0, 
-      y: -20,
-      transition: { duration: 0.3 }
+      transition: { duration: 0.15 }
     }
   };
 
@@ -407,6 +408,13 @@ function App() {
       case "trending":
         return (
           <Trending 
+            onArtistClick={handleArtistClick}
+            onShowClick={handleShowClick}
+          />
+        );
+      case "dashboard":
+        return (
+          <UserDashboard 
             onArtistClick={handleArtistClick}
             onShowClick={handleShowClick}
           />

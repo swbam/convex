@@ -324,6 +324,7 @@ export const scrapeFestivalLineup = internalAction({
       const yearStr = String(args.year);
       
       // Strategy 1: Find tables/sections with year in heading
+      console.log(`   Strategy 1: Looking for year-specific headings...`);
       $("h2, h3, h4").each((_, heading) => {
         const headingText = $(heading).text();
         
@@ -360,9 +361,11 @@ export const scrapeFestivalLineup = internalAction({
           }
         }
       });
+      console.log(`   Strategy 1 found: ${artists.length} artists`);
       
       // Strategy 2: If no year-specific section, look for "Lineups" or similar tables
       if (artists.length === 0) {
+        console.log(`   Strategy 2: Looking for wikitables with year...`);
         $("table.wikitable").each((_, table) => {
           const tableHtml = $(table).html() || "";
           
@@ -376,10 +379,12 @@ export const scrapeFestivalLineup = internalAction({
             });
           }
         });
+        console.log(`   Strategy 2 found: ${artists.length} artists`);
       }
       
       // Strategy 3: Look for inline lists with artist names
       if (artists.length === 0) {
+        console.log(`   Strategy 3: Looking for inline artist lists...`);
         $("p, div").each((_, elem) => {
           const text = $(elem).text();
           if (text.includes(yearStr) && /headlin|lineup|perform/i.test(text)) {
@@ -391,6 +396,81 @@ export const scrapeFestivalLineup = internalAction({
             });
           }
         });
+        console.log(`   Strategy 3 found: ${artists.length} artists`);
+      }
+      
+      // Strategy 4: Look for infobox with lineup information
+      if (artists.length === 0) {
+        console.log(`   Strategy 4: Looking for infobox lineup field...`);
+        $(".infobox, .infobox-music-festival").each((_, infobox) => {
+          $(infobox).find("tr").each((_, row) => {
+            const header = $(row).find("th").text().toLowerCase();
+            if (header.includes("lineup") || header.includes("headliner") || header.includes("artist")) {
+              const cell = $(row).find("td");
+              // Extract links (artist names)
+              cell.find("a").each((_, link) => {
+                const artistName = $(link).text().trim();
+                if (isValidArtistName(artistName)) {
+                  artists.push(artistName);
+                }
+              });
+              // Also try comma-separated text
+              const cellText = cell.text();
+              const commaSeparated = cellText.split(/[,;]/).map(s => s.trim()).filter(s => s.length > 2);
+              for (const name of commaSeparated) {
+                // Clean Wikipedia reference markers
+                const cleanName = name.replace(/\[\d+\]/g, "").replace(/\(.*?\)/g, "").trim();
+                if (isValidArtistName(cleanName) && !artists.includes(cleanName)) {
+                  artists.push(cleanName);
+                }
+              }
+            }
+          });
+        });
+        console.log(`   Strategy 4 found: ${artists.length} artists`);
+      }
+      
+      // Strategy 5: Look for any section that lists multiple artists (regardless of year)
+      if (artists.length === 0) {
+        console.log(`   Strategy 5: Looking for any lineup section...`);
+        $("h2, h3").each((_, heading) => {
+          const headingText = $(heading).text().toLowerCase();
+          if (headingText.includes("lineup") || headingText.includes("artist") || headingText.includes("performer")) {
+            let next = $(heading).next();
+            let iterations = 0;
+            
+            while (next.length && !next.is("h2, h3") && iterations < 30) {
+              next.find("a").each((_, link) => {
+                const text = $(link).text().trim();
+                if (isValidArtistName(text)) {
+                  artists.push(text);
+                }
+              });
+              next = next.next();
+              iterations++;
+            }
+          }
+        });
+        console.log(`   Strategy 5 found: ${artists.length} artists`);
+      }
+      
+      // Strategy 6: Parse comma/semicolon separated lists in paragraphs
+      if (artists.length === 0) {
+        console.log(`   Strategy 6: Looking for comma-separated artist lists...`);
+        $("p").each((_, p) => {
+          const text = $(p).text();
+          // Look for paragraphs that mention headliners or lineup
+          if (/headlin|featur|includ|perform|artist/i.test(text)) {
+            // Find all linked artist names
+            $(p).find("a").each((_, link) => {
+              const artistName = $(link).text().trim();
+              if (isValidArtistName(artistName)) {
+                artists.push(artistName);
+              }
+            });
+          }
+        });
+        console.log(`   Strategy 6 found: ${artists.length} artists`);
       }
       
       // Dedupe and clean
@@ -398,7 +478,7 @@ export const scrapeFestivalLineup = internalAction({
         .filter((name) => name.length > 0)
         .slice(0, 200); // Cap at 200 artists per festival
       
-      console.log(`  Found ${uniqueArtists.length} artists`);
+      console.log(`   ✅ Total unique artists found: ${uniqueArtists.length}`);
       
       return {
         success: uniqueArtists.length > 0,

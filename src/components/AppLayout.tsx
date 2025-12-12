@@ -125,7 +125,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             {isSignedIn && (
               <MagicCard
                 className={`relative overflow-hidden rounded-xl transition-all duration-200 ${
-                  location.pathname === '/' && isSignedIn ? 'bg-primary/10 border-primary/20' : 'hover:bg-accent/50'
+                  location.pathname === '/dashboard' ? 'bg-primary/10 border-primary/20' : 'hover:bg-accent/50'
                 }`}
                 gradientSize={0}
                 gradientColor="#000000"
@@ -133,22 +133,22 @@ export function AppLayout({ children }: AppLayoutProps) {
               >
                 <button
                   onClick={() => {
-                     void navigate('/')
+                     void navigate('/dashboard')
                      setSidebarOpen(false)
                    }}
                   className={`
                     w-full flex items-center px-4 py-3.5 text-responsive-base font-medium transition-all group touch-target
-                    ${location.pathname === '/' && isSignedIn
+                    ${location.pathname === '/dashboard'
                       ? 'text-primary' 
                       : 'text-muted-foreground hover:text-foreground'
                     }
                   `}
                 >
                   <User className={`mr-3 h-5 w-5 transition-colors ${
-                    location.pathname === '/' && isSignedIn ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                    location.pathname === '/dashboard' ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
                   }`} />
                   <span className="font-medium">My Dashboard</span>
-                  {location.pathname === '/' && isSignedIn && (
+                  {location.pathname === '/dashboard' && (
                     <div className="ml-auto w-2 h-2 rounded-full bg-primary animate-pulse" />
                   )}
                 </button>
@@ -284,6 +284,10 @@ export function AppLayout({ children }: AppLayoutProps) {
               <button onClick={()=>void navigate('/shows')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/shows')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Shows</button>
               <button onClick={()=>void navigate('/trending')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/trending')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Trending</button>
               <button onClick={()=>void navigate('/blog')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/blog')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Blog</button>
+              {/* Dashboard link - only show for signed-in users */}
+              {isSignedIn && (
+                <button onClick={()=>void navigate('/dashboard')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname==='/dashboard'?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Dashboard</button>
+              )}
               {/* Admin link - only show for admin users */}
               {appUser?.appUser?.role === 'admin' && (
                 <button onClick={()=>void navigate('/admin')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/admin')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Admin</button>

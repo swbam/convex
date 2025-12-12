@@ -46,6 +46,10 @@ export const router = createBrowserRouter([
     element: <SpotifyConnectPage />,
   },
   {
+    path: '/dashboard',
+    element: <App />,
+  },
+  {
     path: '/activity',
     element: <App />,
   },
