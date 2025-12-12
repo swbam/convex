@@ -423,40 +423,12 @@ export function BlogPostPage() {
       />
 
       <article className="relative">
-        {/* Breadcrumbs */}
-        <div className="container mx-auto px-4 sm:px-6 pt-6 max-w-5xl">
-          <nav className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Link to="/" className="hover:text-foreground transition-colors">Home</Link>
-            <ChevronRight className="w-3.5 h-3.5" />
-            <Link to="/blog" className="hover:text-foreground transition-colors">Blog</Link>
-            {post.categories && post.categories.length > 0 && (
-              <>
-                <ChevronRight className="w-3.5 h-3.5" />
-                <Link 
-                  to={`/blog?category=${post.categories[0].slug.current}`}
-                  className="hover:text-foreground transition-colors"
-                >
-                  {post.categories[0].title}
-                </Link>
-              </>
-            )}
-            <ChevronRight className="w-3.5 h-3.5" />
-            <span className="text-foreground truncate max-w-[200px]">{post.title}</span>
-          </nav>
-        </div>
-
-        {/* Hero Header */}
+        {/* Hero Header - Full Width */}
         <motion.header
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6 }}
-          className="relative min-h-[45vh] sm:min-h-[50vh] flex items-end overflow-hidden mt-6"
-          style={{ 
-            marginLeft: 'calc(-50vw + 50%)', 
-            marginRight: 'calc(-50vw + 50%)', 
-            width: '100vw',
-            maxWidth: '100vw'
-          }}
+          className="relative min-h-[50vh] sm:min-h-[55vh] flex flex-col overflow-hidden"
         >
           <div className="absolute inset-0">
             {heroImageUrl ? (
@@ -468,39 +440,65 @@ export function BlogPostPage() {
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-slate-800 via-slate-900 to-black" />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/30" />
           </div>
 
-          <Link
-            to="/blog"
-            className="absolute top-4 left-4 sm:left-6 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm text-white/90 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full transition-all"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            Back
-          </Link>
+          {/* Top Bar - Breadcrumbs and Actions */}
+          <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
+            <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+              {/* Breadcrumbs */}
+              <nav className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-white/70 overflow-hidden">
+                <Link to="/" className="hover:text-white transition-colors flex-shrink-0">Home</Link>
+                <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+                <Link to="/blog" className="hover:text-white transition-colors flex-shrink-0">Blog</Link>
+                {post.categories && post.categories.length > 0 && (
+                  <>
+                    <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+                    <Link 
+                      to={`/blog?category=${post.categories[0].slug.current}`}
+                      className="hover:text-white transition-colors flex-shrink-0"
+                    >
+                      {post.categories[0].title}
+                    </Link>
+                  </>
+                )}
+              </nav>
 
-          <button
-            onClick={handleShare}
-            className="absolute top-4 right-4 sm:right-6 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm text-white/90 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full transition-all"
-          >
-            <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            Share
-          </button>
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Link
+                  to="/blog"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm text-white/90 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full transition-all"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Back</span>
+                </Link>
+                <button
+                  onClick={handleShare}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm text-white/90 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full transition-all"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Share</span>
+                </button>
+              </div>
+            </div>
+          </div>
 
-          <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 pb-10 sm:pb-14">
-            <div className="max-w-4xl mx-auto">
+          {/* Hero Content - Title & Meta */}
+          <div className="relative z-10 flex-1 flex items-end w-full px-4 sm:px-6 lg:px-8 pb-8 sm:pb-12">
+            <div className="max-w-4xl mx-auto w-full">
               {post.categories && post.categories.length > 0 && (
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.1 }}
-                  className="flex flex-wrap gap-2 mb-5"
+                  className="flex flex-wrap gap-2 mb-4"
                 >
                   {post.categories.map((cat) => (
                     <Link
                       key={cat.slug.current}
                       to={`/blog?category=${cat.slug.current}`}
-                      className="px-3 py-1.5 text-xs font-semibold bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-sm transition-colors uppercase tracking-wide"
+                      className="px-3 py-1 text-xs font-semibold bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-sm transition-colors uppercase tracking-wide"
                     >
                       {cat.title}
                     </Link>
