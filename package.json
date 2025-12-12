@@ -12,7 +12,7 @@
     "build:check": "tsc -p convex --noEmit --pretty false && tsc -p . --noEmit --pretty false",
     "lint": "npm run build:check",
     "preview": "vite preview",
-    "check:env": "node scripts/check-env.js",
+    "check:env": "node scripts/check-env.cjs",
     "post-deploy": "sh scripts/post-deploy.sh",
     "sync:trending": "npx convex run internal.admin:refreshTrendingCacheInternal && npx convex run maintenance:triggerTrendingSync",
     "seed:setlists": "npx convex run maintenance:backfillMissingSetlists '{\"limit\":100}'",
