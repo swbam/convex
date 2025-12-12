@@ -21,7 +21,8 @@ export const getByArtist = query({
   },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
-    const limit = args.limit || 20;
+    // Default to 200 songs - enough for most artist catalogs
+    const limit = args.limit || 200;
     
     console.log(`🔍 getByArtist query called for artist: ${args.artistId}, limit: ${limit}`);
     

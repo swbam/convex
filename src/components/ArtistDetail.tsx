@@ -24,8 +24,8 @@ interface ArtistDetailProps {
 
 export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }: ArtistDetailProps) {
   const artist = useQuery(api.artists.getById, { id: artistId });
-  const shows = useQuery(api.shows.getByArtist, { artistId, limit: 20 });
-  const songs = useQuery(api.songs.getByArtist, { artistId, limit: 20 });
+  const shows = useQuery(api.shows.getByArtist, { artistId, limit: 50 });
+  const songs = useQuery(api.songs.getByArtist, { artistId, limit: 200 });
   const isFollowing = useQuery(api.artists.isFollowing, { artistId });
   const user = useQuery(api.auth.loggedInUser);
   // Media selection via backend (Ticketmaster hero, Spotify avatar)

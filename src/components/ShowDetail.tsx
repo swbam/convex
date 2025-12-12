@@ -51,7 +51,7 @@ export function ShowDetail({
     show?.artistId
       ? {
           artistId: show.artistId,
-          limit: 100,
+          limit: 200,
         }
       : "skip"
   );

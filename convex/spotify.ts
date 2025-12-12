@@ -233,7 +233,8 @@ export const importArtistTopTracks = internalAction({
       return { imported: 0, reason: "missing_spotify_credentials" };
     }
 
-    const maxTracks = Math.max(1, Math.min(args.maxTracks ?? 10, 25));
+    // Import more top tracks for better initial experience (while full catalog syncs in background)
+    const maxTracks = Math.max(1, Math.min(args.maxTracks ?? 25, 50));
 
     try {
       // Get access token

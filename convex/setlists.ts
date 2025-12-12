@@ -970,10 +970,11 @@ export const ensureAutoSetlistForShow = action({
       console.log(`🎵 No songs for ${artist.name}. Importing Spotify top tracks to seed setlist...`);
 
       try {
+        // Import 25 top tracks for better initial setlist experience
         await ctx.runAction(internalRef.spotify.importArtistTopTracks, {
           artistId: show.artistId,
           artistName: artist.name,
-          maxTracks: 12,
+          maxTracks: 25,
         });
       } catch (error) {
         console.warn("Top-tracks import failed, falling back to full catalog sync:", error);
