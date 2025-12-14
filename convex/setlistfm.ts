@@ -144,16 +144,32 @@ export const syncActualSetlist = internalAction({
         const response = data.setlist?.[0] ? { setlist: data.setlist[0] } : null;
 
         if (response && response.setlist) {
-          const setlistId = await ctx.runMutation(internalRef.setlists.createFromApi, {
-            showId: args.showId,
-            data: response.setlist,
-          });
-          await ctx.runMutation(internalRef.shows.updateImportStatus, {
-            showId: args.showId,
-            status: "completed",
-          });
-          console.log(`✅ Synced setlist for ${artist.name} (${setlistId}) using date ${iso}`);
-          return setlistId;
+          // Check if the setlist actually has songs before marking as completed
+          const sets = response.setlist.sets?.set;
+          const hasSongs = Array.isArray(sets) && sets.some((set: any) => 
+            Array.isArray(set.song) && set.song.length > 0
+          );
+          
+          if (hasSongs) {
+            const setlistId = await ctx.runMutation(internalRef.setlists.createFromApi, {
+              showId: args.showId,
+              data: response.setlist,
+            });
+            await ctx.runMutation(internalRef.shows.updateImportStatus, {
+              showId: args.showId,
+              status: "completed",
+            });
+            console.log(`✅ Synced setlist for ${artist.name} (${setlistId}) using date ${iso}`);
+            return setlistId;
+          } else {
+            // Setlist entry exists but no songs yet - mark as not_found to retry later
+            console.log(`ℹ️  Setlist found but empty for ${artist.name} @ ${venue.city} on ${iso}, will retry`);
+            await ctx.runMutation(internalRef.shows.updateImportStatus, {
+              showId: args.showId,
+              status: "not_found" as const,
+            });
+            return null;
+          }
         }
       }
 
@@ -418,6 +434,96 @@ export const getCompletedShowsNeedingImport = internalQuery({
       .take(3);
     
     return [...newShows, ...retryShows];
+  },
+});
+
+// Find shows marked as "completed" but with empty actualSetlist - these need re-import
+export const getShowsWithEmptySetlists = internalQuery({
+  args: { limit: v.optional(v.number()) },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 10;
+    const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
+    
+    // Get completed shows that might have empty setlists
+    const completedShows = await ctx.db
+      .query("shows")
+      .withIndex("by_status", (q) => q.eq("status", "completed"))
+      .filter((q) => q.and(
+        q.eq(q.field("importStatus"), "completed"),
+        q.lt(q.field("lastSynced"), twentyFourHoursAgo)
+      ))
+      .take(limit * 2);
+    
+    // Filter to only shows where the setlist is empty
+    const showsNeedingRetry: any[] = [];
+    for (const show of completedShows) {
+      if (showsNeedingRetry.length >= limit) break;
+      
+      const setlists = await ctx.db
+        .query("setlists")
+        .withIndex("by_show", (q) => q.eq("showId", show._id))
+        .collect();
+      
+      const hasActualSetlist = setlists.some((s: any) => 
+        s.actualSetlist && Array.isArray(s.actualSetlist) && s.actualSetlist.length > 0
+      );
+      
+      if (!hasActualSetlist) {
+        showsNeedingRetry.push(show);
+      }
+    }
+    
+    return showsNeedingRetry;
+  },
+});
+
+// Action to re-import shows with empty setlists
+export const retryEmptySetlists = internalAction({
+  args: { limit: v.optional(v.number()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 5;
+    console.log(`🔄 Checking for shows with empty setlists to retry...`);
+    
+    const showsToRetry = await ctx.runQuery(internalRef.setlistfm.getShowsWithEmptySetlists, { limit });
+    
+    if (showsToRetry.length === 0) {
+      console.log(`✅ No shows with empty setlists need retry`);
+      return null;
+    }
+    
+    console.log(`📋 Found ${showsToRetry.length} shows with empty setlists to retry`);
+    
+    for (const show of showsToRetry) {
+      try {
+        // Reset import status to trigger re-import
+        await ctx.runMutation(internalRef.shows.updateImportStatus, {
+          showId: show._id,
+          status: "not_found" as const,
+        });
+        
+        const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: show.artistId });
+        const venue = await ctx.runQuery(internalRef.venues.getByIdInternal, { id: show.venueId });
+        
+        if (artist && venue) {
+          await ctx.runAction(internalRef.setlistfm.syncActualSetlist, {
+            showId: show._id,
+            artistName: artist.name,
+            venueCity: venue.city,
+            showDate: show.date,
+          });
+        }
+        
+        // Rate limit
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (error) {
+        console.error(`Failed to retry show ${show._id}:`, error);
+      }
+    }
+    
+    console.log(`✅ Retry complete for ${showsToRetry.length} shows`);
+    return null;
   },
 });
 

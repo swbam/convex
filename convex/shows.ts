@@ -164,19 +164,37 @@ export const getBySlug = query({
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
       .first();
 
-    // Back-compat: if not found, support legacy slugs that included time ("-hh-mm")
+    // Back-compat: if not found, support legacy slugs that included time
+    // Handles both "-hh-mm" (2 parts) and "-hh-mm-ss" (3 parts) formats
     if (!show) {
       const parts = args.slug.split("-");
-      if (parts.length >= 2) {
+      let partsToRemove = 0;
+      
+      // Check for 3-part time suffix: -hh-mm-ss (e.g., -20-00-00)
+      if (parts.length >= 3) {
+        const last = parts[parts.length - 1];
+        const secondLast = parts[parts.length - 2];
+        const thirdLast = parts[parts.length - 3];
+        if (/^\d{2}$/.test(last) && /^\d{2}$/.test(secondLast) && /^\d{2}$/.test(thirdLast)) {
+          partsToRemove = 3;
+        }
+      }
+      
+      // Check for 2-part time suffix: -hh-mm (e.g., -20-00)
+      if (partsToRemove === 0 && parts.length >= 2) {
         const last = parts[parts.length - 1];
         const secondLast = parts[parts.length - 2];
         if (/^\d{2}$/.test(last) && /^\d{2}$/.test(secondLast)) {
-          const withoutTime = parts.slice(0, parts.length - 2).join("-");
-          show = await ctx.db
-            .query("shows")
-            .withIndex("by_slug", (q) => q.eq("slug", withoutTime))
-            .first();
+          partsToRemove = 2;
         }
+      }
+      
+      if (partsToRemove > 0) {
+        const withoutTime = parts.slice(0, parts.length - partsToRemove).join("-");
+        show = await ctx.db
+          .query("shows")
+          .withIndex("by_slug", (q) => q.eq("slug", withoutTime))
+          .first();
       }
     }
     
@@ -191,7 +209,8 @@ export const getBySlug = query({
   },
 });
 
-// Internal mutation: normalize all show slugs to remove time ("-hh-mm") suffixes
+// Internal mutation: normalize all show slugs to remove time suffixes
+// Handles both "-hh-mm" (2 parts) and "-hh-mm-ss" (3 parts) formats
 export const normalizeSlugsInternal = internalMutation({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ processed: v.number(), updated: v.number() }),
@@ -207,14 +226,34 @@ export const normalizeSlugsInternal = internalMutation({
       if (!slug) continue;
       const parts = slug.split("-");
       if (parts.length < 2) continue;
-      const last = parts[parts.length - 1];
-      const secondLast = parts[parts.length - 2];
-      const hasTimeSuffix = /^\d{2}$/.test(last) && /^\d{2}$/.test(secondLast);
-      if (!hasTimeSuffix) continue;
+      
+      // Check for 3-part time suffix: -hh-mm-ss (e.g., -20-00-00)
+      let partsToRemove = 0;
+      if (parts.length >= 3) {
+        const last = parts[parts.length - 1];
+        const secondLast = parts[parts.length - 2];
+        const thirdLast = parts[parts.length - 3];
+        const hasThreePartTime = /^\d{2}$/.test(last) && /^\d{2}$/.test(secondLast) && /^\d{2}$/.test(thirdLast);
+        if (hasThreePartTime) {
+          partsToRemove = 3;
+        }
+      }
+      
+      // Check for 2-part time suffix: -hh-mm (e.g., -20-00)
+      if (partsToRemove === 0 && parts.length >= 2) {
+        const last = parts[parts.length - 1];
+        const secondLast = parts[parts.length - 2];
+        const hasTwoPartTime = /^\d{2}$/.test(last) && /^\d{2}$/.test(secondLast);
+        if (hasTwoPartTime) {
+          partsToRemove = 2;
+        }
+      }
+      
+      if (partsToRemove === 0) continue;
 
-      const newSlug = parts.slice(0, parts.length - 2).join("-");
+      const newSlug = parts.slice(0, parts.length - partsToRemove).join("-");
 
-      if (newSlug !== slug) {
+      if (newSlug !== slug && newSlug.length > 0) {
         // Ensure uniqueness: if a different show already has this slug, append a short suffix
         const existing = await ctx.db
           .query("shows")
@@ -223,6 +262,7 @@ export const normalizeSlugsInternal = internalMutation({
         const finalSlug = existing && existing._id !== show._id ? `${newSlug}-${String(show._creationTime).slice(-4)}` : newSlug;
         await ctx.db.patch(show._id, { slug: finalSlug });
         updated += 1;
+        console.log(`📝 Normalized slug: ${slug} → ${finalSlug}`);
       }
     }
 
@@ -246,14 +286,47 @@ export const getBySlugOrId = query({
   returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
     // Try by slug first
-    const bySlug = await ctx.db
+    let showDoc = await ctx.db
       .query("shows")
       .withIndex("by_slug", (q) => q.eq("slug", args.key))
-      .first(); // Use .first() instead of .unique() to handle duplicates gracefully
+      .first();
 
-    let showDoc = bySlug;
+    // Back-compat: if not found, support legacy slugs that included time
+    // Handles both "-hh-mm" (2 parts) and "-hh-mm-ss" (3 parts) formats
     if (!showDoc) {
-      // Fallback: try by id
+      const parts = args.key.split("-");
+      let partsToRemove = 0;
+      
+      // Check for 3-part time suffix: -hh-mm-ss (e.g., -20-00-00)
+      if (parts.length >= 3) {
+        const last = parts[parts.length - 1];
+        const secondLast = parts[parts.length - 2];
+        const thirdLast = parts[parts.length - 3];
+        if (/^\d{2}$/.test(last) && /^\d{2}$/.test(secondLast) && /^\d{2}$/.test(thirdLast)) {
+          partsToRemove = 3;
+        }
+      }
+      
+      // Check for 2-part time suffix: -hh-mm (e.g., -20-00)
+      if (partsToRemove === 0 && parts.length >= 2) {
+        const last = parts[parts.length - 1];
+        const secondLast = parts[parts.length - 2];
+        if (/^\d{2}$/.test(last) && /^\d{2}$/.test(secondLast)) {
+          partsToRemove = 2;
+        }
+      }
+      
+      if (partsToRemove > 0) {
+        const withoutTime = parts.slice(0, parts.length - partsToRemove).join("-");
+        showDoc = await ctx.db
+          .query("shows")
+          .withIndex("by_slug", (q) => q.eq("slug", withoutTime))
+          .first();
+      }
+    }
+
+    // Fallback: try by id
+    if (!showDoc) {
       try {
         // Validate that the key is a valid show ID format
         const showId = args.key as Id<"shows">;

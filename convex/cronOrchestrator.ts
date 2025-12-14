@@ -107,6 +107,16 @@ const JOBS: Array<JobDef> = [
     lockName: "cron:spotify-refresh",
     lockStaleMs: 2 * HOUR,
   },
+  {
+    name: "retry-empty-setlists",
+    kind: "action",
+    ref: internalRef.setlistfm.retryEmptySetlists,
+    defaultIntervalMs: 12 * HOUR,
+    minIntervalMs: 4 * HOUR,
+    maxIntervalMs: 48 * HOUR,
+    lockName: "cron:retry-empty-setlists",
+    lockStaleMs: 2 * HOUR,
+  },
 ];
 
 function clampIntervalMs(value: number, min: number, max: number): number {
