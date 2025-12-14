@@ -31,6 +31,9 @@ export function Footer() {
               <a href="/shows" className="block text-responsive-xs sm:text-responsive-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
                 Upcoming Shows
               </a>
+              <a href="/festivals" className="block text-responsive-xs sm:text-responsive-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
+                Festivals
+              </a>
               <a href="/trending" className="hidden sm:block text-responsive-xs sm:text-responsive-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-1 transform duration-200">
                 Trending Now
               </a>
