@@ -32,6 +32,7 @@ import { Badge } from "./ui/badge";
 import { motion } from "framer-motion";
 import { SongCombobox } from "./SongCombobox";
 import { formatLocation } from "../lib/utils";
+import { DetailPageSkeleton } from "./LoadingSkeleton";
 
 interface ShowDetailProps {
   showId: Id<"shows">;
@@ -335,15 +336,7 @@ export function ShowDetail({
   };
 
   if (!show) {
-    return (
-      <div className="px-4 sm:px-6 py-8">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-muted rounded w-32"></div>
-          <div className="h-64 bg-muted rounded"></div>
-          <div className="h-6 bg-muted rounded w-48"></div>
-        </div>
-      </div>
-    );
+    return <DetailPageSkeleton />;
   }
 
   const showDate = new Date(show.date);

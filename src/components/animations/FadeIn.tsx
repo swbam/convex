@@ -1,5 +1,48 @@
-import { motion, HTMLMotionProps } from 'framer-motion';
+import { motion, HTMLMotionProps, Variants } from 'framer-motion';
 import React from 'react';
+
+// Shared animation variants for consistent page-level animations
+export const pageVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.02 }
+  }
+};
+
+export const sectionVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: { 
+    opacity: 1,
+    transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] }
+  }
+};
+
+export const gridContainerVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.04, delayChildren: 0.1 }
+  }
+};
+
+export const gridItemVariants: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  show: { 
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] }
+  }
+};
+
+export const headerVariants: Variants = {
+  hidden: { opacity: 0, y: -8 },
+  show: { 
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] }
+  }
+};
 
 interface FadeInProps extends HTMLMotionProps<'div'> {
   children: React.ReactNode;

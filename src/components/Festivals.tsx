@@ -5,6 +5,7 @@ import { Calendar, MapPin, Music, Users, Sparkles, ChevronLeft, ChevronRight, Ti
 import { motion, AnimatePresence } from 'framer-motion';
 import { MagicCard } from './ui/magic-card';
 import { buildTicketmasterAffiliateUrl } from '../utils/ticketmaster';
+import { pageVariants, sectionVariants, gridContainerVariants, gridItemVariants } from './animations/FadeIn';
 
 interface FestivalsProps {
   onFestivalClick: (slug: string) => void;
@@ -127,29 +128,42 @@ export function Festivals({ onFestivalClick }: FestivalsProps) {
   };
 
   if (isLoading) {
+    const shimmerClass = "bg-gradient-to-r from-muted via-muted/60 to-muted animate-shimmer bg-[length:200%_100%]";
     return (
-      <div className="space-y-8">
+      <motion.div 
+        className="space-y-8"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      >
         {/* Hero Skeleton */}
-        <div className="w-full h-[400px] sm:h-[450px] md:h-[500px] bg-gradient-to-r from-secondary/50 via-secondary/30 to-secondary/50 animate-pulse" />
+        <div className={`w-full h-[400px] sm:h-[450px] md:h-[500px] ${shimmerClass}`} />
         
         {/* Grid Skeleton */}
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <motion.div 
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+            initial="hidden"
+            animate="show"
+            variants={gridContainerVariants}
+          >
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="bg-card rounded-xl overflow-hidden">
-                  <div className="h-40 bg-secondary/50" />
-                  <div className="p-4 space-y-3">
-                    <div className="h-5 bg-secondary rounded w-3/4"></div>
-                    <div className="h-4 bg-secondary rounded w-1/2"></div>
-                    <div className="h-4 bg-secondary rounded w-2/3"></div>
-                  </div>
+              <motion.div 
+                key={i} 
+                variants={gridItemVariants}
+                className="bg-card rounded-xl overflow-hidden border border-border"
+              >
+                <div className={`h-40 ${shimmerClass}`} />
+                <div className="p-4 space-y-3">
+                  <div className={`h-5 ${shimmerClass} rounded w-3/4`} />
+                  <div className={`h-4 ${shimmerClass} rounded w-1/2`} />
+                  <div className={`h-4 ${shimmerClass} rounded w-2/3`} />
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 

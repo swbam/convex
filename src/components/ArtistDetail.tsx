@@ -14,6 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { motion } from "framer-motion";
 import { useAction } from "convex/react";
 import { formatLocation, formatTimeCompact } from "../lib/utils";
+import { DetailPageSkeleton } from "./LoadingSkeleton";
+import { pageVariants, sectionVariants, gridContainerVariants, gridItemVariants } from './animations/FadeIn';
 
 interface ArtistDetailProps {
   artistId: Id<"artists">;
@@ -106,30 +108,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   }
 
   if (isLoading) {
-    // Simple loading state - no heavy animations to prevent glitching
-    return (
-      <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8">
-        <div className="rounded-xl p-8 space-y-6 bg-card border border-border">
-          <div className="space-y-6">
-            {/* Header skeleton */}
-            <div className="flex items-center gap-6">
-              <div className="w-32 h-32 sm:w-40 sm:h-40 bg-muted rounded-xl" />
-              <div className="flex-1 space-y-4">
-                <div className="h-8 sm:h-10 bg-muted rounded w-2/3" />
-                <div className="h-4 sm:h-5 bg-muted rounded w-1/2" />
-                <div className="h-4 sm:h-5 bg-muted rounded w-1/3" />
-              </div>
-            </div>
-            {/* Shows skeleton */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-40 sm:h-48 bg-muted rounded-xl" />
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <DetailPageSkeleton />;
   }
 
   const upcomingShows = shows?.filter(show => show.status === "upcoming") || [];

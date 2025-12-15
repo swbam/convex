@@ -6,6 +6,8 @@ import { Calendar, MapPin, Music, Search, ChevronLeft, ChevronRight, Loader2 } f
 import { motion } from 'framer-motion';
 import { formatLocation, formatTimeCompact } from '../lib/utils';
 import { useShowImport } from '../hooks/useArtistImport';
+import { pageVariants, sectionVariants, gridContainerVariants, gridItemVariants, headerVariants } from './animations/FadeIn';
+import { GridSkeleton } from './LoadingSkeleton';
 
 interface ShowsProps {
   onShowClick: (showId: Id<'shows'>, slug?: string) => void;
@@ -103,9 +105,17 @@ export function Shows({ onShowClick }: ShowsProps) {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6 relative z-10">
+    <motion.div 
+      className="container mx-auto px-4 py-6 space-y-6 relative z-10"
+      initial="hidden"
+      animate="show"
+      variants={pageVariants}
+    >
       {/* Streamlined Header with Search */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+      <motion.div 
+        className="flex flex-col sm:flex-row sm:items-center gap-4"
+        variants={headerVariants}
+      >
         {/* Search Bar - Full width on mobile, auto on desktop */}
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -130,21 +140,11 @@ export function Shows({ onShowClick }: ShowsProps) {
         <p className="text-muted-foreground text-sm">
           {displayShows.length} {displayShows.length === 1 ? 'show' : 'shows'}
         </p>
-      </div>
+      </motion.div>
 
       {/* Content */}
       {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
-          {[...Array(12)].map((_, i) => (
-            <div key={i} className="glass-card rounded-xl overflow-hidden animate-pulse">
-              <div className="aspect-square bg-secondary" />
-              <div className="p-3 space-y-2">
-                <div className="h-4 bg-secondary rounded w-3/4" />
-                <div className="h-3 bg-secondary rounded w-1/2" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <GridSkeleton count={12} />
       ) : displayShows.length === 0 ? (
         <div className="text-center py-16">
           <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-secondary flex items-center justify-center border border-border">
@@ -167,18 +167,25 @@ export function Shows({ onShowClick }: ShowsProps) {
           )}
         </div>
       ) : (
-        <div className="space-y-6">
+        <motion.div className="space-y-6" variants={sectionVariants}>
           {/* Shows Grid - More columns, smaller cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+          <motion.div 
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4"
+            variants={gridContainerVariants}
+            initial="hidden"
+            animate="show"
+            key={page} // Re-animate on page change
+          >
             {paginatedShows.map((show, index) => (
-              <ShowCard
-                key={show._id || index}
-                show={show}
-                onClick={() => handleShowClick(show)}
-                isImporting={importingShow === (show.ticketmasterId || show.artist?.ticketmasterId)}
-              />
+              <motion.div key={show._id || index} variants={gridItemVariants}>
+                <ShowCard
+                  show={show}
+                  onClick={() => handleShowClick(show)}
+                  isImporting={importingShow === (show.ticketmasterId || show.artist?.ticketmasterId)}
+                />
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
 
           {/* Compact Pagination */}
           {totalPages > 1 && (
@@ -222,9 +229,9 @@ export function Shows({ onShowClick }: ShowsProps) {
               </button>
             </div>
           )}
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
