@@ -1013,3 +1013,72 @@ export const refreshPartialLineups = internalMutation({
   },
 });
 
+// Delete a festival by ID (for cleanup operations)
+export const deleteFestivalInternal = internalMutation({
+  args: { festivalId: v.id("festivals") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.festivalId);
+    console.log(`🗑️ Deleted festival: ${args.festivalId}`);
+    return null;
+  },
+});
+
+// Delete festivals that are actually artist names (not real festivals)
+export const cleanupInvalidFestivals = internalMutation({
+  args: {},
+  returns: v.object({ deleted: v.number(), checked: v.number() }),
+  handler: async (ctx) => {
+    console.log("🧹 Cleaning up invalid festivals (artist names, not multi-day events)...");
+    
+    // Known artist names that got incorrectly imported as festivals
+    const invalidFestivalPatterns = [
+      /^colter wall$/i,
+      /^billy strings$/i,
+      /^tyler childers$/i,
+      /^zach bryan$/i,
+    ];
+    
+    const festivals = await ctx.db.query("festivals").collect();
+    let deleted = 0;
+    let checked = 0;
+    
+    for (const festival of festivals) {
+      checked++;
+      
+      // Check if this looks like an artist name, not a festival
+      const isInvalid = invalidFestivalPatterns.some(pattern => 
+        pattern.test(festival.name)
+      );
+      
+      // Also check for festivals with no artists and suspicious names (no "fest" or "festival" in name)
+      const lowerName = festival.name.toLowerCase();
+      const looksLikeFestival = 
+        lowerName.includes('fest') ||
+        lowerName.includes('festival') ||
+        lowerName.includes('carnival') ||
+        lowerName.includes('coachella') ||
+        lowerName.includes('bonnaroo') ||
+        lowerName.includes('lollapalooza') ||
+        lowerName.includes('pal') || // ACL, etc.
+        lowerName.includes('lands') || // Outside Lands
+        lowerName.includes('electric') || // EDC, Electric Forest
+        lowerName.includes('ultra') ||
+        lowerName.includes('rolling loud') ||
+        lowerName.includes('riot') ||
+        lowerName.includes('jam') ||
+        lowerName.includes('friends'); // "X and Friends" type events
+      
+      // Delete if it matches invalid pattern OR if it has 0 artists and doesn't look like a festival
+      if (isInvalid || (festival.artistCount === 0 && !looksLikeFestival)) {
+        console.log(`🗑️ Deleting invalid festival: "${festival.name}" (artistCount: ${festival.artistCount})`);
+        await ctx.db.delete(festival._id);
+        deleted++;
+      }
+    }
+    
+    console.log(`✅ Deleted ${deleted} invalid festivals out of ${checked} checked`);
+    return { deleted, checked };
+  },
+});
+

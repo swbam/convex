@@ -857,3 +857,108 @@ export const cleanupOldJobsAndErrors = internalAction({
     return null;
   },
 });
+
+// Delete "Unknown Artist" and all its shows (data quality cleanup)
+export const deleteUnknownArtist = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    console.log("🧹 Cleaning up Unknown Artist and its shows...");
+    
+    // Get the Unknown Artist
+    const artist = await ctx.runQuery(internalRef.artists.getBySlugInternal, { slug: "unknown-artist" });
+    
+    if (!artist) {
+      console.log("✅ Unknown Artist already deleted or doesn't exist");
+      return null;
+    }
+    
+    console.log(`🎯 Found Unknown Artist: ${artist._id}`);
+    
+    // Delete all shows by this artist
+    const shows = await ctx.runQuery(internalRef.shows.getAllByArtistInternal, { 
+      artistId: artist._id 
+    });
+    
+    console.log(`📊 Found ${shows.length} shows to delete`);
+    
+    for (const show of shows) {
+      try {
+        await ctx.runMutation(internalRef.shows.deleteShowInternal, { showId: show._id });
+      } catch (error) {
+        console.error(`Failed to delete show ${show._id}:`, error);
+      }
+    }
+    
+    // Delete the artist
+    await ctx.runMutation(internalRef.artists.deleteArtistInternal, { artistId: artist._id });
+    
+    console.log(`✅ Deleted Unknown Artist and ${shows.length} associated shows`);
+    return null;
+  },
+});
+
+// Clean up setlists with empty songs array
+export const cleanupEmptySetlists = internalMutation({
+  args: {},
+  returns: v.object({ deleted: v.number(), checked: v.number() }),
+  handler: async (ctx) => {
+    console.log("🧹 Cleaning up setlists with empty songs array...");
+    
+    const setlists = await ctx.db.query("setlists").take(500);
+    let deleted = 0;
+    let checked = 0;
+    
+    for (const setlist of setlists) {
+      checked++;
+      // Delete if songs array is empty or missing (and not an official setlist with actualSetlist)
+      const hasNoSongs = !setlist.songs || setlist.songs.length === 0;
+      const hasNoActualSetlist = !setlist.actualSetlist || setlist.actualSetlist.length === 0;
+      
+      // Only delete if user-submitted prediction with no songs
+      if (hasNoSongs && !setlist.isOfficial && setlist.source === "user_submitted") {
+        await ctx.db.delete(setlist._id);
+        deleted++;
+        console.log(`🗑️ Deleted empty prediction setlist: ${setlist._id}`);
+      }
+    }
+    
+    console.log(`✅ Deleted ${deleted} empty setlists out of ${checked} checked`);
+    return { deleted, checked };
+  },
+});
+
+// Deduplicate shows with same artist+venue+date
+export const dedupeShows = internalMutation({
+  args: { dryRun: v.optional(v.boolean()) },
+  returns: v.object({ duplicates: v.number(), deleted: v.number() }),
+  handler: async (ctx, args) => {
+    console.log("🔍 Finding duplicate shows (same artist + venue + date)...");
+    
+    const shows = await ctx.db.query("shows").take(2000);
+    const seenKeys = new Map<string, string>(); // key -> showId (keep first)
+    let duplicates = 0;
+    let deleted = 0;
+    
+    for (const show of shows) {
+      const key = `${show.artistId}::${show.venueId}::${show.date}`;
+      
+      if (seenKeys.has(key)) {
+        duplicates++;
+        if (!args.dryRun) {
+          // Delete the duplicate (keep the first one we saw)
+          await ctx.db.delete(show._id);
+          deleted++;
+          console.log(`🗑️ Deleted duplicate show: ${show.slug}`);
+        } else {
+          console.log(`[DRY RUN] Would delete duplicate: ${show.slug}`);
+        }
+      } else {
+        seenKeys.set(key, show._id);
+      }
+    }
+    
+    console.log(`✅ Found ${duplicates} duplicates${args.dryRun ? ' (dry run)' : `, deleted ${deleted}`}`);
+    return { duplicates, deleted };
+  },
+});
