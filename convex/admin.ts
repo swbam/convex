@@ -924,7 +924,7 @@ export const refreshTrendingCacheInternal = internalAction({
               const delayMs = scheduled * STAGGER_MS;
               console.log(`🗓️ Scheduling trending artist import: ${artist.name} (delay: ${delayMs}ms)`);
 
-              void ctx.scheduler.runAfter(delayMs, apiRef.ticketmaster.triggerFullArtistSync, {
+              await ctx.scheduler.runAfter(delayMs, apiRef.ticketmaster.triggerFullArtistSync, {
                 ticketmasterId: artist.ticketmasterId,
                 artistName: artist.name,
                 genres: artist.genres,

@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "check:env": "node scripts/check-env.cjs",
     "post-deploy": "sh scripts/post-deploy.sh",
-    "sync:trending": "npx convex run admin:refreshTrendingCache && npx convex run maintenance:triggerTrendingSync",
+    "sync:trending": "npx convex run admin:refreshTrendingCacheInternal && npx convex run maintenance:triggerTrendingSync",
     "seed:setlists": "npx convex run maintenance:backfillMissingSetlists '{\"limit\":100}'",
     "import:setlists": "npx convex run setlistfm:triggerCompletedShowsCheck",
     "import:past-setlists": "echo 'Checking for completed shows and importing from setlist.fm...' && npx convex run setlistfm:triggerCompletedShowsCheck && echo 'Also refreshing trending caches...' && npm run sync:trending",
