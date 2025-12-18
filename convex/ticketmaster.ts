@@ -194,6 +194,31 @@ export const triggerFullArtistSync = action({
     slug: v.string(),
   }),
   handler: async (ctx, args) => {
+    return await triggerFullArtistSyncImpl(ctx, args);
+  },
+});
+
+// Internal version used for scheduler-driven imports (cron/post-deploy).
+export const triggerFullArtistSyncInternal = internalAction({
+  args: {
+    ticketmasterId: v.string(),
+    artistName: v.string(),
+    genres: v.optional(v.array(v.string())),
+    images: v.optional(v.array(v.string())),
+    upcomingEvents: v.optional(v.number()),
+  },
+  returns: v.object({
+    type: v.union(v.literal("artist"), v.literal("festival")),
+    artistId: v.optional(v.id("artists")),
+    festivalId: v.optional(v.id("festivals")),
+    slug: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    return await triggerFullArtistSyncImpl(ctx, args);
+  },
+});
+
+const triggerFullArtistSyncImpl = async (ctx: any, args: any) => {
     const upcomingEvents = args.upcomingEvents || 0;
     console.log(`🚀 Starting optimized sync for: ${args.artistName} (${upcomingEvents} upcoming events)`);
     
@@ -302,8 +327,7 @@ export const triggerFullArtistSync = action({
       artistId,
       slug,
     };
-  },
-});
+};
 
 // Wrapper with status tracking for progressive loading
 export const syncArtistShowsWithTracking = internalAction({
