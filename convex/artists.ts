@@ -2,7 +2,9 @@ import { query, mutation, internalQuery, internalMutation } from "./_generated/s
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { getAuthUserId } from "./auth";
-import { internal } from "./_generated/api";
+// Type workaround for Convex deep type instantiation issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const internalRef = require("./_generated/api").internal as any;
 
 // Add Levenshtein helper
 function levenshteinDistance(str1: string, str2: string): number {
@@ -852,17 +854,15 @@ export const create = internalMutation({
         upcomingShowsCount: existingByName.upcomingShowsCount || 0,
       });
       // Schedule ONE catalog sync if this is a new artist from external source
-      // The spotify.ts has a 1-hour guard to prevent duplicate syncs
-      if (args.spotifyId) {
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const internalAny = internal as any;
-          void ctx.scheduler.runAfter(0, internalAny.spotify.enrichArtistBasics, {
-            artistId: existingByName._id,
-            artistName: args.name
-          });
-        } catch (e) {
-          console.warn("Failed to schedule artist basics sync:", e);
+	      // The spotify.ts has a 1-hour guard to prevent duplicate syncs
+	      if (args.spotifyId) {
+	        try {
+	          void ctx.scheduler.runAfter(0, internalRef.spotify.enrichArtistBasics, {
+	            artistId: existingByName._id,
+	            artistName: args.name
+	          });
+	        } catch (e) {
+	          console.warn("Failed to schedule artist basics sync:", e);
         }
       }
       return existingByName._id;
@@ -897,16 +897,14 @@ export const create = internalMutation({
     });
 
     // Post-create sync via scheduler - ONE catalog sync for new artist
-    // The spotify.ts has a 1-hour guard to prevent duplicate syncs
-    if (args.spotifyId) {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const internalRef = internal as any;
-        void ctx.scheduler.runAfter(0, internalRef.spotify.enrichArtistBasics, {
-          artistId,
-          artistName: args.name
-        });
-      } catch (e) {
+	    // The spotify.ts has a 1-hour guard to prevent duplicate syncs
+	    if (args.spotifyId) {
+	      try {
+	        void ctx.scheduler.runAfter(0, internalRef.spotify.enrichArtistBasics, {
+	          artistId,
+	          artistName: args.name
+	        });
+	      } catch (e) {
         console.warn("Failed to schedule artist basics sync:", e);
       }
     }

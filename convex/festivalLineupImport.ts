@@ -1,13 +1,12 @@
 import { action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
-import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
+const internalRef = require("./_generated/api").internal as any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const apiRef = api as any;
+const apiRef = require("./_generated/api").api as any;
 
 const MINUTE = 60_000;
 
@@ -635,4 +634,3 @@ async function fetchEventsNearVenue(
 
   return names;
 }
-
