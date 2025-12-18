@@ -273,27 +273,28 @@ export const triggerFullArtistSync = action({
     // RETURN IMMEDIATELY - frontend can navigate now!
     // Background imports scheduled below (non-blocking)
     
-    // Priority 1: Shows (user sees these first) - starts immediately
-    void ctx.scheduler.runAfter(SCHEDULER_DELAYS.shows, internalRef.ticketmaster.syncArtistShowsWithTracking, {
-      artistId,
-      ticketmasterId: args.ticketmasterId,
-      artistName: args.artistName,
-    });
-    
-    // Priority 2: Catalog (for setlist generation) - starts after 3 seconds
-    void ctx.scheduler.runAfter(SCHEDULER_DELAYS.catalog, internalRef.ticketmaster.syncArtistCatalogWithTracking, {
-      artistId,
-      artistName: args.artistName,
-    });
-    
-    // Priority 3: Metadata enrichment (nice to have) - starts after 6 seconds
-    void ctx.scheduler.runAfter(SCHEDULER_DELAYS.basics, internalRef.ticketmaster.enrichArtistBasicsWithTracking, {
-      artistId,
-      artistName: args.artistName,
-    });
-    
-    // Priority 4: Update counts (after everything else) - starts after 10 seconds
-    void ctx.scheduler.runAfter(SCHEDULER_DELAYS.counts, internalRef.maintenance.updateArtistCounts, { artistId });
+    // Background imports scheduled below (non-blocking). We still await the scheduling
+    // calls to avoid dangling-promise warnings; the scheduled work runs later.
+    await Promise.all([
+      // Priority 1: Shows (user sees these first) - starts immediately
+      ctx.scheduler.runAfter(SCHEDULER_DELAYS.shows, internalRef.ticketmaster.syncArtistShowsWithTracking, {
+        artistId,
+        ticketmasterId: args.ticketmasterId,
+        artistName: args.artistName,
+      }),
+      // Priority 2: Catalog (for setlist generation) - starts after 3 seconds
+      ctx.scheduler.runAfter(SCHEDULER_DELAYS.catalog, internalRef.ticketmaster.syncArtistCatalogWithTracking, {
+        artistId,
+        artistName: args.artistName,
+      }),
+      // Priority 3: Metadata enrichment (nice to have) - starts after 6 seconds
+      ctx.scheduler.runAfter(SCHEDULER_DELAYS.basics, internalRef.ticketmaster.enrichArtistBasicsWithTracking, {
+        artistId,
+        artistName: args.artistName,
+      }),
+      // Priority 4: Update counts (after everything else) - starts after 10 seconds
+      ctx.scheduler.runAfter(SCHEDULER_DELAYS.counts, internalRef.maintenance.updateArtistCounts, { artistId }),
+    ]);
 
     console.log(`✅ Artist ${artistId} created, background sync scheduled`);
     return {
