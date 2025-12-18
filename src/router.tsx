@@ -13,6 +13,9 @@ import { BlogPage } from './pages/BlogPage';
 import { BlogPostPage } from './pages/BlogPostPage';
 import { ArtistNotFound } from './components/ArtistNotFound';
 import { ShowNotFound } from './components/ShowNotFound'; // Assume similar for shows
+import { StudioLandingPage } from './pages/StudioLandingPage';
+import { StudioArtistPage } from './pages/StudioArtistPage';
+import { StudioShowDemandPage } from './pages/StudioShowDemandPage';
 
 // Error boundary component for 404
 function Error404({ resetErrorBoundary }: { resetErrorBoundary: () => void }) {
@@ -44,6 +47,18 @@ export const router = createBrowserRouter([
   {
     path: '/spotify-connect',
     element: <SpotifyConnectPage />,
+  },
+  {
+    path: '/studio',
+    element: <StudioLandingPage />,
+  },
+  {
+    path: '/studio/:artistId',
+    element: <StudioArtistPage />,
+  },
+  {
+    path: '/studio/:artistId/shows/:showId',
+    element: <StudioShowDemandPage />,
   },
   {
     path: '/dashboard',

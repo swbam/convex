@@ -351,6 +351,49 @@ const applicationTables = {
     .index("by_artist", ["artistId"])
     .index("by_user_and_artist", ["userId", "artistId"]),
 
+  // Artist portal: claim + membership model (do not overload users.role)
+  artistClaims: defineTable({
+    userId: v.id("users"),
+    artistId: v.id("artists"),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
+    submittedAt: v.number(),
+    // Spotify user identity from Clerk external account providerUserId (auditability only)
+    spotifyUserId: v.optional(v.string()),
+    // Evidence is optional; keep it flexible (links, screenshots, etc.)
+    evidence: v.optional(v.array(v.object({ type: v.string(), value: v.string() }))),
+    reviewedAt: v.optional(v.number()),
+    reviewedBy: v.optional(v.id("users")),
+    reviewNote: v.optional(v.string()),
+  })
+    .index("by_status", ["status"])
+    .index("by_user", ["userId"])
+    .index("by_artist", ["artistId"])
+    .index("by_user_artist", ["userId", "artistId"])
+    .index("by_submitted_at", ["submittedAt"]),
+
+  artistMembers: defineTable({
+    artistId: v.id("artists"),
+    userId: v.id("users"),
+    role: v.union(v.literal("owner"), v.literal("manager"), v.literal("viewer")),
+    createdAt: v.number(),
+  })
+    .index("by_artist", ["artistId"])
+    .index("by_user", ["userId"])
+    .index("by_user_artist", ["userId", "artistId"]),
+
+  // Artist portal: aggregated per-show demand so dashboards don't scan songVotes
+  showSongDemand: defineTable({
+    showId: v.id("shows"),
+    songKey: v.string(),
+    songTitle: v.string(),
+    upvotes: v.number(),
+    lastVoteAt: v.number(),
+  })
+    .index("by_show", ["showId"])
+    .index("by_show_and_songKey", ["showId", "songKey"])
+    .index("by_show_upvotes", ["showId", "upvotes"])
+    .index("by_show_last_vote_at", ["showId", "lastVoteAt"]),
+
   syncStatus: defineTable({
     isActive: v.boolean(),
     currentPhase: v.string(),

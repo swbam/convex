@@ -66,6 +66,12 @@ export function AdminDashboard() {
     (api as any).admin.getRecentAuditLogs,
     isAdmin === true ? { limit: 50 } : "skip"
   );
+  const pendingArtistClaims = useQuery(
+    (api as any).artistClaims.listPending,
+    isAdmin === true ? { limit: 50 } : "skip"
+  );
+  const approveArtistClaim = useMutation((api as any).artistClaims.approve);
+  const rejectArtistClaim = useMutation((api as any).artistClaims.reject);
   const updateUserRole = useMutation((api as any).admin.updateUserRole);
   const recomputeEngagementCounts = useAction((api as any).admin.recomputeEngagementCounts);
   const forceCatalogSync = useAction((api as any).admin.forceArtistCatalogSync);
@@ -374,11 +380,11 @@ export function AdminDashboard() {
             </div>
           </SidebarHeader>
           
-          <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
+	          <SidebarContent>
+	            <SidebarGroup>
+	              <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
+	              <SidebarGroupContent>
+	                <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton 
                       isActive={activeSection === 'stats'}
@@ -388,18 +394,27 @@ export function AdminDashboard() {
                       <span>Statistics</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton 
-                      isActive={activeSection === 'users'}
-                      onClick={() => setActiveSection('users')}
-                    >
-                      <Users className="h-4 w-4" />
-                      <span>Users</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+	                  <SidebarMenuItem>
+	                    <SidebarMenuButton 
+	                      isActive={activeSection === 'users'}
+	                      onClick={() => setActiveSection('users')}
+	                    >
+	                      <Users className="h-4 w-4" />
+	                      <span>Users</span>
+	                    </SidebarMenuButton>
+	                  </SidebarMenuItem>
+	                  <SidebarMenuItem>
+	                    <SidebarMenuButton 
+	                      isActive={activeSection === 'artistClaims'}
+	                      onClick={() => setActiveSection('artistClaims')}
+	                    >
+	                      <UserCheck className="h-4 w-4" />
+	                      <span>Artist Claims</span>
+	                    </SidebarMenuButton>
+	                  </SidebarMenuItem>
+	                </SidebarMenu>
+	              </SidebarGroupContent>
+	            </SidebarGroup>
 
             <SidebarGroup>
               <SidebarGroupLabel>Operations</SidebarGroupLabel>
@@ -444,9 +459,9 @@ export function AdminDashboard() {
             </div>
           </header>
 
-          <div className="flex-1 p-6 space-y-6">
-            {activeSection === 'stats' && (
-              <div className="space-y-6">
+	          <div className="flex-1 p-6 space-y-6">
+	            {activeSection === 'stats' && (
+	              <div className="space-y-6">
           {/* Header */}
           <MagicCard className="relative overflow-hidden rounded-xl p-0 border-0 bg-card">
             <div className="relative z-10 p-4 sm:p-6 lg:p-8">
@@ -743,10 +758,121 @@ export function AdminDashboard() {
             </div>
           </div>
               </div>
+	            )}
+
+            {activeSection === 'artistClaims' && (
+              <div className="space-y-6">
+                <MagicCard className="p-0 rounded-xl border border-border bg-card">
+                  <div className="p-4 sm:p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center">
+                        <UserCheck className="h-5 w-5 text-green-400" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-semibold text-foreground">Artist Claims</h2>
+                        <p className="text-sm text-muted-foreground">
+                          Review and approve artist dashboard access requests.
+                        </p>
+                      </div>
+                    </div>
+
+                    {pendingArtistClaims === undefined ? (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading…
+                      </div>
+                    ) : !pendingArtistClaims?.length ? (
+                      <p className="text-muted-foreground">No pending claims.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {pendingArtistClaims.map((c: any) => (
+                          <div
+                            key={c._id}
+                            className="rounded-xl border border-border bg-secondary/30 p-4"
+                          >
+                            <div className="flex items-start justify-between gap-4 flex-wrap">
+                              <div className="min-w-0">
+                                <div className="font-semibold text-foreground truncate">
+                                  {c.artist?.name ?? "Unknown Artist"}
+                                </div>
+                                <div className="text-sm text-muted-foreground truncate">
+                                  Requested by: {c.user?.email ?? c.user?.username ?? c.userId}
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  Submitted:{" "}
+                                  {c.submittedAt ? new Date(c.submittedAt).toLocaleString() : "Unknown"}
+                                </div>
+                                {c.spotifyUserId && (
+                                  <div className="text-xs text-muted-foreground">
+                                    Spotify user id: {c.spotifyUserId}
+                                  </div>
+                                )}
+                                {Array.isArray(c.evidence) && c.evidence.length > 0 && (
+                                  <div className="mt-2 space-y-1">
+                                    <div className="text-xs font-medium text-muted-foreground">Evidence</div>
+                                    {c.evidence.slice(0, 5).map((e: any, idx: number) => (
+                                      <div key={idx} className="text-xs text-muted-foreground truncate">
+                                        {e.type}: {e.value}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  className="bg-green-600 hover:bg-green-700 text-foreground"
+                                  onClick={async () => {
+                                    const role = window.prompt("Role for this member? owner/manager/viewer", "owner");
+                                    if (!role) return;
+                                    const normalized =
+                                      role === "owner" || role === "manager" || role === "viewer"
+                                        ? role
+                                        : null;
+                                    if (!normalized) {
+                                      toast.error("Invalid role. Use owner, manager, or viewer.");
+                                      return;
+                                    }
+                                    try {
+                                      await approveArtistClaim({ claimId: c._id, role: normalized });
+                                      toast.success("Claim approved");
+                                    } catch (e: any) {
+                                      toast.error("Approve failed", { description: e?.message || "Unknown error" });
+                                    }
+                                  }}
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={async () => {
+                                    const note = window.prompt("Rejection note (optional)", "");
+                                    try {
+                                      await rejectArtistClaim({ claimId: c._id, note: note || undefined });
+                                      toast.success("Claim rejected");
+                                    } catch (e: any) {
+                                      toast.error("Reject failed", { description: e?.message || "Unknown error" });
+                                    }
+                                  }}
+                                >
+                                  Reject
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <BorderBeam size={120} duration={10} className="opacity-20" />
+                </MagicCard>
+              </div>
             )}
 
-            {activeSection === 'users' && (
-              <div className="space-y-6">
+	            {activeSection === 'users' && (
+	              <div className="space-y-6">
           <div className="flex gap-2 mb-4">
             <Input 
               placeholder="Search users by email..." 

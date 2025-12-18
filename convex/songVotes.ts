@@ -8,6 +8,17 @@ import { Id } from "./_generated/dataModel";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const internalRef = internal as any;
 
+function normalizeSongKey(title: string): string {
+  return title
+    .toLowerCase()
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 // Vote on individual songs within setlists
 export const voteOnSong = mutation({
   args: {
@@ -58,6 +69,29 @@ export const voteOnSong = mutation({
           });
         }
       }
+
+      // Artist dashboard rollup: decrement demand count
+      if (setlist?.showId) {
+        const songKey = normalizeSongKey(args.songTitle);
+        const existingDemand = await ctx.db
+          .query("showSongDemand")
+          .withIndex("by_show_and_songKey", (q) =>
+            q.eq("showId", setlist.showId).eq("songKey", songKey),
+          )
+          .first();
+        if (existingDemand) {
+          const next = Math.max(0, (existingDemand.upvotes || 0) - 1);
+          if (next <= 0) {
+            await ctx.db.delete(existingDemand._id);
+          } else {
+            await ctx.db.patch(existingDemand._id, {
+              upvotes: next,
+              lastVoteAt: Date.now(),
+            });
+          }
+        }
+      }
+
       return { action: "removed" };
     }
 
@@ -113,6 +147,32 @@ export const voteOnSong = mutation({
       if (show) {
         await ctx.db.patch(setlist.showId, {
           voteCount: (show.voteCount || 0) + 1,
+        });
+      }
+    }
+
+    // Artist dashboard rollup: increment demand count
+    if (setlist?.showId) {
+      const songKey = normalizeSongKey(args.songTitle);
+      const existingDemand = await ctx.db
+        .query("showSongDemand")
+        .withIndex("by_show_and_songKey", (q) =>
+          q.eq("showId", setlist.showId).eq("songKey", songKey),
+        )
+        .first();
+      if (existingDemand) {
+        await ctx.db.patch(existingDemand._id, {
+          upvotes: (existingDemand.upvotes || 0) + 1,
+          lastVoteAt: Date.now(),
+          songTitle: existingDemand.songTitle || args.songTitle,
+        });
+      } else {
+        await ctx.db.insert("showSongDemand", {
+          showId: setlist.showId,
+          songKey,
+          songTitle: args.songTitle,
+          upvotes: 1,
+          lastVoteAt: Date.now(),
         });
       }
     }

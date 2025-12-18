@@ -27,6 +27,7 @@ const navigationItems = [
   { name: 'Artists', href: '/artists', icon: Mic },
   { name: 'Shows', href: '/shows', icon: Calendar },
   { name: 'Festivals', href: '/festivals', icon: Sparkles },
+  { name: 'Studio', href: '/studio', icon: Settings },
 ]
 
 export function AppLayout({ children }: AppLayoutProps) {

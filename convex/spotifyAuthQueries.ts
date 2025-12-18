@@ -75,6 +75,64 @@ export const getUserSpotifyArtists = query({
   },
 });
 
+// Artist portal onboarding helper: return Spotify-imported artists for claim selection.
+// Unlike getUserSpotifyArtists, this does NOT filter to only artists with upcoming shows.
+export const getUserSpotifyArtistsForClaim = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(
+    v.object({
+      artist: v.any(),
+      isFollowed: v.boolean(),
+      isTopArtist: v.boolean(),
+      topArtistRank: v.optional(v.number()),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
+      .first();
+
+    if (!user || !user.spotifyId) return [];
+
+    const limit = Math.max(1, Math.min(100, args.limit ?? 50));
+
+    const userArtists = await ctx.db
+      .query("userSpotifyArtists")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+
+    const sorted = [...userArtists].sort((a: any, b: any) => {
+      if (a.isTopArtist && !b.isTopArtist) return -1;
+      if (!a.isTopArtist && b.isTopArtist) return 1;
+      if (a.isTopArtist && b.isTopArtist) return (a.topArtistRank || 999) - (b.topArtistRank || 999);
+      // Followed artists next
+      if (a.isFollowed && !b.isFollowed) return -1;
+      if (!a.isFollowed && b.isFollowed) return 1;
+      return 0;
+    });
+
+    const hydrated: any[] = [];
+    for (const rel of sorted.slice(0, limit)) {
+      const artist = await ctx.db.get(rel.artistId);
+      if (!artist) continue;
+      hydrated.push({
+        artist,
+        isFollowed: !!rel.isFollowed,
+        isTopArtist: !!rel.isTopArtist,
+        topArtistRank: rel.topArtistRank,
+      });
+    }
+
+    return hydrated;
+  },
+});
+
 // Track user's Spotify artist relationship (Mutation in V8 runtime)
 export const trackUserArtist = internalMutation({
   args: {
