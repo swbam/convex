@@ -253,7 +253,7 @@ function ShowCard({ show, onClick, isImporting }: { show: any; onClick: () => vo
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated relative">
+      <div className="glow-card glow-card-hover overflow-hidden relative">
         {isImporting && (
           <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -276,7 +276,7 @@ function ShowCard({ show, onClick, isImporting }: { show: any; onClick: () => vo
           
           {/* Date Badge */}
           <div className="absolute top-2 right-2">
-            <div className="glass-card rounded-lg px-2 py-1">
+            <div className="bg-background/90 backdrop-blur-sm rounded-lg px-2 py-1 border border-border/50">
               <p className="text-foreground text-xs font-medium">
                 {formatDate(show.date)}
               </p>

@@ -80,7 +80,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
               {!trendingArtists ? (
                 [...Array(10)].map((_, i) => (
-                  <div key={i} className="glass-card rounded-xl overflow-hidden animate-pulse">
+                  <div key={i} className="glow-card overflow-hidden animate-pulse">
                     <div className="aspect-square bg-secondary" />
                     <div className="p-3 space-y-2">
                       <div className="h-4 bg-secondary rounded w-3/4" />
@@ -111,7 +111,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
               {!trendingShows ? (
                 [...Array(10)].map((_, i) => (
-                  <div key={i} className="glass-card rounded-xl overflow-hidden animate-pulse">
+                  <div key={i} className="glow-card overflow-hidden animate-pulse">
                     <div className="aspect-square bg-secondary" />
                     <div className="p-3 space-y-2">
                       <div className="h-4 bg-secondary rounded w-3/4" />
@@ -142,7 +142,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {!trendingSetlists ? (
                 [...Array(8)].map((_, i) => (
-                  <div key={i} className="glass-card rounded-xl p-4 animate-pulse">
+                  <div key={i} className="glow-card p-4 animate-pulse">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-secondary rounded-lg" />
                       <div className="flex-1 space-y-2">
@@ -161,7 +161,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                 trendingSetlists.map((setlist: any, index: number) => (
                   <div
                     key={setlist._id}
-                    className="glass-card glass-card-hover rounded-xl p-3 cursor-pointer transition-colors"
+                    className="glow-card glow-card-hover p-3 cursor-pointer transition-colors"
                     onClick={() => {
                       const showId = setlist.show?._id ?? setlist._id;
                       const showSlug = setlist.show?.slug as string | undefined;
@@ -204,7 +204,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
 
         {/* Sidebar - Recent Activity */}
         <div className="lg:col-span-1">
-          <div className="glass-card rounded-xl p-4 sticky top-20">
+          <div className="glow-card p-4 sticky top-20">
             <div className="flex items-center gap-2 mb-4">
               <Clock className="h-4 w-4 text-muted-foreground" />
               <h3 className="text-sm font-semibold text-foreground">Recent Activity</h3>
@@ -267,7 +267,7 @@ function ArtistCard({ artist, rank, onClick, isImporting }: { artist: any; rank:
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated relative">
+      <div className="glow-card glow-card-hover overflow-hidden relative">
         {isImporting && (
           <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -342,7 +342,7 @@ function ShowCard({ show, rank, onClick, isImporting }: { show: any; rank: numbe
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated relative">
+      <div className="glow-card glow-card-hover overflow-hidden relative">
         {isImporting && (
           <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -364,7 +364,7 @@ function ShowCard({ show, rank, onClick, isImporting }: { show: any; rank: numbe
           
           {/* Date Badge */}
           <div className="absolute top-2 right-2">
-            <div className="glass-card rounded-md px-1.5 py-0.5">
+            <div className="bg-background/90 backdrop-blur-sm rounded-md px-1.5 py-0.5 border border-border/50">
               <p className="text-foreground text-[10px] font-medium">{dateLabel}</p>
             </div>
           </div>

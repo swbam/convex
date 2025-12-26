@@ -569,7 +569,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
   );
 }
 
-// Artist Card - Compact and consistent
+// Artist Card - Compact with silver glow
 function ArtistCard({ artist, onClick, isLoading }: { artist: any; onClick: () => void; isLoading?: boolean }) {
   return (
     <motion.div 
@@ -578,13 +578,13 @@ function ArtistCard({ artist, onClick, isLoading }: { artist: any; onClick: () =
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated relative">
+      <div className="glow-card glow-card-hover overflow-hidden relative">
         {isLoading && (
           <div className="absolute inset-0 z-10 bg-black/50 flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-white" />
           </div>
         )}
-        <div className="relative w-full aspect-square overflow-hidden">
+        <div className="relative w-full aspect-square overflow-hidden rounded-t-[0.75rem]">
           {artist.images?.[0] ? (
             <img 
               src={artist.images[0]} 
@@ -620,7 +620,7 @@ function ArtistCard({ artist, onClick, isLoading }: { artist: any; onClick: () =
   );
 }
 
-// Show Card - Compact and consistent
+// Show Card - Compact with silver glow
 function ShowCard({ show, onClick }: { show: any; onClick: () => void }) {
   const showDate = new Date(show.date);
 
@@ -631,8 +631,8 @@ function ShowCard({ show, onClick }: { show: any; onClick: () => void }) {
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated">
-        <div className="relative w-full aspect-square overflow-hidden">
+      <div className="glow-card glow-card-hover overflow-hidden">
+        <div className="relative w-full aspect-square overflow-hidden rounded-t-[0.75rem]">
           {(() => {
             const imgSrc = show?.artist?.images?.[0] || show?.artistImage || show?.cachedTrending?.artistImage;
             return imgSrc ? (
@@ -689,7 +689,7 @@ function SpotifyArtistCard({ item, onClick }: { item: any; onClick: () => void }
       whileTap={{ scale: 0.98 }}
     >
       <div className="relative">
-        <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-secondary">
+        <div className="relative w-full aspect-square glow-card-sm glow-card-hover overflow-hidden bg-secondary">
           {item.artist.images?.[0] ? (
             <img 
               src={item.artist.images[0]} 
@@ -723,7 +723,7 @@ function SpotifyArtistCard({ item, onClick }: { item: any; onClick: () => void }
   );
 }
 
-// Festival Card - Vibrant and eye-catching
+// Festival Card - Vibrant with silver glow
 function FestivalCard({ festival, onClick }: { festival: any; onClick: () => void }) {
   const startDate = new Date(festival.startDate);
   const endDate = new Date(festival.endDate);
@@ -748,8 +748,8 @@ function FestivalCard({ festival, onClick }: { festival: any; onClick: () => voi
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated border-purple-500/20">
-        <div className="relative w-full aspect-square overflow-hidden">
+      <div className="glow-card glow-card-hover overflow-hidden">
+        <div className="relative w-full aspect-square overflow-hidden rounded-t-[0.75rem]">
           {festival.imageUrl ? (
             <img
               src={festival.imageUrl}

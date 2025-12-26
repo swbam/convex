@@ -624,7 +624,7 @@ export function BlogPostPage() {
                         <motion.div
                           key={relatedPost._id}
                           whileHover={{ y: -4 }}
-                          className="glass-card rounded-xl overflow-hidden group"
+                          className="glow-card glow-card-hover overflow-hidden group"
                         >
                           <Link to={`/blog/${relatedPost.slug.current}`}>
                             <div className="aspect-[16/9] overflow-hidden">
@@ -668,7 +668,7 @@ export function BlogPostPage() {
                 )}
 
                 {/* Final CTA */}
-                <div className="mt-14 glass-card rounded-2xl p-8 text-center bg-gradient-to-br from-primary/5 to-secondary/10">
+                <div className="mt-14 glow-section p-8 text-center">
                   <h3 className="text-xl font-bold mb-3">Discover More Music</h3>
                   <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
                     Explore upcoming shows and vote on setlists for your favorite artists

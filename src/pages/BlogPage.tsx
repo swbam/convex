@@ -162,7 +162,7 @@ export function BlogPage() {
         {isLoading && (
           <div className="space-y-8">
             {/* Featured skeleton */}
-            <div className="glass-card rounded-2xl overflow-hidden animate-pulse">
+            <div className="glow-section overflow-hidden animate-pulse">
               <div className="grid grid-cols-1 lg:grid-cols-2">
                 <div className="aspect-[16/9] lg:aspect-auto lg:h-full bg-muted" />
                 <div className="p-8 space-y-4">
@@ -176,7 +176,7 @@ export function BlogPage() {
             {/* Grid skeleton */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="glass-card rounded-xl overflow-hidden animate-pulse">
+                <div key={i} className="glow-card overflow-hidden animate-pulse">
                   <div className="aspect-[16/9] bg-muted" />
                   <div className="p-5 space-y-3">
                     <div className="h-4 bg-muted rounded w-1/4" />
@@ -196,7 +196,7 @@ export function BlogPage() {
             animate={{ opacity: 1, scale: 1 }}
             className="text-center py-16"
           >
-            <div className="glass-card inline-block p-8 rounded-2xl">
+            <div className="glow-section inline-block p-8">
               <p className="text-xl text-muted-foreground mb-4">
                 {posts.length === 0
                   ? 'No blog posts yet. Check back soon!'
@@ -224,7 +224,7 @@ export function BlogPage() {
           >
             <Link 
               to={`/blog/${featuredPost.slug.current}`}
-              className="group block glass-card rounded-2xl overflow-hidden"
+              className="group block glow-section overflow-hidden"
             >
               <div className="grid grid-cols-1 lg:grid-cols-2">
                 {/* Image */}
@@ -341,7 +341,7 @@ export function BlogPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: index * 0.05 }}
                 whileHover={{ y: -4 }}
-                className="glass-card rounded-xl overflow-hidden group"
+                className="glow-card glow-card-hover overflow-hidden group"
               >
                 <Link to={`/blog/${post.slug.current}`}>
                   {/* Image */}

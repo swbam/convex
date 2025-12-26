@@ -220,7 +220,7 @@ function ArtistCard({ artist, onClick, isImporting }: { artist: any; onClick: ()
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="glass-card glass-card-hover rounded-xl overflow-hidden shadow-elevated relative">
+      <div className="glow-card glow-card-hover overflow-hidden relative">
         {isImporting && (
           <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
