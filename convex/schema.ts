@@ -355,12 +355,46 @@ const applicationTables = {
   artistClaims: defineTable({
     userId: v.id("users"),
     artistId: v.id("artists"),
-    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
-    submittedAt: v.number(),
+    status: v.union(
+      v.literal("draft"),      // Started but not submitted
+      v.literal("verifying"),  // Waiting for email verification
+      v.literal("pending"),    // Submitted, waiting for admin review
+      v.literal("approved"),
+      v.literal("rejected")
+    ),
+    submittedAt: v.optional(v.number()),
+    createdAt: v.number(),
     // Spotify user identity from Clerk external account providerUserId (auditability only)
     spotifyUserId: v.optional(v.string()),
-    // Evidence is optional; keep it flexible (links, screenshots, etc.)
+    
+    // Email verification flow
+    verificationEmail: v.optional(v.string()),
+    verificationCode: v.optional(v.string()),
+    verificationCodeSentAt: v.optional(v.number()),
+    verificationCodeAttempts: v.optional(v.number()),
+    emailVerified: v.optional(v.boolean()),
+    emailVerifiedAt: v.optional(v.number()),
+    
+    // Professional context
+    officialRole: v.optional(v.union(
+      v.literal("artist"),     // The actual artist
+      v.literal("manager"),    // Artist's manager
+      v.literal("label"),      // Label representative
+      v.literal("agent"),      // Booking agent
+      v.literal("publicist"),  // PR/publicist
+      v.literal("team")        // Other team member
+    )),
+    organizationName: v.optional(v.string()), // e.g., "Republic Records", "WME"
+    
+    // Social proof / evidence
+    officialWebsite: v.optional(v.string()),
+    socialLinks: v.optional(v.array(v.string())), // Twitter, Instagram, etc.
+    additionalContext: v.optional(v.string()),    // Free text explanation
+    
+    // Legacy evidence field (keep for backwards compat)
     evidence: v.optional(v.array(v.object({ type: v.string(), value: v.string() }))),
+    
+    // Review tracking
     reviewedAt: v.optional(v.number()),
     reviewedBy: v.optional(v.id("users")),
     reviewNote: v.optional(v.string()),

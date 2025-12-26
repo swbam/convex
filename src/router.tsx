@@ -17,6 +17,7 @@ import { ForArtistsPage } from './pages/ForArtistsPage';
 import { ForArtistsDashboardPage } from './pages/ForArtistsDashboardPage';
 import { ForArtistsShowDemandPage } from './pages/ForArtistsShowDemandPage';
 import { ForArtistsTeamPage } from './pages/ForArtistsTeamPage';
+import { ArtistClaimPage } from './pages/ArtistClaimPage';
 
 // Error boundary component for 404
 function Error404({ resetErrorBoundary }: { resetErrorBoundary: () => void }) {
@@ -65,6 +66,10 @@ export const router = createBrowserRouter([
   {
     path: '/for-artists/:artistId/team',
     element: <ForArtistsTeamPage />,
+  },
+  {
+    path: '/for-artists/claim/:artistId',
+    element: <ArtistClaimPage />,
   },
   // Legacy redirects from /studio to /for-artists
   {

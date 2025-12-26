@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useUser, useSignIn } from '@clerk/clerk-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { MagicCard } from '../components/ui/magic-card';
 import { Music, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
@@ -10,11 +10,15 @@ export function SpotifyConnectPage() {
   const { user, isLoaded: isUserLoaded } = useUser();
   const { signIn } = useSignIn();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
+
+  const returnToParam = new URLSearchParams(location.search).get('returnTo');
+  const returnTo = returnToParam && returnToParam.startsWith('/') ? returnToParam : (user ? '/activity' : '/');
 
   // Check if Spotify is already connected
   const spotifyAccount = user?.externalAccounts?.find(
-    (account) => account.provider === 'spotify'
+    (account) => account.provider === 'spotify' || account.provider === 'oauth_spotify'
   );
   const isSpotifyConnected = !!spotifyAccount;
 
@@ -22,11 +26,13 @@ export function SpotifyConnectPage() {
     setIsLoading(true);
     
     try {
+      const redirectUrl = `${window.location.origin}/sso-callback?returnTo=${encodeURIComponent(returnTo)}`;
+
       // If user is signed in, use createExternalAccount to LINK Spotify
       if (user) {
         const externalAccount = await user.createExternalAccount({
           strategy: 'oauth_spotify',
-          redirectUrl: `${window.location.origin}/sso-callback`,
+          redirectUrl,
         });
         
         const verificationUrl = externalAccount.verification?.externalVerificationRedirectURL;
@@ -45,8 +51,8 @@ export function SpotifyConnectPage() {
         
         await signIn.authenticateWithRedirect({
           strategy: 'oauth_spotify',
-          redirectUrl: `${window.location.origin}/sso-callback`,
-          redirectUrlComplete: `${window.location.origin}/activity`,
+          redirectUrl,
+          redirectUrlComplete: `${window.location.origin}${returnTo}`,
         });
       }
     } catch (error: any) {
@@ -94,7 +100,7 @@ export function SpotifyConnectPage() {
               </p>
             </div>
             <Button
-              onClick={() => { void navigate('/activity'); }}
+              onClick={() => { void navigate(returnTo); }}
               className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-foreground"
             >
               Continue to Dashboard
@@ -128,7 +134,7 @@ export function SpotifyConnectPage() {
               </Button>
               
               <Button
-                onClick={() => { void navigate(user ? '/activity' : '/'); }}
+                onClick={() => { void navigate(returnTo); }}
                 variant="outline"
                 className="w-full"
               >

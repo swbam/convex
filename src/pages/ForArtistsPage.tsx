@@ -1,12 +1,13 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser, useAuth } from "@clerk/clerk-react";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { AppLayout } from "../components/AppLayout";
 import { MagicCard } from "../components/ui/magic-card";
 import { Button } from "../components/ui/button";
 import { Loader2, Music, ShieldCheck, Mic2, Users } from "lucide-react";
+import { toast } from "sonner";
 
 function hasSpotifyConnected(clerkUser: any): boolean {
   const accounts = clerkUser?.externalAccounts ?? [];
@@ -20,54 +21,21 @@ export function ForArtistsPage() {
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
 
-  // Check artist access
-  const access = useQuery(
-    (api as any).artistAccess.getMyArtistAccess,
-    isSignedIn ? {} : "skip"
-  );
-
-  // Auto-join mutation for Spotify ID matches
-  const autoJoin = useMutation((api as any).artistAccess.autoJoinAsOwner);
-  const [autoJoining, setAutoJoining] = React.useState(false);
-
   const spotifyConnected = isSignedIn && user ? hasSpotifyConnected(user) : false;
 
-  // Auto-redirect if user has access to exactly one artist
-  useEffect(() => {
-    if (access?.hasAccess && access.artists?.length === 1) {
-      const artistId = access.artists[0].artist._id;
-      navigate(`/for-artists/${artistId}`, { replace: true });
-    }
-  }, [access, navigate]);
+  const myArtists = useQuery((api as any).artistAccess.getMyArtists, isSignedIn ? {} : "skip");
+  const myClaims = useQuery((api as any).artistClaims.getMyClaims, isSignedIn ? {} : "skip");
+  const spotifyArtists = useQuery(
+    (api as any).spotifyAuthQueries.getUserSpotifyArtistsForClaim,
+    isSignedIn && spotifyConnected ? { limit: 50 } : "skip",
+  );
 
-  // Handle auto-join when Spotify ID matches but no membership exists yet
-  useEffect(() => {
-    async function tryAutoJoin() {
-      if (
-        access?.hasAccess &&
-        access.artists?.length &&
-        !autoJoining
-      ) {
-        // Check if any artist needs membership creation
-        const needsJoin = access.artists.some(
-          (a: any) => a.role === "owner" && !a._id
-        );
-        if (needsJoin) {
-          setAutoJoining(true);
-          try {
-            const result = await autoJoin({});
-            if (result.success && result.artistId) {
-              navigate(`/for-artists/${result.artistId}`, { replace: true });
-            }
-          } catch (e) {
-            console.error("Auto-join failed:", e);
-          }
-          setAutoJoining(false);
-        }
-      }
-    }
-    tryAutoJoin();
-  }, [access, autoJoin, autoJoining, navigate]);
+  const completeSpotifyImport = useAction(api.spotifyOAuth.completeSpotifyImport);
+
+  const [selectedArtistId, setSelectedArtistId] = React.useState<string>("");
+  const [syncingSpotify, setSyncingSpotify] = React.useState(false);
+
+  // Note: Removed auto-redirect to allow users to claim additional artists
 
   // Loading state
   if (!isLoaded) {
@@ -101,9 +69,9 @@ export function ForArtistsPage() {
             <div className="w-14 h-14 rounded-2xl bg-[#1DB954]/15 flex items-center justify-center mx-auto mb-4">
               <Music className="h-7 w-7 text-[#1DB954]" />
             </div>
-            <h2 className="text-2xl font-bold mb-2">Sign in with Spotify</h2>
+            <h2 className="text-2xl font-bold mb-2">Sign in</h2>
             <p className="text-muted-foreground mb-6">
-              Use your official Spotify artist account to access your dashboard.
+              Connect Spotify to claim your artist page and access demand analytics.
             </p>
             <Button
               onClick={() => navigate("/signin")}
@@ -113,7 +81,7 @@ export function ForArtistsPage() {
               Sign in with Spotify
             </Button>
             <p className="text-xs text-muted-foreground mt-4">
-              Only verified Spotify artists can access this portal.
+              If you’re on a team, ask the artist owner to invite you by email.
             </p>
           </MagicCard>
 
@@ -162,10 +130,10 @@ export function ForArtistsPage() {
             </div>
             <h1 className="text-2xl font-bold mb-2">Connect Spotify</h1>
             <p className="text-muted-foreground mb-6">
-              Connect your Spotify artist account to access your dashboard.
+              Connect Spotify so you can claim your artist page (or accept team invites).
             </p>
             <Button
-              onClick={() => navigate("/spotify-connect")}
+              onClick={() => navigate("/spotify-connect?returnTo=/for-artists")}
               className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white"
               size="lg"
             >
@@ -178,21 +146,19 @@ export function ForArtistsPage() {
   }
 
   // Loading access data
-  if (access === undefined || autoJoining) {
+  if (myArtists === undefined) {
     return (
       <AppLayout>
         <div className="container mx-auto px-4 py-16 text-center">
           <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">
-            {autoJoining ? "Setting up your dashboard…" : "Checking access…"}
-          </p>
+          <p className="text-muted-foreground">Loading your artists…</p>
         </div>
       </AppLayout>
     );
   }
 
-  // Has access to multiple artists - show selection
-  if (access.hasAccess && access.artists && access.artists.length > 1) {
+  // Has access to artists - show selection + claim option
+  if (Array.isArray(myArtists) && myArtists.length >= 1) {
     return (
       <AppLayout>
         <div className="container mx-auto px-4 py-10">
@@ -203,7 +169,7 @@ export function ForArtistsPage() {
             </p>
 
             <div className="space-y-3">
-              {access.artists.map((item: any) => {
+              {myArtists.map((item: any) => {
                 const artist = item.artist;
                 const img = Array.isArray(artist?.images)
                   ? artist.images[0]
@@ -244,44 +210,236 @@ export function ForArtistsPage() {
                 );
               })}
             </div>
+
+            {/* Claim another artist section */}
+            <MagicCard className="mt-8 p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <ShieldCheck className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <div className="font-semibold">Claim another artist</div>
+                  <div className="text-sm text-muted-foreground">
+                    Add access to more artists from your Spotify
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <select
+                  value={selectedArtistId}
+                  onChange={(e) => setSelectedArtistId(e.target.value)}
+                  className="flex-1 h-10 rounded-lg bg-secondary border border-border px-3 text-sm text-foreground"
+                >
+                  <option value="">Select an artist…</option>
+                  {(spotifyArtists || []).map((row: any) => (
+                    <option key={row.artist._id} value={row.artist._id}>
+                      {row.artist.name}
+                      {row.isTopArtist ? " (Top)" : row.isFollowed ? " (Followed)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  disabled={!selectedArtistId}
+                  onClick={() => {
+                    if (selectedArtistId) navigate(`/for-artists/claim/${selectedArtistId}`);
+                  }}
+                >
+                  Claim →
+                </Button>
+              </div>
+            </MagicCard>
           </div>
         </div>
       </AppLayout>
     );
   }
 
-  // No access - not an artist
+  // No access yet: show claim UI + claim status
+  const inProgressClaims = Array.isArray(myClaims) ? myClaims.filter((c: any) => c?.status === "draft" || c?.status === "verifying") : [];
+  const pendingClaims = Array.isArray(myClaims) ? myClaims.filter((c: any) => c?.status === "pending") : [];
+  const approvedClaims = Array.isArray(myClaims) ? myClaims.filter((c: any) => c?.status === "approved") : [];
+
   return (
     <AppLayout>
       <div className="container mx-auto px-4 py-16">
-        <MagicCard className="p-8 max-w-lg mx-auto text-center">
-          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-            <ShieldCheck className="h-7 w-7 text-muted-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold mb-2">Artist Access Only</h1>
-          <p className="text-muted-foreground mb-6">
-            This portal is for verified Spotify artists. Your Spotify account
-            isn't linked to any artist profiles in our system.
-          </p>
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              If you're an artist or team member, make sure you're signed in
-              with the correct Spotify account, or ask the artist owner to
-              invite you.
-            </p>
-            <div className="flex gap-3 justify-center pt-4">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <MagicCard className="p-8">
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <ShieldCheck className="h-7 w-7 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h1 className="text-2xl font-bold mb-1">Claim your artist page</h1>
+                <p className="text-muted-foreground">
+                  Pick an artist from your Spotify profile. We’ll review your claim and then you’ll get access to the dashboard.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <select
+                  value={selectedArtistId}
+                  onChange={(e) => setSelectedArtistId(e.target.value)}
+                  className="flex-1 h-10 rounded-lg bg-secondary border border-border px-3 text-sm text-foreground"
+                >
+                  <option value="">Select an artist…</option>
+                  {(spotifyArtists || []).map((row: any) => (
+                    <option key={row.artist._id} value={row.artist._id}>
+                      {row.artist.name}
+                      {row.isTopArtist ? " (Top)" : row.isFollowed ? " (Followed)" : ""}
+                    </option>
+                  ))}
+                </select>
+
+                <Button
+                  disabled={!selectedArtistId}
+                  onClick={() => {
+                    if (!selectedArtistId) return;
+                    navigate(`/for-artists/claim/${selectedArtistId}`);
+                  }}
+                  className="sm:w-40"
+                >
+                  Claim →
+                </Button>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Not seeing your artist? Re-sync your Spotify artists.
+                </p>
+                <Button
+                  variant="outline"
+                  disabled={syncingSpotify}
+                  onClick={async () => {
+                    try {
+                      setSyncingSpotify(true);
+                      const token = await user?.getToken({ template: "spotify" });
+                      if (!token) {
+                        toast.error("Spotify token not available", { description: "Try reconnecting Spotify." });
+                        return;
+                      }
+                      const result = await completeSpotifyImport({ accessToken: token });
+                      toast.success("Spotify synced", {
+                        description: `Imported ${result.imported} new artists, matched ${result.correlated}.`,
+                      });
+                    } catch (e: any) {
+                      toast.error("Spotify sync failed", { description: e?.message || "Unknown error" });
+                    } finally {
+                      setSyncingSpotify(false);
+                    }
+                  }}
+                >
+                  {syncingSpotify ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Syncing…
+                    </>
+                  ) : (
+                    "Sync Spotify"
+                  )}
+                </Button>
+              </div>
+
+              {spotifyArtists === undefined && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading your Spotify artists…
+                </div>
+              )}
+              {Array.isArray(spotifyArtists) && spotifyArtists.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No Spotify artists imported yet. If you just connected Spotify, wait a moment and refresh—otherwise hit “Sync Spotify”.
+                </p>
+              )}
+            </div>
+
+            {!!inProgressClaims.length && (
+              <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+                <div className="font-semibold mb-2 text-amber-600 dark:text-amber-400">Continue your claim</div>
+                <div className="space-y-2">
+                  {inProgressClaims.map((c: any) => (
+                    <div key={c._id} className="flex items-center justify-between gap-3">
+                      <div className="text-sm">
+                        {c.artist?.name ?? "Unknown artist"}
+                        <span className="text-xs text-muted-foreground ml-2">
+                          ({c.status === "verifying" ? "verify email" : "in progress"})
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => navigate(`/for-artists/claim/${c.artistId}`)}
+                      >
+                        Continue
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!!pendingClaims.length && (
+              <div className="mt-6 rounded-xl border border-border bg-card/40 p-4">
+                <div className="font-semibold mb-2">Pending review</div>
+                <div className="space-y-2">
+                  {pendingClaims.map((c: any) => (
+                    <div key={c._id} className="flex items-center justify-between gap-3">
+                      <div className="text-sm">
+                        {c.artist?.name ?? "Unknown artist"}
+                        <span className="text-xs text-muted-foreground ml-2">(pending)</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {c.submittedAt ? new Date(c.submittedAt).toLocaleDateString() : ""}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!!approvedClaims.length && (
+              <div className="mt-6 rounded-xl border border-border bg-card/40 p-4">
+                <div className="font-semibold mb-2">Approved</div>
+                <div className="space-y-2">
+                  {approvedClaims.slice(0, 3).map((c: any) => (
+                    <div key={c._id} className="flex items-center justify-between gap-3">
+                      <div className="text-sm">{c.artist?.name ?? "Unknown artist"}</div>
+                      {c.artistId ? (
+                        <Button size="sm" variant="outline" onClick={() => void navigate(`/for-artists/${c.artistId}`)}>
+                          Open
+                        </Button>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </MagicCard>
+
+          <MagicCard className="p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <div className="font-semibold">On a team?</div>
+                <div className="text-sm text-muted-foreground">
+                  Ask the artist owner to invite you by email (Settings → Team).
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end pt-2">
               <Button variant="outline" onClick={() => navigate("/")}>
                 Go Home
               </Button>
-              <Button
-                variant="ghost"
-                onClick={() => signOut({ redirectUrl: "/for-artists" })}
-              >
+              <Button variant="ghost" onClick={() => signOut({ redirectUrl: "/for-artists" })}>
                 Try Different Account
               </Button>
             </div>
-          </div>
-        </MagicCard>
+          </MagicCard>
+        </div>
       </div>
     </AppLayout>
   );

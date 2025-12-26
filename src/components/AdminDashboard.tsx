@@ -791,22 +791,66 @@ export function AdminDashboard() {
                             className="rounded-xl border border-border bg-secondary/30 p-4"
                           >
                             <div className="flex items-start justify-between gap-4 flex-wrap">
-                              <div className="min-w-0">
+                              <div className="min-w-0 flex-1">
                                 <div className="font-semibold text-foreground truncate">
                                   {c.artist?.name ?? "Unknown Artist"}
                                 </div>
-                                <div className="text-sm text-muted-foreground truncate">
-                                  Requested by: {c.user?.email ?? c.user?.username ?? c.userId}
-                                </div>
-                                <div className="text-xs text-muted-foreground mt-1">
+                                
+                                {/* Verified email + role (new flow) */}
+                                {c.emailVerified ? (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 text-xs font-medium">
+                                      ✓ Email verified
+                                    </span>
+                                    <span className="text-sm text-foreground">{c.verificationEmail}</span>
+                                  </div>
+                                ) : (
+                                  <div className="text-sm text-muted-foreground truncate">
+                                    Requested by: {c.user?.email ?? c.user?.username ?? c.userId}
+                                  </div>
+                                )}
+                                
+                                {/* Role & Organization */}
+                                {c.officialRole && (
+                                  <div className="flex items-center gap-2 mt-1 text-sm">
+                                    <span className="text-muted-foreground">Role:</span>
+                                    <span className="capitalize font-medium">{c.officialRole}</span>
+                                    {c.organizationName && (
+                                      <span className="text-muted-foreground">at {c.organizationName}</span>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                {/* Website & social links */}
+                                {c.officialWebsite && (
+                                  <div className="text-xs mt-1">
+                                    <a href={c.officialWebsite} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                                      {c.officialWebsite}
+                                    </a>
+                                  </div>
+                                )}
+                                {Array.isArray(c.socialLinks) && c.socialLinks.length > 0 && (
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    Social: {c.socialLinks.slice(0, 3).join(", ")}
+                                  </div>
+                                )}
+                                {c.additionalContext && (
+                                  <div className="text-xs text-muted-foreground mt-1 italic">
+                                    "{c.additionalContext}"
+                                  </div>
+                                )}
+                                
+                                <div className="text-xs text-muted-foreground mt-2">
                                   Submitted:{" "}
                                   {c.submittedAt ? new Date(c.submittedAt).toLocaleString() : "Unknown"}
                                 </div>
                                 {c.spotifyUserId && (
                                   <div className="text-xs text-muted-foreground">
-                                    Spotify user id: {c.spotifyUserId}
+                                    Spotify ID: {c.spotifyUserId}
                                   </div>
                                 )}
+                                
+                                {/* Legacy evidence (backwards compat) */}
                                 {Array.isArray(c.evidence) && c.evidence.length > 0 && (
                                   <div className="mt-2 space-y-1">
                                     <div className="text-xs font-medium text-muted-foreground">Evidence</div>
@@ -824,7 +868,11 @@ export function AdminDashboard() {
                                   size="sm"
                                   className="bg-green-600 hover:bg-green-700 text-foreground"
                                   onClick={async () => {
-                                    const role = window.prompt("Role for this member? owner/manager/viewer", "owner");
+                                    // Suggest role based on their claim
+                                    const suggestedRole = c.officialRole === "artist" ? "owner" 
+                                      : (c.officialRole === "manager" || c.officialRole === "agent") ? "manager" 
+                                      : "viewer";
+                                    const role = window.prompt(`Role for this member? owner/manager/viewer`, suggestedRole);
                                     if (!role) return;
                                     const normalized =
                                       role === "owner" || role === "manager" || role === "viewer"
@@ -836,7 +884,7 @@ export function AdminDashboard() {
                                     }
                                     try {
                                       await approveArtistClaim({ claimId: c._id, role: normalized });
-                                      toast.success("Claim approved");
+                                      toast.success("Claim approved! User will be notified.");
                                     } catch (e: any) {
                                       toast.error("Approve failed", { description: e?.message || "Unknown error" });
                                     }
@@ -851,7 +899,7 @@ export function AdminDashboard() {
                                     const note = window.prompt("Rejection note (optional)", "");
                                     try {
                                       await rejectArtistClaim({ claimId: c._id, note: note || undefined });
-                                      toast.success("Claim rejected");
+                                      toast.success("Claim rejected. User will be notified.");
                                     } catch (e: any) {
                                       toast.error("Reject failed", { description: e?.message || "Unknown error" });
                                     }

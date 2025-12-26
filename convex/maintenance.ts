@@ -617,6 +617,7 @@ export const populateMissingFields = internalAction({
         console.log(`🗓️ Scheduling field backfill for artist: ${artist.name} (delay: ${delayMs}ms)`);
         void ctx.scheduler.runAfter(delayMs, internalRef.ticketmaster.syncArtistShowsWithTracking, {
           artistId: artist._id,
+          artistName: artist.name,
           ticketmasterId: artist.ticketmasterId,
         });
 

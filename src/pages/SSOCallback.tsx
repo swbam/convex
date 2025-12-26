@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useClerk, useUser } from '@clerk/clerk-react';
-import { useNavigate } from 'react-router-dom';
-import { useAction, useMutation } from 'convex/react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAction } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { MagicCard } from '../components/ui/magic-card';
 import { Music, Loader2 } from 'lucide-react';
@@ -15,6 +15,7 @@ export function SSOCallback() {
   const { handleRedirectCallback, clerk } = useClerk();
   const { user } = useUser();
   const navigate = useNavigate();
+  const location = useLocation();
   const [error, setError] = React.useState<string | null>(null);
   const [isImportingSpotify, setIsImportingSpotify] = React.useState(false);
   const completeSpotifyImport = useAction(api.spotifyOAuth.completeSpotifyImport);
@@ -31,10 +32,13 @@ export function SSOCallback() {
 
     async function handleCallback() {
       try {
+        const returnToParam = new URLSearchParams(location.search).get('returnTo');
+        const returnTo = returnToParam && returnToParam.startsWith('/') ? returnToParam : '/';
+
         // Handle the OAuth callback
         await handleRedirectCallback({
-          afterSignInUrl: '/',
-          afterSignUpUrl: '/',
+          afterSignInUrl: returnTo,
+          afterSignUpUrl: returnTo,
         });
 
         // Ensure Clerk has the latest session data before inspecting accounts
@@ -47,7 +51,7 @@ export function SSOCallback() {
 
             if (latestUser?.externalAccounts) {
               const spotifyAccount = latestUser.externalAccounts.find(
-                (account) => account.provider === 'spotify'
+                (account) => account.provider === 'spotify' || account.provider === 'oauth_spotify'
               );
               
               if (spotifyAccount) {
@@ -59,7 +63,7 @@ export function SSOCallback() {
                   toast.warning('Spotify connected but token not available', {
                     description: 'You can manually sync from your profile later.',
                   });
-                  navigate('/');
+                  navigate(returnTo);
                   return;
                 }
 
@@ -125,7 +129,7 @@ export function SSOCallback() {
             // Error checking Spotify account, continue anyway
           }
           
-          navigate('/');
+          navigate(returnTo);
         }, 1000);
         
       } catch (err: any) {
@@ -145,7 +149,7 @@ export function SSOCallback() {
         spotifyImportTimeout.current = null;
       }
     };
-  }, [handleRedirectCallback, clerk, user, navigate, completeSpotifyImport, storeSpotifyTokens]);
+  }, [handleRedirectCallback, clerk, user, navigate, location.search, completeSpotifyImport, storeSpotifyTokens]);
 
   if (error) {
     return (
