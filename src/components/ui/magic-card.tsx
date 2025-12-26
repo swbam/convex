@@ -1,43 +1,105 @@
 "use client";
 
-import { motion, useMotionTemplate, useMotionValue } from "framer-motion";
-import React, { useCallback, useEffect, useRef } from "react";
-
+import React from "react";
 import { cn } from "../../lib/utils";
 
 interface MagicCardProps {
   children?: React.ReactNode;
   className?: string;
-  gradientSize?: number;
-  gradientColor?: string;
-  gradientOpacity?: number;
-  gradientFrom?: string;
-  gradientTo?: string;
+  /** Glow variant: 'default' | 'animated' | 'section' | 'sm' | 'none' */
+  variant?: "default" | "animated" | "section" | "sm" | "none";
+  /** Enable hover glow effect */
+  hoverGlow?: boolean;
+  /** Show top edge highlight */
+  edgeHighlight?: boolean;
   onClick?: React.MouseEventHandler<HTMLDivElement>;
 }
 
+/**
+ * MagicCard - Premium card component with silver gradient glow effect
+ * 
+ * Variants:
+ * - default: Standard glow card with gradient border
+ * - animated: Rotating conic gradient border animation
+ * - section: Larger section container style
+ * - sm: Compact card for smaller elements
+ * - none: No glow, just basic card styling
+ */
 export function MagicCard({
   children,
   className,
-  gradientSize = 0, // DISABLED: Set to 0 to remove spotlight effect
-  gradientColor = "#262626",
-  gradientOpacity = 0, // DISABLED: Set to 0 to remove spotlight effect
-  gradientFrom = "#ffffff",
-  gradientTo = "#ffffff",
+  variant = "default",
+  hoverGlow = true,
+  edgeHighlight = false,
   onClick,
 }: MagicCardProps) {
-  // DISABLED: Removed all mouse tracking for spotlight effect
-  // Cards now have clean borders without cursor-following spotlight
+  const variantClasses = {
+    default: "glow-card",
+    animated: "glow-card glow-card-animated",
+    section: "glow-section",
+    sm: "glow-card-sm",
+    none: "bg-card border border-border",
+  };
 
   return (
     <div
-      className={cn("group relative rounded-[inherit]", className)}
+      className={cn(
+        "relative overflow-hidden transition-all duration-300",
+        variantClasses[variant],
+        hoverGlow && variant !== "none" && "glow-card-hover",
+        edgeHighlight && "glow-edge-top",
+        className
+      )}
       onClick={onClick}
     >
-      {/* Simple border - no animated gradient */}
-      <div className="absolute inset-0 rounded-[inherit] bg-border" />
-      <div className="absolute inset-px rounded-[inherit] bg-background" />
-      <div className="relative">{children}</div>
+      <div className="relative z-10">{children}</div>
     </div>
+  );
+}
+
+/**
+ * GlowCard - Alias for MagicCard with default glow styling
+ * Use this for consistency across the app
+ */
+export function GlowCard({
+  children,
+  className,
+  variant = "default",
+  hoverGlow = true,
+  onClick,
+}: MagicCardProps) {
+  return (
+    <MagicCard
+      variant={variant}
+      hoverGlow={hoverGlow}
+      className={className}
+      onClick={onClick}
+    >
+      {children}
+    </MagicCard>
+  );
+}
+
+/**
+ * GlowSection - For larger content sections with subtle glow
+ */
+export function GlowSection({
+  children,
+  className,
+  edgeHighlight = true,
+}: {
+  children?: React.ReactNode;
+  className?: string;
+  edgeHighlight?: boolean;
+}) {
+  return (
+    <MagicCard
+      variant="section"
+      hoverGlow={false}
+      edgeHighlight={edgeHighlight}
+      className={className}
+    >
+      {children}
+    </MagicCard>
   );
 }

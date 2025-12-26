@@ -536,6 +536,19 @@
     --grad-b: 0 0% 6%;
     --grad-c: 0 0% 12%;
     --glow-1: 0 0% 100%;
+    
+    /* === Silver Glow System === */
+    --glow-silver-1: 0 0% 100%;      /* Pure white for highlights */
+    --glow-silver-2: 0 0% 70%;       /* Light silver */
+    --glow-silver-3: 0 0% 40%;       /* Mid silver */
+    --glow-silver-4: 0 0% 25%;       /* Dark silver */
+    --glow-silver-5: 0 0% 15%;       /* Near black silver */
+    
+    /* Card glow specific */
+    --card-glow-opacity: 0.12;
+    --card-glow-blur: 40px;
+    --card-border-glow: 0 0% 28%;
+    --card-inner-glow: 0 0% 8%;
   }
 
   /* LIGHT MODE - applies when html has class="light" */
@@ -865,6 +878,205 @@
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
   background-size: 200px 100%;
   animation: shimmer 1.5s infinite;
+}
+
+/* =========================================
+   SILVER GLOW CARD SYSTEM
+   Inspired by premium dark UI designs
+   ========================================= */
+
+/* Animated gradient border */
+@keyframes glow-border-rotate {
+  0% { --glow-angle: 0deg; }
+  100% { --glow-angle: 360deg; }
+}
+
+@property --glow-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* Base glow card - subtle silver gradient border */
+.glow-card {
+  position: relative;
+  border-radius: 1rem;
+  background: hsl(var(--card));
+  isolation: isolate;
+}
+
+.glow-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    hsl(var(--glow-silver-2) / 0.3) 0%,
+    hsl(var(--glow-silver-4) / 0.1) 25%,
+    hsl(var(--glow-silver-5) / 0.05) 50%,
+    hsl(var(--glow-silver-4) / 0.1) 75%,
+    hsl(var(--glow-silver-2) / 0.2) 100%
+  );
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Inner highlight gradient */
+.glow-card::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: calc(1rem - 1px);
+  background: linear-gradient(
+    180deg,
+    hsl(var(--glow-silver-3) / 0.04) 0%,
+    transparent 40%
+  );
+  pointer-events: none;
+}
+
+/* Hover state - intensify the glow */
+.glow-card:hover::before {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--glow-silver-1) / 0.35) 0%,
+    hsl(var(--glow-silver-3) / 0.15) 25%,
+    hsl(var(--glow-silver-5) / 0.08) 50%,
+    hsl(var(--glow-silver-3) / 0.15) 75%,
+    hsl(var(--glow-silver-1) / 0.25) 100%
+  );
+}
+
+.glow-card:hover::after {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--glow-silver-2) / 0.06) 0%,
+    transparent 50%
+  );
+}
+
+/* Outer glow on hover */
+.glow-card-hover:hover {
+  box-shadow: 
+    0 0 20px hsl(var(--glow-silver-3) / 0.08),
+    0 0 40px hsl(var(--glow-silver-4) / 0.04);
+}
+
+/* Animated rotating border variant */
+.glow-card-animated::before {
+  animation: glow-border-rotate 8s linear infinite;
+  background: conic-gradient(
+    from var(--glow-angle),
+    hsl(var(--glow-silver-5) / 0.1) 0deg,
+    hsl(var(--glow-silver-2) / 0.3) 90deg,
+    hsl(var(--glow-silver-5) / 0.1) 180deg,
+    hsl(var(--glow-silver-3) / 0.2) 270deg,
+    hsl(var(--glow-silver-5) / 0.1) 360deg
+  );
+}
+
+/* Section glow - for larger containers */
+.glow-section {
+  position: relative;
+  border-radius: 1.5rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+
+.glow-section::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    hsl(var(--glow-silver-2) / 0.15) 0%,
+    transparent 30%,
+    transparent 70%,
+    hsl(var(--glow-silver-3) / 0.08) 100%
+  );
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Subtle inner glow effect */
+.glow-section::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsl(var(--glow-silver-1) / 0.3) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+/* Compact glow for smaller cards */
+.glow-card-sm {
+  position: relative;
+  border-radius: 0.75rem;
+  background: hsl(var(--card));
+}
+
+.glow-card-sm::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    145deg,
+    hsl(var(--glow-silver-3) / 0.25) 0%,
+    hsl(var(--glow-silver-5) / 0.08) 100%
+  );
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Top edge highlight accent */
+.glow-edge-top::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsl(var(--glow-silver-1) / 0.4) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
 }
 
 /* Continuous marquee rows for trending sections */
