@@ -900,7 +900,7 @@
 /* Base glow card - subtle silver gradient border */
 .glow-card {
   position: relative;
-  border-radius: 1rem;
+  border-radius: 0.75rem; /* 12px - consistent across all glow cards */
   background: hsl(var(--card));
   isolation: isolate;
 }
@@ -935,7 +935,7 @@
   content: '';
   position: absolute;
   inset: 1px;
-  border-radius: calc(1rem - 1px);
+  border-radius: inherit;
   background: linear-gradient(
     180deg,
     hsl(var(--glow-silver-3) / 0.04) 0%,
@@ -987,7 +987,7 @@
 /* Section glow - for larger containers */
 .glow-section {
   position: relative;
-  border-radius: 1.5rem;
+  border-radius: 1rem; /* 16px - slightly larger for sections */
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border) / 0.5);
 }
@@ -1036,7 +1036,7 @@
 /* Compact glow for smaller cards */
 .glow-card-sm {
   position: relative;
-  border-radius: 0.75rem;
+  border-radius: 0.75rem; /* 12px - same as glow-card */
   background: hsl(var(--card));
 }
 

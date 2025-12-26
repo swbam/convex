@@ -5,6 +5,7 @@ import { api } from "../../convex/_generated/api";
 import { useMutation } from "convex/react";
 import { Heart, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "../lib/utils";
 
 interface ArtistCardProps {
   artist: any;
@@ -38,7 +39,13 @@ function ArtistCardComponent({
     <motion.div
       onClick={handleClick}
       whileTap={{ scale: 0.98 }}
-      className="group relative overflow-hidden touch-manipulation bg-card border-b border-border last:border-b-0 sm:border sm:border-border sm:rounded-xl cursor-pointer active:bg-secondary transition-all duration-150"
+      className={cn(
+        "group relative overflow-hidden touch-manipulation cursor-pointer transition-all duration-200",
+        // Mobile: simple border bottom for list feel
+        "border-b border-border/50 last:border-b-0",
+        // Desktop: glow card styling
+        "sm:glow-card-sm sm:glow-card-hover sm:border-0"
+      )}
     >
       <div className="flex items-center gap-3 p-3 sm:p-4 min-h-[72px]">
         {/* Artist Image - Compact Circle */}

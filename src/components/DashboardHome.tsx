@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useUser } from "@clerk/clerk-react";
 import { formatLocation, formatShowTime } from "../lib/utils";
+import { MagicCard } from "./ui/magic-card";
 
 interface DashboardHomeProps {
   onArtistClick: (artistId: Id<"artists">) => void;
@@ -141,7 +142,7 @@ export function DashboardHome({
   return (
     <div className="container mx-auto px-6 py-8 space-y-8">
       {/* Search Section */}
-      <div className="bg-card rounded-xl p-6 border border-border">
+      <MagicCard className="p-6">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold mb-2">Discover Artists & Shows</h1>
           <p className="text-muted-foreground">
@@ -213,12 +214,12 @@ export function DashboardHome({
             </div>
           </div>
         )}
-      </div>
+      </MagicCard>
 
       {/* Content Grid with compact horizontal carousels */}
       <div className="space-y-8">
         {/* Trending Artists */}
-        <div className="bg-card rounded-xl p-6 border border-border">
+        <MagicCard className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-2xl font-bold">Trending Artists</h2>
@@ -296,10 +297,10 @@ export function DashboardHome({
                 ))}
             </div>
           )}
-        </div>
+        </MagicCard>
 
         {/* Trending Shows */}
-        <div className="bg-card rounded-xl p-6 border border-border">
+        <MagicCard className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-2xl font-bold">Trending Shows</h2>
@@ -384,12 +385,12 @@ export function DashboardHome({
                 ))}
             </div>
           )}
-        </div>
+        </MagicCard>
       </div>
 
       {/* Call to Action for Anonymous Users */}
       {shouldShowSignInPrompt && (
-        <div className="bg-card rounded-xl p-6 border border-border text-center">
+        <MagicCard className="p-6 text-center">
           <Users className="h-12 w-12 mx-auto mb-4 text-primary" />
           <h3 className="text-xl font-bold mb-2">Join the Community</h3>
           <p className="text-muted-foreground mb-6">
@@ -401,7 +402,7 @@ export function DashboardHome({
           >
             Sign In to Get Started
           </button>
-        </div>
+        </MagicCard>
       )}
     </div>
   );
