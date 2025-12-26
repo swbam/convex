@@ -13,9 +13,10 @@ import { BlogPage } from './pages/BlogPage';
 import { BlogPostPage } from './pages/BlogPostPage';
 import { ArtistNotFound } from './components/ArtistNotFound';
 import { ShowNotFound } from './components/ShowNotFound'; // Assume similar for shows
-import { StudioLandingPage } from './pages/StudioLandingPage';
-import { StudioArtistPage } from './pages/StudioArtistPage';
-import { StudioShowDemandPage } from './pages/StudioShowDemandPage';
+import { ForArtistsPage } from './pages/ForArtistsPage';
+import { ForArtistsDashboardPage } from './pages/ForArtistsDashboardPage';
+import { ForArtistsShowDemandPage } from './pages/ForArtistsShowDemandPage';
+import { ForArtistsTeamPage } from './pages/ForArtistsTeamPage';
 
 // Error boundary component for 404
 function Error404({ resetErrorBoundary }: { resetErrorBoundary: () => void }) {
@@ -48,17 +49,35 @@ export const router = createBrowserRouter([
     path: '/spotify-connect',
     element: <SpotifyConnectPage />,
   },
+  // Artist portal routes (for-artists)
+  {
+    path: '/for-artists',
+    element: <ForArtistsPage />,
+  },
+  {
+    path: '/for-artists/:artistId',
+    element: <ForArtistsDashboardPage />,
+  },
+  {
+    path: '/for-artists/:artistId/shows/:showId',
+    element: <ForArtistsShowDemandPage />,
+  },
+  {
+    path: '/for-artists/:artistId/team',
+    element: <ForArtistsTeamPage />,
+  },
+  // Legacy redirects from /studio to /for-artists
   {
     path: '/studio',
-    element: <StudioLandingPage />,
+    element: <Navigate to="/for-artists" replace />,
   },
   {
     path: '/studio/:artistId',
-    element: <StudioArtistPage />,
+    element: <Navigate to="/for-artists" replace />,
   },
   {
     path: '/studio/:artistId/shows/:showId',
-    element: <StudioShowDemandPage />,
+    element: <Navigate to="/for-artists" replace />,
   },
   {
     path: '/dashboard',

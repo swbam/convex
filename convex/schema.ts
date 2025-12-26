@@ -376,6 +376,7 @@ const applicationTables = {
     userId: v.id("users"),
     role: v.union(v.literal("owner"), v.literal("manager"), v.literal("viewer")),
     createdAt: v.number(),
+    invitedBy: v.optional(v.id("users")),
   })
     .index("by_artist", ["artistId"])
     .index("by_user", ["userId"])
