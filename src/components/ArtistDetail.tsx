@@ -478,36 +478,44 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 })}
               </div>
             )}
-          </div>
+            </div>
+            <BorderBeam size={100} duration={8} className="opacity-20" />
+          </MagicCard>
 
           {/* Artist Stats */}
-          <div className="bg-card rounded-xl px-4 py-6 sm:p-6 border border-border">
-            <h3 className="text-xl font-bold mb-4">Artist Stats</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Upcoming shows</span>
-                <span className="font-medium">{upcomingShows.length}</span>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Total songs</span>
-                <span className="font-medium">{songs?.length || 0}</span>
-              </div>
-              
-              {artist.followers && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Followers</span>
-                  <span className="font-medium">{artist.followers.toLocaleString()}</span>
+          <MagicCard className="p-0 rounded-xl border border-border bg-card">
+            <div className="px-4 py-4 sm:p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
+                  <Users className="h-4 w-4 text-foreground" />
                 </div>
-              )}
-              
-              {artist.popularity && (
+                <h3 className="text-lg sm:text-xl font-bold text-foreground">Artist Stats</h3>
+              </div>
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Popularity</span>
-                  <span className="font-medium">{artist.popularity}%</span>
+                  <span className="text-sm text-muted-foreground">Upcoming shows</span>
+                  <span className="font-medium text-foreground">{upcomingShows.length}</span>
                 </div>
-              )}
-            </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Total songs</span>
+                  <span className="font-medium text-foreground">{songs?.length || 0}</span>
+                </div>
+                
+                {artist.followers && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Followers</span>
+                    <span className="font-medium text-foreground">{artist.followers.toLocaleString()}</span>
+                  </div>
+                )}
+                
+                {artist.popularity && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Popularity</span>
+                    <span className="font-medium text-foreground">{artist.popularity}%</span>
+                  </div>
+                )}
+              </div>
             </div>
             <BorderBeam size={100} duration={8} className="opacity-20" />
           </MagicCard>

@@ -754,7 +754,7 @@ export function ShowDetail({
         </div>
 
           {/* Sidebar - Right Column */}
-          <div className="space-y-0 sm:space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Songs Not Played - Only show after concert with actual setlist */}
             {hasActualSetlist && predictionSetlist?.songs && (() => {
               const unplayedSongs = (predictionSetlist.songs as any[])
