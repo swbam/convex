@@ -1,10 +1,9 @@
 import { action, internalAction, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { internal, api } from "./_generated/api";
+import { api } from "./_generated/api";
+import { internalRef } from "./adminHelpers";
 
-// Type workaround for Convex deep type instantiation issues
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const apiRef = api as any;
 
@@ -23,16 +22,16 @@ export const syncTrendingData = internalAction({
       console.warn("⏳ Trending sync already running, skipping this invocation");
       return null;
     }
-    
+
     try {
       // Step 1: Update artist show counts (cached)
       await ctx.runMutation(internalRef.trending.updateArtistShowCounts, {});
       console.log("✅ Updated artist show counts");
-      
+
       // Step 2: Update artist trending scores and ranks
       await ctx.runMutation(internalRef.trending.updateArtistTrending, {});
       console.log("✅ Updated artist trending ranks");
-      
+
       // Step 3: Update show trending scores and ranks
       await ctx.runMutation(internalRef.trending.updateShowTrending, {});
       console.log("✅ Updated show trending ranks");
@@ -48,7 +47,7 @@ export const syncTrendingData = internalAction({
     } finally {
       await ctx.runMutation(internalRef.maintenance.releaseLock, { name: lockName });
     }
-    
+
     return null;
   },
 });
@@ -117,19 +116,19 @@ export const fixArtistsWithNoSongs = action({
   handler: async (ctx, args): Promise<{ processed: number; imported: number; failed: number }> => {
     const limit = args.limit ?? 50;
     console.log(`🔍 Finding artists with 0 songs (limit: ${limit})...`);
-    
+
     // Get all artists
     const artists = await ctx.runQuery(internalRef.artists.getAllInternal, { limit });
     let processed = 0;
     let imported = 0;
     let failed = 0;
-    
+
     for (const artist of artists) {
       processed++;
-      
+
       // Check if artist has any songs
       const artistSongs = await ctx.runQuery(internalRef.artistSongs.getByArtist, { artistId: artist._id });
-      
+
       if (!artistSongs || artistSongs.length === 0) {
         console.log(`📥 Importing catalog for ${artist.name} (0 songs)...`);
         try {
@@ -138,7 +137,7 @@ export const fixArtistsWithNoSongs = action({
             artistName: artist.name,
           });
           imported++;
-          
+
           // Wait to respect rate limits
           await new Promise(r => setTimeout(r, 1000));
         } catch (error) {
@@ -147,14 +146,14 @@ export const fixArtistsWithNoSongs = action({
         }
       }
     }
-    
+
     console.log(`✅ Catalog import complete: ${imported} imported, ${failed} failed, ${processed - imported - failed} already had songs`);
-    
+
     // Now regenerate setlists for shows that don't have them
     console.log(`🎵 Regenerating missing setlists...`);
     const setlistResult = await ctx.runMutation(internalRef.setlists.refreshMissingAutoSetlists, { limit: 100 });
     console.log(`✅ Setlist generation: ${setlistResult.scheduled} setlist generations scheduled`);
-    
+
     return { processed, imported, failed };
   },
 });
@@ -178,22 +177,22 @@ export const regenerateEmptySetlists = internalMutation({
   handler: async (ctx, args) => {
     const limit = args.limit ?? 100;
     console.log(`🔍 Finding setlists with empty songs arrays (limit: ${limit})...`);
-    
+
     // Get all setlists
     const allSetlists = await ctx.db.query("setlists").take(limit * 2); // Get more to filter
-    
+
     // Filter for empty setlists (songs: [] or no songs)
-    const emptySetlists = allSetlists.filter(s => 
+    const emptySetlists = allSetlists.filter(s =>
       !s.isOfficial && // Don't touch official setlists
       (!s.songs || s.songs.length === 0) // Empty or missing songs
     );
-    
+
     console.log(`📊 Found ${emptySetlists.length} empty setlists out of ${allSetlists.length} total`);
-    
+
     let deleted = 0;
     let scheduled = 0;
     const showsToRegenerate = new Set<string>();
-    
+
     // Delete empty placeholders and collect shows that need regeneration
     for (const setlist of emptySetlists.slice(0, limit)) {
       try {
@@ -205,22 +204,22 @@ export const regenerateEmptySetlists = internalMutation({
         console.error(`❌ Failed to delete setlist ${setlist._id}:`, error);
       }
     }
-    
+
     // Schedule regeneration for each show with staggered delays
     const showIds = Array.from(showsToRegenerate);
     for (let i = 0; i < showIds.length; i++) {
       const showIdStr = showIds[i];
-      
+
       try {
         // Get show to find artistId - need to query since we only have string ID
         const shows = await ctx.db.query("shows").collect();
         const show = shows.find(s => s._id === showIdStr);
-        
+
         if (!show || !show.artistId) {
           console.log(`⚠️ Show ${showIdStr} not found or missing artistId, skipping`);
           continue;
         }
-        
+
         // Schedule with staggered delay (10 seconds apart)
         const delayMs = i * 10000;
         void ctx.scheduler.runAfter(delayMs, internalRef.setlists.autoGenerateSetlist, {
@@ -233,9 +232,9 @@ export const regenerateEmptySetlists = internalMutation({
         console.error(`❌ Failed to schedule regeneration for show ${showIdStr}:`, error);
       }
     }
-    
+
     console.log(`✅ Regeneration complete: ${deleted} empty setlists deleted, ${scheduled} regenerations scheduled`);
-    
+
     return {
       found: emptySetlists.length,
       deleted,
@@ -265,24 +264,24 @@ export const importTrendingShows = internalMutation({
   handler: async (ctx, args) => {
     const limit = args.limit ?? 50;
     const stats = { processed: 0, imported: 0, errors: 0 };
-    
+
     const cached = await ctx.db.query("trendingShows").take(limit);
-    
+
     for (const show of cached) {
       stats.processed++;
       if (show.showId) continue; // Skip if already imported
-      
+
       try {
         if (!show.artistName || !show.venueName || !show.date) continue;
-        
+
         // CRITICAL: US-only filter - skip non-US shows
         const country = (show.venueCountry || '').toLowerCase();
-        const isUS = country === 'united states of america' || 
-                     country === 'united states' || 
-                     country === 'usa' || 
-                     country === 'us';
+        const isUS = country === 'united states of america' ||
+          country === 'united states' ||
+          country === 'usa' ||
+          country === 'us';
         if (!isUS) continue;
-        
+
         // Get/create artist
         let artistId = show.artistId;
         if (!artistId) {
@@ -302,16 +301,16 @@ export const importTrendingShows = internalMutation({
             artistId = artist._id;
           }
         }
-        
+
         // Get/create venue
         let venue = await ctx.db.query("venues").withIndex("by_name_city", (q) => q.eq("name", show.venueName).eq("city", show.venueCity)).first();
         const venueId = venue ? venue._id : await ctx.db.insert("venues", { name: show.venueName, city: show.venueCity, country: show.venueCountry });
-        
+
         // Create show
         const artist = await ctx.db.get(artistId);
         const ven = await ctx.db.get(venueId);
         if (!artist || !ven) continue;
-        
+
         const slug = `${artist.slug}-${ven.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${ven.city.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${show.date}`.substring(0, 200);
         const showId = await ctx.db.insert("shows", {
           slug, artistId, venueId, date: show.date, startTime: show.startTime,
@@ -319,14 +318,14 @@ export const importTrendingShows = internalMutation({
           ticketmasterId: show.ticketmasterId, ticketUrl: show.ticketUrl, priceRange: show.priceRange,
           voteCount: 0, setlistCount: 0, trendingScore: 0, trendingRank: 0, lastSynced: Date.now(), lastTrendingUpdate: Date.now(),
         });
-        
+
         await ctx.db.patch(show._id, { showId, artistId });
         stats.imported++;
       } catch (e) {
         stats.errors++;
       }
     }
-    
+
     return stats;
   },
 });
@@ -334,7 +333,7 @@ export const importTrendingShows = internalMutation({
 export const triggerShowImport = action({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ processed: v.number(), imported: v.number(), errors: v.number() }),
-  handler: async (ctx, args): Promise<{processed: number; imported: number; errors: number}> => {
+  handler: async (ctx, args): Promise<{ processed: number; imported: number; errors: number }> => {
     return await ctx.runMutation(internalRef.maintenance.importTrendingShows, { limit: args.limit ?? 50 });
   },
 });
@@ -345,14 +344,14 @@ export const fixMissingArtistData = internalAction({
   returns: v.null(),
   handler: async (ctx) => {
     console.log("🔧 Starting data integrity maintenance...");
-    
+
     try {
       const incompleteArtists = await ctx.runQuery(internalRef.artists.getAllForMaintenance, {});
-      
+
       console.log(`📊 Found ${incompleteArtists.length} artists to check`);
-      
+
       let fixedCount = 0;
-      
+
       for (const artist of incompleteArtists.slice(0, 20)) {
         try {
           if (!artist.spotifyId && artist.name) {
@@ -370,13 +369,13 @@ export const fixMissingArtistData = internalAction({
           console.error(`❌ Failed to fix artist ${artist.name}:`, error);
         }
       }
-      
+
       console.log(`✅ Data integrity maintenance completed: ${fixedCount} artists fixed`);
-      
+
     } catch (error) {
       console.error("❌ Data integrity maintenance failed:", error);
     }
-    
+
     return null;
   },
 });
@@ -387,12 +386,12 @@ export const cleanupOrphanedRecords = internalAction({
   returns: v.null(),
   handler: async (ctx) => {
     console.log("🧹 Starting database cleanup...");
-    
+
     try {
       // Clean up shows with invalid artist references
       await ctx.runMutation(internalRef.shows.cleanupOrphanedShows, {});
       console.log("✅ Shows cleanup completed");
-      
+
       // Clean up orphaned songs (skip if it fails)
       try {
         await ctx.runMutation(internalRef.songs.cleanupOrphanedSongs, {});
@@ -400,12 +399,12 @@ export const cleanupOrphanedRecords = internalAction({
       } catch (songError) {
         console.log("⚠️ Songs cleanup skipped:", songError);
       }
-      
+
       console.log("✅ Database cleanup completed");
     } catch (error) {
       console.error("❌ Database cleanup failed:", error);
     }
-    
+
     return null;
   },
 });
@@ -416,20 +415,20 @@ export const fixNaNValues = internalAction({
   returns: v.null(),
   handler: async (ctx) => {
     console.log("🔧 Fixing NaN values in database...");
-    
+
     try {
       // Fix artists with NaN trending scores
       const artists = await ctx.runQuery(internalRef.artists.getAllForMaintenance, {});
       let fixedArtists = 0;
-      
+
       for (const artist of artists) {
         let needsUpdate = false;
-        
+
         // Fix NaN trendingScore by recalculating
         if (typeof artist.trendingScore === 'number' && !Number.isFinite(artist.trendingScore)) {
           needsUpdate = true;
         }
-        
+
         // Fix NaN popularity
         if (typeof artist.popularity === 'number' && !Number.isFinite(artist.popularity)) {
           await ctx.runMutation(internalRef.artists.updateSpotifyData, {
@@ -442,7 +441,7 @@ export const fixNaNValues = internalAction({
           });
           needsUpdate = true;
         }
-        
+
         // Fix NaN followers
         if (typeof artist.followers === 'number' && !Number.isFinite(artist.followers)) {
           await ctx.runMutation(internalRef.artists.updateSpotifyData, {
@@ -455,25 +454,25 @@ export const fixNaNValues = internalAction({
           });
           needsUpdate = true;
         }
-        
+
         if (needsUpdate) {
           fixedArtists++;
         }
       }
-      
+
       console.log(`✅ Fixed ${fixedArtists} artists with NaN values`);
-      
+
       // Recalculate trending scores with proper NaN handling
       await ctx.runMutation(internalRef.trending.updateArtistShowCounts, {});
       await ctx.runMutation(internalRef.trending.updateArtistTrending, {});
       await ctx.runMutation(internalRef.trending.updateShowTrending, {});
-      
+
       console.log("✅ Recalculated trending scores");
-      
+
     } catch (error) {
       console.error("❌ Failed to fix NaN values:", error);
     }
-    
+
     return null;
   },
 });
@@ -540,7 +539,7 @@ export const syncTrendingDataWithLogging = internalAction({
   handler: async (ctx) => {
     console.log("📈 Starting enhanced trending sync with logging...");
     const startTime = Date.now();
-    
+
     try {
       // Step 1: Update artist show counts
       await ctx.runMutation(internalRef.trending.updateArtistShowCounts, {});
@@ -563,7 +562,7 @@ export const syncTrendingDataWithLogging = internalAction({
             const existing = await ctx.runQuery(internalRef.artists.getByTicketmasterIdInternal, {
               ticketmasterId: tmArtist.ticketmasterId
             });
-            
+
             if (!existing) {
               console.log(`🆕 Importing trending artist: ${tmArtist.name}`);
               await ctx.runAction(apiRef.ticketmaster.triggerFullArtistSync, {
@@ -639,7 +638,7 @@ export const populateMissingFields = internalAction({
       try {
         const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: show.artistId });
         const venue = await ctx.runQuery(internalRef.venues.getByIdInternal, { id: show.venueId });
-        
+
         const needsSetlistImport =
           show.status === "completed" &&
           (show.importStatus === "pending" || show.importStatus === "failed" || !show.importStatus) &&
@@ -728,11 +727,11 @@ export const deleteOldErrorLogs = internalMutation({
       .query("errorLogs")
       .withIndex("by_timestamp", (q) => q.lt("timestamp", args.cutoff))
       .take(args.limit);
-    
+
     for (const log of logs) {
       await ctx.db.delete(log._id);
     }
-    
+
     return logs.length;
   },
 });
@@ -746,11 +745,11 @@ export const deleteOldWebhookEvents = internalMutation({
       .query("clerkWebhookEvents")
       .filter((q) => q.lt(q.field("processedAt"), args.cutoff))
       .take(args.limit);
-    
+
     for (const evt of events) {
       await ctx.db.delete(evt._id);
     }
-    
+
     return events.length;
   },
 });
@@ -794,12 +793,12 @@ export const deleteOldSyncJobs = internalMutation({
     if (args.status !== "completed" && args.status !== "failed") {
       return 0;
     }
-    
+
     const jobs = await ctx.db
       .query("syncJobs")
       .withIndex("by_status", (q) => q.eq("status", args.status as any))
       .take(args.limit);
-    
+
     let deleted = 0;
     for (const job of jobs) {
       const completedAt = job.completedAt ?? job.startedAt ?? job._creationTime;
@@ -808,7 +807,7 @@ export const deleteOldSyncJobs = internalMutation({
         deleted++;
       }
     }
-    
+
     return deleted;
   },
 });
@@ -828,7 +827,7 @@ export const cleanupOldJobsAndErrors = internalAction({
     const LOG_BATCH = 100;
     let logsDeleted = 0;
     let batch = 0;
-    
+
     do {
       batch = await ctx.runMutation(internalRef.maintenance.deleteOldErrorLogs, {
         cutoff,
@@ -865,24 +864,24 @@ export const deleteUnknownArtist = internalAction({
   returns: v.null(),
   handler: async (ctx) => {
     console.log("🧹 Cleaning up Unknown Artist and its shows...");
-    
+
     // Get the Unknown Artist
     const artist = await ctx.runQuery(internalRef.artists.getBySlugInternal, { slug: "unknown-artist" });
-    
+
     if (!artist) {
       console.log("✅ Unknown Artist already deleted or doesn't exist");
       return null;
     }
-    
+
     console.log(`🎯 Found Unknown Artist: ${artist._id}`);
-    
+
     // Delete all shows by this artist
-    const shows = await ctx.runQuery(internalRef.shows.getAllByArtistInternal, { 
-      artistId: artist._id 
+    const shows = await ctx.runQuery(internalRef.shows.getAllByArtistInternal, {
+      artistId: artist._id
     });
-    
+
     console.log(`📊 Found ${shows.length} shows to delete`);
-    
+
     for (const show of shows) {
       try {
         await ctx.runMutation(internalRef.shows.deleteShowInternal, { showId: show._id });
@@ -890,10 +889,10 @@ export const deleteUnknownArtist = internalAction({
         console.error(`Failed to delete show ${show._id}:`, error);
       }
     }
-    
+
     // Delete the artist
     await ctx.runMutation(internalRef.artists.deleteArtistInternal, { artistId: artist._id });
-    
+
     console.log(`✅ Deleted Unknown Artist and ${shows.length} associated shows`);
     return null;
   },
@@ -905,17 +904,17 @@ export const cleanupEmptySetlists = internalMutation({
   returns: v.object({ deleted: v.number(), checked: v.number() }),
   handler: async (ctx) => {
     console.log("🧹 Cleaning up setlists with empty songs array...");
-    
+
     const setlists = await ctx.db.query("setlists").take(500);
     let deleted = 0;
     let checked = 0;
-    
+
     for (const setlist of setlists) {
       checked++;
       // Delete if songs array is empty or missing (and not an official setlist with actualSetlist)
       const hasNoSongs = !setlist.songs || setlist.songs.length === 0;
       const hasNoActualSetlist = !setlist.actualSetlist || setlist.actualSetlist.length === 0;
-      
+
       // Only delete if user-submitted prediction with no songs
       if (hasNoSongs && !setlist.isOfficial && setlist.source === "user_submitted") {
         await ctx.db.delete(setlist._id);
@@ -923,7 +922,7 @@ export const cleanupEmptySetlists = internalMutation({
         console.log(`🗑️ Deleted empty prediction setlist: ${setlist._id}`);
       }
     }
-    
+
     console.log(`✅ Deleted ${deleted} empty setlists out of ${checked} checked`);
     return { deleted, checked };
   },
@@ -935,15 +934,15 @@ export const dedupeShows = internalMutation({
   returns: v.object({ duplicates: v.number(), deleted: v.number() }),
   handler: async (ctx, args) => {
     console.log("🔍 Finding duplicate shows (same artist + venue + date)...");
-    
+
     const shows = await ctx.db.query("shows").take(2000);
     const seenKeys = new Map<string, string>(); // key -> showId (keep first)
     let duplicates = 0;
     let deleted = 0;
-    
+
     for (const show of shows) {
       const key = `${show.artistId}::${show.venueId}::${show.date}`;
-      
+
       if (seenKeys.has(key)) {
         duplicates++;
         if (!args.dryRun) {
@@ -958,7 +957,7 @@ export const dedupeShows = internalMutation({
         seenKeys.set(key, show._id);
       }
     }
-    
+
     console.log(`✅ Found ${duplicates} duplicates${args.dryRun ? ' (dry run)' : `, deleted ${deleted}`}`);
     return { duplicates, deleted };
   },

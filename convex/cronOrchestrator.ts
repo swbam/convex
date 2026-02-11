@@ -1,12 +1,12 @@
 import { internalAction, internalMutation, internalQuery, query } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { internalRef } from "./adminHelpers";
 import { Id } from "./_generated/dataModel";
 import { requireAdmin } from "./admin";
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
+
 
 type JobKind = "mutation" | "action";
 

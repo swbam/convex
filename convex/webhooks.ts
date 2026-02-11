@@ -2,16 +2,16 @@
 
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { internalRef } from "./adminHelpers";
 import { Webhook } from "svix";
 import type { WebhookEvent } from "@clerk/backend";
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
+
 
 export const handleClerkWebhook = internalAction({
-  args: { 
+  args: {
     event: v.any(),
     svixId: v.optional(v.string()),
     svixTimestamp: v.optional(v.string()),
@@ -85,7 +85,7 @@ export const handleClerkWebhook = internalAction({
       // Surface as UNAUTHORIZED to HTTP layer
       throw verificationError;
     }
-    
+
     const event = args.event as WebhookEvent;
     console.log('🔵 Processing Clerk webhook:', event.type);
 

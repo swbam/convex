@@ -23,7 +23,7 @@ import { ActivityPage } from "./components/ActivityPage";
 import { toast } from "sonner";
 
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { AdminDashboard } from "./components/AdminDashboard";
+import AdminDashboard from "./components/AdminDashboard";
 import { AuthGuard } from "./components/AuthGuard";
 import { BackendErrorMonitor } from "./components/BackendErrorMonitor";
 
@@ -36,7 +36,7 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const _params = useParams();
-  
+
   const [currentView, setCurrentView] = useState<View>("home");
   const [selectedArtistId, setSelectedArtistId] = useState<Id<"artists"> | null>(null);
   const [selectedShowId, setSelectedShowId] = useState<Id<"shows"> | null>(null);
@@ -71,18 +71,18 @@ function App() {
     return null;
   };
 
-  const artistSlug = location.pathname.startsWith('/artists/') ? 
+  const artistSlug = location.pathname.startsWith('/artists/') ?
     getSlugFromPath(location.pathname, '/artists/') : null;
-  const showSlug = location.pathname.startsWith('/shows/') ? 
+  const showSlug = location.pathname.startsWith('/shows/') ?
     getSlugFromPath(location.pathname, '/shows/') : null;
-  const festivalSlug = location.pathname.startsWith('/festivals/') ? 
+  const festivalSlug = location.pathname.startsWith('/festivals/') ?
     getSlugFromPath(location.pathname, '/festivals/') : null;
 
   // Queries to resolve slugs/ids and canonicalize to Convex IDs
-  const artistBySlug = useQuery(api.artists.getBySlugOrId, 
+  const artistBySlug = useQuery(api.artists.getBySlugOrId,
     artistSlug ? { key: artistSlug } : 'skip'
   );
-  
+
   // Be resilient: accept slug or fallback to id string
   const showBySlugOrId = useQuery(
     api.shows.getBySlugOrId,
@@ -95,7 +95,7 @@ function App() {
   useEffect(() => {
     const path = location.pathname;
     console.log('🔄 Route change detected:', path, 'current view:', currentView);
-    
+
     // Basic SEO title updates per route
     if (path === '/') {
       document.title = 'setlists.live – Concert Setlists, Predictions, and Voting';
@@ -207,7 +207,7 @@ function App() {
       void navigate('/signin');
       return;
     }
-    
+
     setSelectedArtistId(null);
     setSelectedShowId(null);
     void navigate(`/${view === 'home' ? '' : view}`);
@@ -241,15 +241,15 @@ function App() {
   // Page transition variants - opacity-only to prevent layout shift
   const pageVariants = {
     initial: { opacity: 0 },
-    animate: { 
-      opacity: 1, 
+    animate: {
+      opacity: 1,
       transition: {
         duration: 0.2,
         ease: [0.25, 0.1, 0.25, 1]
       }
     },
-    exit: { 
-      opacity: 0, 
+    exit: {
+      opacity: 0,
       transition: { duration: 0.15 }
     }
   };
@@ -262,14 +262,14 @@ function App() {
         // artistBySlug === undefined → Query still pending (show loading skeleton)
         // artistBySlug === null → Artist not found in DB (show not found message)
         // artistBySlug === {...} → Artist found (show ArtistDetail)
-        
+
         if (location.pathname.startsWith('/artists/') && artistBySlug === undefined) {
           // Query is still loading
           const artistSlug = getSlugFromPath(location.pathname, '/artists/');
-          const artistName = artistSlug ? artistSlug.split('-').map(word => 
+          const artistName = artistSlug ? artistSlug.split('-').map(word =>
             word.charAt(0).toUpperCase() + word.slice(1)
           ).join(' ') : 'Artist';
-          
+
           return (
             <div className="container mx-auto px-4 sm:px-6 py-8">
               <MagicCard className="p-6 rounded-2xl border-0 bg-card">
@@ -291,14 +291,14 @@ function App() {
             </div>
           );
         }
-        
+
         if (location.pathname.startsWith('/artists/') && artistBySlug === null) {
           // Artist not found - show helpful message
           const artistSlug = getSlugFromPath(location.pathname, '/artists/');
-          const artistName = artistSlug ? artistSlug.split('-').map(word => 
+          const artistName = artistSlug ? artistSlug.split('-').map(word =>
             word.charAt(0).toUpperCase() + word.slice(1)
           ).join(' ') : 'Artist';
-          
+
           return (
             <div className="container mx-auto px-4 sm:px-6 py-8">
               <MagicCard className="p-6 rounded-2xl border-0 bg-card">
@@ -328,7 +328,7 @@ function App() {
             </div>
           );
         }
-        
+
         // Artist found - render detail page
         return selectedArtistId ? (
           <ArtistDetail
@@ -356,7 +356,7 @@ function App() {
             <div className="text-center py-8">
               <h2 className="text-2xl font-bold mb-4">Show Not Found</h2>
               <p className="text-muted-foreground mb-4">The show you're looking for doesn't exist.</p>
-              <button 
+              <button
                 onClick={() => handleViewChange("home")}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
               >
@@ -407,21 +407,21 @@ function App() {
         ) : null;
       case "trending":
         return (
-          <Trending 
+          <Trending
             onArtistClick={handleArtistClick}
             onShowClick={handleShowClick}
           />
         );
       case "dashboard":
         return (
-          <UserDashboard 
+          <UserDashboard
             onArtistClick={handleArtistClick}
             onShowClick={handleShowClick}
           />
         );
       case "activity":
         return (
-          <ActivityPage 
+          <ActivityPage
             onArtistClick={handleArtistClick}
             onShowClick={handleShowClick}
           />
@@ -454,10 +454,10 @@ function App() {
     <div className="min-h-screen min-h-dvh bg-background text-foreground w-full max-w-[100vw]" style={{ overflowX: 'clip' }}>
       {/* Backend error monitoring - sends Convex errors to Sentry */}
       <BackendErrorMonitor />
-      
+
       {/* Theme-aware gradient background */}
       <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-background dark:from-black dark:via-gray-950 dark:to-black pointer-events-none" />
-      
+
       <div className="relative z-10 w-full max-w-[100vw]" style={{ overflowX: 'clip' }}>
         <ErrorBoundary
           fallback={
@@ -483,18 +483,18 @@ function App() {
           <AuthGuard>
             <ScrollToTop />
             <AppLayout>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={location.pathname}
-                variants={pageVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-              >
-                {renderMainContent()}
-              </motion.div>
-            </AnimatePresence>
-          </AppLayout>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={location.pathname}
+                  variants={pageVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                >
+                  {renderMainContent()}
+                </motion.div>
+              </AnimatePresence>
+            </AppLayout>
           </AuthGuard>
         </ErrorBoundary>
       </div>

@@ -19,10 +19,10 @@ const applicationTables = {
     googleId: v.optional(v.string()),
     createdAt: v.number(),
   })
-    .index("by_auth_id", ["authId"]) 
+    .index("by_auth_id", ["authId"])
     .index("by_email", ["email"])
-    .index("by_username", ["username"]) 
-    .index("by_spotify_id", ["spotifyId"]) 
+    .index("by_username", ["username"])
+    .index("by_spotify_id", ["spotifyId"])
     .index("by_google_id", ["googleId"])
     .index("by_created_at", ["createdAt"]),
 
@@ -72,11 +72,11 @@ const applicationTables = {
     })),
   })
     .index("by_slug", ["slug"])
-    .index("by_name", ["name"]) 
+    .index("by_name", ["name"])
     .index("by_trending_score", ["trendingScore"])
-    .index("by_trending_rank", ["trendingRank"]) 
-    .index("by_spotify_id", ["spotifyId"]) 
-    .index("by_ticketmaster_id", ["ticketmasterId"]) 
+    .index("by_trending_rank", ["trendingRank"])
+    .index("by_spotify_id", ["spotifyId"])
+    .index("by_ticketmaster_id", ["ticketmasterId"])
     .index("by_lower_name", ["lowerName"])
     .index("by_last_synced", ["lastSynced"]),
 
@@ -92,8 +92,8 @@ const applicationTables = {
     ticketmasterId: v.optional(v.string()),
     postalCode: v.optional(v.string()),
   })
-    .index("by_location", ["city", "country"]) 
-    .index("by_ticketmaster_id", ["ticketmasterId"]) 
+    .index("by_location", ["city", "country"])
+    .index("by_ticketmaster_id", ["ticketmasterId"])
     .index("by_name_city", ["name", "city"]),
 
   // Festivals - multi-artist events like Coachella, Bonnaroo, etc.
@@ -151,8 +151,7 @@ const applicationTables = {
       v.literal("importing"),
       v.literal("completed"),
       v.literal("not_found"), // Setlist.fm doesn't have data for this show yet
-      v.literal("failed"),
-      v.literal("not_found")
+      v.literal("failed")
     )),
     // Festival-specific fields
     festivalId: v.optional(v.id("festivals")),
@@ -168,8 +167,8 @@ const applicationTables = {
     .index("by_status", ["status"])
     .index("by_status_and_artist", ["status", "artistId"]) // For status-filtered queries
     .index("by_artist_and_status", ["artistId", "status"]) // For artist page status filtering
-    .index("by_date", ["date"]) 
-    .index("by_ticketmaster_id", ["ticketmasterId"]) 
+    .index("by_date", ["date"])
+    .index("by_ticketmaster_id", ["ticketmasterId"])
     .index("by_trending_rank", ["trendingRank"])
     .index("by_import_status", ["importStatus"]) // For import monitoring
     .index("by_festival", ["festivalId"]), // For festival pages
@@ -255,9 +254,9 @@ const applicationTables = {
     voteType: v.literal("upvote"),
     createdAt: v.number(),
   })
-    .index("by_user_setlist_song", ["userId", "setlistId", "songTitle"]) 
-    .index("by_user", ["userId"]) 
-    .index("by_setlist_song", ["setlistId", "songTitle"]) 
+    .index("by_user_setlist_song", ["userId", "setlistId", "songTitle"])
+    .index("by_user", ["userId"])
+    .index("by_setlist_song", ["setlistId", "songTitle"])
     .index("by_setlist", ["setlistId"])
     .index("by_created_at", ["createdAt"]),
 
@@ -271,7 +270,7 @@ const applicationTables = {
     importedAt: v.optional(v.number()),
     lastUpdated: v.optional(v.number()),
   })
-    .index("by_user", ["userId"]) 
+    .index("by_user", ["userId"])
     .index("by_user_artist", ["userId", "artistId"]),
 
   // Lightweight audit/rate limit table for recent actions
@@ -280,8 +279,8 @@ const applicationTables = {
     action: v.string(),
     timestamp: v.number(),
   })
-    .index("by_user", ["userId"]) 
-    .index("by_action", ["action"]) 
+    .index("by_user", ["userId"])
+    .index("by_action", ["action"])
     .index("by_user_time", ["userId", "timestamp"]),
 
   // Cache for external trending artists (Ticketmaster) with simple indexing
@@ -297,8 +296,8 @@ const applicationTables = {
     rank: v.number(),
     lastUpdated: v.number(),
   })
-    .index("by_rank", ["rank"]) 
-    .index("by_ticketmaster_id", ["ticketmasterId"]) 
+    .index("by_rank", ["rank"])
+    .index("by_ticketmaster_id", ["ticketmasterId"])
     .index("by_artist", ["artistId"]),
 
   // Cache for external trending shows (Ticketmaster) with simple indexing
@@ -323,7 +322,7 @@ const applicationTables = {
     lastUpdated: v.number(),
     ticketmasterId: v.string(),
   })
-    .index("by_rank", ["rank"]) 
+    .index("by_rank", ["rank"])
     .index("by_ticketmaster_id", ["ticketmasterId"]),
 
   // Moderation: content flags raised by users
@@ -366,7 +365,7 @@ const applicationTables = {
     createdAt: v.number(),
     // Spotify user identity from Clerk external account providerUserId (auditability only)
     spotifyUserId: v.optional(v.string()),
-    
+
     // Email verification flow
     verificationEmail: v.optional(v.string()),
     verificationCode: v.optional(v.string()),
@@ -374,7 +373,10 @@ const applicationTables = {
     verificationCodeAttempts: v.optional(v.number()),
     emailVerified: v.optional(v.boolean()),
     emailVerifiedAt: v.optional(v.number()),
-    
+    // Rate limiting for email sends
+    emailSendCount: v.optional(v.number()),
+    emailSendWindowStart: v.optional(v.number()),
+
     // Professional context
     officialRole: v.optional(v.union(
       v.literal("artist"),     // The actual artist
@@ -385,15 +387,42 @@ const applicationTables = {
       v.literal("team")        // Other team member
     )),
     organizationName: v.optional(v.string()), // e.g., "Republic Records", "WME"
-    
+
     // Social proof / evidence
     officialWebsite: v.optional(v.string()),
     socialLinks: v.optional(v.array(v.string())), // Twitter, Instagram, etc.
     additionalContext: v.optional(v.string()),    // Free text explanation
-    
+
     // Legacy evidence field (keep for backwards compat)
     evidence: v.optional(v.array(v.object({ type: v.string(), value: v.string() }))),
-    
+
+    // Enhanced verification system
+    verificationMethod: v.optional(v.union(
+      v.literal("email_code"),       // Verified via email code
+      v.literal("email_domain"),     // User email domain matches artist domain
+      v.literal("website_code"),     // Verification code found on website
+      v.literal("social_twitter"),   // Code posted on Twitter
+      v.literal("social_instagram"), // Code posted on Instagram
+      v.literal("manual_review")     // Admin approved manually
+    )),
+    verifiedAt: v.optional(v.number()),
+    verificationProof: v.optional(v.string()), // URL or evidence reference
+
+    // Website/social verification code (unique per claim, like SETLISTS-A7X9K2B1)
+    websiteVerificationCode: v.optional(v.string()),
+    websiteVerificationCodeGeneratedAt: v.optional(v.number()),
+    websiteVerificationAttempts: v.optional(v.number()),
+    websiteVerificationLastAttempt: v.optional(v.number()),
+
+    // Domain verification status
+    domainVerificationStatus: v.optional(v.union(
+      v.literal("pending"),
+      v.literal("matched"),
+      v.literal("no_match"),
+      v.literal("no_domain")
+    )),
+    domainVerificationDetails: v.optional(v.string()), // e.g., "theband.com matched"
+
     // Review tracking
     reviewedAt: v.optional(v.number()),
     reviewedBy: v.optional(v.id("users")),
@@ -415,6 +444,30 @@ const applicationTables = {
     .index("by_artist", ["artistId"])
     .index("by_user", ["userId"])
     .index("by_user_artist", ["userId", "artistId"]),
+
+  // Team invitations that don't require pre-existing user accounts
+  artistInvites: defineTable({
+    artistId: v.id("artists"),
+    email: v.string(), // Normalized to lowercase
+    role: v.union(v.literal("manager"), v.literal("viewer")),
+    status: v.union(
+      v.literal("pending"),   // Awaiting acceptance
+      v.literal("accepted"),  // User accepted and joined
+      v.literal("expired"),   // Invite expired
+      v.literal("revoked")    // Owner revoked the invite
+    ),
+    inviteToken: v.string(), // Unique token for acceptance URL
+    invitedBy: v.id("users"),
+    createdAt: v.number(),
+    expiresAt: v.number(), // Invites expire after 7 days
+    acceptedAt: v.optional(v.number()),
+    acceptedBy: v.optional(v.id("users")), // The user who accepted
+  })
+    .index("by_artist", ["artistId"])
+    .index("by_email", ["email"])
+    .index("by_token", ["inviteToken"])
+    .index("by_status", ["status"])
+    .index("by_artist_email", ["artistId", "email"]),
 
   // Artist portal: aggregated per-show demand so dashboards don't scan songVotes
   showSongDemand: defineTable({
@@ -469,9 +522,9 @@ const applicationTables = {
     progressPercentage: v.optional(v.number()),
   })
     .index("by_status", ["status"])
-    .index("by_priority", ["priority"]) 
+    .index("by_priority", ["priority"])
     .index("by_type_and_status", ["type", "status"]),
-  
+
   // Simple lock table to prevent overlapping maintenance runs
   maintenanceLocks: defineTable({
     name: v.string(),

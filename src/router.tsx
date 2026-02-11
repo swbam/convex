@@ -1,5 +1,5 @@
 import React from 'react';
-import { createBrowserRouter, Navigate, useRouteError } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useRouteError, Outlet } from 'react-router-dom';
 import { App } from './App';
 import { SignInPage } from './pages/SignInPage';
 import { SignUpPage } from './pages/SignUpPage';
@@ -18,6 +18,8 @@ import { ForArtistsDashboardPage } from './pages/ForArtistsDashboardPage';
 import { ForArtistsShowDemandPage } from './pages/ForArtistsShowDemandPage';
 import { ForArtistsTeamPage } from './pages/ForArtistsTeamPage';
 import { ArtistClaimPage } from './pages/ArtistClaimPage';
+import { AcceptInvitePage } from './pages/AcceptInvitePage';
+import { ProtectedLayout } from './components/ProtectedLayout';
 
 // Error boundary component for 404
 function Error404({ resetErrorBoundary }: { resetErrorBoundary: () => void }) {
@@ -40,36 +42,40 @@ export const router = createBrowserRouter([
   },
   {
     path: '/sso-callback',
-    element: <SSOCallback />,
+    element: <ProtectedLayout><SSOCallback /></ProtectedLayout>,
   },
   {
     path: '/profile',
-    element: <UserProfilePage />,
+    element: <ProtectedLayout><UserProfilePage /></ProtectedLayout>,
   },
   {
     path: '/spotify-connect',
-    element: <SpotifyConnectPage />,
+    element: <ProtectedLayout><SpotifyConnectPage /></ProtectedLayout>,
   },
-  // Artist portal routes (for-artists)
+  // Artist portal routes (for-artists) - all protected with AuthGuard
   {
     path: '/for-artists',
-    element: <ForArtistsPage />,
+    element: <ProtectedLayout><ForArtistsPage /></ProtectedLayout>,
   },
   {
     path: '/for-artists/:artistId',
-    element: <ForArtistsDashboardPage />,
+    element: <ProtectedLayout><ForArtistsDashboardPage /></ProtectedLayout>,
   },
   {
     path: '/for-artists/:artistId/shows/:showId',
-    element: <ForArtistsShowDemandPage />,
+    element: <ProtectedLayout><ForArtistsShowDemandPage /></ProtectedLayout>,
   },
   {
     path: '/for-artists/:artistId/team',
-    element: <ForArtistsTeamPage />,
+    element: <ProtectedLayout><ForArtistsTeamPage /></ProtectedLayout>,
   },
   {
     path: '/for-artists/claim/:artistId',
-    element: <ArtistClaimPage />,
+    element: <ProtectedLayout><ArtistClaimPage /></ProtectedLayout>,
+  },
+  {
+    path: '/for-artists/invite/:token',
+    element: <ProtectedLayout><AcceptInvitePage /></ProtectedLayout>,
   },
   // Legacy redirects from /studio to /for-artists
   {

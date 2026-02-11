@@ -16,10 +16,15 @@ import {
   ArrowRight,
   ArrowLeft,
   Music,
+  Zap,
+  ExternalLink,
+  Copy,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
-type ClaimStep = "loading" | "email" | "verify" | "details" | "review" | "submitted";
+type ClaimStep = "loading" | "email" | "verify" | "details" | "review" | "submitted" | "auto_approved";
 
 const ROLES = [
   { value: "artist", label: "I am the artist", description: "You are the actual performing artist" },
@@ -54,10 +59,24 @@ export function ArtistClaimPage() {
   const updateDetails = useMutation((api as any).artistClaims.updateClaimDetails);
   const submitClaim = useMutation((api as any).artistClaims.submitClaim);
   
+  // Enhanced verification
+  const checkDomainMatch = useMutation((api as any).artistClaims.checkDomainMatch);
+  const verifyWebsite = useAction((api as any).artistClaims.verifyWebsiteCode);
+  
   const claim = useQuery(
     (api as any).artistClaims.getClaim,
     claimId ? { claimId } : "skip"
   );
+  
+  const verificationStatus = useQuery(
+    (api as any).artistClaims.getVerificationStatus,
+    claimId ? { claimId } : "skip"
+  );
+  
+  // State for enhanced verification
+  const [verifyingDomain, setVerifyingDomain] = useState(false);
+  const [verifyingWebsite, setVerifyingWebsite] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   // Get artist info
   const artist = useQuery(
@@ -188,6 +207,54 @@ export function ArtistClaimPage() {
       toast.error(error.message || "Failed to submit");
     }
     setLoading(false);
+  };
+
+  // Enhanced verification handlers
+  const handleDomainVerification = async () => {
+    if (!claimId) return;
+    setVerifyingDomain(true);
+    try {
+      const result = await checkDomainMatch({ claimId });
+      if (result.autoApproved) {
+        toast.success("Verified! Access granted.", { description: result.message });
+        setStep("auto_approved");
+      } else if (result.matched) {
+        toast.success(result.message);
+      } else {
+        toast.info(result.message);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Verification failed");
+    }
+    setVerifyingDomain(false);
+  };
+
+  const handleWebsiteVerification = async () => {
+    if (!claimId) return;
+    setVerifyingWebsite(true);
+    try {
+      const result = await verifyWebsite({ claimId });
+      if (result.autoApproved) {
+        toast.success("Verified! Access granted.", { description: result.message });
+        setStep("auto_approved");
+      } else if (result.verified) {
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Verification failed");
+    }
+    setVerifyingWebsite(false);
+  };
+
+  const handleCopyCode = async () => {
+    if (verificationStatus?.websiteVerification?.code) {
+      await navigator.clipboard.writeText(verificationStatus.websiteVerification.code);
+      setCodeCopied(true);
+      toast.success("Code copied to clipboard");
+      setTimeout(() => setCodeCopied(false), 2000);
+    }
   };
 
   // Render loading
@@ -501,70 +568,229 @@ export function ArtistClaimPage() {
           </MagicCard>
         )}
 
-        {/* Step: Review */}
+        {/* Step: Review with Enhanced Verification */}
         {step === "review" && claim && (
-          <MagicCard className="p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
-                <CheckCircle className="h-6 w-6 text-green-500" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold">Review & submit</h2>
-                <p className="text-sm text-muted-foreground">
-                  Make sure everything looks right
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-4 mb-8">
-              <div className="flex justify-between py-3 border-b border-border">
-                <span className="text-muted-foreground">Email</span>
-                <span className="font-medium">{claim.verificationEmail}</span>
-              </div>
-              <div className="flex justify-between py-3 border-b border-border">
-                <span className="text-muted-foreground">Role</span>
-                <span className="font-medium capitalize">{claim.officialRole}</span>
-              </div>
-              {claim.organizationName && (
-                <div className="flex justify-between py-3 border-b border-border">
-                  <span className="text-muted-foreground">Organization</span>
-                  <span className="font-medium">{claim.organizationName}</span>
+          <div className="space-y-6">
+            {/* Quick verification options */}
+            {verificationStatus && (verificationStatus.domainVerification?.available || verificationStatus.websiteVerification?.available) && (
+              <MagicCard className="p-6 border-2 border-primary/20 bg-primary/5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                    <Zap className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Fast-track verification</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Get instant access without waiting for review
+                    </p>
+                  </div>
                 </div>
-              )}
-              {claim.officialWebsite && (
-                <div className="flex justify-between py-3 border-b border-border">
-                  <span className="text-muted-foreground">Website</span>
-                  <a href={claim.officialWebsite} className="font-medium text-primary hover:underline" target="_blank" rel="noopener noreferrer">
-                    {claim.officialWebsite}
-                  </a>
-                </div>
-              )}
-            </div>
 
-            <div className="space-y-3">
-              <Button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="w-full"
-                size="lg"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Submitting...
-                  </>
-                ) : (
-                  "Submit for review"
+                <div className="space-y-4">
+                  {/* Domain match option */}
+                  {verificationStatus.domainVerification?.available && (
+                    <div className="p-4 rounded-xl bg-background border border-border">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Mail className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">Email domain match</span>
+                            {verificationStatus.domainVerification?.wouldMatch && (
+                              <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 text-xs font-medium">
+                                Likely match!
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {verificationStatus.domainVerification?.wouldMatch ? (
+                              <>Your email ({verificationStatus.domainVerification.emailDomain}) matches the website domain!</>
+                            ) : (
+                              <>Check if your email domain matches the website</>
+                            )}
+                          </p>
+                        </div>
+                        <Button
+                          variant={verificationStatus.domainVerification?.wouldMatch ? "default" : "outline"}
+                          size="sm"
+                          onClick={handleDomainVerification}
+                          disabled={verifyingDomain}
+                        >
+                          {verifyingDomain ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            "Check"
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Website code verification */}
+                  {verificationStatus.websiteVerification?.available && (
+                    <div className="p-4 rounded-xl bg-background border border-border">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Globe className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">Website verification</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Add this code to your website, then verify:
+                      </p>
+                      
+                      <div className="flex items-center gap-2 mb-3">
+                        <code className="flex-1 px-3 py-2 rounded-lg bg-secondary font-mono text-sm break-all">
+                          {verificationStatus.websiteVerification.code}
+                        </code>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCopyCode}
+                          className="shrink-0"
+                        >
+                          {codeCopied ? (
+                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+
+                      <details className="text-xs text-muted-foreground mb-3">
+                        <summary className="cursor-pointer hover:text-foreground">
+                          How to add to your website
+                        </summary>
+                        <div className="mt-2 p-3 rounded-lg bg-secondary space-y-2">
+                          <p><strong>Option 1:</strong> Add meta tag to your homepage:</p>
+                          <code className="block text-xs overflow-x-auto">
+                            {`<meta name="setlists-verify" content="${verificationStatus.websiteVerification.code}">`}
+                          </code>
+                          <p><strong>Option 2:</strong> Add the code as visible text anywhere on the page.</p>
+                        </div>
+                      </details>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleWebsiteVerification}
+                          disabled={verifyingWebsite}
+                          className="flex-1"
+                        >
+                          {verifyingWebsite ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              Checking...
+                            </>
+                          ) : (
+                            "Verify website"
+                          )}
+                        </Button>
+                        <a
+                          href={claim.officialWebsite}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </div>
+                      
+                      {verificationStatus.websiteVerification.attempts > 0 && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Attempts: {verificationStatus.websiteVerification.attempts}/{verificationStatus.websiteVerification.maxAttempts}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </MagicCard>
+            )}
+
+            {/* Claim summary */}
+            <MagicCard className="p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center">
+                  <CheckCircle className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold">Claim summary</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Or submit for manual review
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4 mb-8">
+                <div className="flex justify-between py-3 border-b border-border">
+                  <span className="text-muted-foreground">Email</span>
+                  <span className="font-medium">{claim.verificationEmail}</span>
+                </div>
+                <div className="flex justify-between py-3 border-b border-border">
+                  <span className="text-muted-foreground">Role</span>
+                  <span className="font-medium capitalize">{claim.officialRole}</span>
+                </div>
+                {claim.organizationName && (
+                  <div className="flex justify-between py-3 border-b border-border">
+                    <span className="text-muted-foreground">Organization</span>
+                    <span className="font-medium">{claim.organizationName}</span>
+                  </div>
                 )}
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => setStep("details")}
-                className="w-full"
-              >
-                Edit details
-              </Button>
+                {claim.officialWebsite && (
+                  <div className="flex justify-between py-3 border-b border-border">
+                    <span className="text-muted-foreground">Website</span>
+                    <a href={claim.officialWebsite} className="font-medium text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+                      {claim.officialWebsite}
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <Button
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  variant="outline"
+                  className="w-full"
+                  size="lg"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit for manual review"
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setStep("details")}
+                  className="w-full"
+                >
+                  Edit details
+                </Button>
+              </div>
+            </MagicCard>
+          </div>
+        )}
+
+        {/* Step: Auto-Approved */}
+        {step === "auto_approved" && (
+          <MagicCard className="p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-6">
+              <Zap className="h-8 w-8 text-green-500" />
             </div>
+            <h2 className="text-2xl font-bold mb-2">Verified!</h2>
+            <p className="text-muted-foreground mb-8">
+              Your claim was automatically verified. You now have access to the artist dashboard.
+            </p>
+            <Button 
+              onClick={() => navigate(`/for-artists/${artistId}`)} 
+              className="w-full" 
+              size="lg"
+            >
+              Open Dashboard
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
           </MagicCard>
         )}
 

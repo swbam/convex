@@ -14,7 +14,7 @@ import { MobileBottomNav } from './MobileBottomNav'
 import { PageContainer } from './PageContainer'
 import { Button } from './ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from './ui/dropdown-menu'
-import { Home, Mic, Menu, X, User, Settings, Shield, LogIn, Calendar, Activity, Sparkles } from 'lucide-react'
+import { Home, Mic, Menu, X, User, Settings, Shield, LogIn, Calendar, Activity, Sparkles, TrendingUp } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { MobileThemeToggle } from './MobileThemeToggle'
 
@@ -27,6 +27,7 @@ const navigationItems = [
   { name: 'Artists', href: '/artists', icon: Mic },
   { name: 'Shows', href: '/shows', icon: Calendar },
   { name: 'Festivals', href: '/festivals', icon: Sparkles },
+  { name: 'Trending', href: '/trending', icon: TrendingUp },
   { name: 'Studio', href: '/studio', icon: Settings },
 ]
 
@@ -35,7 +36,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { user, isSignedIn } = useUser()
-  
+
   // Get user's app data to check admin status
   const appUser = useQuery(api.auth.loggedInUser)
 
@@ -48,12 +49,12 @@ export function AppLayout({ children }: AppLayoutProps) {
     <div className="flex min-h-dvh bg-transparent text-foreground relative w-full max-w-[100vw]" style={{ overflowX: 'clip' }}>
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-50 bg-card/80 backdrop-blur-sm lg:hidden animate-in fade-in-0 duration-300"
           onClick={() => setSidebarOpen(false)}
         />
       )}
-      
+
       {/* Mobile-only Sidebar (hidden on desktop for centered layout) */}
       <aside className={`
         fixed inset-y-0 left-0 z-50 w-[85vw] max-w-sm transform transition-transform duration-300 ease-in-out
@@ -64,13 +65,13 @@ export function AppLayout({ children }: AppLayoutProps) {
           {/* Sidebar Header with Magic UI */}
           <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-xl border-b border-border">
             <div className="flex items-center justify-between p-4 sm:p-5">
-              <button 
+              <button
                 onClick={(e) => { e.preventDefault(); void navigate('/'); setSidebarOpen(false); }}
                 className="flex items-center group touch-target"
               >
                 <span className="text-2xl font-bold text-foreground group-hover:text-primary transition-colors" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>setlists.live</span>
               </button>
-              <button 
+              <button
                 className="touch-target flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all active:scale-95"
                 onClick={() => setSidebarOpen(false)}
                 aria-label="Close menu"
@@ -79,40 +80,38 @@ export function AppLayout({ children }: AppLayoutProps) {
               </button>
             </div>
           </div>
-          
+
           {/* Enhanced Navigation with Magic UI - Mobile Optimized */}
           <nav className="flex-1 px-3 py-4 space-y-1.5">
             {navigationItems.map((item) => {
-              const isActive = location.pathname === item.href || 
+              const isActive = location.pathname === item.href ||
                 (item.href !== '/' && location.pathname.startsWith(item.href))
               const IconComponent = item.icon
-              
+
               return (
                 <MagicCard
                   key={item.name}
-                  className={`relative overflow-hidden rounded-xl transition-all duration-200 ${
-                    isActive ? 'bg-primary/10 border-primary/20' : 'hover:bg-accent/50'
-                  }`}
+                  className={`relative overflow-hidden rounded-xl transition-all duration-200 ${isActive ? 'bg-primary/10 border-primary/20' : 'hover:bg-accent/50'
+                    }`}
                   gradientSize={0}
                   gradientColor="#000000"
                   gradientOpacity={0}
                 >
                   <button
                     onClick={() => {
-                       void navigate(item.href)
-                       setSidebarOpen(false)
-                     }}
+                      void navigate(item.href)
+                      setSidebarOpen(false)
+                    }}
                     className={`
                       w-full flex items-center px-4 py-3.5 text-responsive-base font-medium transition-all group touch-target
-                      ${isActive 
-                        ? 'text-primary' 
+                      ${isActive
+                        ? 'text-primary'
                         : 'text-muted-foreground hover:text-foreground'
                       }
                     `}
                   >
-                    <IconComponent className={`mr-3 h-5 w-5 transition-colors ${
-                      isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
-                    }`} />
+                    <IconComponent className={`mr-3 h-5 w-5 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                      }`} />
                     <span className="font-medium">{item.name}</span>
                     {isActive && (
                       <div className="ml-auto w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -121,33 +120,31 @@ export function AppLayout({ children }: AppLayoutProps) {
                 </MagicCard>
               )
             })}
-            
+
             {/* Dashboard link - only for signed-in users */}
             {isSignedIn && (
               <MagicCard
-                className={`relative overflow-hidden rounded-xl transition-all duration-200 ${
-                  location.pathname === '/dashboard' ? 'bg-primary/10 border-primary/20' : 'hover:bg-accent/50'
-                }`}
+                className={`relative overflow-hidden rounded-xl transition-all duration-200 ${location.pathname === '/dashboard' ? 'bg-primary/10 border-primary/20' : 'hover:bg-accent/50'
+                  }`}
                 gradientSize={0}
                 gradientColor="#000000"
                 gradientOpacity={0}
               >
                 <button
                   onClick={() => {
-                     void navigate('/dashboard')
-                     setSidebarOpen(false)
-                   }}
+                    void navigate('/dashboard')
+                    setSidebarOpen(false)
+                  }}
                   className={`
                     w-full flex items-center px-4 py-3.5 text-responsive-base font-medium transition-all group touch-target
                     ${location.pathname === '/dashboard'
-                      ? 'text-primary' 
+                      ? 'text-primary'
                       : 'text-muted-foreground hover:text-foreground'
                     }
                   `}
                 >
-                  <User className={`mr-3 h-5 w-5 transition-colors ${
-                    location.pathname === '/dashboard' ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
-                  }`} />
+                  <User className={`mr-3 h-5 w-5 transition-colors ${location.pathname === '/dashboard' ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                    }`} />
                   <span className="font-medium">My Dashboard</span>
                   {location.pathname === '/dashboard' && (
                     <div className="ml-auto w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -155,67 +152,63 @@ export function AppLayout({ children }: AppLayoutProps) {
                 </button>
               </MagicCard>
             )}
-            
+
             {/* Profile and Admin Links - Mobile */}
             {isSignedIn && (
               <>
                 <MagicCard
-                  className={`relative overflow-hidden rounded-xl transition-all duration-200 ${
-                    location.pathname === '/profile' ? 'bg-primary/10 border-primary/20' : 'hover:bg-accent/50'
-                  }`}
+                  className={`relative overflow-hidden rounded-xl transition-all duration-200 ${location.pathname === '/profile' ? 'bg-primary/10 border-primary/20' : 'hover:bg-accent/50'
+                    }`}
                   gradientSize={0}
                   gradientColor="#000000"
                   gradientOpacity={0}
                 >
                   <button
                     onClick={() => {
-                       void navigate('/profile')
-                       setSidebarOpen(false)
-                     }}
+                      void navigate('/profile')
+                      setSidebarOpen(false)
+                    }}
                     className={`
                       w-full flex items-center px-4 py-3.5 text-responsive-base font-medium transition-all group touch-target
                       ${location.pathname === '/profile'
-                        ? 'text-primary' 
+                        ? 'text-primary'
                         : 'text-muted-foreground hover:text-foreground'
                       }
                     `}
                   >
-                    <User className={`mr-3 h-5 w-5 transition-colors ${
-                      location.pathname === '/profile' ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
-                    }`} />
+                    <User className={`mr-3 h-5 w-5 transition-colors ${location.pathname === '/profile' ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                      }`} />
                     <span className="font-medium">Profile</span>
                     {location.pathname === '/profile' && (
                       <div className="ml-auto w-2 h-2 rounded-full bg-primary animate-pulse" />
                     )}
                   </button>
                 </MagicCard>
-                
+
                 {/* Admin Link - Mobile */}
                 {appUser?.appUser?.role === 'admin' && (
                   <MagicCard
-                    className={`relative overflow-hidden rounded-xl transition-all duration-200 ${
-                      location.pathname.startsWith('/admin') ? 'bg-primary/10 border-primary/20' : 'hover:bg-accent/50'
-                    }`}
+                    className={`relative overflow-hidden rounded-xl transition-all duration-200 ${location.pathname.startsWith('/admin') ? 'bg-primary/10 border-primary/20' : 'hover:bg-accent/50'
+                      }`}
                     gradientSize={0}
                     gradientColor="#000000"
                     gradientOpacity={0}
                   >
                     <button
                       onClick={() => {
-                         void navigate('/admin')
-                         setSidebarOpen(false)
-                       }}
+                        void navigate('/admin')
+                        setSidebarOpen(false)
+                      }}
                       className={`
                         w-full flex items-center px-4 py-3.5 text-responsive-base font-medium transition-all group touch-target
                         ${location.pathname.startsWith('/admin')
-                          ? 'text-primary' 
+                          ? 'text-primary'
                           : 'text-muted-foreground hover:text-foreground'
                         }
                       `}
                     >
-                      <Shield className={`mr-3 h-5 w-5 transition-colors ${
-                        location.pathname.startsWith('/admin') ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
-                      }`} />
+                      <Shield className={`mr-3 h-5 w-5 transition-colors ${location.pathname.startsWith('/admin') ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                        }`} />
                       <span className="font-medium">Admin</span>
                       {location.pathname.startsWith('/admin') && (
                         <div className="ml-auto w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -226,7 +219,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               </>
             )}
           </nav>
-          
+
           {/* Enhanced User Section with Magic UI */}
           <div className="p-3 border-t border-border sticky bottom-0 bg-background/95 backdrop-blur-xl">
             {isSignedIn && user ? (
@@ -241,7 +234,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-responsive-sm font-semibold text-foreground truncate">
-                        {user.firstName && user.lastName 
+                        {user.firstName && user.lastName
                           ? `${user.firstName} ${user.lastName}`
                           : user.emailAddresses[0]?.emailAddress || 'User'}
                       </p>
@@ -251,14 +244,14 @@ export function AppLayout({ children }: AppLayoutProps) {
                     </div>
                   </div>
                 </MagicCard>
-                
+
                 <div className="space-y-2">
                   <SignOutButton />
                 </div>
               </div>
             ) : (
               <MagicCard className="relative overflow-hidden rounded-xl bg-primary/5 border-primary/20">
-                <button 
+                <button
                   onClick={() => { void navigate('/signin'); setSidebarOpen(false); }}
                   className="w-full px-4 py-3.5 text-responsive-base font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl transition-all duration-200 relative z-10 touch-target"
                 >
@@ -270,29 +263,29 @@ export function AppLayout({ children }: AppLayoutProps) {
           </div>
         </div>
       </aside>
-      
+
       {/* Top navigation - FIXED at root level for reliable sticky behavior */}
       <header className="fixed top-0 left-0 right-0 z-[100] border-b border-border bg-background/95 backdrop-blur-xl safe-area-top shadow-sm">
         <div className="px-4 sm:px-6 lg:px-8 h-14 flex items-center">
           <div className="mx-auto w-full max-w-page-full flex items-center gap-4">
-            <button onClick={(e)=>{e.preventDefault(); void navigate('/')}} className="flex items-center touch-target flex-shrink-0">
+            <button onClick={(e) => { e.preventDefault(); void navigate('/') }} className="flex items-center touch-target flex-shrink-0">
               <span className="text-xl sm:text-2xl font-bold text-foreground" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>setlists.live</span>
             </button>
 
             <nav className="hidden md:flex items-center gap-1">
-              <button onClick={()=>void navigate('/')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname==='/'?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Home</button>
-              <button onClick={()=>void navigate('/artists')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/artists')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Artists</button>
-              <button onClick={()=>void navigate('/shows')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/shows')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Shows</button>
-              <button onClick={()=>void navigate('/festivals')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/festivals')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Festivals</button>
-              <button onClick={()=>void navigate('/trending')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/trending')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Trending</button>
-              <button onClick={()=>void navigate('/blog')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/blog')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Blog</button>
+              <button onClick={() => void navigate('/')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname === '/' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Home</button>
+              <button onClick={() => void navigate('/artists')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/artists') ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Artists</button>
+              <button onClick={() => void navigate('/shows')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/shows') ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Shows</button>
+              <button onClick={() => void navigate('/festivals')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/festivals') ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Festivals</button>
+              <button onClick={() => void navigate('/trending')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/trending') ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Trending</button>
+              <button onClick={() => void navigate('/blog')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/blog') ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Blog</button>
               {/* Dashboard link - only show for signed-in users */}
               {isSignedIn && (
-                <button onClick={()=>void navigate('/dashboard')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname==='/dashboard'?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Dashboard</button>
+                <button onClick={() => void navigate('/dashboard')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname === '/dashboard' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Dashboard</button>
               )}
               {/* Admin link - only show for admin users */}
               {appUser?.appUser?.role === 'admin' && (
-                <button onClick={()=>void navigate('/admin')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/admin')?'bg-accent text-foreground':'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Admin</button>
+                <button onClick={() => void navigate('/admin')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/admin') ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Admin</button>
               )}
             </nav>
 
@@ -317,7 +310,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               <div className="hidden md:block">
                 <ThemeToggle />
               </div>
-              
+
               {/* User Account Dropdown */}
               {isSignedIn && user ? (
                 <DropdownMenu>
@@ -371,7 +364,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               </div>
 
               {/* Mobile menu button */}
-              <button 
+              <button
                 className="md:hidden touch-target flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all active:scale-95"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Open menu"
@@ -388,13 +381,13 @@ export function AppLayout({ children }: AppLayoutProps) {
         {/* Main Content Area with Enhanced Background */}
         <main className="flex-1 bg-transparent flex flex-col min-w-0 w-full pb-16 md:pb-0" style={{ overflowX: 'clip' }}>
           <div className="flex-1 min-w-0 relative w-full max-w-[100vw]">
-            <PageContainer 
+            <PageContainer
               variant={location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists') ? 'full' : (location.pathname === '/' ? 'wide' : 'narrow')}
               noPadding={location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists')}
             >
               <SyncProgress />
               {location.pathname === '/' ? (
-                <PublicDashboard 
+                <PublicDashboard
                   onArtistClick={(artistId) => {
                     void navigate(`/artists/${artistId}`)
                   }}
@@ -418,7 +411,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           </div>
         </main>
       </div>
-      
+
       {/* Mobile Bottom Nav - FIXED at root level */}
       <MobileBottomNav onMenuClick={() => setSidebarOpen(true)} />
     </div>

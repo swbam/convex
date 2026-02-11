@@ -1,11 +1,11 @@
 import { cronJobs } from "convex/server";
-import { internal } from "./_generated/api";
+import { internalRef } from "./adminHelpers";
 
 const crons = cronJobs();
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
+
 
 // ============================================================================
 // OPTIMIZED CRON SCHEDULE - Minimized for cost efficiency

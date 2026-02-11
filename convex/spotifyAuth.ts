@@ -3,11 +3,10 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 import { action, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
-import { internal, api } from "./_generated/api";
+import { api } from "./_generated/api";
+import { internalRef } from "./adminHelpers";
 
-// Type workaround for Convex deep type instantiation issues
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const apiRef = api as any;
 
@@ -85,10 +84,10 @@ export const storeSpotifyTokens = action({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
-    
+
     const user: any = await ctx.runQuery(apiRef.auth.loggedInUser, {});
     if (!user?.appUser) throw new Error("User not found");
-    
+
     await ctx.runMutation(internalRef.spotifyAuthQueries.setUserSpotifyId, {
       userId: user.appUser._id,
       spotifyId: args.spotifyId,
@@ -158,16 +157,16 @@ export const importUserSpotifyArtistsWithToken = action({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
-    
+
     const user = await ctx.runQuery(apiRef.auth.loggedInUser, {});
     if (!user?.appUser) throw new Error("User not found");
-    
+
     console.log("🎵 Importing user's Spotify artists...");
-    
+
     try {
       // Combine and deduplicate artists
       const allArtists = new Map();
-      
+
       // Add followed artists
       args.followedArtists.forEach((artist) => {
         allArtists.set(artist.id, {
@@ -181,7 +180,7 @@ export const importUserSpotifyArtistsWithToken = action({
           isTopArtist: false,
         });
       });
-      
+
       // Add/update with top artists
       args.topArtists.forEach((artist, index) => {
         const existing = allArtists.get(artist.id);
@@ -202,16 +201,16 @@ export const importUserSpotifyArtistsWithToken = action({
           });
         }
       });
-      
+
       console.log(`📊 Found ${allArtists.size} unique artists from Spotify`);
-      
+
       // Get user ID
       const user = await ctx.runQuery(apiRef.auth.loggedInUser, {});
       if (!user?.appUser) throw new Error("User not found");
-      
+
       let imported = 0;
       let correlated = 0;
-      
+
       // Process artists in priority order (top artists first, then by popularity)
       const sortedArtists = Array.from(allArtists.values()).sort((a, b) => {
         // Prioritize top artists
@@ -223,7 +222,7 @@ export const importUserSpotifyArtistsWithToken = action({
         // Then by popularity
         return b.popularity - a.popularity;
       });
-      
+
       // Process each artist
       for (const spotifyArtist of sortedArtists) {
         try {
@@ -231,15 +230,15 @@ export const importUserSpotifyArtistsWithToken = action({
           const existingArtist = await ctx.runQuery(apiRef.artists.getBySpotifyId, {
             spotifyId: spotifyArtist.spotifyId,
           });
-          
+
           let artistId = existingArtist?._id;
-          
+
           if (!existingArtist) {
             // Search by name as fallback
             const byName = await ctx.runQuery(apiRef.artists.getByName, {
               name: spotifyArtist.name,
             });
-            
+
             if (byName) {
               // Update existing artist with Spotify data
               await ctx.runMutation(internalRef.artists.updateSpotifyData, {
@@ -264,13 +263,13 @@ export const importUserSpotifyArtistsWithToken = action({
                 lastSynced: Date.now(),
               });
               imported++;
-              
+
               // Schedule background sync for shows and full catalog (don't await)
               void ctx.scheduler.runAfter(0, internalRef.spotify.syncArtistCatalog, {
                 artistId,
                 artistName: spotifyArtist.name,
               });
-              
+
               // Try to find and sync shows from Ticketmaster (don't await)
               void ctx.scheduler.runAfter(1000, internalRef.ticketmaster.searchAndSyncArtistShows, {
                 artistId,
@@ -280,7 +279,7 @@ export const importUserSpotifyArtistsWithToken = action({
           } else {
             correlated++;
           }
-          
+
           // Track this artist for the user
           if (artistId) {
             await ctx.runMutation(internalRef.spotifyAuthQueries.trackUserArtist, {
@@ -291,20 +290,20 @@ export const importUserSpotifyArtistsWithToken = action({
               topArtistRank: spotifyArtist.topArtistRank,
             });
           }
-          
+
         } catch (error) {
           console.error(`Failed to process artist ${spotifyArtist.name}:`, error);
         }
       }
-      
+
       console.log(`✅ Imported ${imported} new artists, correlated ${correlated} existing artists`);
-      
+
       return {
         imported,
         correlated,
         message: `Successfully imported ${imported} new artists and found ${correlated} existing artists from your Spotify`,
       };
-      
+
     } catch (error) {
       console.error("❌ Failed to import Spotify artists:", error);
       throw new Error(`Failed to import Spotify artists: ${error instanceof Error ? error.message : "Unknown error"}`);

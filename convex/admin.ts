@@ -1,37 +1,19 @@
-import { action, mutation, query, internalAction, internalMutation, internalQuery, QueryCtx, MutationCtx, ActionCtx } from "./_generated/server";
+import { action, mutation, query, internalAction, internalMutation, internalQuery, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const apiRef: any = require("./_generated/api").api;
 import { Id } from "./_generated/dataModel";
+import {
+  requireAdmin,
+  requireAdminForAction,
+  isRealConcert,
+  isNonStudioSong,
+  normalizeSongKey,
+  isUSCountry,
+  internalRef,
+  apiRef,
+} from "./adminHelpers";
 
-// Type workaround for Convex deep type instantiation issues
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
-
-// Helper function to check if user is admin (for queries/mutations)
-export const requireAdmin = async (ctx: QueryCtx | MutationCtx): Promise<Id<"users">> => {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) {
-    throw new Error("Must be logged in");
-  }
-  
-  const user = await ctx.db
-    .query("users")
-    .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
-    .first();
-  
-  if (!user) {
-    throw new Error("User not found");
-  }
-  
-  if (user.role !== "admin") {
-    throw new Error("Admin access required");
-  }
-  
-  return user._id;
-};
+// Re-export requireAdmin for backward compat (other files may import from admin.ts)
+export { requireAdmin } from "./adminHelpers";
 
 // Internal query to check if user is admin (for use in actions)
 export const checkAdminInternal = internalQuery({
@@ -40,12 +22,12 @@ export const checkAdminInternal = internalQuery({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return false;
-    
+
     const user = await ctx.db
       .query("users")
       .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
       .first();
-    
+
     return user?.role === "admin" || false;
   },
 });
@@ -83,14 +65,7 @@ export const getRecentAuditLogs = query({
   },
 });
 
-// Helper for actions to require admin
-const requireAdminForAction = async (ctx: ActionCtx): Promise<void> => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isAdmin: boolean = await ctx.runQuery(internalRef.admin.checkAdminInternal as any, {});
-  if (!isAdmin) {
-    throw new Error("Admin access required");
-  }
-};
+// requireAdminForAction is now imported from ./adminHelpers
 
 // Check if current user is admin (for frontend)
 export const isCurrentUserAdmin = query({
@@ -99,12 +74,12 @@ export const isCurrentUserAdmin = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return false;
-    
+
     const user = await ctx.db
       .query("users")
       .withIndex("by_auth_id", (q) => q.eq("authId", identity.subject))
       .first();
-    
+
     return user?.role === "admin" || false;
   },
 });
@@ -292,9 +267,8 @@ export const testSpotifyClientCredentials = action({
     } catch (error) {
       return {
         success: false,
-        message: `Spotify client credentials test failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        message: `Spotify client credentials test failed: ${error instanceof Error ? error.message : String(error)
+          }`,
       };
     }
   },
@@ -344,7 +318,7 @@ export const ensureAdminByAuthIdInternal = internalMutation({
 
     if (!user) {
       console.log(`⚠️ No user found with authId ${args.authId}`);
-    return { success: true, updated: false };
+      return { success: true, updated: false };
     }
 
     if (user.role === "admin") {
@@ -368,7 +342,7 @@ export const getAdminStatsInternal = internalQuery({
     const shows = await ctx.db.query("shows").collect();
     const setlists = await ctx.db.query("setlists").collect();
     const votes = await ctx.db.query("votes").collect();
-    
+
     return {
       totalUsers: users.length,
       totalArtists: artists.length,
@@ -394,14 +368,14 @@ export const flagContent = mutation({
   handler: async (ctx, args) => {
     const authId = await ctx.auth.getUserIdentity();
     if (!authId) throw new Error("Must be logged in to flag content");
-    
+
     const user = await ctx.db
       .query("users")
       .withIndex("by_auth_id", (q) => q.eq("authId", authId.subject))
       .unique();
-    
+
     if (!user) throw new Error("User not found");
-    
+
     await ctx.db.insert("contentFlags", {
       contentType: args.contentType,
       contentId: args.contentId,
@@ -410,24 +384,24 @@ export const flagContent = mutation({
       createdAt: Date.now(),
       status: "pending",
     });
-    
+
     return { success: true };
   },
 });
 
 export const getFlaggedContent = query({
-  args: { 
+  args: {
     status: v.optional(v.union(v.literal("pending"), v.literal("resolved"), v.literal("dismissed")))
   },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
     await requireAdmin(ctx); // Admin access required
     const query = ctx.db.query("contentFlags");
-    
+
     if (args.status) {
       return await query.filter((q) => q.eq(q.field("status"), args.status)).collect();
     }
-    
+
     return await query.collect();
   },
 });
@@ -443,11 +417,11 @@ export const verifySetlist = mutation({
   handler: async (ctx, args) => {
     await requireAdmin(ctx); // ENHANCED: Require admin access
 
-    await ctx.db.patch(args.setlistId, { 
+    await ctx.db.patch(args.setlistId, {
       verified: args.verified,
       lastUpdated: Date.now(),
     });
-    
+
     console.log(`✅ Setlist ${args.setlistId} verification: ${args.verified}`);
 
     return { success: true };
@@ -462,13 +436,13 @@ export const dismissFlag = mutation({
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const adminId = await requireAdmin(ctx);
-    
+
     await ctx.db.patch(args.flagId, {
       status: "dismissed",
       reviewedBy: adminId,
       reviewedAt: Date.now(),
     });
-    
+
     console.log(`✅ Flag ${args.flagId} dismissed by admin ${adminId}`);
     return { success: true };
   },
@@ -482,13 +456,13 @@ export const resolveFlag = mutation({
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const adminId = await requireAdmin(ctx);
-    
+
     await ctx.db.patch(args.flagId, {
       status: "reviewed",
       reviewedBy: adminId,
       reviewedAt: Date.now(),
     });
-    
+
     console.log(`✅ Flag ${args.flagId} resolved by admin ${adminId}`);
     return { success: true };
   },
@@ -571,30 +545,62 @@ export const getAdminStats = query({
   returns: v.any(),
   handler: async (ctx) => {
     await requireAdmin(ctx); // Admin access required
-    
+
     try {
-      const [users, artists, shows, setlists, votes] = await Promise.all([
-        ctx.db.query("users").collect(),
-        ctx.db.query("artists").collect(),
-        ctx.db.query("shows").collect(),
-        ctx.db.query("setlists").collect(),
-        ctx.db.query("votes").collect(),
+      // Helper: count rows in a table via paginated reads (avoids loading all data into memory)
+      async function countTable(tableName: "users" | "artists" | "shows" | "setlists" | "votes") {
+        let count = 0;
+        let isDone = false;
+        let cursor = null;
+        while (!isDone) {
+          const page: any = await ctx.db.query(tableName).paginate({ numItems: 500, cursor: cursor as any });
+          count += page.page.length;
+          isDone = page.isDone;
+          cursor = page.continueCursor;
+        }
+        return count;
+      }
+
+      // Count tables with paginated reads — never loads entire table into memory
+      const [totalUsers, totalArtists, totalShows, totalSetlists, totalVotes] = await Promise.all([
+        countTable("users"),
+        countTable("artists"),
+        countTable("shows"),
+        countTable("setlists"),
+        countTable("votes"),
       ]);
-      
-      // Calculate trending metrics with safe fallbacks
-      const activeUsers = users.length;
+
+      // Count upcoming shows (uses index if available)
+      const upcomingShows = (await ctx.db.query("shows")
+        .filter((q) => q.eq(q.field("status"), "upcoming"))
+        .take(10000)).length;
+
+      // Count official setlists
+      const officialSetlists = (await ctx.db.query("setlists")
+        .filter((q) => q.eq(q.field("isOfficial"), true))
+        .take(10000)).length;
+
+      // Recent votes (last 7 days) — paginated
       const last7Days = Date.now() - (7 * 24 * 60 * 60 * 1000);
-      const recentVotes = votes.filter(v => v.createdAt && v.createdAt > last7Days).length;
-      
-      // Top voted setlists with error handling
+      const recentVotesPage = await ctx.db.query("votes")
+        .withIndex("by_creation_time")
+        .order("desc")
+        .filter((q) => q.gte(q.field("createdAt"), last7Days))
+        .take(10000);
+      const recentVotes = recentVotesPage.length;
+
+      // Top voted setlists — use recent votes only to avoid full scan
       const setlistVoteCounts = new Map<Id<"setlists">, number>();
-      votes.forEach(vote => {
+      const recentVotesForTop = await ctx.db.query("votes")
+        .order("desc")
+        .take(1000); // Sample last 1000 votes for top setlists
+      recentVotesForTop.forEach(vote => {
         if (vote.setlistId) {
           const count = setlistVoteCounts.get(vote.setlistId) || 0;
           setlistVoteCounts.set(vote.setlistId, count + 1);
         }
       });
-      
+
       const topSetlists = Array.from(setlistVoteCounts.entries())
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5)
@@ -602,10 +608,10 @@ export const getAdminStats = query({
           try {
             const setlist = await ctx.db.get(setlistId);
             if (!setlist) return null;
-            
+
             const show = setlist.showId ? await ctx.db.get(setlist.showId) : null;
             const artist = show && show.artistId ? await ctx.db.get(show.artistId) : null;
-            
+
             return {
               setlistId,
               voteCount,
@@ -616,25 +622,24 @@ export const getAdminStats = query({
             return null;
           }
         });
-      
+
       const topSetlistsResolved = (await Promise.all(topSetlists)).filter(Boolean);
-      
+
       return {
-        totalUsers: users.length,
-        activeUsers,
+        totalUsers,
+        activeUsers: totalUsers,
         bannedUsers: 0,
-        totalArtists: artists.length,
-        totalShows: shows.length,
-        upcomingShows: shows.filter(s => s.status === "upcoming").length,
-        totalSetlists: setlists.length,
-        officialSetlists: setlists.filter(s => s.isOfficial === true).length,
-        totalVotes: votes.length,
+        totalArtists,
+        totalShows,
+        upcomingShows,
+        totalSetlists,
+        officialSetlists,
+        totalVotes,
         recentVotes,
         topSetlists: topSetlistsResolved,
       };
     } catch (error) {
       console.error("Error in getAdminStats:", error);
-      // Return safe defaults if query fails
       return {
         totalUsers: 0,
         activeUsers: 0,
@@ -669,10 +674,10 @@ export const syncTrending = action({
 
     try {
       console.log("📊 Admin triggered trending sync...");
-      
+
       // Use the optimized maintenance action to sync trending data
       await ctx.runAction(internalRef.maintenance.syncTrendingData, {});
-      
+
       return {
         success: true,
         message: "Successfully updated trending rankings for artists and shows",
@@ -784,11 +789,11 @@ export const refreshTrendingCache = action({
     await requireAdminForAction(ctx);
     try {
       console.log("🔄 Refreshing trending cache from Ticketmaster...");
-      
+
       // Step 1: Fetch fresh trending shows from Ticketmaster API
       const freshShows = await ctx.runAction(internalRef.ticketmaster.getTrendingShows, { limit: 100 });
       console.log(`📊 Fetched ${freshShows.length} shows from Ticketmaster`);
-      
+
       // Step 2: Replace the trending cache with fresh data
       if (freshShows.length > 0) {
         await ctx.runMutation(internalRef.trending.replaceTrendingShowsCache, {
@@ -812,11 +817,11 @@ export const refreshTrendingCache = action({
         });
         console.log("✅ Trending shows cache updated");
       }
-      
+
       // Step 3: Fetch fresh trending artists from Ticketmaster
       const freshArtists = await ctx.runAction(internalRef.ticketmaster.getTrendingArtists, { limit: 50 });
       console.log(`📊 Fetched ${freshArtists.length} artists from Ticketmaster`);
-      
+
       if (freshArtists.length > 0) {
         await ctx.runMutation(internalRef.trending.replaceTrendingArtistsCache, {
           fetchedAt: Date.now(),
@@ -831,20 +836,20 @@ export const refreshTrendingCache = action({
         });
         console.log("✅ Trending artists cache updated");
       }
-      
+
       // Step 4: Import fresh shows into main database
       const importResult = await ctx.runMutation(internalRef.importTrendingShows.importTrendingShowsBatch, { limit: 100 });
       console.log(`✅ Imported ${importResult.imported} new shows`);
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         message: `Refreshed cache: ${freshShows.length} shows, ${freshArtists.length} artists. Imported ${importResult.imported} new shows.`,
         showsImported: importResult.imported,
       };
     } catch (e) {
       console.error("❌ Failed to refresh trending cache:", e);
-      return { 
-        success: false, 
+      return {
+        success: false,
         message: e instanceof Error ? e.message : "Unknown error",
         showsImported: 0,
       };
@@ -859,11 +864,11 @@ export const refreshTrendingCacheInternal = internalAction({
   handler: async (ctx) => {
     try {
       console.log("🔄 [CRON] Refreshing trending cache from Ticketmaster...");
-      
+
       // Step 1: Fetch fresh trending shows from Ticketmaster API
       const freshShows = await ctx.runAction(internalRef.ticketmaster.getTrendingShows, { limit: 100 });
       console.log(`📊 Fetched ${freshShows.length} shows from Ticketmaster`);
-      
+
       // Step 2: Replace the trending cache with fresh data
       if (freshShows.length > 0) {
         await ctx.runMutation(internalRef.trending.replaceTrendingShowsCache, {
@@ -887,11 +892,11 @@ export const refreshTrendingCacheInternal = internalAction({
         });
         console.log("✅ Trending shows cache updated");
       }
-      
+
       // Step 3: Fetch fresh trending artists and import them with full sync
       const freshArtists = await ctx.runAction(internalRef.ticketmaster.getTrendingArtists, { limit: 50 });
       console.log(`📊 Fetched ${freshArtists.length} artists from Ticketmaster`);
-      
+
       if (freshArtists.length > 0) {
         // Filter out non-concert artists before caching
         await ctx.runMutation(internalRef.trending.replaceTrendingArtistsCache, {
@@ -906,7 +911,7 @@ export const refreshTrendingCacheInternal = internalAction({
           })),
         });
         console.log("✅ Trending artists cache updated");
-        
+
         // Import top artists with full sync (only if they don't exist).
         // IMPORTANT: Do not `sleep` inside a cron action. Schedule staggered work instead so
         // the cron completes quickly and we still respect third-party API rate limits.
@@ -939,11 +944,11 @@ export const refreshTrendingCacheInternal = internalAction({
         }
         console.log(`✅ Scheduled ${scheduled} new trending artist imports`);
       }
-      
+
       // Step 4: Import fresh shows into main database
       const importResult = await ctx.runMutation(internalRef.importTrendingShows.importTrendingShowsBatch, { limit: 100 });
       console.log(`✅ Imported ${importResult.imported} new shows`);
-      
+
       console.log("🎉 [CRON] Trending cache refresh complete");
     } catch (e) {
       console.error("❌ [CRON] Failed to refresh trending cache:", e);
@@ -955,28 +960,28 @@ export const refreshTrendingCacheInternal = internalAction({
 // Clean up non-US shows from trending cache and main shows table
 export const cleanupNonUSShows = action({
   args: {},
-  returns: v.object({ 
-    success: v.boolean(), 
-    message: v.string(), 
-    cacheDeleted: v.number(), 
-    showsDeleted: v.number() 
+  returns: v.object({
+    success: v.boolean(),
+    message: v.string(),
+    cacheDeleted: v.number(),
+    showsDeleted: v.number()
   }),
   handler: async (ctx) => {
     try {
       console.log("🧹 Cleaning up non-US shows...");
-      
+
       const result = await ctx.runMutation(internalRef.admin.cleanupNonUSShowsInternal, {});
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         message: `Cleaned up ${result.cacheDeleted} cache entries and ${result.showsDeleted} shows`,
         cacheDeleted: result.cacheDeleted,
         showsDeleted: result.showsDeleted,
       };
     } catch (e) {
       console.error("❌ Failed to clean up non-US shows:", e);
-      return { 
-        success: false, 
+      return {
+        success: false,
         message: e instanceof Error ? e.message : "Unknown error",
         cacheDeleted: 0,
         showsDeleted: 0,
@@ -985,29 +990,7 @@ export const cleanupNonUSShows = action({
   },
 });
 
-// Helper to filter out non-concert content
-const isRealConcertAdmin = (name: string): boolean => {
-  const lowerName = (name || '').toLowerCase();
-  const rejectPatterns = [
-    'tribute', 'experience', 'orchestra', 'symphony', 'chamber', 
-    'ballet', 'opera', 'broadway', 'musical', 'playhouse',
-    'cirque', 'comedy', 'film with', '- film', 'live in concert',
-    'ensemble', 'philharmonic', 'chorale', 'choir', 'choral',
-    'film score', 'movie score', 'cinema', 'screening',
-    'live to film', 'in concert film', 'soundtrack live',
-    'charlie brown', 'a christmas', 'christmas story', 'holiday spectacular',
-    'on ice', 'disney on', 'sesame street', 'paw patrol', 'peppa pig',
-    'bluey', 'baby shark', 'cocomelon', 'nick jr', 'nutcracker',
-    'magic show', 'illusionist', 'hypnotist', 'speaker', 'lecture',
-    'podcast', 'wrestling', 'ufc', 'boxing', 'esports',
-    'stand-up', 'standup', 'comedian', 'line dancing', 'game night',
-    'wicked', 'hamilton', 'phantom', 'les mis', 'cats the musical',
-    'lion king', 'book of mormon', 'dear evan', 'moulin rouge',
-    'recital', 'concerto', 'twilight in concert', 'gaither vocal',
-    'celtic woman', 'engelbert humperdinck', 'new york philharmonic'
-  ];
-  return !rejectPatterns.some(p => lowerName.includes(p));
-};
+// isRealConcert is now imported from ./adminHelpers
 
 export const cleanupNonUSShowsInternal = internalMutation({
   args: {},
@@ -1015,37 +998,29 @@ export const cleanupNonUSShowsInternal = internalMutation({
   handler: async (ctx) => {
     let cacheDeleted = 0;
     let showsDeleted = 0;
-    
-    // Helper function to check if a country is US
-    const isUS = (country: string | undefined): boolean => {
-      if (!country) return false;
-      const lower = country.toLowerCase();
-      return lower === 'united states of america' || 
-             lower === 'united states' || 
-             lower === 'usa' || 
-             lower === 'us';
-    };
-    
+
+    // isUS is now imported from ./adminHelpers as isUSCountry
+
     // Clean up trending shows cache - both non-US AND non-concert events
     const cachedShows = await ctx.db.query("trendingShows").collect();
     for (const show of cachedShows) {
-      const shouldDelete = !isUS(show.venueCountry) || !isRealConcertAdmin(show.artistName || '');
+      const shouldDelete = !isUSCountry(show.venueCountry) || !isRealConcert(show.artistName || '');
       if (shouldDelete) {
         await ctx.db.delete(show._id);
         cacheDeleted++;
       }
     }
     console.log(`🗑️ Deleted ${cacheDeleted} non-US/non-concert entries from trending cache`);
-    
+
     // Clean up main shows table
     const allShows = await ctx.db.query("shows").collect();
     for (const show of allShows) {
       const venue = await ctx.db.get(show.venueId);
       const artist = await ctx.db.get(show.artistId);
-      
-      const isNonUS = venue && !isUS(venue.country);
-      const isNonConcert = artist && !isRealConcertAdmin(artist.name);
-      
+
+      const isNonUS = venue && !isUSCountry(venue.country);
+      const isNonConcert = artist && !isRealConcert(artist.name);
+
       if (isNonUS || isNonConcert) {
         // Delete associated setlists first
         const setlists = await ctx.db
@@ -1055,14 +1030,14 @@ export const cleanupNonUSShowsInternal = internalMutation({
         for (const setlist of setlists) {
           await ctx.db.delete(setlist._id);
         }
-        
+
         // Delete the show
         await ctx.db.delete(show._id);
         showsDeleted++;
       }
     }
     console.log(`🗑️ Deleted ${showsDeleted} non-US/non-concert shows from main database`);
-    
+
     return { cacheDeleted, showsDeleted };
   },
 });
@@ -1082,7 +1057,7 @@ export const syncSetlistForShow = action({
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
-    
+
     try {
       const result: string | null = await ctx.runAction(internalRef.setlistfm.syncActualSetlist, args);
       return {
@@ -1106,7 +1081,7 @@ export const triggerSetlistSync = action({
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
-    
+
     try {
       await ctx.runAction(internalRef.setlistfm.checkCompletedShows, {});
       return {
@@ -1211,8 +1186,8 @@ export const ensureAutoSetlistsBulk = action({
 // Backfill setlists for festival shows that are missing them
 export const backfillFestivalSetlists = action({
   args: { limit: v.optional(v.number()) },
-  returns: v.object({ 
-    processed: v.number(), 
+  returns: v.object({
+    processed: v.number(),
     scheduled: v.number(),
     skipped: v.number(),
     errors: v.array(v.string()),
@@ -1223,31 +1198,31 @@ export const backfillFestivalSetlists = action({
     let processed = 0;
     let scheduled = 0;
     let skipped = 0;
-    
+
     console.log(`🎪 Backfilling festival setlists (limit: ${limit})...`);
-    
+
     // Get all festival shows
     const festivalShows = await ctx.runQuery(internalRef.admin.getFestivalShowsWithoutSetlists, { limit });
-    
+
     for (const show of festivalShows) {
       processed++;
-      
+
       try {
         // Check if artist has songs
         const songCount = await ctx.runQuery(internalRef.songs.countByArtist, { artistId: show.artistId });
-        
+
         if (songCount === 0) {
           console.log(`⏭️ Skipping ${show.slug} - artist has no songs`);
           skipped++;
           continue;
         }
-        
+
         // Schedule auto-generate setlist
         await ctx.scheduler.runAfter(processed * 500, internalRef.setlists.autoGenerateSetlist, {
           showId: show._id,
           artistId: show.artistId,
         });
-        
+
         scheduled++;
         console.log(`✅ Scheduled setlist for ${show.slug}`);
       } catch (error) {
@@ -1256,7 +1231,7 @@ export const backfillFestivalSetlists = action({
         console.error(`❌ ${msg}`);
       }
     }
-    
+
     console.log(`\n📊 Backfill complete: ${scheduled} scheduled, ${skipped} skipped, ${errors.length} errors`);
     return { processed, scheduled, skipped, errors };
   },
@@ -1272,24 +1247,24 @@ export const getFestivalShowsWithoutSetlists = internalQuery({
       .query("shows")
       .filter((q) => q.neq(q.field("festivalId"), undefined))
       .take(args.limit * 2); // Get more to filter
-    
+
     const result = [];
-    
+
     for (const show of shows) {
       if (result.length >= args.limit) break;
-      
+
       // Check if show has a setlist
       const setlist = await ctx.db
         .query("setlists")
         .withIndex("by_show", (q) => q.eq("showId", show._id))
         .first();
-      
+
       // Include if no setlist OR setlist has < 5 songs
       if (!setlist || !setlist.songs || setlist.songs.length < 5) {
         result.push(show);
       }
     }
-    
+
     return result;
   },
 });
@@ -1381,7 +1356,7 @@ export const resyncArtistCatalogs = action({
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
-    
+
     try {
       // Trigger maintenance to fix missing artist data with improved filtering
       await ctx.runAction(internalRef.maintenance.fixMissingArtistData, {});
@@ -1451,19 +1426,19 @@ export const resyncArtistCatalog = action({
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
-    
+
     try {
       const artist: any = await ctx.runQuery(apiRef.artists.getById, { id: args.artistId });
       if (!artist) {
         throw new Error("Artist not found");
       }
-      
+
       // Re-sync with improved filtering
       await ctx.runAction(internalRef.spotify.syncArtistCatalog, {
         artistId: args.artistId,
         artistName: artist.name,
       });
-      
+
       return {
         success: true,
         message: `Re-synced catalog for ${artist.name} with improved filtering`
@@ -1486,13 +1461,13 @@ export const testResyncArtistCatalog = internalAction({
       if (!artist) {
         throw new Error("Artist not found");
       }
-      
+
       // Re-sync with improved filtering
       await ctx.runAction(internalRef.spotify.syncArtistCatalog, {
         artistId: args.artistId,
         artistName: artist.name,
       });
-      
+
       return {
         success: true,
         message: `Re-synced catalog for ${artist.name} with improved filtering`
@@ -1566,7 +1541,7 @@ export const getSystemHealth = query({
       ctx.db.query("songs").collect(),
       ctx.db.query("votes").collect(),
     ]);
-    
+
     // Check for orphaned records
     let orphanedCount = 0;
     for (const show of shows.slice(0, 50)) {
@@ -1574,13 +1549,13 @@ export const getSystemHealth = query({
       const venue = await ctx.db.get(show.venueId);
       if (!artist || !venue) orphanedCount++;
     }
-    
+
     // Check artists needing sync
     const staleThreshold = Date.now() - (7 * 24 * 60 * 60 * 1000); // 7 days
-    const artistsNeedingSync = artists.filter(a => 
+    const artistsNeedingSync = artists.filter(a =>
       !a.lastSynced || a.lastSynced < staleThreshold
     ).length;
-    
+
     return {
       database: {
         totalRecords: artists.length + shows.length + songs.length + votes.length,
@@ -1619,10 +1594,10 @@ export const importTrendingFromTicketmaster = action({
 
     try {
       console.log("🎤 Importing trending artists from Ticketmaster...");
-      
+
       // Fetch trending artists from Ticketmaster API
       const trendingArtists = await ctx.runAction(apiRef.ticketmaster.getTrendingArtists, { limit: 50 });
-      
+
       if (!trendingArtists || trendingArtists.length === 0) {
         return {
           success: false,
@@ -1632,14 +1607,14 @@ export const importTrendingFromTicketmaster = action({
       }
 
       let imported = 0;
-      
+
       // Import artists that don't exist yet
       for (const artist of trendingArtists) {
         try {
-          const existing = await ctx.runQuery(internalRef.artists.getByTicketmasterIdInternal, { 
-            ticketmasterId: artist.ticketmasterId 
+          const existing = await ctx.runQuery(internalRef.artists.getByTicketmasterIdInternal, {
+            ticketmasterId: artist.ticketmasterId
           });
-          
+
           if (!existing && artist.ticketmasterId && artist.name) {
             console.log(`📥 Importing new artist: ${artist.name}`);
             await ctx.runAction(apiRef.ticketmaster.triggerFullArtistSync, {
@@ -1654,12 +1629,12 @@ export const importTrendingFromTicketmaster = action({
           console.error(`Failed to import artist ${artist.name}:`, error);
         }
       }
-      
+
       // After importing, trigger trending sync
       if (imported > 0) {
         await ctx.runAction(internalRef.maintenance.syncTrendingData, {});
       }
-      
+
       return {
         success: true,
         message: `Successfully imported ${imported} new artists and updated trending rankings`,
@@ -1687,10 +1662,10 @@ export const testImportTrendingFromTicketmaster = internalAction({
   handler: async (ctx) => {
     try {
       console.log("🎤 [TEST] Importing trending artists from Ticketmaster...");
-      
+
       // Fetch trending artists from Ticketmaster API
       const trendingArtists = await ctx.runAction(apiRef.ticketmaster.getTrendingArtists, { limit: 50 });
-      
+
       if (!trendingArtists || trendingArtists.length === 0) {
         return {
           success: false,
@@ -1700,14 +1675,14 @@ export const testImportTrendingFromTicketmaster = internalAction({
       }
 
       let imported = 0;
-      
+
       // Import artists that don't exist yet
       for (const artist of trendingArtists) {
         try {
-          const existing = await ctx.runQuery(internalRef.artists.getByTicketmasterIdInternal, { 
-            ticketmasterId: artist.ticketmasterId 
+          const existing = await ctx.runQuery(internalRef.artists.getByTicketmasterIdInternal, {
+            ticketmasterId: artist.ticketmasterId
           });
-          
+
           if (!existing && artist.ticketmasterId && artist.name) {
             console.log(`📥 Importing new artist: ${artist.name}`);
             await ctx.runAction(apiRef.ticketmaster.triggerFullArtistSync, {
@@ -1722,12 +1697,12 @@ export const testImportTrendingFromTicketmaster = internalAction({
           console.error(`Failed to import artist ${artist.name}:`, error);
         }
       }
-      
+
       // After importing, trigger trending sync
       if (imported > 0) {
         await ctx.runAction(internalRef.maintenance.syncTrendingData, {});
       }
-      
+
       return {
         success: true,
         message: `Successfully imported ${imported} new artists and updated trending rankings`,
@@ -1755,53 +1730,53 @@ export const cleanupNonConcertArtists = action({
   handler: async (ctx) => {
     try {
       console.log("🧹 [CLEANUP] Starting cleanup of non-concert artists...");
-      
+
       // Get all artists
       const artists = await ctx.runQuery(internalRef.artists.getAllInternal, {});
       console.log(`📊 Found ${artists.length} total artists to check`);
-      
+
       const excludedGenres = [
         'children\'s music', 'childrens music', 'kids', 'family',
         'classical', 'orchestra', 'symphony', 'chamber', 'opera',
         'musical', 'theatre', 'broadway', 'show tunes',
         'spoken word', 'comedy', 'podcast',
       ];
-      
+
       let deletedCount = 0;
-      
+
       for (const artist of artists) {
         const genres = (artist.genres || []).map((g: string) => g.toLowerCase());
-        const hasExcludedGenre = genres.some((genre: string) => 
+        const hasExcludedGenre = genres.some((genre: string) =>
           excludedGenres.some((excluded: string) => genre.includes(excluded))
         );
-        
+
         if (hasExcludedGenre) {
           console.log(`🗑️ Deleting non-concert artist: ${artist.name} (genres: ${genres.join(', ')})`);
-          
+
           try {
             // Delete artist's shows first
-            const shows = await ctx.runQuery(internalRef.shows.getAllByArtistInternal, { 
-              artistId: artist._id 
+            const shows = await ctx.runQuery(internalRef.shows.getAllByArtistInternal, {
+              artistId: artist._id
             });
             for (const show of shows) {
               await ctx.runMutation(internalRef.shows.deleteShowInternal, { showId: show._id });
             }
-            
+
             // Delete artist's songs
             await ctx.runMutation(internalRef.songs.deleteByArtist, { artistId: artist._id });
-            
+
             // Delete the artist
             await ctx.runMutation(internalRef.artists.deleteArtistInternal, { artistId: artist._id });
-            
+
             deletedCount++;
           } catch (error) {
             console.error(`❌ Failed to delete artist ${artist.name}:`, error);
           }
         }
       }
-      
+
       console.log(`✅ Cleanup complete: deleted ${deletedCount} non-concert artists`);
-      
+
       return {
         success: true,
         message: `Successfully deleted ${deletedCount} non-concert artists`,
@@ -1824,17 +1799,17 @@ export const cleanupNonStudioSongsInternal = internalAction({
   returns: v.object({ success: v.boolean(), message: v.string(), cleanedCount: v.number() }),
   handler: async (ctx: any) => {
     console.log("🧹 Starting cleanup of non-studio songs...");
-    
+
     let cleanedCount = 0;
-    
+
     try {
       // Get songs in batches to avoid timeout
       const songs = await ctx.runQuery(internalRef.songs.getAllForCleanup, {});
       console.log(`📊 Checking ${songs.length} songs for cleanup...`);
-      
+
       for (const song of songs.slice(0, 100)) { // Limit for performance
         const shouldRemove = isNonStudioSong(song.title, song.album || '');
-        
+
         if (shouldRemove) {
           try {
             // Remove song
@@ -1846,7 +1821,7 @@ export const cleanupNonStudioSongsInternal = internalAction({
           }
         }
       }
-      
+
       return {
         success: true,
         message: `Cleaned up ${cleanedCount} non-studio songs`,
@@ -1863,31 +1838,7 @@ export const cleanupNonStudioSongsInternal = internalAction({
   },
 });
 
-// Helper function to detect non-studio songs for cleanup
-function isNonStudioSong(songTitle: string, albumName: string): boolean {
-  const songLower = songTitle.toLowerCase().trim();
-  const albumLower = albumName.toLowerCase().trim();
-  
-  const nonStudioIndicators = [
-    // Live indicators
-    'live', '- live', '(live)', '[live]', 'concert', 'acoustic version',
-    'unplugged', 'session', 'bootleg', 'performance',
-    
-    // Remix/alternate indicators  
-    'remix', 'rmx', 'mix)', 'edit', 'version)', 'radio edit', 'extended',
-    
-    // Feature indicators
-    'feat.', 'featuring', 'ft.', '(with ', 'duet',
-    
-    // Deluxe/reissue indicators in album
-    'deluxe', 'remaster', 'anniversary', 'tour edition', 'expanded',
-    'special edition', 'collector', 'édition de luxe'
-  ];
-  
-  return nonStudioIndicators.some(indicator => 
-    songLower.includes(indicator) || albumLower.includes(indicator)
-  );
-}
+// isNonStudioSong is now imported from ./adminHelpers
 
 export const bulkDeleteFlaggedInternal = internalMutation({
   args: { id: v.id("contentFlags") },
@@ -1932,7 +1883,7 @@ export const updateUserRole = mutation({
 // ===== SYSTEM LOGS =====
 
 export const getSystemLogs = query({
-  args: { 
+  args: {
     limit: v.optional(v.number()),
     type: v.optional(v.string()),
   },
@@ -1945,23 +1896,23 @@ export const getSystemLogs = query({
   })),
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
-    
+
     const limit = args.limit || 100;
-    
+
     // Get recent user actions
     let query = ctx.db.query("userActions").order("desc");
-    
+
     if (args.type) {
       query = query.filter((q) => q.eq(q.field("action"), args.type));
     }
-    
+
     const actions = await query.take(limit);
-    
+
     // Enrich with user data
     const enriched = await Promise.all(
       actions.map(async (action) => {
         let username = "Unknown";
-        
+
         if (typeof action.userId === "string") {
           username = "Anonymous";
         } else {
@@ -1972,14 +1923,14 @@ export const getSystemLogs = query({
             username = "Unknown";
           }
         }
-        
+
         return {
           ...action,
           username,
         };
       })
     );
-    
+
     return enriched;
   },
 });
@@ -1994,23 +1945,23 @@ export const getRecentActivity = query({
   })),
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
-    
+
     const limit = args.limit || 50;
-    
+
     // Get recent votes, setlists, and user actions
     const [recentVotes, recentSetlists, recentUsers] = await Promise.all([
       ctx.db.query("votes").order("desc").take(20),
       ctx.db.query("setlists").order("desc").take(20),
       ctx.db.query("users").order("desc").take(20),
     ]);
-    
+
     const activities = [];
-    
+
     // Process votes
     for (const vote of recentVotes) {
       const voteUser = await ctx.db.get(vote.userId);
       const setlist = await ctx.db.get(vote.setlistId);
-      
+
       activities.push({
         type: "vote",
         description: `${voteUser?.username || "User"} voted ${vote.voteType} on a setlist`,
@@ -2018,13 +1969,13 @@ export const getRecentActivity = query({
         user: voteUser?.username || voteUser?.email,
       });
     }
-    
+
     // Process setlists
     for (const setlist of recentSetlists) {
       if (setlist.userId) {
         const setlistUser = await ctx.db.get(setlist.userId);
         const show = await ctx.db.get(setlist.showId);
-        
+
         activities.push({
           type: "setlist",
           description: `${setlistUser?.username || "User"} created a setlist${show ? ` for show` : ""}`,
@@ -2033,7 +1984,7 @@ export const getRecentActivity = query({
         });
       }
     }
-    
+
     // Process new users
     for (const newUser of recentUsers) {
       activities.push({
@@ -2043,7 +1994,7 @@ export const getRecentActivity = query({
         user: newUser.username || newUser.email,
       });
     }
-    
+
     // Sort by timestamp and limit
     return activities
       .sort((a, b) => b.timestamp - a.timestamp)
@@ -2059,7 +2010,7 @@ export const importCachedShows = mutation({
     const limit = args.limit ?? 50;
     const stats = { processed: 0, imported: 0, errors: 0 };
     const cached = await ctx.db.query("trendingShows").take(limit);
-    
+
     for (const show of cached) {
       stats.processed++;
       if (show.showId) continue;
@@ -2074,19 +2025,19 @@ export const importCachedShows = mutation({
           }
           if (!artist) {
             const slug = show.artistName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').substring(0, 100);
-            artistId = await ctx.db.insert("artists", {slug, name: show.artistName, ticketmasterId: show.artistTicketmasterId, lowerName, genres: [], images: show.artistImage ? [show.artistImage] : [], isActive: true, popularity: 0, followers: 0, trendingScore: 0, trendingRank: 0, upcomingShowsCount: 0, lastSynced: Date.now(), lastTrendingUpdate: Date.now()});
+            artistId = await ctx.db.insert("artists", { slug, name: show.artistName, ticketmasterId: show.artistTicketmasterId, lowerName, genres: [], images: show.artistImage ? [show.artistImage] : [], isActive: true, popularity: 0, followers: 0, trendingScore: 0, trendingRank: 0, upcomingShowsCount: 0, lastSynced: Date.now(), lastTrendingUpdate: Date.now() });
           } else {
             artistId = artist._id;
           }
         }
         let venue = await ctx.db.query("venues").withIndex("by_name_city", (q) => q.eq("name", show.venueName).eq("city", show.venueCity)).first();
-        const venueId = venue ? venue._id : await ctx.db.insert("venues", {name: show.venueName, city: show.venueCity, country: show.venueCountry});
+        const venueId = venue ? venue._id : await ctx.db.insert("venues", { name: show.venueName, city: show.venueCity, country: show.venueCountry });
         const artist = await ctx.db.get(artistId);
         const ven = await ctx.db.get(venueId);
         if (!artist || !ven) continue;
         const slug = `${artist.slug}-${ven.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${ven.city.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${show.date}`.substring(0, 200);
-        const showId = await ctx.db.insert("shows", {slug, artistId, venueId, date: show.date, startTime: show.startTime, status: (show.status || '').includes('cancel') ? 'cancelled' as const : 'upcoming' as const, ticketmasterId: show.ticketmasterId, ticketUrl: show.ticketUrl, priceRange: show.priceRange, voteCount: 0, setlistCount: 0, trendingScore: 0, trendingRank: 0, lastSynced: Date.now(), lastTrendingUpdate: Date.now()});
-        await ctx.db.patch(show._id, {showId, artistId});
+        const showId = await ctx.db.insert("shows", { slug, artistId, venueId, date: show.date, startTime: show.startTime, status: (show.status || '').includes('cancel') ? 'cancelled' as const : 'upcoming' as const, ticketmasterId: show.ticketmasterId, ticketUrl: show.ticketUrl, priceRange: show.priceRange, voteCount: 0, setlistCount: 0, trendingScore: 0, trendingRank: 0, lastSynced: Date.now(), lastTrendingUpdate: Date.now() });
+        await ctx.db.patch(show._id, { showId, artistId });
         stats.imported++;
       } catch (e) {
         stats.errors++;
@@ -2105,14 +2056,14 @@ export const backfillMissingSetlists = action({
     if (!user?.appUser || user.appUser.role !== "admin") {
       throw new Error("Admin access required");
     }
-    
+
     try {
       console.log("🔄 Admin triggered backfill for missing setlists...");
       const result = await ctx.runMutation(internalRef.setlists.refreshMissingAutoSetlists, {
         limit: args.limit || 500,
         includeCompleted: true, // Scan ALL shows (including legacy/completed)
       });
-      
+
       return {
         success: true,
         message: `Backfill scheduled: ${result.scheduled} setlist generations queued`,
@@ -2140,7 +2091,7 @@ export const testBackfillMissingSetlists = internalAction({
         limit: args.limit || 500,
         includeCompleted: true,
       });
-      
+
       return {
         success: true,
         message: `Backfill scheduled: ${result.scheduled} setlist generations queued (will process in background)`,
@@ -2174,10 +2125,10 @@ export const cleanupEmptyTrendingArtists = internalMutation({
   }),
   handler: async (ctx) => {
     const trendingArtists = await ctx.db.query("trendingArtists").collect();
-    
+
     let removed = 0;
     let kept = 0;
-    
+
     for (const cached of trendingArtists) {
       // Check if the artist has songs in the database
       const artistId = cached.artistId;
@@ -2186,7 +2137,7 @@ export const cleanupEmptyTrendingArtists = internalMutation({
           .query("artistSongs")
           .withIndex("by_artist", (q) => q.eq("artistId", artistId))
           .first();
-        
+
         if (!artistSongs) {
           // No songs - remove from trending cache
           await ctx.db.delete(cached._id);
@@ -2202,7 +2153,7 @@ export const cleanupEmptyTrendingArtists = internalMutation({
         removed++;
       }
     }
-    
+
     console.log(`✅ Trending cleanup complete: removed ${removed}, kept ${kept}`);
     return { removed, kept, checked: trendingArtists.length };
   },
@@ -2226,11 +2177,11 @@ export const deleteEmptyArtists = internalMutation({
   handler: async (ctx, args) => {
     const dryRun = args.dryRun ?? true; // Default to dry run for safety
     const limit = args.limit || 100;
-    
+
     // Get artists with failed catalog sync
     const artists = await ctx.db
       .query("artists")
-      .filter((q) => 
+      .filter((q) =>
         q.or(
           q.eq(q.field("catalogSyncStatus"), "failed"),
           // Also check for "completed" with no songs (sync bug)
@@ -2244,39 +2195,39 @@ export const deleteEmptyArtists = internalMutation({
         )
       )
       .take(limit * 2);
-    
+
     let deleted = 0;
     let skipped = 0;
     const deletedNames: string[] = [];
-    
+
     for (const artist of artists) {
       if (deleted >= limit) break;
-      
+
       // Verify no songs exist
       const artistSongs = await ctx.db
         .query("artistSongs")
         .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
         .first();
-      
+
       if (artistSongs) {
         // Has songs - don't delete
         skipped++;
         continue;
       }
-      
+
       // Check if artist has any shows (we might want to keep them for shows)
       const shows = await ctx.db
         .query("shows")
         .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
         .first();
-      
+
       if (shows) {
         // Has shows - keep the artist but mark for retry
         console.log(`⏭️ Keeping ${artist.name} - has shows, will retry catalog sync`);
         skipped++;
         continue;
       }
-      
+
       // No songs and no shows - safe to delete
       if (!dryRun) {
         // Remove from trending cache first
@@ -2287,18 +2238,18 @@ export const deleteEmptyArtists = internalMutation({
         if (trendingEntry) {
           await ctx.db.delete(trendingEntry._id);
         }
-        
+
         // Delete the artist
         await ctx.db.delete(artist._id);
         console.log(`🗑️ Deleted empty artist: ${artist.name}`);
       } else {
         console.log(`[DRY RUN] Would delete: ${artist.name}`);
       }
-      
+
       deletedNames.push(artist.name);
       deleted++;
     }
-    
+
     console.log(`✅ Empty artist cleanup: ${dryRun ? '[DRY RUN] ' : ''}deleted ${deleted}, skipped ${skipped}`);
     return { deleted, skipped, checked: artists.length, deletedNames };
   },
@@ -2319,14 +2270,14 @@ export const retryFailedCatalogSyncs = action({
   }),
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
-    
+
     // Get artists to retry
     const artistsToRetry = await ctx.runQuery(internalRef.admin.getArtistsNeedingCatalogRetry, { limit });
-    
+
     let scheduled = 0;
     let skipped = 0;
     const errors: string[] = [];
-    
+
     for (const artist of artistsToRetry) {
       try {
         // Reset the circuit breaker to allow retry
@@ -2337,13 +2288,13 @@ export const retryFailedCatalogSyncs = action({
           catalogSyncBackoffUntil: undefined,
           catalogSyncFailureCount: 0,
         });
-        
+
         // Schedule the catalog sync
         await ctx.scheduler.runAfter(scheduled * 2000, internalRef.spotify.syncArtistCatalog, {
           artistId: artist._id,
           artistName: artist.name,
         });
-        
+
         console.log(`🔄 Scheduled catalog retry for: ${artist.name}`);
         scheduled++;
       } catch (error) {
@@ -2353,7 +2304,7 @@ export const retryFailedCatalogSyncs = action({
         skipped++;
       }
     }
-    
+
     console.log(`✅ Catalog retry complete: scheduled ${scheduled}, skipped ${skipped}`);
     return { scheduled, skipped, errors };
   },
@@ -2380,29 +2331,29 @@ export const getArtistsNeedingCatalogRetry = internalQuery({
         )
       )
       .take(args.limit * 2);
-    
+
     // Filter to only those with no songs
     const needsRetry: any[] = [];
-    
+
     for (const artist of artists) {
       if (needsRetry.length >= args.limit) break;
-      
+
       // Skip if in backoff period
       if (artist.catalogSyncBackoffUntil && Date.now() < artist.catalogSyncBackoffUntil) {
         continue;
       }
-      
+
       // Check if has songs
       const artistSong = await ctx.db
         .query("artistSongs")
         .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
         .first();
-      
+
       if (!artistSong) {
         needsRetry.push(artist);
       }
     }
-    
+
     return needsRetry;
   },
 });
@@ -2410,26 +2361,26 @@ export const getArtistsNeedingCatalogRetry = internalQuery({
 // Delete residency artists (those with 50+ shows - Vegas residencies, etc.)
 export const deleteResidencyArtists = action({
   args: { maxShows: v.optional(v.number()) },
-  returns: v.object({ 
-    success: v.boolean(), 
-    message: v.string(), 
+  returns: v.object({
+    success: v.boolean(),
+    message: v.string(),
     deletedArtists: v.number(),
     deletedShows: v.number(),
     deletedSongs: v.number()
   }),
-  handler: async (ctx, args): Promise<{ 
-    success: boolean; 
-    message: string; 
+  handler: async (ctx, args): Promise<{
+    success: boolean;
+    message: string;
     deletedArtists: number;
     deletedShows: number;
     deletedSongs: number;
   }> => {
     const maxShows = args.maxShows || 50; // Default: 50+ shows = residency
-    
+
     console.log(`🗑️ Deleting residency artists with more than ${maxShows} shows...`);
-    
+
     const result = await ctx.runMutation(internalRef.admin.deleteResidencyArtistsInternal, { maxShows });
-    
+
     return {
       success: true,
       message: `Deleted ${result.deletedArtists} residency artists, ${result.deletedShows} shows, ${result.deletedSongs} songs`,
@@ -2440,7 +2391,7 @@ export const deleteResidencyArtists = action({
 
 export const deleteResidencyArtistsInternal = internalMutation({
   args: { maxShows: v.number() },
-  returns: v.object({ 
+  returns: v.object({
     deletedArtists: v.number(),
     deletedShows: v.number(),
     deletedSongs: v.number()
@@ -2449,20 +2400,20 @@ export const deleteResidencyArtistsInternal = internalMutation({
     let deletedArtists = 0;
     let deletedShows = 0;
     let deletedSongs = 0;
-    
+
     // Get all artists
     const artists = await ctx.db.query("artists").collect();
-    
+
     for (const artist of artists) {
       // Count their shows
       const shows = await ctx.db
         .query("shows")
         .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
         .collect();
-      
+
       if (shows.length > args.maxShows) {
         console.log(`🗑️ Deleting residency artist: ${artist.name} (${shows.length} shows)`);
-        
+
         // Delete all their shows and associated setlists
         for (const show of shows) {
           // Delete setlists for this show
@@ -2473,11 +2424,11 @@ export const deleteResidencyArtistsInternal = internalMutation({
           for (const setlist of setlists) {
             await ctx.db.delete(setlist._id);
           }
-          
+
           await ctx.db.delete(show._id);
           deletedShows++;
         }
-        
+
         // Delete their songs
         const artistSongs = await ctx.db
           .query("artistSongs")
@@ -2487,7 +2438,7 @@ export const deleteResidencyArtistsInternal = internalMutation({
           await ctx.db.delete(as._id);
           deletedSongs++;
         }
-        
+
         // Delete from trending cache
         const trendingArtist = await ctx.db
           .query("trendingArtists")
@@ -2496,15 +2447,221 @@ export const deleteResidencyArtistsInternal = internalMutation({
         if (trendingArtist) {
           await ctx.db.delete(trendingArtist._id);
         }
-        
+
         // Delete the artist
         await ctx.db.delete(artist._id);
         deletedArtists++;
       }
     }
-    
+
     console.log(`✅ Deleted ${deletedArtists} artists, ${deletedShows} shows, ${deletedSongs} song links`);
-    
+
     return { deletedArtists, deletedShows, deletedSongs };
+  },
+});
+
+// ============================================================================
+// SHOW SONG DEMAND BACKFILL
+// ============================================================================
+
+/**
+ * Backfill/reconcile showSongDemand from existing songVotes.
+ * This rebuilds the aggregated demand data for artist dashboards.
+ */
+export const backfillShowSongDemand = action({
+  args: {
+    mode: v.optional(v.union(v.literal("rebuild"), v.literal("reconcile"))),
+    showIds: v.optional(v.array(v.id("shows"))),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    message: v.string(),
+    stats: v.object({
+      showsProcessed: v.number(),
+      demandRecordsCreated: v.number(),
+      demandRecordsUpdated: v.number(),
+      demandRecordsDeleted: v.number(),
+      totalVotesProcessed: v.number(),
+    }),
+  }),
+  handler: async (ctx, args) => {
+    await requireAdminForAction(ctx);
+
+    const mode = args.mode ?? "reconcile";
+    console.log(`🔄 Starting showSongDemand ${mode}...`);
+
+    const result = await ctx.runMutation(internalRef.admin.backfillShowSongDemandInternal, {
+      mode,
+      showIds: args.showIds,
+    });
+
+    console.log(`✅ Backfill complete: ${result.showsProcessed} shows, ${result.totalVotesProcessed} votes processed`);
+
+    return {
+      success: true,
+      message: `${mode === "rebuild" ? "Rebuilt" : "Reconciled"} demand for ${result.showsProcessed} shows (${result.demandRecordsCreated} created, ${result.demandRecordsUpdated} updated, ${result.demandRecordsDeleted} deleted)`,
+      stats: result,
+    };
+  },
+});
+
+// normalizeSongKey is now imported from ./adminHelpers
+
+export const backfillShowSongDemandInternal = internalMutation({
+  args: {
+    mode: v.union(v.literal("rebuild"), v.literal("reconcile")),
+    showIds: v.optional(v.array(v.id("shows"))),
+  },
+  returns: v.object({
+    showsProcessed: v.number(),
+    demandRecordsCreated: v.number(),
+    demandRecordsUpdated: v.number(),
+    demandRecordsDeleted: v.number(),
+    totalVotesProcessed: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    let showsProcessed = 0;
+    let demandRecordsCreated = 0;
+    let demandRecordsUpdated = 0;
+    let demandRecordsDeleted = 0;
+    let totalVotesProcessed = 0;
+
+    // Get shows to process
+    let shows;
+    if (args.showIds && args.showIds.length > 0) {
+      shows = await Promise.all(args.showIds.map(id => ctx.db.get(id)));
+      shows = shows.filter(Boolean);
+    } else {
+      // Process all shows with upcoming or recent status
+      shows = await ctx.db.query("shows").collect();
+    }
+
+    for (const show of shows) {
+      if (!show) continue;
+
+      // Get all setlists for this show
+      const setlists = await ctx.db
+        .query("setlists")
+        .withIndex("by_show", (q) => q.eq("showId", show._id))
+        .collect();
+
+      if (setlists.length === 0) continue;
+
+      const setlistIds = setlists.map(s => s._id);
+
+      // Aggregate votes by normalized song key
+      const songDemandMap = new Map<string, { songTitle: string; upvotes: number; lastVoteAt: number }>();
+
+      for (const setlistId of setlistIds) {
+        const votes = await ctx.db
+          .query("songVotes")
+          .withIndex("by_setlist", (q) => q.eq("setlistId", setlistId))
+          .collect();
+
+        for (const vote of votes) {
+          totalVotesProcessed++;
+          const songKey = normalizeSongKey(vote.songTitle);
+          const existing = songDemandMap.get(songKey);
+
+          if (existing) {
+            existing.upvotes++;
+            if (vote.createdAt > existing.lastVoteAt) {
+              existing.lastVoteAt = vote.createdAt;
+              // Keep the most recent song title formatting
+              existing.songTitle = vote.songTitle;
+            }
+          } else {
+            songDemandMap.set(songKey, {
+              songTitle: vote.songTitle,
+              upvotes: 1,
+              lastVoteAt: vote.createdAt,
+            });
+          }
+        }
+      }
+
+      // If rebuild mode, delete existing demand records first
+      if (args.mode === "rebuild") {
+        const existingDemand = await ctx.db
+          .query("showSongDemand")
+          .withIndex("by_show", (q) => q.eq("showId", show._id))
+          .collect();
+
+        for (const d of existingDemand) {
+          await ctx.db.delete(d._id);
+          demandRecordsDeleted++;
+        }
+      }
+
+      // Upsert demand records
+      for (const [songKey, data] of songDemandMap.entries()) {
+        if (args.mode === "reconcile") {
+          // Check for existing record
+          const existing = await ctx.db
+            .query("showSongDemand")
+            .withIndex("by_show_and_songKey", (q) =>
+              q.eq("showId", show._id).eq("songKey", songKey)
+            )
+            .first();
+
+          if (existing) {
+            // Update if counts differ
+            if (existing.upvotes !== data.upvotes || existing.lastVoteAt < data.lastVoteAt) {
+              await ctx.db.patch(existing._id, {
+                upvotes: data.upvotes,
+                lastVoteAt: data.lastVoteAt,
+                songTitle: data.songTitle,
+              });
+              demandRecordsUpdated++;
+            }
+          } else {
+            // Create new
+            await ctx.db.insert("showSongDemand", {
+              showId: show._id,
+              songKey,
+              songTitle: data.songTitle,
+              upvotes: data.upvotes,
+              lastVoteAt: data.lastVoteAt,
+            });
+            demandRecordsCreated++;
+          }
+        } else {
+          // Rebuild mode - just insert
+          await ctx.db.insert("showSongDemand", {
+            showId: show._id,
+            songKey,
+            songTitle: data.songTitle,
+            upvotes: data.upvotes,
+            lastVoteAt: data.lastVoteAt,
+          });
+          demandRecordsCreated++;
+        }
+      }
+
+      // In reconcile mode, remove stale demand records (songs no longer voted for)
+      if (args.mode === "reconcile") {
+        const existingDemand = await ctx.db
+          .query("showSongDemand")
+          .withIndex("by_show", (q) => q.eq("showId", show._id))
+          .collect();
+
+        for (const d of existingDemand) {
+          if (!songDemandMap.has(d.songKey)) {
+            await ctx.db.delete(d._id);
+            demandRecordsDeleted++;
+          }
+        }
+      }
+
+      showsProcessed++;
+    }
+
+    return {
+      showsProcessed,
+      demandRecordsCreated,
+      demandRecordsUpdated,
+      demandRecordsDeleted,
+      totalVotesProcessed,
+    };
   },
 });

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -7,7 +7,7 @@ import { AuthGuard } from "../components/AuthGuard";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { MagicCard } from "../components/ui/magic-card";
 import { Button } from "../components/ui/button";
-import { Loader2, ArrowLeft, Users, Mail, Trash2, Shield } from "lucide-react";
+import { Loader2, ArrowLeft, Users, Mail, Trash2, Shield, Copy, CheckCircle, Clock, Link2 } from "lucide-react";
 import { toast } from "sonner";
 
 type Role = "owner" | "manager" | "viewer";
@@ -25,13 +25,22 @@ export function ForArtistsTeamPage() {
     artistId ? { artistId } : "skip",
   );
 
-  const inviteTeamMember = useMutation((api as any).artistAccess.inviteTeamMember);
+  // New invite system
+  const pendingInvites = useQuery(
+    (api as any).artistAccess.getPendingInvites,
+    artistId ? { artistId } : "skip",
+  );
+
+  const createInvite = useMutation((api as any).artistAccess.createInvite);
+  const revokeInvite = useMutation((api as any).artistAccess.revokeInvite);
   const removeTeamMember = useMutation((api as any).artistAccess.removeTeamMember);
   const updateTeamMemberRole = useMutation((api as any).artistAccess.updateTeamMemberRole);
 
-  const [email, setEmail] = React.useState("");
-  const [role, setRole] = React.useState<Exclude<Role, "owner">>("manager");
-  const [submitting, setSubmitting] = React.useState(false);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<Exclude<Role, "owner">>("manager");
+  const [submitting, setSubmitting] = useState(false);
+  const [lastInviteUrl, setLastInviteUrl] = useState<string | null>(null);
+  const [copiedInvite, setCopiedInvite] = useState<string | null>(null);
 
   if (!artistId) {
     return (
@@ -117,14 +126,17 @@ export function ForArtistsTeamPage() {
                         if (!email.trim()) return;
                         setSubmitting(true);
                         try {
-                          const res = await inviteTeamMember({
+                          const res = await createInvite({
                             artistId,
                             email: email.trim(),
                             role,
                           });
                           if (res?.success) {
-                            toast.success("Invite sent");
+                            toast.success("Invite created!", { description: "Share the link with your team member." });
                             setEmail("");
+                            if (res.inviteUrl) {
+                              setLastInviteUrl(res.inviteUrl);
+                            }
                           } else {
                             toast.error("Invite failed", { description: res?.message || "Unknown error" });
                           }
@@ -138,16 +150,112 @@ export function ForArtistsTeamPage() {
                       {submitting ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          Sending…
+                          Creating…
                         </>
                       ) : (
-                        "Invite"
+                        "Create Invite"
                       )}
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground mt-3">
-                    They must already have an account with that email.
+                    They'll receive a link to join the team. No account needed yet - they can sign up when accepting.
                   </p>
+
+                  {lastInviteUrl && (
+                    <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span className="text-sm font-medium text-green-600 dark:text-green-400">Invite link created!</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 text-xs bg-background px-2 py-1 rounded truncate">
+                          {lastInviteUrl}
+                        </code>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            await navigator.clipboard.writeText(lastInviteUrl);
+                            toast.success("Link copied!");
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Pending Invites */}
+              {isOwner && pendingInvites && pendingInvites.length > 0 && (
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-semibold">Pending Invites</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600">
+                      {pendingInvites.length}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {pendingInvites.map((invite: any) => (
+                      <div
+                        key={invite._id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-card/20 p-3"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium truncate text-sm">{invite.email}</div>
+                          <div className="text-xs text-muted-foreground">
+                            <span className="capitalize">{invite.role}</span>
+                            {" • "}
+                            Expires in {invite.daysRemaining} {invite.daysRemaining === 1 ? "day" : "days"}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={async () => {
+                              const url = `${window.location.origin}/for-artists/invite/${invite.inviteToken}`;
+                              await navigator.clipboard.writeText(url);
+                              setCopiedInvite(invite._id);
+                              toast.success("Link copied!");
+                              setTimeout(() => setCopiedInvite(null), 2000);
+                            }}
+                          >
+                            {copiedInvite === invite._id ? (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Link2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={async () => {
+                              const ok = window.confirm("Revoke this invite?");
+                              if (!ok) return;
+                              try {
+                                const res = await revokeInvite({
+                                  artistId,
+                                  inviteId: invite._id,
+                                });
+                                if (res?.success) {
+                                  toast.success("Invite revoked");
+                                } else {
+                                  toast.error("Failed", { description: res?.message });
+                                }
+                              } catch (e: any) {
+                                toast.error("Failed", { description: e?.message });
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 

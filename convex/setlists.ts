@@ -1,5 +1,5 @@
 import { query, mutation, internalMutation, action } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { internalRef } from "./adminHelpers";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const apiRef: any = require("./_generated/api").api;
@@ -9,7 +9,7 @@ import { getAuthUserId } from "./auth";
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
+
 
 // Helper to safely track errors in mutations
 async function trackError(ctx: any, operation: string, error: unknown, context?: any) {
@@ -44,16 +44,16 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    
+
     // Check if user already has a setlist for this show
     if (userId) {
       const existing = await ctx.db
         .query("setlists")
-        .withIndex("by_show_and_user", (q) => 
+        .withIndex("by_show_and_user", (q) =>
           q.eq("showId", args.showId).eq("userId", userId)
         )
         .first();
-      
+
       if (existing) {
         // Update existing setlist
         await ctx.db.patch(existing._id, {
@@ -63,7 +63,7 @@ export const create = mutation({
         return existing._id;
       }
     }
-    
+
     const setlistId = await ctx.db.insert("setlists", {
       showId: args.showId,
       userId: userId || undefined,
@@ -95,92 +95,92 @@ export const addSongToSetlist = mutation({
   },
   handler: async (ctx, args) => {
     try {
-    const authUserId = await getAuthUserId(ctx);
-    let effectiveUserId: Id<"users"> | string;
+      const authUserId = await getAuthUserId(ctx);
+      let effectiveUserId: Id<"users"> | string;
 
-    if (!authUserId) {
-      if (!args.anonId) {
-        throw new Error("Anonymous ID required for unauthenticated users");
-      }
-      effectiveUserId = args.anonId;
-    } else {
-      effectiveUserId = authUserId;
-    }
-
-    // Determine if this is an anonymous user by checking if authUserId is null
-    // authUserId is null = anonymous user (using anonId)
-    // authUserId is not null = authenticated user (using Convex user ID)
-    const isAnonymous = authUserId === null;
-
-    // For anonymous users, enforce limit of 2 song adds per show
-    if (isAnonymous) {
-      const showAddAction = `add_song:${args.showId}`;
-      const showAdds = await ctx.db
-        .query("userActions")
-        .filter((q) => q.eq(q.field("userId"), effectiveUserId))
-        .filter((q) => q.eq(q.field("action"), showAddAction))
-        .collect();
-
-      const ANON_ADD_LIMIT = 2;
-      if (showAdds.length >= ANON_ADD_LIMIT) {
-        throw new Error(`Anonymous users can only add ${ANON_ADD_LIMIT} songs per show. Sign up for more!`);
-      }
-    }
-
-    // Find the shared Setlist Votes record for this show (explicitly not user-specific)
-    const communitySetlist = await ctx.db
-      .query("setlists")
-      .withIndex("by_show", (q) => q.eq("showId", args.showId))
-      .filter((q) => q.eq(q.field("isOfficial"), false))
-      .filter((q) => q.eq(q.field("userId"), undefined))
-      .first();
-
-    let setlistId: Id<"setlists">;
-
-    if (communitySetlist) {
-      // Add song if not already present (case insensitive to avoid duplicates)
-      const normalizedTitle = args.song.title.toLowerCase().trim();
-      const songExists = (communitySetlist.songs || []).some((existing) => {
-        const title = typeof existing === "string" ? existing : existing?.title;
-        return title ? title.toLowerCase().trim() === normalizedTitle : false;
-      });
-
-      if (!songExists) {
-        await ctx.db.patch(communitySetlist._id, {
-          songs: [...(communitySetlist.songs || []), args.song],
-          lastUpdated: Date.now(),
-        });
-        setlistId = communitySetlist._id;
+      if (!authUserId) {
+        if (!args.anonId) {
+          throw new Error("Anonymous ID required for unauthenticated users");
+        }
+        effectiveUserId = args.anonId;
       } else {
-        setlistId = communitySetlist._id;
+        effectiveUserId = authUserId;
       }
-    } else {
-      // Create new shared setlist for this show
-      setlistId = await ctx.db.insert("setlists", {
-        showId: args.showId,
-        userId: undefined, // Shared setlist, not user-specific
-        songs: [args.song],
-        verified: false,
-        source: "user_submitted",
-        lastUpdated: Date.now(),
-        isOfficial: false,
-        confidence: 0.5,
-        upvotes: 0,
-        downvotes: 0,
-      });
-      await incrementShowSetlistCount(ctx, args.showId);
-    }
 
-    // Log the action for anonymous users (authenticated don't need limit tracking)
-    if (typeof effectiveUserId === "string") {
-      await ctx.db.insert("userActions", {
-        userId: effectiveUserId,
-        action: `add_song:${args.showId}`,
-        timestamp: Date.now(),
-      });
-    }
+      // Determine if this is an anonymous user by checking if authUserId is null
+      // authUserId is null = anonymous user (using anonId)
+      // authUserId is not null = authenticated user (using Convex user ID)
+      const isAnonymous = authUserId === null;
 
-    return setlistId;
+      // For anonymous users, enforce limit of 2 song adds per show
+      if (isAnonymous) {
+        const showAddAction = `add_song:${args.showId}`;
+        const showAdds = await ctx.db
+          .query("userActions")
+          .filter((q) => q.eq(q.field("userId"), effectiveUserId))
+          .filter((q) => q.eq(q.field("action"), showAddAction))
+          .collect();
+
+        const ANON_ADD_LIMIT = 2;
+        if (showAdds.length >= ANON_ADD_LIMIT) {
+          throw new Error(`Anonymous users can only add ${ANON_ADD_LIMIT} songs per show. Sign up for more!`);
+        }
+      }
+
+      // Find the shared Setlist Votes record for this show (explicitly not user-specific)
+      const communitySetlist = await ctx.db
+        .query("setlists")
+        .withIndex("by_show", (q) => q.eq("showId", args.showId))
+        .filter((q) => q.eq(q.field("isOfficial"), false))
+        .filter((q) => q.eq(q.field("userId"), undefined))
+        .first();
+
+      let setlistId: Id<"setlists">;
+
+      if (communitySetlist) {
+        // Add song if not already present (case insensitive to avoid duplicates)
+        const normalizedTitle = args.song.title.toLowerCase().trim();
+        const songExists = (communitySetlist.songs || []).some((existing) => {
+          const title = typeof existing === "string" ? existing : existing?.title;
+          return title ? title.toLowerCase().trim() === normalizedTitle : false;
+        });
+
+        if (!songExists) {
+          await ctx.db.patch(communitySetlist._id, {
+            songs: [...(communitySetlist.songs || []), args.song],
+            lastUpdated: Date.now(),
+          });
+          setlistId = communitySetlist._id;
+        } else {
+          setlistId = communitySetlist._id;
+        }
+      } else {
+        // Create new shared setlist for this show
+        setlistId = await ctx.db.insert("setlists", {
+          showId: args.showId,
+          userId: undefined, // Shared setlist, not user-specific
+          songs: [args.song],
+          verified: false,
+          source: "user_submitted",
+          lastUpdated: Date.now(),
+          isOfficial: false,
+          confidence: 0.5,
+          upvotes: 0,
+          downvotes: 0,
+        });
+        await incrementShowSetlistCount(ctx, args.showId);
+      }
+
+      // Log the action for anonymous users (authenticated don't need limit tracking)
+      if (typeof effectiveUserId === "string") {
+        await ctx.db.insert("userActions", {
+          userId: effectiveUserId,
+          action: `add_song:${args.showId}`,
+          timestamp: Date.now(),
+        });
+      }
+
+      return setlistId;
     } catch (error) {
       // Track song addition errors
       await trackError(ctx, "add_song_to_setlist", error, {
@@ -260,7 +260,7 @@ export const getByShow = query({
         } else if (setlist.isOfficial) {
           username = "setlist.fm";
         }
-        
+
         return {
           ...setlist,
           username,
@@ -284,10 +284,10 @@ export const getUserSetlistForShow = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
-    
+
     return await ctx.db
       .query("setlists")
-      .withIndex("by_show_and_user", (q) => 
+      .withIndex("by_show_and_user", (q) =>
         q.eq("showId", args.showId).eq("userId", userId)
       )
       .first();
@@ -329,10 +329,10 @@ export const getSetlistVotes = query({
 
     const totalVotes = votes.length;
     const accurateVotes = votes.filter(v => v.voteType === "accurate").length;
-    
+
     // Real-time accuracy calculation
     const accuracy = totalVotes > 0 ? Math.round((accurateVotes / totalVotes) * 100) : 0;
-    
+
     return {
       total: totalVotes,
       accurate: accurateVotes,
@@ -413,14 +413,14 @@ export const getUserVote = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
-    
+
     const vote = await ctx.db
       .query("votes")
       .withIndex("by_user_and_setlist", (q) =>
         q.eq("userId", userId).eq("setlistId", args.setlistId)
       )
       .first();
-    
+
     return vote?.voteType || null;
   },
 });
@@ -430,7 +430,7 @@ export const getByUser = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
-    
+
     const limit = args.limit || 10;
     const setlists = await ctx.db
       .query("setlists")
@@ -492,7 +492,7 @@ export const autoGenerateSetlist = internalMutation({
     }
 
     // Select 5 random songs from the catalog, weighted towards more popular songs
-    const selectedSongs: Array<{title: string, album?: string, duration?: number, songId?: Id<"songs">}> = [];
+    const selectedSongs: Array<{ title: string, album?: string, duration?: number, songId?: Id<"songs"> }> = [];
     const songsToChooseFrom = [...studioSongs];
     const numSongs = Math.min(5, songsToChooseFrom.length);
 
@@ -773,7 +773,7 @@ export const getSetlistWithVotes = query({
 
     // Find the setlist with actual setlist data (from setlist.fm)
     const officialSetlist = setlists.find(s => s.actualSetlist && s.actualSetlist.length > 0);
-    
+
     if (!officialSetlist || !officialSetlist.actualSetlist) {
       return null;
     }
@@ -794,7 +794,7 @@ export const getSetlistWithVotes = query({
     // Get all predicted songs from user setlists
     const predictedSongs = new Set<string>();
     const unpredictedSongsMap = new Map<string, any>();
-    
+
     for (const setlist of setlists) {
       for (const song of setlist.songs || []) {
         predictedSongs.add(song.title.toLowerCase().trim());
@@ -820,8 +820,8 @@ export const getSetlistWithVotes = query({
     }));
 
     // Find songs that were predicted but not played
-    const unpredictedSongs = Array.from(unpredictedSongsMap.values()).filter(song => 
-      !officialSetlist.actualSetlist!.some(actualSong => 
+    const unpredictedSongs = Array.from(unpredictedSongsMap.values()).filter(song =>
+      !officialSetlist.actualSetlist!.some(actualSong =>
         actualSong.title.toLowerCase().trim() === song.title.toLowerCase().trim()
       )
     );
@@ -845,7 +845,7 @@ export const refreshMissingAutoSetlists = internalMutation({
   }),
   handler: async (ctx, args) => {
     const limit = args.limit ?? 20; // Reduced default from 60 to 20
-    
+
     // FIXED: Query upcoming AND completed shows if flag is set
     let shows;
     if (args.includeCompleted) {
@@ -854,13 +854,13 @@ export const refreshMissingAutoSetlists = internalMutation({
     } else {
       // Default: only upcoming (normal cron behavior)
       shows = await ctx.db
-      .query("shows")
-      .withIndex("by_status", (q) => q.eq("status", "upcoming"))
-      .take(limit);
+        .query("shows")
+        .withIndex("by_status", (q) => q.eq("status", "upcoming"))
+        .take(limit);
     }
 
     let scheduled = 0;
-    
+
     // Track artists we've already scheduled catalog sync for to avoid duplicates
     const artistsWithCatalogSyncScheduled = new Set<string>();
 
@@ -868,7 +868,7 @@ export const refreshMissingAutoSetlists = internalMutation({
     // Instead of scheduling all at once, space them out over time
     for (let i = 0; i < shows.length; i++) {
       const show = shows[i];
-      
+
       // Skip shows without artist reference
       if (!show.artistId) {
         continue;
@@ -889,9 +889,9 @@ export const refreshMissingAutoSetlists = internalMutation({
         .query("artistSongs")
         .withIndex("by_artist", (q) => q.eq("artistId", show.artistId))
         .first();
-      
+
       const hasSongs = artistSongs !== null;
-      
+
       // Schedule each setlist generation with STAGGERED delays
       // This prevents 60+ simultaneous updates to the same artist
       // Delay = i * 10 seconds = max 200 seconds (3.3 minutes) for 20 shows
@@ -908,7 +908,7 @@ export const refreshMissingAutoSetlists = internalMutation({
               artistName: artist.name,
             });
             artistsWithCatalogSyncScheduled.add(show.artistId);
-            
+
             // Schedule setlist generation AFTER catalog sync has time to complete (60s later)
             void ctx.scheduler.runAfter(delayMs + 60000, internalRef.setlists.autoGenerateSetlist, {
               showId: show._id,
@@ -942,7 +942,7 @@ export const ensureAutoSetlistForShow = action({
     // If a prediction setlist already exists with songs, do nothing
     const setlists = await ctx.runQuery(apiRef.setlists.getByShow, { showId: args.showId });
     const hasPrediction = (setlists || []).some((s: any) => !s.isOfficial && !s.userId && Array.isArray(s.songs) && s.songs.length > 0);
-    
+
     if (hasPrediction) {
       return { created: false, message: "Setlist already exists" };
     }
@@ -953,9 +953,9 @@ export const ensureAutoSetlistForShow = action({
     }
 
     // First, check if artist has any songs in catalog
-    const artistSongs = await ctx.runQuery(apiRef.songs.getByArtist, { 
-      artistId: show.artistId, 
-      limit: 1 
+    const artistSongs = await ctx.runQuery(apiRef.songs.getByArtist, {
+      artistId: show.artistId,
+      limit: 1
     });
 
     // Get artist info (needed for any Spotify work)
@@ -992,7 +992,7 @@ export const ensureAutoSetlistForShow = action({
         showId: args.showId,
         artistId: show.artistId,
       });
-      
+
       if (setlistId) {
         return { created: true, message: "Setlist created successfully" };
       } else {
@@ -1020,7 +1020,7 @@ export const refreshMissingAutoSetlistsAction = action({
 });
 
 export const createFromApi = internalMutation({
-  args: { 
+  args: {
     showId: v.id("shows"),
     data: v.any(),
   },
@@ -1028,12 +1028,12 @@ export const createFromApi = internalMutation({
   handler: async (ctx, args) => {
     // Extract songs from Setlist.fm format: sets.set[].song[]
     const extractedSongs: { title: string; setNumber: number; encore: boolean; album?: string }[] = [];
-    
+
     if (args.data.sets && args.data.sets.set && Array.isArray(args.data.sets.set)) {
       for (const [setIndex, set] of args.data.sets.set.entries()) {
         const isEncore = set.encore === 1 || set.encore === true || set.encore === "true";
         const setNumber = setIndex + 1;
-        
+
         if (set.song && Array.isArray(set.song)) {
           for (const song of set.song) {
             if (song.name && song.name.trim() !== '') {
@@ -1048,34 +1048,34 @@ export const createFromApi = internalMutation({
         }
       }
     }
-    
+
     // Fallback to direct songs array if present (for pre-parsed data)
-    const songs = extractedSongs.length > 0 
-      ? extractedSongs 
+    const songs = extractedSongs.length > 0
+      ? extractedSongs
       : (Array.isArray(args.data.songs) ? args.data.songs : []);
-    
+
     if (songs.length === 0) {
       console.warn(`⚠️ No songs found in setlist.fm data for show ${args.showId}`);
     } else {
       console.log(`✅ Extracted ${songs.length} songs from setlist.fm for show ${args.showId}`);
     }
-    
+
     // Check for existing setlists for this show
     const existingSetlists = await ctx.db
       .query("setlists")
       .withIndex("by_show", (q) => q.eq("showId", args.showId))
       .collect();
-    
+
     // Find prediction setlist (non-official, no user) or official setlist to update
     const predictionSetlist = existingSetlists.find((s: any) => !s.isOfficial && !s.userId);
     const officialSetlist = existingSetlists.find((s: any) => s.isOfficial);
-    
-    const actualSetlistData = songs.map((s: any) => ({ 
-      title: s.title || s, 
-      setNumber: s.setNumber || 1, 
-      encore: s.encore || false 
+
+    const actualSetlistData = songs.map((s: any) => ({
+      title: s.title || s,
+      setNumber: s.setNumber || 1,
+      encore: s.encore || false
     }));
-    
+
     // Calculate accuracy if there's a prediction setlist
     let accuracy = 0;
     if (predictionSetlist?.songs && Array.isArray(predictionSetlist.songs)) {
@@ -1088,7 +1088,7 @@ export const createFromApi = internalMutation({
         accuracy = Math.round((correct / predictedTitles.length) * 100);
       }
     }
-    
+
     // Update prediction setlist with actual data
     if (predictionSetlist) {
       await ctx.db.patch(predictionSetlist._id, {
@@ -1101,7 +1101,7 @@ export const createFromApi = internalMutation({
       });
       console.log(`✅ Updated prediction setlist ${predictionSetlist._id} with actual setlist (${songs.length} songs, ${accuracy}% accuracy)`);
     }
-    
+
     // Update or create official setlist
     if (officialSetlist) {
       await ctx.db.patch(officialSetlist._id, {
@@ -1114,7 +1114,7 @@ export const createFromApi = internalMutation({
       console.log(`✅ Updated official setlist ${officialSetlist._id} with actual setlist`);
       return officialSetlist._id;
     }
-    
+
     // Create new official setlist only if none exists
     const setlistId = await ctx.db.insert("setlists", {
       showId: args.showId,

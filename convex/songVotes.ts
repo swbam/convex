@@ -1,12 +1,12 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { internalRef } from "./adminHelpers";
 import { getAuthUserId } from "./auth";
 import { Id } from "./_generated/dataModel";
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
+
 
 function normalizeSongKey(title: string): string {
   return title
@@ -30,47 +30,128 @@ export const voteOnSong = mutation({
   returns: v.union(v.object({ action: v.string() }), v.null()),
   handler: async (ctx, args) => {
     try {
-    const authUserId = await getAuthUserId(ctx);
-    let effectiveUserId: Id<"users"> | string;
+      const authUserId = await getAuthUserId(ctx);
+      let effectiveUserId: Id<"users"> | string;
 
-    if (!authUserId) {
-      if (!args.anonId) {
-        throw new Error("Anonymous ID required for unauthenticated users");
+      if (!authUserId) {
+        if (!args.anonId) {
+          throw new Error("Anonymous ID required for unauthenticated users");
+        }
+        effectiveUserId = args.anonId;
+      } else {
+        effectiveUserId = authUserId;
       }
-      effectiveUserId = args.anonId;
-    } else {
-      effectiveUserId = authUserId;
-    }
 
-    const setlist = await ctx.db.get(args.setlistId);
-    if (!setlist) {
-      throw new Error("Setlist not found");
-    }
+      const setlist = await ctx.db.get(args.setlistId);
+      if (!setlist) {
+        throw new Error("Setlist not found");
+      }
 
-    // Check if user already voted on this song in this setlist
-    const existingVote = await ctx.db
-      .query("songVotes")
-      .withIndex("by_user_setlist_song", (q) =>
-        q.eq("userId", effectiveUserId)
-         .eq("setlistId", args.setlistId)
-         .eq("songTitle", args.songTitle)
-      )
-      .first();
+      // Check if user already voted on this song in this setlist
+      const existingVote = await ctx.db
+        .query("songVotes")
+        .withIndex("by_user_setlist_song", (q) =>
+          q.eq("userId", effectiveUserId)
+            .eq("setlistId", args.setlistId)
+            .eq("songTitle", args.songTitle)
+        )
+        .first();
 
-    if (existingVote) {
-      // Remove existing vote (toggle off)
-      await ctx.db.delete(existingVote._id);
-      // Decrement the parent show's voteCount (floor at 0)
-      if (setlist?.showId) {
+      if (existingVote) {
+        // Remove existing vote (toggle off)
+        await ctx.db.delete(existingVote._id);
+        // Decrement the parent show's voteCount (floor at 0)
+        if (setlist?.showId) {
+          const show = await ctx.db.get(setlist.showId);
+          if (show) {
+            await ctx.db.patch(setlist.showId, {
+              voteCount: Math.max(0, (show.voteCount || 0) - 1),
+            });
+          }
+        }
+
+        // Artist dashboard rollup: decrement demand count
+        if (setlist?.showId) {
+          const songKey = normalizeSongKey(args.songTitle);
+          const existingDemand = await ctx.db
+            .query("showSongDemand")
+            .withIndex("by_show_and_songKey", (q) =>
+              q.eq("showId", setlist.showId).eq("songKey", songKey),
+            )
+            .first();
+          if (existingDemand) {
+            const next = Math.max(0, (existingDemand.upvotes || 0) - 1);
+            if (next <= 0) {
+              await ctx.db.delete(existingDemand._id);
+            } else {
+              await ctx.db.patch(existingDemand._id, {
+                upvotes: next,
+                lastVoteAt: Date.now(),
+              });
+            }
+          }
+        }
+
+        return { action: "removed" };
+      }
+
+      // Determine if this is an anonymous user by checking if authUserId is null
+      // authUserId is null = anonymous user (using anonId)
+      // authUserId is not null = authenticated user (using Convex user ID)
+      const isAnonymous = authUserId === null;
+
+      // For anonymous users: limit to 2 votes per setlist
+      if (isAnonymous) {
+        const setlistVotes = await ctx.db
+          .query("songVotes")
+          .withIndex("by_setlist", (q) => q.eq("setlistId", args.setlistId))
+          .filter((q) => q.eq(q.field("userId"), effectiveUserId))
+          .collect();
+
+        const ANON_VOTE_LIMIT = 2;
+        if (setlistVotes.length >= ANON_VOTE_LIMIT) {
+          throw new Error(`Anonymous users can only vote on ${ANON_VOTE_LIMIT} songs per show. Sign up for more!`);
+        }
+      }
+
+      // For authenticated users: enforce a soft per-day cap to prevent spam
+      if (!isAnonymous) {
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const dayStartMs = startOfDay.getTime();
+
+        const todaysVotes = await ctx.db
+          .query("songVotes")
+          .withIndex("by_user", (q) => q.eq("userId", effectiveUserId))
+          .filter((q) => q.gte(q.field("createdAt"), dayStartMs))
+          .take(100);
+
+        const DAILY_LIMIT = 100;
+        if (todaysVotes.length >= DAILY_LIMIT) {
+          throw new Error("Daily vote limit reached. Please come back tomorrow!");
+        }
+      }
+
+      // Create new vote
+      await ctx.db.insert("songVotes", {
+        userId: effectiveUserId,
+        setlistId: args.setlistId,
+        songTitle: args.songTitle,
+        voteType: args.voteType,
+        createdAt: Date.now(),
+      });
+
+      // Increment the parent show's voteCount (voteCount includes votes + songVotes)
+      if (setlist.showId) {
         const show = await ctx.db.get(setlist.showId);
         if (show) {
           await ctx.db.patch(setlist.showId, {
-            voteCount: Math.max(0, (show.voteCount || 0) - 1),
+            voteCount: (show.voteCount || 0) + 1,
           });
         }
       }
 
-      // Artist dashboard rollup: decrement demand count
+      // Artist dashboard rollup: increment demand count
       if (setlist?.showId) {
         const songKey = normalizeSongKey(args.songTitle);
         const existingDemand = await ctx.db
@@ -80,104 +161,23 @@ export const voteOnSong = mutation({
           )
           .first();
         if (existingDemand) {
-          const next = Math.max(0, (existingDemand.upvotes || 0) - 1);
-          if (next <= 0) {
-            await ctx.db.delete(existingDemand._id);
-          } else {
-            await ctx.db.patch(existingDemand._id, {
-              upvotes: next,
-              lastVoteAt: Date.now(),
-            });
-          }
+          await ctx.db.patch(existingDemand._id, {
+            upvotes: (existingDemand.upvotes || 0) + 1,
+            lastVoteAt: Date.now(),
+            songTitle: existingDemand.songTitle || args.songTitle,
+          });
+        } else {
+          await ctx.db.insert("showSongDemand", {
+            showId: setlist.showId,
+            songKey,
+            songTitle: args.songTitle,
+            upvotes: 1,
+            lastVoteAt: Date.now(),
+          });
         }
       }
 
-      return { action: "removed" };
-    }
-
-    // Determine if this is an anonymous user by checking if authUserId is null
-    // authUserId is null = anonymous user (using anonId)
-    // authUserId is not null = authenticated user (using Convex user ID)
-    const isAnonymous = authUserId === null;
-
-    // For anonymous users: limit to 2 votes per setlist
-    if (isAnonymous) {
-      const setlistVotes = await ctx.db
-        .query("songVotes")
-        .withIndex("by_setlist", (q) => q.eq("setlistId", args.setlistId))
-        .filter((q) => q.eq(q.field("userId"), effectiveUserId))
-        .collect();
-
-      const ANON_VOTE_LIMIT = 2;
-      if (setlistVotes.length >= ANON_VOTE_LIMIT) {
-        throw new Error(`Anonymous users can only vote on ${ANON_VOTE_LIMIT} songs per show. Sign up for more!`);
-      }
-    }
-
-    // For authenticated users: enforce a soft per-day cap to prevent spam
-    if (!isAnonymous) {
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-      const dayStartMs = startOfDay.getTime();
-
-      const todaysVotes = await ctx.db
-        .query("songVotes")
-        .withIndex("by_user", (q) => q.eq("userId", effectiveUserId))
-        .filter((q) => q.gte(q.field("createdAt"), dayStartMs))
-        .take(100);
-
-      const DAILY_LIMIT = 100;
-      if (todaysVotes.length >= DAILY_LIMIT) {
-        throw new Error("Daily vote limit reached. Please come back tomorrow!");
-      }
-    }
-
-    // Create new vote
-    await ctx.db.insert("songVotes", {
-      userId: effectiveUserId,
-      setlistId: args.setlistId,
-      songTitle: args.songTitle,
-      voteType: args.voteType,
-      createdAt: Date.now(),
-    });
-
-    // Increment the parent show's voteCount (voteCount includes votes + songVotes)
-    if (setlist.showId) {
-      const show = await ctx.db.get(setlist.showId);
-      if (show) {
-        await ctx.db.patch(setlist.showId, {
-          voteCount: (show.voteCount || 0) + 1,
-        });
-      }
-    }
-
-    // Artist dashboard rollup: increment demand count
-    if (setlist?.showId) {
-      const songKey = normalizeSongKey(args.songTitle);
-      const existingDemand = await ctx.db
-        .query("showSongDemand")
-        .withIndex("by_show_and_songKey", (q) =>
-          q.eq("showId", setlist.showId).eq("songKey", songKey),
-        )
-        .first();
-      if (existingDemand) {
-        await ctx.db.patch(existingDemand._id, {
-          upvotes: (existingDemand.upvotes || 0) + 1,
-          lastVoteAt: Date.now(),
-          songTitle: existingDemand.songTitle || args.songTitle,
-        });
-      } else {
-        await ctx.db.insert("showSongDemand", {
-          showId: setlist.showId,
-          songKey,
-          songTitle: args.songTitle,
-          upvotes: 1,
-          lastVoteAt: Date.now(),
-        });
-      }
-    }
-
-    return { action: "added" };
+      return { action: "added" };
     } catch (error) {
       // Track voting errors
       await ctx.runMutation(internalRef.errorTracking.logError, {
@@ -196,7 +196,7 @@ export const voteOnSong = mutation({
 
 // Get vote count for a specific song in a setlist
 export const getSongVotes = query({
-  args: { 
+  args: {
     setlistId: v.id("setlists"),
     songTitle: v.string()
   },
@@ -206,12 +206,12 @@ export const getSongVotes = query({
   }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    
+
     const votes = await ctx.db
       .query("songVotes")
-      .withIndex("by_setlist_song", (q) => 
+      .withIndex("by_setlist_song", (q) =>
         q.eq("setlistId", args.setlistId)
-         .eq("songTitle", args.songTitle)
+          .eq("songTitle", args.songTitle)
       )
       .collect();
 
@@ -234,7 +234,7 @@ export const getSetlistSongVotes = query({
   })),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    
+
     const votes = await ctx.db
       .query("songVotes")
       .withIndex("by_setlist", (q) => q.eq("setlistId", args.setlistId))
@@ -242,7 +242,7 @@ export const getSetlistSongVotes = query({
 
     // Group by song title
     const songVoteMap = new Map<string, { upvotes: number; userVoted: boolean }>();
-    
+
     for (const vote of votes) {
       const current = songVoteMap.get(vote.songTitle) || { upvotes: 0, userVoted: false };
       current.upvotes++;
@@ -275,7 +275,7 @@ export const getUserVotes = query({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .take(limit);
-      
+
     return votes;
   },
 });

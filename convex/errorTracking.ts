@@ -4,12 +4,12 @@
  */
 
 import { internalMutation } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { internalRef } from "./adminHelpers";
 import { v } from "convex/values";
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
+
 
 // Export as public mutation for now (can be made internal later with proper API routing)
 export const logError = internalMutation({
@@ -44,9 +44,9 @@ export const logError = internalMutation({
     });
 
     // Log to console for immediate visibility
-    const emoji = args.severity === "error" ? "❌" : 
-                  args.severity === "warning" ? "⚠️" : "ℹ️";
-    
+    const emoji = args.severity === "error" ? "❌" :
+      args.severity === "warning" ? "⚠️" : "ℹ️";
+
     console.error(
       `${emoji} [${args.operation}] ${args.error}`,
       args.context ? JSON.stringify(args.context, null, 2) : ""
@@ -89,15 +89,15 @@ export const getRecentErrors = internalMutation({
   })),
   handler: async (ctx, args) => {
     const limit = args.limit || 100;
-    
+
     let query = ctx.db
       .query("errorLogs")
       .order("desc");
-    
+
     if (args.operation) {
       query = query.filter((q) => q.eq(q.field("operation"), args.operation));
     }
-    
+
     return await query.take(limit);
   },
 });

@@ -2,12 +2,10 @@
 
 import { internalAction, action } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { internalRef } from "./adminHelpers";
 import * as cheerio from "cheerio";
 
-// Type workaround for Convex deep type instantiation issues
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
+
 
 // ============================================================================
 // TOP US MUSIC FESTIVALS - Hardcoded list with Wikipedia URLs
@@ -211,15 +209,15 @@ export const fetchFestivalImage = internalAction({
     try {
       console.log(`🎫 Searching Ticketmaster for: ${args.festivalName} ${args.year}`);
       const festivalNameLower = args.festivalName.toLowerCase();
-      
+
       // Strategy 1: Search for the festival as an event
       const searchQuery = encodeURIComponent(`${args.festivalName} ${args.year}`);
       const eventsUrl = `https://app.ticketmaster.com/discovery/v2/events.json?keyword=${searchQuery}&classificationName=music&size=10&apikey=${apiKey}`;
-      
+
       let response = await fetch(eventsUrl, { headers: { "Accept": "application/json" } });
       let data = response.ok ? await response.json() : {};
       let items = data._embedded?.events || [];
-      
+
       // Strategy 2: If no events, search as attraction (many festivals are attractions)
       if (items.length === 0) {
         console.log(`  No events found, trying attractions...`);
@@ -228,7 +226,7 @@ export const fetchFestivalImage = internalAction({
         data = response.ok ? await response.json() : {};
         items = data._embedded?.attractions || [];
       }
-      
+
       // Strategy 3: Try searching just the festival name without year
       if (items.length === 0) {
         console.log(`  No attractions found, trying broader search...`);
@@ -237,34 +235,34 @@ export const fetchFestivalImage = internalAction({
         data = response.ok ? await response.json() : {};
         items = data._embedded?.events || [];
       }
-      
+
       if (items.length === 0) {
         console.log(`  No Ticketmaster results for ${args.festivalName}`);
         return { imageUrl: undefined, ticketmasterId: undefined, websiteUrl: undefined, ticketUrl: undefined };
       }
-      
+
       // Find the best matching item (prefer exact name match)
-      const bestItem = items.find((e: any) => 
+      const bestItem = items.find((e: any) =>
         e.name?.toLowerCase().includes(festivalNameLower)
       ) || items[0];
-      
+
       // Extract the best quality image (prefer 16:9 ratio, largest size)
       const images = bestItem.images || [];
       const bestImage = images
         .filter((img: any) => img.url && img.width && img.height)
         .sort((a: any, b: any) => {
           // Prefer 16:9 ratio images for hero banners
-          const aRatio = Math.abs((a.width / a.height) - (16/9));
-          const bRatio = Math.abs((b.width / b.height) - (16/9));
+          const aRatio = Math.abs((a.width / a.height) - (16 / 9));
+          const bRatio = Math.abs((b.width / b.height) - (16 / 9));
           if (Math.abs(aRatio - bRatio) > 0.1) return aRatio - bRatio;
           // Then prefer larger images
           return (b.width * b.height) - (a.width * a.height);
         })[0];
-      
+
       const imageUrl = bestImage?.url;
       const ticketUrl = bestItem.url || undefined;
       console.log(`  ✅ Found ${items.length} results, image: ${imageUrl ? "yes" : "no"}, ticketUrl: ${ticketUrl ? "yes" : "no"}`);
-      
+
       return {
         imageUrl: imageUrl || undefined,
         ticketmasterId: bestItem.id || undefined,
@@ -301,14 +299,14 @@ export const scrapeFestivalLineup = internalAction({
   handler: async (ctx, args) => {
     try {
       console.log(`🔍 Scraping ${args.festivalName} ${args.year} from Wikipedia...`);
-      
+
       const response = await fetch(args.wikiUrl, {
         headers: {
           "User-Agent": "SetlistsLive/1.0 (Educational Project; https://setlists.live)",
           "Accept": "text/html",
         },
       });
-      
+
       if (!response.ok) {
         return {
           success: false,
@@ -316,38 +314,38 @@ export const scrapeFestivalLineup = internalAction({
           error: `HTTP ${response.status}: ${response.statusText}`,
         };
       }
-      
+
       const html = await response.text();
       const $ = cheerio.load(html);
-      
+
       const artists: string[] = [];
       const yearStr = String(args.year);
-      
+
       // Strategy 1: Find tables/sections with year in heading
       console.log(`   Strategy 1: Looking for year-specific headings...`);
       $("h2, h3, h4").each((_, heading) => {
         const headingText = $(heading).text();
-        
+
         // Look for year-specific lineup sections
-        if (headingText.includes(yearStr) && 
-            (/lineup|artist|performer|headliner/i.test(headingText) || headingText.match(/^\d{4}$/))) {
-          
+        if (headingText.includes(yearStr) &&
+          (/lineup|artist|performer|headliner/i.test(headingText) || headingText.match(/^\d{4}$/))) {
+
           // Get content after heading until next heading
           let next = $(heading).nextAll().first();
           let iterations = 0;
-          
+
           while (next.length && !next.is("h2, h3, h4") && iterations < 50) {
             // Extract from lists
             next.find("li").each((_, li) => {
               // Get the main link text (artist name)
               const link = $(li).find("a").first();
               const text = link.length ? link.text().trim() : $(li).text().split("[")[0].trim();
-              
+
               if (isValidArtistName(text)) {
                 artists.push(text);
               }
             });
-            
+
             // Extract from tables
             next.find("td a").each((_, link) => {
               const text = $(link).text().trim();
@@ -355,20 +353,20 @@ export const scrapeFestivalLineup = internalAction({
                 artists.push(text);
               }
             });
-            
+
             next = next.next();
             iterations++;
           }
         }
       });
       console.log(`   Strategy 1 found: ${artists.length} artists`);
-      
+
       // Strategy 2: If no year-specific section, look for "Lineups" or similar tables
       if (artists.length === 0) {
         console.log(`   Strategy 2: Looking for wikitables with year...`);
         $("table.wikitable").each((_, table) => {
           const tableHtml = $(table).html() || "";
-          
+
           // Check if table contains year and artist-like content
           if (tableHtml.includes(yearStr)) {
             $(table).find("td a, th a").each((_, link) => {
@@ -381,7 +379,7 @@ export const scrapeFestivalLineup = internalAction({
         });
         console.log(`   Strategy 2 found: ${artists.length} artists`);
       }
-      
+
       // Strategy 3: Look for inline lists with artist names
       if (artists.length === 0) {
         console.log(`   Strategy 3: Looking for inline artist lists...`);
@@ -398,7 +396,7 @@ export const scrapeFestivalLineup = internalAction({
         });
         console.log(`   Strategy 3 found: ${artists.length} artists`);
       }
-      
+
       // Strategy 4: Look for infobox with lineup information
       if (artists.length === 0) {
         console.log(`   Strategy 4: Looking for infobox lineup field...`);
@@ -429,7 +427,7 @@ export const scrapeFestivalLineup = internalAction({
         });
         console.log(`   Strategy 4 found: ${artists.length} artists`);
       }
-      
+
       // Strategy 5: Look for any section that lists multiple artists (regardless of year)
       if (artists.length === 0) {
         console.log(`   Strategy 5: Looking for any lineup section...`);
@@ -438,7 +436,7 @@ export const scrapeFestivalLineup = internalAction({
           if (headingText.includes("lineup") || headingText.includes("artist") || headingText.includes("performer")) {
             let next = $(heading).next();
             let iterations = 0;
-            
+
             while (next.length && !next.is("h2, h3") && iterations < 30) {
               next.find("a").each((_, link) => {
                 const text = $(link).text().trim();
@@ -453,7 +451,7 @@ export const scrapeFestivalLineup = internalAction({
         });
         console.log(`   Strategy 5 found: ${artists.length} artists`);
       }
-      
+
       // Strategy 6: Parse comma/semicolon separated lists in paragraphs
       if (artists.length === 0) {
         console.log(`   Strategy 6: Looking for comma-separated artist lists...`);
@@ -472,14 +470,14 @@ export const scrapeFestivalLineup = internalAction({
         });
         console.log(`   Strategy 6 found: ${artists.length} artists`);
       }
-      
+
       // Dedupe and clean
       const uniqueArtists = [...new Set(artists)]
         .filter((name) => name.length > 0)
         .slice(0, 200); // Cap at 200 artists per festival
-      
+
       console.log(`   ✅ Total unique artists found: ${uniqueArtists.length}`);
-      
+
       return {
         success: uniqueArtists.length > 0,
         artists: uniqueArtists,
@@ -500,7 +498,7 @@ export const scrapeFestivalLineup = internalAction({
 // Helper: Check if a string looks like a valid artist name
 function isValidArtistName(text: string): boolean {
   if (!text || text.length < 2 || text.length > 100) return false;
-  
+
   // Reject common non-artist strings
   const rejectPatterns = [
     /^\d{4}$/, // Just a year
@@ -516,7 +514,7 @@ function isValidArtistName(text: string): boolean {
     /^\d+:\d+/, // Times
     /^(pm|am)$/i,
   ];
-  
+
   return !rejectPatterns.some((pattern) => pattern.test(text.trim()));
 }
 
@@ -539,31 +537,31 @@ export const bootstrapFestivals = internalAction({
     const errors: string[] = [];
     let festivalsCreated = 0;
     let artistsLinked = 0;
-    
+
     console.log(`\n🎪 FESTIVAL BOOTSTRAP - ${year}`);
     console.log("=".repeat(50));
-    
+
     // Filter festivals if specific slugs provided
     const festivalsToProcess = args.festivalSlugs
       ? MAJOR_US_FESTIVALS.filter((f) => args.festivalSlugs!.includes(f.slug))
       : MAJOR_US_FESTIVALS;
-    
+
     for (const source of festivalsToProcess) {
       console.log(`\n📥 Processing: ${source.name} ${year}`);
-      
+
       try {
         // Create festival slug with year
         const slug = `${source.slug}-${year}`;
-        
+
         // Estimate dates based on typical month
         const { startDate, endDate } = estimateFestivalDates(source.typicalMonth, year);
-        
+
         // Step 1: Fetch image from Ticketmaster
         const tmData = await ctx.runAction(internalRef.festivalBootstrap.fetchFestivalImage, {
           festivalName: source.name,
           year,
         });
-        
+
         // Step 2: Create/update festival record with image and ticket URL
         const festivalId = await ctx.runMutation(internalRef.festivals.upsertFestival, {
           name: `${source.name} ${year}`,
@@ -578,25 +576,25 @@ export const bootstrapFestivals = internalAction({
           websiteUrl: tmData.websiteUrl,
           ticketUrl: tmData.ticketUrl, // Direct Ticketmaster link for affiliate revenue
         });
-        
+
         festivalsCreated++;
         console.log(`  ✅ Festival record created/updated${tmData.imageUrl ? " with image" : ""}`);
-        
+
         // Step 2: Scrape lineup from Wikipedia
         const lineup = await ctx.runAction(internalRef.festivalBootstrap.scrapeFestivalLineup, {
           wikiUrl: source.wikiUrl,
           year,
           festivalName: source.name,
         });
-        
+
         if (!lineup.success || lineup.artists.length === 0) {
           console.log(`  ⚠️ No lineup found: ${lineup.error}`);
           errors.push(`${source.name}: ${lineup.error || "No artists found"}`);
           continue;
         }
-        
+
         console.log(`  🎤 Found ${lineup.artists.length} artists`);
-        
+
         // Step 3: Link artists to festival
         let linked = 0;
         for (const artistName of lineup.artists) {
@@ -606,7 +604,7 @@ export const bootstrapFestivals = internalAction({
               artistName,
               dayNumber: 1, // Default to day 1 since we don't have day info
             });
-            
+
             if (showId) {
               linked++;
               artistsLinked++;
@@ -615,25 +613,25 @@ export const bootstrapFestivals = internalAction({
             // Artist not in database - skip silently
           }
         }
-        
+
         console.log(`  ✅ Linked ${linked} artists to festival`);
-        
+
         // Rate limit: 3 seconds between festivals to be nice to Wikipedia
         await new Promise((r) => setTimeout(r, 3000));
-        
+
       } catch (error) {
         const msg = error instanceof Error ? error.message : "Unknown error";
         console.error(`  ❌ Error: ${msg}`);
         errors.push(`${source.name}: ${msg}`);
       }
     }
-    
+
     console.log("\n" + "=".repeat(50));
     console.log(`🎉 BOOTSTRAP COMPLETE`);
     console.log(`   Festivals: ${festivalsCreated}`);
     console.log(`   Artists linked: ${artistsLinked}`);
     console.log(`   Errors: ${errors.length}`);
-    
+
     return { festivalsCreated, artistsLinked, errors };
   },
 });
@@ -644,19 +642,19 @@ function estimateFestivalDates(month: string, year: number): { startDate: string
     January: 0, February: 1, March: 2, April: 3, May: 4, June: 5,
     July: 6, August: 7, September: 8, October: 9, November: 10, December: 11,
   };
-  
+
   const monthIndex = monthMap[month] ?? 0;
-  
+
   // Assume festivals typically run Friday-Sunday in the middle of the month
   const startDate = new Date(year, monthIndex, 12); // Middle of month
   const endDate = new Date(year, monthIndex, 14); // 3-day festival
-  
+
   // Adjust to nearest Friday
   const dayOfWeek = startDate.getDay();
   const daysUntilFriday = (5 - dayOfWeek + 7) % 7;
   startDate.setDate(startDate.getDate() + daysUntilFriday);
   endDate.setDate(startDate.getDate() + 2);
-  
+
   return {
     startDate: startDate.toISOString().split("T")[0],
     endDate: endDate.toISOString().split("T")[0],
@@ -696,27 +694,27 @@ export const updateFestivalImages = action({
   handler: async (ctx) => {
     const errors: string[] = [];
     let updated = 0;
-    
+
     // Get all festivals
     const festivals = await ctx.runQuery(internalRef.festivals.listAll);
-    
+
     for (const festival of festivals) {
       // Skip if already has image
       if (festival.imageUrl) continue;
-      
+
       // Extract base name and year from festival name
       const nameMatch = festival.name.match(/^(.+?)\s+(\d{4})$/);
       if (!nameMatch) continue;
-      
+
       const baseName = nameMatch[1];
       const year = parseInt(nameMatch[2]);
-      
+
       try {
         const tmData = await ctx.runAction(internalRef.festivalBootstrap.fetchFestivalImage, {
           festivalName: baseName,
           year,
         });
-        
+
         if (tmData.imageUrl || tmData.ticketUrl) {
           await ctx.runMutation(internalRef.festivals.updateImage, {
             festivalId: festival._id,
@@ -727,14 +725,14 @@ export const updateFestivalImages = action({
           updated++;
           console.log(`✅ Updated ${festival.name} - image: ${tmData.imageUrl ? 'yes' : 'no'}, ticketUrl: ${tmData.ticketUrl ? 'yes' : 'no'}`);
         }
-        
+
         // Rate limit
         await new Promise((r) => setTimeout(r, 500));
       } catch (error) {
         errors.push(`${festival.name}: ${error instanceof Error ? error.message : "Unknown"}`);
       }
     }
-    
+
     return { updated, errors };
   },
 });
@@ -753,38 +751,38 @@ export const backfillFestivalTicketUrls = action({
     let processed = 0;
     let updated = 0;
     let alreadyHadTickets = 0;
-    
+
     console.log("🎫 Starting festival ticket URL backfill...");
-    
+
     // Get all festivals
     const festivals = await ctx.runQuery(internalRef.festivals.listAll);
-    
+
     for (const festival of festivals) {
       processed++;
-      
+
       // Skip if already has ticketUrl
       if (festival.ticketUrl) {
         alreadyHadTickets++;
         console.log(`⏭️ ${festival.name} already has ticket URL`);
         continue;
       }
-      
+
       // Extract base name and year from festival name
       const nameMatch = festival.name.match(/^(.+?)\s+(\d{4})$/);
       if (!nameMatch) {
         console.log(`⚠️ Could not parse festival name: ${festival.name}`);
         continue;
       }
-      
+
       const baseName = nameMatch[1];
       const year = parseInt(nameMatch[2]);
-      
+
       try {
         const tmData = await ctx.runAction(internalRef.festivalBootstrap.fetchFestivalImage, {
           festivalName: baseName,
           year,
         });
-        
+
         if (tmData.ticketUrl) {
           await ctx.runMutation(internalRef.festivals.updateImage, {
             festivalId: festival._id,
@@ -797,14 +795,14 @@ export const backfillFestivalTicketUrls = action({
         } else {
           console.log(`⚠️ No ticket URL found for ${festival.name}`);
         }
-        
+
         // Rate limit to avoid API throttling
         await new Promise((r) => setTimeout(r, 600));
       } catch (error) {
         errors.push(`${festival.name}: ${error instanceof Error ? error.message : "Unknown"}`);
       }
     }
-    
+
     console.log(`\n📊 Backfill complete: ${updated} updated, ${alreadyHadTickets} already had tickets, ${errors.length} errors`);
     return { processed, updated, alreadyHadTickets, errors };
   },

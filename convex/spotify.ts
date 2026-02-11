@@ -2,11 +2,10 @@
 
 import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
-import { internal, api } from "./_generated/api";
+import { api } from "./_generated/api";
+import { internalRef } from "./adminHelpers";
 
-// Type workaround for Convex deep type instantiation issues
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
+
 
 const SPOTIFY_HTTP_TIMEOUT_MS = 30_000;
 const SPOTIFY_MAX_ATTEMPTS = 3;
@@ -84,12 +83,12 @@ async function fetchAllSpotifyPages<T>(initialUrl: string, accessToken: string):
 
 async function batchFetchAlbumTracks(albumIds: string[], accessToken: string): Promise<Map<string, any[]>> {
   const tracksByAlbum = new Map<string, any[]>();
-  
+
   // Process in batches of 10 albums to be respectful of API limits
   const batchSize = 10;
   for (let i = 0; i < albumIds.length; i += batchSize) {
     const batch = albumIds.slice(i, i + batchSize);
-    
+
     // Fetch albums in parallel within batch
     const promises = batch.map(async (albumId) => {
       try {
@@ -142,7 +141,7 @@ export const enrichArtistBasics = internalAction({
   handler: async (ctx, args) => {
     const clientId = process.env.SPOTIFY_CLIENT_ID;
     const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-    
+
     if (!clientId || !clientSecret) {
       console.log("Spotify credentials not configured");
       return null;
@@ -184,14 +183,14 @@ export const enrichArtistBasics = internalAction({
 
       const searchData = await searchResponse.json();
       const artists = searchData.artists?.items || [];
-      
+
       if (artists.length === 0) {
         console.log(`No Spotify artist found for basics: ${args.artistName}`);
         return null;
       }
 
       const spotifyArtist = artists[0];
-      
+
       // Update artist with JUST the basics (not full catalog)
       await ctx.runMutation(internalRef.artists.updateSpotifyData, {
         artistId: args.artistId,
@@ -472,7 +471,7 @@ export const syncArtistCatalog = internalAction({
 
       const searchData = await searchResponse.json();
       const artists = searchData.artists?.items || [];
-      
+
       if (artists.length === 0) {
         console.log(`⚠️ No Spotify artist found for: ${args.artistName}`);
         await ctx.runMutation(internalRef.artists.updateSyncStatus, {
@@ -483,7 +482,7 @@ export const syncArtistCatalog = internalAction({
       }
 
       const spotifyArtist = artists[0];
-      
+
       // Update artist with Spotify data - THIS IS CRITICAL FOR DATA INTEGRITY
       await ctx.runMutation(internalRef.artists.updateSpotifyData, {
         artistId: args.artistId,
@@ -516,9 +515,9 @@ export const syncArtistCatalog = internalAction({
           // Skip compilations and appears_on
           if (album.album_type === 'compilation') return false;
           if (album.album_group === 'appears_on') return false;
-          
+
           const albumName = album.name.toLowerCase();
-          
+
           // ONLY exclude clear non-studio types:
           const exclude = [
             // Live albums (must have "live" as standalone word or in parentheses)
@@ -530,7 +529,7 @@ export const syncArtistCatalog = internalAction({
             // Karaoke/Instrumental compilations
             'karaoke', 'instrumental album',
           ];
-          
+
           // More precise matching - avoid false positives
           const matchedExclude = exclude.find(k => {
             if (k.startsWith(' ') && k.endsWith(' ')) {
@@ -539,12 +538,12 @@ export const syncArtistCatalog = internalAction({
             }
             return albumName.includes(k);
           });
-          
+
           if (matchedExclude) {
             console.log(`❌ Filtered album: ${album.name} (matched: ${matchedExclude})`);
             return false;
           }
-          
+
           console.log(`✅ Keeping album: ${album.name} (${album.album_type})`);
           return true;
         })
@@ -552,13 +551,13 @@ export const syncArtistCatalog = internalAction({
           // Sort by release date (oldest first = prefer original versions)
           return new Date(a.release_date).getTime() - new Date(b.release_date).getTime();
         });
-      
+
       console.log(`🎯 Filtered to ${studioAlbums.length} pure studio albums from ${albums.length} total`);
 
       // GENIUS BATCH PROCESSING: Fetch all tracks efficiently
       const albumIds = studioAlbums.map(album => album.id);
       const tracksByAlbum = await batchFetchAlbumTracks(albumIds, accessToken);
-      
+
       // Collect all tracks with album information for duplicate detection
       const allTracks: any[] = [];
       for (const album of studioAlbums) {
@@ -570,7 +569,7 @@ export const syncArtistCatalog = internalAction({
           });
         }
       }
-      
+
       console.log(`📊 Collected ${allTracks.length} total tracks from ${studioAlbums.length} albums`);
 
       // GENIUS DUPLICATE DETECTION: Filter original tracks only
@@ -647,7 +646,7 @@ export const syncArtistCatalog = internalAction({
       // 2. Manual: admin triggers via dashboard
       console.log(`✅ Catalog sync complete for ${args.artistName}: ${songsImported} songs imported`);
       console.log(`ℹ️  Setlist generation will be handled by cron job (refresh-auto-setlists)`)
-      
+
       // CIRCUIT BREAKER: Reset failure count on success
       if (songsImported > 0) {
         await ctx.runMutation(internalRef.artists.updateSyncStatus, {
@@ -660,14 +659,14 @@ export const syncArtistCatalog = internalAction({
 
     } catch (error) {
       console.error("Failed to sync Spotify catalog:", error);
-      
+
       // CIRCUIT BREAKER: Increment failure count and apply backoff
       const currentFailures = (artist.catalogSyncFailureCount || 0) + 1;
       const backoffHours = currentFailures >= 3 ? 72 : 0; // 72h backoff after 3 failures
       const backoffUntil = backoffHours > 0 ? now + (backoffHours * 60 * 60 * 1000) : undefined;
-      
+
       console.error(`❌ Catalog sync failure ${currentFailures} for ${args.artistName}${backoffHours > 0 ? ` - applying ${backoffHours}h backoff` : ''}`);
-      
+
       // Mark as failed and update circuit breaker state
       await ctx.runMutation(internalRef.artists.updateSyncStatus, {
         artistId: args.artistId,
@@ -676,7 +675,7 @@ export const syncArtistCatalog = internalAction({
         catalogSyncLastFailure: now,
         catalogSyncBackoffUntil: backoffUntil,
       });
-      
+
       // Track critical catalog sync failure
       await ctx.runMutation(internalRef.errorTracking.logError, {
         operation: "spotify_catalog_sync",
@@ -786,21 +785,21 @@ function isStudioSong(songName: string, albumName: string): boolean {
 async function filterOriginalTracks(allTracks: any[], artistId: string, ctx: any): Promise<any[]> {
   // Group tracks by normalized title to detect duplicates
   const trackGroups = new Map<string, any[]>();
-  
+
   for (const track of allTracks) {
     if (!isStudioSong(track.name, track.album_info.name)) continue;
-    
+
     // Normalize title for duplicate detection
     const normalizedTitle = normalizeTrackTitle(track.name);
-    
+
     if (!trackGroups.has(normalizedTitle)) {
       trackGroups.set(normalizedTitle, []);
     }
     trackGroups.get(normalizedTitle)!.push(track);
   }
-  
+
   const originalTracks: any[] = [];
-  
+
   // For each group of tracks with same title, pick the best one
   for (const [title, tracks] of trackGroups) {
     if (tracks.length === 1) {
@@ -809,11 +808,11 @@ async function filterOriginalTracks(allTracks: any[], artistId: string, ctx: any
       // Multiple versions - pick the best one using genius logic
       const bestTrack = selectBestTrackVersion(tracks);
       originalTracks.push(bestTrack);
-      
+
       console.log(`🔍 Duplicate detected for "${title}": ${tracks.length} versions, selected from "${bestTrack.album_info.name}"`);
     }
   }
-  
+
   return originalTracks;
 }
 
@@ -839,28 +838,28 @@ function selectBestTrackVersion(tracks: any[]): any {
       if (track.album_info.album_type === 'single') return 2;
       return 1;
     };
-    
+
     // Prefer non-deluxe versions (aggressive detection)
     const isDeluxe = (track: any) => {
       const albumName = track.album_info.name.toLowerCase();
-      return albumName.includes('deluxe') || albumName.includes('expanded') || 
-             albumName.includes('special') || albumName.includes('remaster') ||
-             albumName.includes('edition') || albumName.includes('3am') ||
-             albumName.includes('til dawn') || albumName.includes('vault') ||
-             albumName.includes('complete') || albumName.includes('enhanced') ||
-             albumName.includes('[') || albumName.includes('(from the vault)');
+      return albumName.includes('deluxe') || albumName.includes('expanded') ||
+        albumName.includes('special') || albumName.includes('remaster') ||
+        albumName.includes('edition') || albumName.includes('3am') ||
+        albumName.includes('til dawn') || albumName.includes('vault') ||
+        albumName.includes('complete') || albumName.includes('enhanced') ||
+        albumName.includes('[') || albumName.includes('(from the vault)');
     };
-    
+
     // Prefer higher popularity
     const popularityScore = (track: any) => track.popularity || 0;
-    
+
     // Prefer shorter duration (original versions are usually not extended)
     const durationScore = (track: any) => -(track.duration_ms || 0); // Negative for shorter preference
-    
+
     // Calculate composite score
     const scoreA = albumTypeScore(a) * 1000 + (isDeluxe(a) ? 0 : 500) + popularityScore(a);
     const scoreB = albumTypeScore(b) * 1000 + (isDeluxe(b) ? 0 : 500) + popularityScore(b);
-    
+
     return scoreB - scoreA;
   })[0];
 }

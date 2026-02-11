@@ -1,18 +1,110 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser, useAuth } from "@clerk/clerk-react";
-import { useAction, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { AppLayout } from "../components/AppLayout";
 import { MagicCard } from "../components/ui/magic-card";
 import { Button } from "../components/ui/button";
-import { Loader2, Music, ShieldCheck, Mic2, Users } from "lucide-react";
+import { Loader2, Music, ShieldCheck, Mic2, Users, Search, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 function hasSpotifyConnected(clerkUser: any): boolean {
   const accounts = clerkUser?.externalAccounts ?? [];
   return accounts.some(
     (a: any) => a?.provider === "spotify" || a?.provider === "oauth_spotify"
+  );
+}
+
+// Admin component to search and quick-claim any artist
+function AdminArtistSearch({ 
+  onClaim, 
+  claiming 
+}: { 
+  onClaim: (artistId: string, artistName: string) => Promise<void>;
+  claiming: boolean;
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  
+  // Debounce search
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+  
+  const searchResults = useQuery(
+    (api as any).artists.search,
+    debouncedQuery.length >= 2 ? { query: debouncedQuery, limit: 10 } : "skip"
+  );
+  
+  return (
+    <div className="space-y-3">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search any artist in the database..."
+          className="w-full h-10 rounded-lg bg-background border border-primary/30 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground"
+        />
+      </div>
+      
+      {searchQuery.length >= 2 && (
+        <div className="rounded-lg border border-border bg-background max-h-60 overflow-y-auto">
+          {searchResults === undefined ? (
+            <div className="p-4 text-center text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+            </div>
+          ) : searchResults.length === 0 ? (
+            <div className="p-4 text-center text-sm text-muted-foreground">
+              No artists found for "{searchQuery}"
+            </div>
+          ) : (
+            searchResults.map((artist: any) => (
+              <div
+                key={artist._id}
+                className="flex items-center justify-between gap-3 p-3 hover:bg-secondary/50 border-b border-border last:border-b-0"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-lg bg-secondary overflow-hidden flex-shrink-0">
+                    {artist.images?.[0] ? (
+                      <img src={artist.images[0]} alt={artist.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Music className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{artist.name}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {artist.genres?.slice(0, 2).join(", ") || "No genres"}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => onClaim(artist._id, artist.name)}
+                  disabled={claiming}
+                  className="shrink-0 gap-1"
+                >
+                  {claiming ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <>
+                      <Zap className="h-3 w-3" />
+                      Claim
+                    </>
+                  )}
+                </Button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -31,9 +123,20 @@ export function ForArtistsPage() {
   );
 
   const completeSpotifyImport = useAction(api.spotifyOAuth.completeSpotifyImport);
+  
+  // Admin features
+  const appUser = useQuery((api as any).users.getCurrentUser, isSignedIn ? {} : "skip");
+  const isAdmin = appUser?.role === "admin";
+  const adminQuickClaim = useMutation((api as any).artistClaims.adminQuickClaim);
+  const searchArtists = useQuery(
+    (api as any).artists.search,
+    isAdmin ? { query: "", limit: 0 } : "skip" // Empty query to check if function exists
+  );
 
-  const [selectedArtistId, setSelectedArtistId] = React.useState<string>("");
-  const [syncingSpotify, setSyncingSpotify] = React.useState(false);
+  const [selectedArtistId, setSelectedArtistId] = useState<string>("");
+  const [syncingSpotify, setSyncingSpotify] = useState(false);
+  const [adminSearch, setAdminSearch] = useState("");
+  const [adminClaiming, setAdminClaiming] = useState(false);
 
   // Note: Removed auto-redirect to allow users to claim additional artists
 
@@ -92,7 +195,7 @@ export function ForArtistsPage() {
               </div>
               <h3 className="font-semibold mb-2">Verified Access</h3>
               <p className="text-sm text-muted-foreground">
-                Automatic verification through your Spotify artist account.
+                Claim your artist page with email verification and quick review.
               </p>
             </div>
             <div className="text-center p-6">
@@ -354,6 +457,39 @@ export function ForArtistsPage() {
                 </p>
               )}
             </div>
+
+            {/* Admin Quick Claim */}
+            {isAdmin && (
+              <div className="mt-6 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Zap className="h-5 w-5 text-primary" />
+                  <span className="font-semibold text-primary">Admin: Quick Claim Any Artist</span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Bypass all verification and instantly access any artist's real data.
+                </p>
+                <AdminArtistSearch
+                  onClaim={async (artistId: string, artistName: string) => {
+                    setAdminClaiming(true);
+                    try {
+                      const result = await adminQuickClaim({ artistId });
+                      if (result.success) {
+                        toast.success(`Access granted to ${artistName}`, { 
+                          description: result.message 
+                        });
+                        navigate(`/for-artists/${artistId}`);
+                      } else {
+                        toast.error("Claim failed", { description: result.message });
+                      }
+                    } catch (e: any) {
+                      toast.error("Claim failed", { description: e?.message });
+                    }
+                    setAdminClaiming(false);
+                  }}
+                  claiming={adminClaiming}
+                />
+              </div>
+            )}
 
             {!!inProgressClaims.length && (
               <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">

@@ -1,11 +1,11 @@
 import { action, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { internalRef } from "./adminHelpers";
 import { Id } from "./_generated/dataModel";
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
+
 
 const SETLISTFM_HTTP_TIMEOUT_MS = 30_000;
 
@@ -121,13 +121,13 @@ export const syncActualSetlist = internalAction({
         console.log(`🔍 Searching setlist.fm (${offset}d): ${artist.name} @ ${venue.city} on ${setlistfmDate}`);
 
         const apiResponse = await fetchWithRetry(searchUrl);
-        
+
         // Handle 404 as "no results" - continue to next date offset
         if (apiResponse.status === 404) {
           console.log(`ℹ️  No setlist found for date ${setlistfmDate}, trying next offset...`);
           continue;
         }
-        
+
         // Handle other non-OK responses as errors
         if (!apiResponse.ok) {
           const errorMsg = `Setlist.fm API error: ${apiResponse.status}`;
@@ -146,10 +146,10 @@ export const syncActualSetlist = internalAction({
         if (response && response.setlist) {
           // Check if the setlist actually has songs before marking as completed
           const sets = response.setlist.sets?.set;
-          const hasSongs = Array.isArray(sets) && sets.some((set: any) => 
+          const hasSongs = Array.isArray(sets) && sets.some((set: any) =>
             Array.isArray(set.song) && set.song.length > 0
           );
-          
+
           if (hasSongs) {
             const setlistId = await ctx.runMutation(internalRef.setlists.createFromApi, {
               showId: args.showId,
@@ -214,7 +214,7 @@ export const checkCompletedShows = internalAction({
   returns: v.null(),
   handler: async (ctx) => {
     console.log("🔍 Checking for completed shows needing setlist import...");
-    const completedShows = await ctx.runQuery(internalRef.setlistfm.getCompletedShowsNeedingImport, {}); 
+    const completedShows = await ctx.runQuery(internalRef.setlistfm.getCompletedShowsNeedingImport, {});
     let setlistsSynced = 0;
     for (const show of completedShows) {
       try {
@@ -225,7 +225,7 @@ export const checkCompletedShows = internalAction({
 
         const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: show.artistId });
         const venue = await ctx.runQuery(internalRef.venues.getByIdInternal, { id: show.venueId });
-        
+
         if (artist && venue) {
           const setlistId = await ctx.runAction(internalRef.setlistfm.syncActualSetlist, {
             showId: show._id,
@@ -411,7 +411,7 @@ export const getCompletedShowsNeedingImport = internalQuery({
   returns: v.array(v.any()),
   handler: async (ctx) => {
     const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
-    
+
     // Get shows that need first-time import
     const newShows = await ctx.db
       .query("shows")
@@ -422,7 +422,7 @@ export const getCompletedShowsNeedingImport = internalQuery({
         q.eq(q.field("importStatus"), "failed")
       ))
       .take(5);
-    
+
     // Also retry "not_found" shows after 24h (Setlist.fm data often appears late)
     const retryShows = await ctx.db
       .query("shows")
@@ -432,7 +432,7 @@ export const getCompletedShowsNeedingImport = internalQuery({
         q.lt(q.field("lastSynced"), twentyFourHoursAgo)
       ))
       .take(3);
-    
+
     return [...newShows, ...retryShows];
   },
 });
@@ -444,7 +444,7 @@ export const getShowsWithEmptySetlists = internalQuery({
   handler: async (ctx, args) => {
     const limit = args.limit ?? 10;
     const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
-    
+
     // Get completed shows that might have empty setlists
     const completedShows = await ctx.db
       .query("shows")
@@ -454,26 +454,26 @@ export const getShowsWithEmptySetlists = internalQuery({
         q.lt(q.field("lastSynced"), twentyFourHoursAgo)
       ))
       .take(limit * 2);
-    
+
     // Filter to only shows where the setlist is empty
     const showsNeedingRetry: any[] = [];
     for (const show of completedShows) {
       if (showsNeedingRetry.length >= limit) break;
-      
+
       const setlists = await ctx.db
         .query("setlists")
         .withIndex("by_show", (q) => q.eq("showId", show._id))
         .collect();
-      
-      const hasActualSetlist = setlists.some((s: any) => 
+
+      const hasActualSetlist = setlists.some((s: any) =>
         s.actualSetlist && Array.isArray(s.actualSetlist) && s.actualSetlist.length > 0
       );
-      
+
       if (!hasActualSetlist) {
         showsNeedingRetry.push(show);
       }
     }
-    
+
     return showsNeedingRetry;
   },
 });
@@ -485,16 +485,16 @@ export const retryEmptySetlists = internalAction({
   handler: async (ctx, args) => {
     const limit = args.limit ?? 5;
     console.log(`🔄 Checking for shows with empty setlists to retry...`);
-    
+
     const showsToRetry = await ctx.runQuery(internalRef.setlistfm.getShowsWithEmptySetlists, { limit });
-    
+
     if (showsToRetry.length === 0) {
       console.log(`✅ No shows with empty setlists need retry`);
       return null;
     }
-    
+
     console.log(`📋 Found ${showsToRetry.length} shows with empty setlists to retry`);
-    
+
     for (const show of showsToRetry) {
       try {
         // Reset import status to trigger re-import
@@ -502,10 +502,10 @@ export const retryEmptySetlists = internalAction({
           showId: show._id,
           status: "not_found" as const,
         });
-        
+
         const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: show.artistId });
         const venue = await ctx.runQuery(internalRef.venues.getByIdInternal, { id: show.venueId });
-        
+
         if (artist && venue) {
           await ctx.runAction(internalRef.setlistfm.syncActualSetlist, {
             showId: show._id,
@@ -514,14 +514,14 @@ export const retryEmptySetlists = internalAction({
             showDate: show.date,
           });
         }
-        
+
         // Rate limit
         await new Promise(resolve => setTimeout(resolve, 2000));
       } catch (error) {
         console.error(`Failed to retry show ${show._id}:`, error);
       }
     }
-    
+
     console.log(`✅ Retry complete for ${showsToRetry.length} shows`);
     return null;
   },

@@ -1,20 +1,20 @@
 import { internalMutation, action } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
-import { internal } from "./_generated/api";
+import { internalRef } from "./adminHelpers";
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
+
 
 // Helper to filter out non-concert content (plays, musicals, film screenings, etc.)
 const isRealConcert = (name: string): boolean => {
   const lowerName = (name || '').toLowerCase();
-  
+
   // Reject patterns for non-concert content
   const rejectPatterns = [
     // Theatrical/Stage productions
-    'tribute', 'experience', 'orchestra', 'symphony', 'chamber', 
+    'tribute', 'experience', 'orchestra', 'symphony', 'chamber',
     'ballet', 'opera', 'broadway', 'musical', 'playhouse',
     'cirque', 'comedy', 'film with', '- film', 'live in concert',
     'ensemble', 'philharmonic', 'chorale', 'choir', 'choral',
@@ -35,7 +35,7 @@ const isRealConcert = (name: string): boolean => {
     // Classical
     'recital', 'concerto', 'twilight in concert'
   ];
-  
+
   return !rejectPatterns.some(p => lowerName.includes(p));
 };
 
@@ -60,60 +60,60 @@ export const importTrendingShowsBatch = internalMutation({
       skipped: 0,
       errors: [] as string[],
     };
-    
+
     // Get all trending shows from cache
     const cachedShows = await ctx.db
       .query("trendingShows")
       .take(limit);
-    
+
     for (const cached of cachedShows) {
       stats.processed++;
-      
+
       try {
         // Skip if already has showId
         if (cached.showId) {
           stats.skipped++;
           continue;
         }
-        
+
         // Validate required fields
         if (!cached.artistName || !cached.venueName || !cached.date) {
           stats.errors.push(`Missing data: ${cached.ticketmasterId}`);
           continue;
         }
-        
+
         // CRITICAL: US-only filter - skip non-US shows
         const country = (cached.venueCountry || '').toLowerCase();
-        const isUS = country === 'united states of america' || 
-                     country === 'united states' || 
-                     country === 'usa' || 
-                     country === 'us';
+        const isUS = country === 'united states of america' ||
+          country === 'united states' ||
+          country === 'usa' ||
+          country === 'us';
         if (!isUS) {
           stats.skipped++;
           continue;
         }
-        
+
         // CRITICAL: Concert-only filter - skip non-concert events
         if (!isRealConcert(cached.artistName)) {
           stats.skipped++;
           continue;
         }
-        
+
         // STEP 1: Get or create artist
         let artistId: Id<"artists"> | null = null;
-        
+
         // Try by Ticketmaster ID first
         if (cached.artistTicketmasterId) {
           const existingArtist = await ctx.db
             .query("artists")
             .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", cached.artistTicketmasterId!))
             .first();
-          
+
           if (existingArtist) {
             artistId = existingArtist._id;
           }
         }
-        
+
         // Try by name if no Ticketmaster ID match
         if (!artistId) {
           const lowerName = cached.artistName.toLowerCase();
@@ -121,7 +121,7 @@ export const importTrendingShowsBatch = internalMutation({
             .query("artists")
             .withIndex("by_lower_name", (q) => q.eq("lowerName", lowerName))
             .first();
-          
+
           if (existingByName) {
             artistId = existingByName._id;
             // Update with Ticketmaster ID if we have it
@@ -132,7 +132,7 @@ export const importTrendingShowsBatch = internalMutation({
             }
           }
         }
-        
+
         // Create artist if still not found
         if (!artistId) {
           const slug = cached.artistName.toLowerCase()
@@ -143,7 +143,7 @@ export const importTrendingShowsBatch = internalMutation({
             .replace(/-+/g, '-')
             .replace(/^-|-$/g, '')
             .substring(0, 100);
-          
+
           artistId = await ctx.db.insert("artists", {
             slug,
             name: cached.artistName,
@@ -161,15 +161,15 @@ export const importTrendingShowsBatch = internalMutation({
             lastTrendingUpdate: Date.now(),
           });
         }
-        
+
         // STEP 2: Get or create venue
         let venueId: Id<"venues"> | null = null;
-        
+
         const existingVenue = await ctx.db
           .query("venues")
           .withIndex("by_name_city", (q) => q.eq("name", cached.venueName).eq("city", cached.venueCity))
           .first();
-        
+
         if (existingVenue) {
           venueId = existingVenue._id;
         } else {
@@ -179,15 +179,15 @@ export const importTrendingShowsBatch = internalMutation({
             country: cached.venueCountry,
           });
         }
-        
+
         // STEP 3: Create or update show
         const existingShow = await ctx.db
           .query("shows")
           .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", cached.ticketmasterId))
           .first();
-        
+
         let showId: Id<"shows">;
-        
+
         if (existingShow) {
           showId = existingShow._id;
         } else {
@@ -195,9 +195,9 @@ export const importTrendingShowsBatch = internalMutation({
           const artist = await ctx.db.get(artistId);
           const venue = await ctx.db.get(venueId);
           if (!artist || !venue) throw new Error("Artist/venue not found after creation");
-          
+
           const slug = `${artist.slug}-${venue.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${venue.city.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${cached.date}${cached.startTime ? '-' + cached.startTime.replace(/:/g, '-') : ''}`.substring(0, 200);
-          
+
           showId = await ctx.db.insert("shows", {
             slug,
             artistId,
@@ -216,21 +216,21 @@ export const importTrendingShowsBatch = internalMutation({
             lastTrendingUpdate: Date.now(),
           });
         }
-        
+
         // STEP 4: Link cache to show
         await ctx.db.patch(cached._id, {
           showId,
           artistId,
         });
-        
+
         stats.imported++;
-        
+
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         stats.errors.push(`${cached.artistName}: ${msg}`);
       }
     }
-    
+
     return stats;
   },
 });
@@ -244,7 +244,7 @@ export const runImport = action({
     skipped: v.number(),
     errors: v.array(v.string()),
   }),
-  handler: async (ctx, args): Promise<{processed: number; imported: number; skipped: number; errors: string[]}> => {
+  handler: async (ctx, args): Promise<{ processed: number; imported: number; skipped: number; errors: string[] }> => {
     return await ctx.runMutation(internalRef.importTrendingShows.importTrendingShowsBatch, {
       limit: args.limit ?? 50,
     });

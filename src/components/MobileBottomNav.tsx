@@ -1,6 +1,6 @@
 import React from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, Mic, Calendar, TrendingUp, Activity as ActivityIcon, User } from 'lucide-react'
+import { Home, Mic, Calendar, TrendingUp, Activity as ActivityIcon, User, Sparkles } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
 
 interface TabItem {
@@ -24,6 +24,7 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
       { to: '/', label: 'Home', icon: Home },
       { to: '/artists', label: 'Artists', icon: Mic },
       { to: '/shows', label: 'Shows', icon: Calendar },
+      { to: '/festivals', label: 'Festivals', icon: Sparkles },
       { to: '/trending', label: 'Trending', icon: TrendingUp },
     ]
 
@@ -36,7 +37,7 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
 
   const totalColumns = navItems.length + 1;
   const gridColumnsClass = totalColumns === 6 ? 'grid-cols-6' : 'grid-cols-5';
-  
+
   return (
     <nav
       className="fixed bottom-0 inset-x-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border md:hidden safe-area-bottom"
@@ -44,10 +45,10 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
     >
       <ul className={`grid ${gridColumnsClass} relative`}>
         {navItems.map((item) => {
-          const isActive = pathname === item.to || 
+          const isActive = pathname === item.to ||
             (item.to !== '/' && pathname.startsWith(item.to))
           const Icon = item.icon
-          
+
           const handleClick = () => {
             if (item.requiresAuth && !isSignedIn) {
               navigate('/signin')
@@ -55,7 +56,7 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
               navigate(item.to)
             }
           }
-          
+
           return (
             <li key={item.to} className="relative">
               <button
@@ -72,20 +73,20 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
                 {isActive && (
                   <div className="absolute top-0 inset-x-4 h-0.5 bg-primary rounded-full animate-in slide-in-from-bottom-2 duration-300" />
                 )}
-                
+
                 {/* Icon with notification badge support */}
                 <div className="relative">
                   <Icon className={[
                     'h-5 w-5 transition-all duration-200',
                     isActive ? 'scale-110' : ''
                   ].join(' ')} />
-                  
+
                   {/* Example notification badge - can be made dynamic */}
                   {item.to === '/activity' && isSignedIn && (
                     <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
                   )}
                 </div>
-                
+
                 {/* Label */}
                 <span className={[
                   'text-[10px] mt-1 font-medium transition-all duration-200',
@@ -97,7 +98,7 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
             </li>
           )
         })}
-        
+
         {/* User Menu Button */}
         <li className="relative">
           <button

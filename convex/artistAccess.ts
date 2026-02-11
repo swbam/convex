@@ -60,8 +60,15 @@ async function requireArtistAccess(
  * This is the main entry point for the /for-artists landing page.
  * 
  * Access is granted via:
- * 1. Direct Spotify ID match (user's spotifyId === artist's spotifyId)
- * 2. Existing artistMembers record (team invite)
+ * 1. Existing artistMembers record (from approved claim or team invite)
+ * 
+ * Note: We DO NOT auto-match user.spotifyId to artist.spotifyId because:
+ * - user.spotifyId is the user's Spotify USER ID (from Clerk external account)
+ * - artist.spotifyId is the Spotify ARTIST ID (from the Web API)
+ * - These are fundamentally different identifiers and will never legitimately match.
+ * 
+ * Artist verification must go through the claim flow which includes
+ * email verification and admin review.
  */
 export const getMyArtistAccess = query({
   args: {},
@@ -90,36 +97,7 @@ export const getMyArtistAccess = query({
       return { hasAccess: false, reason: "no_spotify" as const };
     }
 
-    // Method 1: Check for direct Spotify ID match
-    // This catches artists whose Spotify user ID matches their artist profile ID
-    const matchedArtist = await ctx.db
-      .query("artists")
-      .withIndex("by_spotify_id", (q) => q.eq("spotifyId", user.spotifyId))
-      .first();
-
-    if (matchedArtist) {
-      // Check if already a member
-      const existingMembership = await ctx.db
-        .query("artistMembers")
-        .withIndex("by_user_artist", (q) =>
-          q.eq("userId", user._id).eq("artistId", matchedArtist._id)
-        )
-        .first();
-
-      if (!existingMembership) {
-        // Auto-create owner membership for matched Spotify ID
-        // Note: This happens on query, so we return the result but the mutation
-        // to create the membership should happen separately
-        return {
-          hasAccess: true,
-          artists: [{ artist: matchedArtist, role: "owner" as const }],
-        };
-      }
-
-      // Already a member, include in results below
-    }
-
-    // Method 2: Check artistMembers table for team invites
+    // Check artistMembers table for approved claims and team invites
     const memberships = await ctx.db
       .query("artistMembers")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
@@ -142,66 +120,7 @@ export const getMyArtistAccess = query({
       }
     }
 
-    // Handle case where Spotify ID matched but no membership exists yet
-    // Return access true so frontend can trigger the auto-join mutation
-    if (matchedArtist) {
-      return {
-        hasAccess: true,
-        artists: [{ artist: matchedArtist, role: "owner" as const }],
-      };
-    }
-
     return { hasAccess: false, reason: "not_an_artist" as const };
-  },
-});
-
-/**
- * Auto-join as owner if user's Spotify ID matches an artist's Spotify ID.
- * Called by frontend when getMyArtistAccess returns a matched artist without membership.
- */
-export const autoJoinAsOwner = mutation({
-  args: {},
-  returns: v.object({
-    success: v.boolean(),
-    artistId: v.optional(v.id("artists")),
-    message: v.optional(v.string()),
-  }),
-  handler: async (ctx) => {
-    const user = await getCurrentAppUser(ctx);
-    if (!user) return { success: false, message: "Not signed in" };
-    if (!user.spotifyId) return { success: false, message: "No Spotify connected" };
-
-    // Find matching artist
-    const matchedArtist = await ctx.db
-      .query("artists")
-      .withIndex("by_spotify_id", (q) => q.eq("spotifyId", user.spotifyId))
-      .first();
-
-    if (!matchedArtist) {
-      return { success: false, message: "No matching artist found" };
-    }
-
-    // Check if already a member
-    const existing = await ctx.db
-      .query("artistMembers")
-      .withIndex("by_user_artist", (q) =>
-        q.eq("userId", user._id).eq("artistId", matchedArtist._id)
-      )
-      .first();
-
-    if (existing) {
-      return { success: true, artistId: matchedArtist._id, message: "Already a member" };
-    }
-
-    // Create owner membership
-    await ctx.db.insert("artistMembers", {
-      artistId: matchedArtist._id,
-      userId: user._id,
-      role: "owner",
-      createdAt: Date.now(),
-    });
-
-    return { success: true, artistId: matchedArtist._id };
   },
 });
 
@@ -492,5 +411,378 @@ export const leaveArtistTeam = mutation({
 
     await ctx.db.delete(membership._id);
     return { success: true };
+  },
+});
+
+// ============================================================================
+// ENHANCED INVITE SYSTEM
+// ============================================================================
+
+// Generate a secure invite token
+function generateInviteToken(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let token = '';
+  for (let i = 0; i < 32; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return token;
+}
+
+const INVITE_EXPIRY_DAYS = 7;
+
+/**
+ * Create an invite for a user by email.
+ * Works even if the user doesn't have an account yet.
+ */
+export const createInvite = mutation({
+  args: {
+    artistId: v.id("artists"),
+    email: v.string(),
+    role: v.union(v.literal("manager"), v.literal("viewer")),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    message: v.optional(v.string()),
+    inviteToken: v.optional(v.string()),
+    inviteUrl: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    // Verify caller is owner
+    const { user } = await requireArtistAccess(ctx, args.artistId, "owner");
+    
+    // Get artist for name
+    const artist = await ctx.db.get(args.artistId);
+    if (!artist) return { success: false, message: "Artist not found" };
+
+    // Normalize email
+    const email = args.email.toLowerCase().trim();
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return { success: false, message: "Invalid email address" };
+    }
+
+    // Check if already a member
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .first();
+    
+    if (existingUser) {
+      const existingMember = await ctx.db
+        .query("artistMembers")
+        .withIndex("by_user_artist", (q) =>
+          q.eq("userId", existingUser._id).eq("artistId", args.artistId)
+        )
+        .first();
+      
+      if (existingMember) {
+        return { success: false, message: "This user is already a team member" };
+      }
+    }
+
+    // Check for existing pending invite
+    const existingInvite = await ctx.db
+      .query("artistInvites")
+      .withIndex("by_artist_email", (q) =>
+        q.eq("artistId", args.artistId).eq("email", email)
+      )
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .first();
+    
+    if (existingInvite) {
+      // Return existing invite if not expired
+      if (existingInvite.expiresAt > Date.now()) {
+        const baseUrl = process.env.SITE_URL || "https://setlists.live";
+        return {
+          success: true,
+          message: "Invite already exists",
+          inviteToken: existingInvite.inviteToken,
+          inviteUrl: `${baseUrl}/for-artists/invite/${existingInvite.inviteToken}`,
+        };
+      }
+      // Mark as expired
+      await ctx.db.patch(existingInvite._id, { status: "expired" });
+    }
+
+    // Create new invite
+    const inviteToken = generateInviteToken();
+    const expiresAt = Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+    
+    await ctx.db.insert("artistInvites", {
+      artistId: args.artistId,
+      email,
+      role: args.role,
+      status: "pending",
+      inviteToken,
+      invitedBy: user._id,
+      createdAt: Date.now(),
+      expiresAt,
+    });
+
+    const baseUrl = process.env.SITE_URL || "https://setlists.live";
+    const inviteUrl = `${baseUrl}/for-artists/invite/${inviteToken}`;
+
+    return {
+      success: true,
+      message: `Invite sent to ${email}`,
+      inviteToken,
+      inviteUrl,
+    };
+  },
+});
+
+/**
+ * Get pending invites for an artist (owner only).
+ */
+export const getPendingInvites = query({
+  args: { artistId: v.id("artists") },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const user = await getCurrentAppUser(ctx);
+    if (!user) return [];
+    
+    // Verify caller has at least manager access
+    const membership = await ctx.db
+      .query("artistMembers")
+      .withIndex("by_user_artist", (q) =>
+        q.eq("userId", user._id).eq("artistId", args.artistId)
+      )
+      .first();
+    
+    if (!membership) return [];
+    
+    const invites = await ctx.db
+      .query("artistInvites")
+      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .collect();
+    
+    // Filter out expired invites and mark them
+    const now = Date.now();
+    const validInvites = [];
+    
+    for (const invite of invites) {
+      if (invite.expiresAt < now) {
+        // Mark as expired (in query, we can't mutate but we filter it out)
+        continue;
+      }
+      
+      const invitedByUser = await ctx.db.get(invite.invitedBy);
+      validInvites.push({
+        ...invite,
+        invitedByName: invitedByUser?.name || invitedByUser?.email || "Unknown",
+        daysRemaining: Math.ceil((invite.expiresAt - now) / (24 * 60 * 60 * 1000)),
+      });
+    }
+    
+    return validInvites;
+  },
+});
+
+/**
+ * Revoke a pending invite (owner only).
+ */
+export const revokeInvite = mutation({
+  args: {
+    artistId: v.id("artists"),
+    inviteId: v.id("artistInvites"),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    message: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    // Verify caller is owner
+    await requireArtistAccess(ctx, args.artistId, "owner");
+    
+    const invite = await ctx.db.get(args.inviteId);
+    if (!invite) {
+      return { success: false, message: "Invite not found" };
+    }
+    
+    if (invite.artistId !== args.artistId) {
+      return { success: false, message: "Invalid invite" };
+    }
+    
+    if (invite.status !== "pending") {
+      return { success: false, message: "Invite is no longer pending" };
+    }
+    
+    await ctx.db.patch(args.inviteId, { status: "revoked" });
+    
+    return { success: true };
+  },
+});
+
+/**
+ * Get invites for the current user's email.
+ */
+export const getMyPendingInvites = query({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => {
+    const user = await getCurrentAppUser(ctx);
+    if (!user || !user.email) return [];
+    
+    const email = user.email.toLowerCase();
+    
+    const invites = await ctx.db
+      .query("artistInvites")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .collect();
+    
+    const now = Date.now();
+    const validInvites = [];
+    
+    for (const invite of invites) {
+      if (invite.expiresAt < now) continue;
+      
+      const artist = await ctx.db.get(invite.artistId);
+      const invitedByUser = await ctx.db.get(invite.invitedBy);
+      
+      validInvites.push({
+        ...invite,
+        artistName: artist?.name || "Unknown Artist",
+        artistImage: artist?.images?.[0],
+        invitedByName: invitedByUser?.name || invitedByUser?.email || "Unknown",
+      });
+    }
+    
+    return validInvites;
+  },
+});
+
+/**
+ * Accept an invite by token.
+ */
+export const acceptInvite = mutation({
+  args: { inviteToken: v.string() },
+  returns: v.object({
+    success: v.boolean(),
+    message: v.optional(v.string()),
+    artistId: v.optional(v.id("artists")),
+    artistName: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const user = await getCurrentAppUser(ctx);
+    if (!user) {
+      return { success: false, message: "Please sign in first" };
+    }
+    
+    // Find the invite
+    const invite = await ctx.db
+      .query("artistInvites")
+      .withIndex("by_token", (q) => q.eq("inviteToken", args.inviteToken))
+      .first();
+    
+    if (!invite) {
+      return { success: false, message: "Invalid invite link" };
+    }
+    
+    if (invite.status !== "pending") {
+      if (invite.status === "accepted") {
+        return { success: false, message: "This invite has already been used" };
+      }
+      if (invite.status === "revoked") {
+        return { success: false, message: "This invite has been revoked" };
+      }
+      return { success: false, message: "This invite is no longer valid" };
+    }
+    
+    if (invite.expiresAt < Date.now()) {
+      await ctx.db.patch(invite._id, { status: "expired" });
+      return { success: false, message: "This invite has expired" };
+    }
+    
+    // Check email match (optional - allows any signed-in user to accept)
+    // For stricter security, uncomment this:
+    // if (user.email?.toLowerCase() !== invite.email) {
+    //   return { success: false, message: "This invite was sent to a different email address" };
+    // }
+    
+    const artist = await ctx.db.get(invite.artistId);
+    if (!artist) {
+      return { success: false, message: "Artist no longer exists" };
+    }
+    
+    // Check if already a member
+    const existingMember = await ctx.db
+      .query("artistMembers")
+      .withIndex("by_user_artist", (q) =>
+        q.eq("userId", user._id).eq("artistId", invite.artistId)
+      )
+      .first();
+    
+    if (existingMember) {
+      // Mark invite as accepted anyway
+      await ctx.db.patch(invite._id, {
+        status: "accepted",
+        acceptedAt: Date.now(),
+        acceptedBy: user._id,
+      });
+      return {
+        success: true,
+        message: "You're already a team member",
+        artistId: invite.artistId,
+        artistName: artist.name,
+      };
+    }
+    
+    // Create membership
+    await ctx.db.insert("artistMembers", {
+      artistId: invite.artistId,
+      userId: user._id,
+      role: invite.role,
+      createdAt: Date.now(),
+      invitedBy: invite.invitedBy,
+    });
+    
+    // Mark invite as accepted
+    await ctx.db.patch(invite._id, {
+      status: "accepted",
+      acceptedAt: Date.now(),
+      acceptedBy: user._id,
+    });
+    
+    return {
+      success: true,
+      message: `Welcome to ${artist.name}'s team!`,
+      artistId: invite.artistId,
+      artistName: artist.name,
+    };
+  },
+});
+
+/**
+ * Get invite details by token (for the accept page).
+ */
+export const getInviteByToken = query({
+  args: { inviteToken: v.string() },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const invite = await ctx.db
+      .query("artistInvites")
+      .withIndex("by_token", (q) => q.eq("inviteToken", args.inviteToken))
+      .first();
+    
+    if (!invite) return null;
+    
+    const artist = await ctx.db.get(invite.artistId);
+    const invitedByUser = await ctx.db.get(invite.invitedBy);
+    
+    const isExpired = invite.expiresAt < Date.now();
+    const isValid = invite.status === "pending" && !isExpired;
+    
+    return {
+      ...invite,
+      artistName: artist?.name || "Unknown Artist",
+      artistImage: artist?.images?.[0],
+      invitedByName: invitedByUser?.name || invitedByUser?.email || "Someone",
+      isExpired,
+      isValid,
+    };
   },
 });

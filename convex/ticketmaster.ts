@@ -2,12 +2,11 @@
 
 import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
-import { internal, api } from "./_generated/api";
+import { api } from "./_generated/api";
+import { internalRef } from "./adminHelpers";
 import { Id } from "./_generated/dataModel";
 
-// Type workaround for Convex deep type instantiation issues
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
+
 
 // ============================================================================
 // FESTIVAL DETECTION HELPERS
@@ -48,38 +47,38 @@ const KNOWN_FESTIVAL_PATTERNS = [
 function isFestivalEvent(event: any): boolean {
   const eventName = String(event.name || "").toLowerCase();
   const venueName = String(event._embedded?.venues?.[0]?.name || "").toLowerCase();
-  
+
   // Check for "festival" in the name (common pattern)
   if (/\bfestival\b/i.test(eventName) || /\bfest\b/i.test(eventName)) {
     // Exclude false positives like "Festival of Lights" or non-music
     const isNonMusic = /\b(lights?|food|beer|wine|art|film|comedy|dance)\s*(festival|fest)\b/i.test(eventName);
     if (!isNonMusic) return true;
   }
-  
+
   // Check against known festival patterns
   for (const pattern of KNOWN_FESTIVAL_PATTERNS) {
     if (pattern.test(eventName) || pattern.test(venueName)) {
       return true;
     }
   }
-  
+
   // Check Ticketmaster classifications
   const classifications = event.classifications || [];
   for (const classification of classifications) {
     const genreName = String(classification.genre?.name || "").toLowerCase();
     const subGenreName = String(classification.subGenre?.name || "").toLowerCase();
     const segmentName = String(classification.segment?.name || "").toLowerCase();
-    
+
     if (genreName === "festival" || subGenreName === "festival") {
       return true;
     }
-    
+
     // Music segment with festival in type
     if (segmentName === "music" && /festival/i.test(String(classification.type?.name || ""))) {
       return true;
     }
   }
-  
+
   return false;
 }
 
@@ -127,7 +126,7 @@ async function tmFetchWithRetry(
 
 // Ticketmaster API integration for artist search
 export const searchArtists = action({
-  args: { 
+  args: {
     query: v.string(),
     limit: v.optional(v.number())
   },
@@ -219,114 +218,114 @@ export const triggerFullArtistSyncInternal = internalAction({
 });
 
 const triggerFullArtistSyncImpl = async (ctx: any, args: any) => {
-    const upcomingEvents = args.upcomingEvents || 0;
-    console.log(`🚀 Starting optimized sync for: ${args.artistName} (${upcomingEvents} upcoming events)`);
-    
-    // FESTIVAL DETECTION: Check if this is a festival, not an artist
-    const nameLower = args.artistName.toLowerCase();
-    const isFestival = /\bfestival\b/i.test(nameLower) || 
-                       /\bfest\b/i.test(nameLower) ||
-                       isFestivalEvent({ name: args.artistName });
-    
-    if (isFestival) {
-      console.log(`🎪 Detected festival: ${args.artistName}`);
-      
-      // Extract year from name or use current year
-      const yearMatch = args.artistName.match(/\b(20\d{2})\b/);
-      const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
-      
-      // Create festival slug
-      const slug = args.artistName
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-")
-        .trim();
-      
-      // Try to create or find the festival
-      const festivalId = await ctx.runMutation(internalRef.festivals.upsertFestivalFromEvent, {
-        eventName: args.artistName,
-        eventDate: `${year}-06-01`, // Default to June 1 if no date
-        ticketmasterId: args.ticketmasterId,
-      });
-      
-      if (festivalId) {
-        console.log(`✅ Festival created/found: ${festivalId}`);
-        return {
-          type: "festival" as const,
-          festivalId,
-          slug,
-        };
-      } else {
-        // Fallback: throw error with helpful message
-        throw new Error(`Could not create festival for "${args.artistName}". This appears to be a festival, not an artist.`);
-      }
-    }
+  const upcomingEvents = args.upcomingEvents || 0;
+  console.log(`🚀 Starting optimized sync for: ${args.artistName} (${upcomingEvents} upcoming events)`);
 
-    // Centralized scheduler delays for progressive phases
-    const SCHEDULER_DELAYS = {
-      shows: 0,
-      catalog: 3000,
-      basics: 6000,
-      counts: 10000,
-    } as const;
+  // FESTIVAL DETECTION: Check if this is a festival, not an artist
+  const nameLower = args.artistName.toLowerCase();
+  const isFestival = /\bfestival\b/i.test(nameLower) ||
+    /\bfest\b/i.test(nameLower) ||
+    isFestivalEvent({ name: args.artistName });
 
-    // Phase 1: Create basic artist (FAST - < 1 second)
-    // AUTO-OUTRANKING: Pass upcomingEvents for immediate trending score calculation
-    const artistId = await ctx.runMutation(internalRef.artists.createFromTicketmaster, {
+  if (isFestival) {
+    console.log(`🎪 Detected festival: ${args.artistName}`);
+
+    // Extract year from name or use current year
+    const yearMatch = args.artistName.match(/\b(20\d{2})\b/);
+    const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+
+    // Create festival slug
+    const slug = args.artistName
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .trim();
+
+    // Try to create or find the festival
+    const festivalId = await ctx.runMutation(internalRef.festivals.upsertFestivalFromEvent, {
+      eventName: args.artistName,
+      eventDate: `${year}-06-01`, // Default to June 1 if no date
       ticketmasterId: args.ticketmasterId,
-      name: args.artistName,
-      genres: args.genres || [],
-      images: args.images || [],
-      upcomingEvents, // For auto-ranking massive artists
     });
-    
-    // Handle null return (non-concert entity that wasn't caught as festival)
-    if (!artistId) {
-      throw new Error(`"${args.artistName}" is not a musical artist. Try searching for a band, singer, or musician.`);
+
+    if (festivalId) {
+      console.log(`✅ Festival created/found: ${festivalId}`);
+      return {
+        type: "festival" as const,
+        festivalId,
+        slug,
+      };
+    } else {
+      // Fallback: throw error with helpful message
+      throw new Error(`Could not create festival for "${args.artistName}". This appears to be a festival, not an artist.`);
     }
+  }
 
-    // Initialize sync status
-    await ctx.runMutation(internalRef.artistSync.initializeSyncStatus, {
+  // Centralized scheduler delays for progressive phases
+  const SCHEDULER_DELAYS = {
+    shows: 0,
+    catalog: 3000,
+    basics: 6000,
+    counts: 10000,
+  } as const;
+
+  // Phase 1: Create basic artist (FAST - < 1 second)
+  // AUTO-OUTRANKING: Pass upcomingEvents for immediate trending score calculation
+  const artistId = await ctx.runMutation(internalRef.artists.createFromTicketmaster, {
+    ticketmasterId: args.ticketmasterId,
+    name: args.artistName,
+    genres: args.genres || [],
+    images: args.images || [],
+    upcomingEvents, // For auto-ranking massive artists
+  });
+
+  // Handle null return (non-concert entity that wasn't caught as festival)
+  if (!artistId) {
+    throw new Error(`"${args.artistName}" is not a musical artist. Try searching for a band, singer, or musician.`);
+  }
+
+  // Initialize sync status
+  await ctx.runMutation(internalRef.artistSync.initializeSyncStatus, {
+    artistId,
+  });
+
+  // Get artist slug for navigation
+  const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: artistId });
+  const slug = artist?.slug || artistId;
+
+  // RETURN IMMEDIATELY - frontend can navigate now!
+  // Background imports scheduled below (non-blocking)
+
+  // Background imports scheduled below (non-blocking). We still await the scheduling
+  // calls to avoid dangling-promise warnings; the scheduled work runs later.
+  await Promise.all([
+    // Priority 1: Shows (user sees these first) - starts immediately
+    ctx.scheduler.runAfter(SCHEDULER_DELAYS.shows, internalRef.ticketmaster.syncArtistShowsWithTracking, {
       artistId,
-    });
-
-    // Get artist slug for navigation
-    const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: artistId });
-    const slug = artist?.slug || artistId;
-
-    // RETURN IMMEDIATELY - frontend can navigate now!
-    // Background imports scheduled below (non-blocking)
-    
-    // Background imports scheduled below (non-blocking). We still await the scheduling
-    // calls to avoid dangling-promise warnings; the scheduled work runs later.
-    await Promise.all([
-      // Priority 1: Shows (user sees these first) - starts immediately
-      ctx.scheduler.runAfter(SCHEDULER_DELAYS.shows, internalRef.ticketmaster.syncArtistShowsWithTracking, {
-        artistId,
-        ticketmasterId: args.ticketmasterId,
-        artistName: args.artistName,
-      }),
-      // Priority 2: Catalog (for setlist generation) - starts after 3 seconds
-      ctx.scheduler.runAfter(SCHEDULER_DELAYS.catalog, internalRef.ticketmaster.syncArtistCatalogWithTracking, {
-        artistId,
-        artistName: args.artistName,
-      }),
-      // Priority 3: Metadata enrichment (nice to have) - starts after 6 seconds
-      ctx.scheduler.runAfter(SCHEDULER_DELAYS.basics, internalRef.ticketmaster.enrichArtistBasicsWithTracking, {
-        artistId,
-        artistName: args.artistName,
-      }),
-      // Priority 4: Update counts (after everything else) - starts after 10 seconds
-      ctx.scheduler.runAfter(SCHEDULER_DELAYS.counts, internalRef.maintenance.updateArtistCounts, { artistId }),
-    ]);
-
-    console.log(`✅ Artist ${artistId} created, background sync scheduled`);
-    return {
-      type: "artist" as const,
+      ticketmasterId: args.ticketmasterId,
+      artistName: args.artistName,
+    }),
+    // Priority 2: Catalog (for setlist generation) - starts after 3 seconds
+    ctx.scheduler.runAfter(SCHEDULER_DELAYS.catalog, internalRef.ticketmaster.syncArtistCatalogWithTracking, {
       artistId,
-      slug,
-    };
+      artistName: args.artistName,
+    }),
+    // Priority 3: Metadata enrichment (nice to have) - starts after 6 seconds
+    ctx.scheduler.runAfter(SCHEDULER_DELAYS.basics, internalRef.ticketmaster.enrichArtistBasicsWithTracking, {
+      artistId,
+      artistName: args.artistName,
+    }),
+    // Priority 4: Update counts (after everything else) - starts after 10 seconds
+    ctx.scheduler.runAfter(SCHEDULER_DELAYS.counts, internalRef.maintenance.updateArtistCounts, { artistId }),
+  ]);
+
+  console.log(`✅ Artist ${artistId} created, background sync scheduled`);
+  return {
+    type: "artist" as const,
+    artistId,
+    slug,
+  };
 };
 
 // Wrapper with status tracking for progressive loading
@@ -340,18 +339,18 @@ export const syncArtistShowsWithTracking = internalAction({
   handler: async (ctx, args) => {
     try {
       console.log(`📅 Starting show sync with tracking for ${args.artistName}...`);
-      
+
       // Call existing sync logic
       await ctx.runAction(internalRef.ticketmaster.syncArtistShows, {
         artistId: args.artistId,
         ticketmasterId: args.ticketmasterId,
       });
-      
+
       // Get count of shows imported
       const showCount = await ctx.runQuery(internalRef.shows.countByArtist, {
         artistId: args.artistId,
       });
-      
+
       // Mark shows as imported
       await ctx.runMutation(internalRef.artistSync.updateSyncStatus, {
         artistId: args.artistId,
@@ -359,7 +358,7 @@ export const syncArtistShowsWithTracking = internalAction({
         showCount,
         phase: "catalog",
       });
-      
+
       console.log(`✅ Shows imported for ${args.artistName}: ${showCount} shows`);
     } catch (error) {
       console.error(`❌ Failed to sync shows for ${args.artistName}:`, error);
@@ -383,17 +382,17 @@ export const syncArtistCatalogWithTracking = internalAction({
   handler: async (ctx, args) => {
     try {
       console.log(`🎧 Starting catalog sync with tracking for ${args.artistName}...`);
-      
+
       await ctx.runAction(internalRef.spotify.syncArtistCatalog, {
         artistId: args.artistId,
         artistName: args.artistName,
       });
-      
+
       // Get count of songs imported
       const songs = await ctx.runQuery(internalRef.songs.countByArtist, {
         artistId: args.artistId,
       });
-      
+
       await ctx.runMutation(internalRef.artistSync.updateSyncStatus, {
         artistId: args.artistId,
         catalogImported: true,
@@ -425,7 +424,7 @@ export const syncArtistCatalogWithTracking = internalAction({
     }
     return null;
   },
-    });
+});
 
 // Wrapper for basics enrichment with tracking
 export const enrichArtistBasicsWithTracking = internalAction({
@@ -441,13 +440,13 @@ export const enrichArtistBasicsWithTracking = internalAction({
         artistId: args.artistId,
         artistName: args.artistName,
       });
-      
+
       await ctx.runMutation(internalRef.artistSync.updateSyncStatus, {
         artistId: args.artistId,
         basicsEnriched: true,
         phase: "complete",
       });
-      
+
       console.log(`✅ Basics enriched for ${args.artistName}`);
     } catch (error) {
       console.error(`❌ Failed to enrich basics for ${args.artistName}:`, error);
@@ -622,12 +621,12 @@ export const syncArtistShows = internalAction({
           })() : undefined,
           postalCode: venue?.postalCode ? String(venue.postalCode) : undefined,
         });
-        
+
         console.log(`✅ Created/found venue: ${venue?.name || 'Unknown'} (ID: ${venueId})`);
 
         // CRITICAL: Create show with all fields properly populated including priceRange
-        const priceRange = event.priceRanges?.[0] 
-          ? `$${event.priceRanges[0].min || 0}-${event.priceRanges[0].max || 0}` 
+        const priceRange = event.priceRanges?.[0]
+          ? `$${event.priceRanges[0].min || 0}-${event.priceRanges[0].max || 0}`
           : undefined;
 
         const showId = await ctx.runMutation(internalRef.shows.createFromTicketmaster, {
@@ -650,14 +649,14 @@ export const syncArtistShows = internalAction({
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             eventDate.setHours(0, 0, 0, 0);
-            
+
             // If the event is in the past, mark as completed
             if (eventDate < today) return "completed" as const;
             return "upcoming" as const;
           })(),
           ticketUrl: event.url ? String(event.url) : undefined,
         });
-        
+
         // NEW: Patch show with priceRange after creation (since createFromTicketmaster doesn't accept it)
         if (priceRange) {
           await ctx.runMutation(internalRef.shows.updatePriceRange, {
@@ -665,9 +664,9 @@ export const syncArtistShows = internalAction({
             priceRange,
           });
         }
-        
+
         console.log(`✅ Created show ${showId} for ${event.name || 'Unknown Event'} ${priceRange ? `(${priceRange})` : ''}`);
-        
+
         // FESTIVAL DETECTION: Check if this event is part of a festival
         if (isFestivalEvent(event)) {
           try {
@@ -683,7 +682,7 @@ export const syncArtistShows = internalAction({
                 venueState: venue?.state?.stateCode ? String(venue.state.stateCode) : undefined,
                 ticketUrl: event.url ? String(event.url) : undefined,
               });
-              
+
               if (festivalId) {
                 // Link the show to the festival
                 await ctx.runMutation(internalRef.festivals.linkShowToFestival, {
@@ -698,13 +697,13 @@ export const syncArtistShows = internalAction({
             // Non-blocking - show was still created successfully
           }
         }
-        
+
         // gentle backoff to respect API
         await new Promise(r => setTimeout(r, 75));
       }
 
       console.log(`✅ Synced ${events.length} shows for artist (ID: ${args.artistId})`);
-      
+
       // CRITICAL: Update artist's upcomingShowsCount after syncing shows
       const upcomingShows = await ctx.runQuery(internalRef.shows.countUpcomingByArtist, { artistId: args.artistId });
       await ctx.runMutation(internalRef.artists.updateShowCount, {
@@ -712,7 +711,7 @@ export const syncArtistShows = internalAction({
         upcomingShowsCount: upcomingShows,
       });
       console.log(`✅ Updated show count for artist: ${upcomingShows} upcoming shows`);
-      
+
       // FIXED: Await scheduler call to prevent dangling promise warning
       try {
         await ctx.scheduler.runAfter(0, internalRef.trending.updateShowTrending, {});
@@ -754,13 +753,13 @@ export const getTrendingShows = action({
     }
 
     const limit = args.limit || 50;
-    
+
     // ULTRA-ENHANCED: Get top trending stadium shows with proper Ticketmaster API usage
     const now = new Date();
     const startDate = now.toISOString().split('T')[0]; // Today
     const futureDate = new Date(now.getTime() + (180 * 24 * 60 * 60 * 1000)); // Next 6 months
     const endDate = futureDate.toISOString().split('T')[0];
-    
+
     // CRITICAL: Use Ticketmaster's discovery API with proper filters
     // - segmentId=KZFzniwnSyZfZ7v7nJ is the OFFICIAL Music segment ID (filters out theatre, film, sports)
     // - sort=relevance,desc gives POPULARITY-based results (biggest/trending shows first)
@@ -772,7 +771,7 @@ export const getTrendingShows = action({
       const response = await tmFetchWithRetry(url);
       if (!response.ok) {
         console.error("Ticketmaster API error:", response.status, response.statusText);
-        
+
         // FALLBACK: Try simpler query if detailed one fails - MUST include US filter
         // Use segmentId for Music to filter out theatre, film, sports
         // sort=relevance,desc gives popularity-based results
@@ -797,8 +796,8 @@ export const getTrendingShows = action({
             const bestImage = images
               .filter((img: any) => img.url && img.width && img.height)
               .sort((a: any, b: any) => {
-                const aRatio = Math.abs((a.width / a.height) - (16/9));
-                const bRatio = Math.abs((b.width / b.height) - (16/9));
+                const aRatio = Math.abs((a.width / a.height) - (16 / 9));
+                const bRatio = Math.abs((b.width / b.height) - (16 / 9));
                 if (Math.abs(aRatio - bRatio) > 0.1) return aRatio - bRatio;
                 return b.width - a.width;
               })[0];
@@ -813,7 +812,7 @@ export const getTrendingShows = action({
       const data = await response.json();
       const events = data._embedded?.events || [];
       console.log(`✅ Fetched ${events.length} trending shows from Ticketmaster`);
-      
+
       // ULTRA-FILTER: Get only real, high-quality shows
       const majorEvents = events.filter((event: any) => {
         const venueName = event._embedded?.venues?.[0]?.name?.toLowerCase() || '';
@@ -821,68 +820,68 @@ export const getTrendingShows = action({
         const eventDate = new Date(event.dates?.start?.localDate || '');
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
         // CRITICAL: Only upcoming events (not past/cancelled)
         if (eventDate < today) return false;
         if (event.dates?.status?.code === 'cancelled') return false;
         if (event.dates?.status?.code === 'postponed') return false;
-        
+
         // Include major concert venues (exclude theaters for plays)
-        const isMajorVenue = venueName.includes('stadium') || 
-                            venueName.includes('arena') || 
-                            venueName.includes('center') ||
-                            venueName.includes('amphitheatre') ||
-                            venueName.includes('amphitheater') ||
-                            venueName.includes('hall') ||
-                            venueName.includes('sphere') ||
-                            venueName.includes('bowl') ||
-                            venueName.includes('pavilion') ||
-                            venueName.includes('club');
-        
+        const isMajorVenue = venueName.includes('stadium') ||
+          venueName.includes('arena') ||
+          venueName.includes('center') ||
+          venueName.includes('amphitheatre') ||
+          venueName.includes('amphitheater') ||
+          venueName.includes('hall') ||
+          venueName.includes('sphere') ||
+          venueName.includes('bowl') ||
+          venueName.includes('pavilion') ||
+          venueName.includes('club');
+
         // CRITICAL: Exclude non-concert events
-        const isNonConcert = artistName.includes('tribute') || 
-                            artistName.includes('experience') ||
-                            artistName.includes('cover') ||
-                            artistName.includes('bingo') ||
-                            artistName.includes('dance party') ||
-                            artistName.includes('silent disco') ||
-                            artistName.includes('karaoke') ||
-                            artistName.includes('trivia') ||
-                            artistName.includes('film with') ||
-                            artistName.includes('- film') ||
-                            artistName.includes('orchestra') ||
-                            artistName.includes('symphony') ||
-                            artistName.includes('ballet') ||
-                            artistName.includes('opera') ||
-                            artistName.includes('broadway') ||
-                            artistName.includes('musical') ||
-                            artistName.includes('cirque') ||
-                            artistName.includes('comedy') ||
-                            venueName.includes('playhouse') ||
-                            venueName.includes('opera house');
-        
+        const isNonConcert = artistName.includes('tribute') ||
+          artistName.includes('experience') ||
+          artistName.includes('cover') ||
+          artistName.includes('bingo') ||
+          artistName.includes('dance party') ||
+          artistName.includes('silent disco') ||
+          artistName.includes('karaoke') ||
+          artistName.includes('trivia') ||
+          artistName.includes('film with') ||
+          artistName.includes('- film') ||
+          artistName.includes('orchestra') ||
+          artistName.includes('symphony') ||
+          artistName.includes('ballet') ||
+          artistName.includes('opera') ||
+          artistName.includes('broadway') ||
+          artistName.includes('musical') ||
+          artistName.includes('cirque') ||
+          artistName.includes('comedy') ||
+          venueName.includes('playhouse') ||
+          venueName.includes('opera house');
+
         // Check if it's actually a music concert (not theater/play)
         const eventName = event.name?.toLowerCase() || '';
-        const isPlay = eventName.includes('play') || 
-                      eventName.includes('musical') ||
-                      eventName.includes('broadway') ||
-                      eventName.includes('bingo') ||
-                      eventName.includes('dance party') ||
-                      eventName.includes('silent disco') ||
-                      eventName.includes('karaoke') ||
-                      eventName.includes('trivia');
-        
+        const isPlay = eventName.includes('play') ||
+          eventName.includes('musical') ||
+          eventName.includes('broadway') ||
+          eventName.includes('bingo') ||
+          eventName.includes('dance party') ||
+          eventName.includes('silent disco') ||
+          eventName.includes('karaoke') ||
+          eventName.includes('trivia');
+
         // Exclude very niche/small genres
         const hasGoodImage = event._embedded?.attractions?.[0]?.images?.length > 0;
-        
+
         return isMajorVenue && !isNonConcert && !isPlay && hasGoodImage;
       });
-      
+
       console.log(`🎯 Filtered to ${majorEvents.length} major venue events`);
 
       // Use majorEvents if we have good results, otherwise fallback to all events
       const finalEvents = majorEvents.length >= 10 ? majorEvents : events;
-      
+
       return finalEvents.slice(0, limit).map((event: any) => ({
         ticketmasterId: String(event.id || ''),
         artistTicketmasterId: String(event._embedded?.attractions?.[0]?.id || ''),
@@ -900,8 +899,8 @@ export const getTrendingShows = action({
             .filter((img: any) => img.url && img.width && img.height)
             .sort((a: any, b: any) => {
               // Prefer 16:9 ratio images
-              const aRatio = Math.abs((a.width / a.height) - (16/9));
-              const bRatio = Math.abs((b.width / b.height) - (16/9));
+              const aRatio = Math.abs((a.width / a.height) - (16 / 9));
+              const bRatio = Math.abs((b.width / b.height) - (16 / 9));
               if (Math.abs(aRatio - bRatio) > 0.1) return aRatio - bRatio;
               // Then by width (higher quality)
               return b.width - a.width;
@@ -940,7 +939,7 @@ export const getTrendingArtists = action({
     }
 
     const limit = args.limit || 30;
-    
+
     // IMPROVED STRATEGY: Get ACTUALLY trending artists (not legacy acts)
     // 1. Fetch events from Ticketmaster
     // 2. Filter to artists with MANY upcoming events (= major touring acts, not residencies)
@@ -950,7 +949,7 @@ export const getTrendingArtists = action({
     const startDate = now.toISOString().split('T')[0];
     const futureDate = new Date(now.getTime() + (180 * 24 * 60 * 60 * 1000)); // Next 6 months for better data
     const endDate = futureDate.toISOString().split('T')[0];
-    
+
     // Fetch more events to get better artist diversity
     const eventsUrl = `https://app.ticketmaster.com/discovery/v2/events.json?segmentId=KZFzniwnSyZfZ7v7nJ&countryCode=US&startDateTime=${startDate}T00:00:00Z&endDateTime=${endDate}T23:59:59Z&size=200&sort=relevance,desc&apikey=${apiKey}`;
 
@@ -964,13 +963,13 @@ export const getTrendingArtists = action({
 
       const data = await response.json();
       const events = data._embedded?.events || [];
-      
+
       // Extract unique artists from popular events
       const artistMap = new Map<string, any>();
       for (const event of events) {
         const attraction = event._embedded?.attractions?.[0];
         if (!attraction?.id || artistMap.has(attraction.id)) continue;
-        
+
         // Skip non-artist content
         const name = (attraction.name || '').toLowerCase();
         const isBadContent =
@@ -992,27 +991,27 @@ export const getTrendingArtists = action({
           name.includes('trivia') ||
           name.includes('game night');
         if (isBadContent) continue;
-        
+
         const upcomingEvents = attraction.upcomingEvents?._total || 0;
         // Skip extreme "residency-like" attractions with huge event counts.
         // NOTE: Big tours can exceed 50 events, so this needs to be a high threshold.
         if (upcomingEvents > 200) continue;
-        
+
         artistMap.set(attraction.id, {
           attraction,
           upcomingEvents,
         });
       }
-      
+
       // CRITICAL: Sort by upcoming event count (DESCENDING) to get major touring acts first
       // Then filter to artists with at least 1 upcoming event (touring now)
       const artists = Array.from(artistMap.values())
         .filter(a => a.upcomingEvents >= 1) // Touring now
         .sort((a, b) => b.upcomingEvents - a.upcomingEvents) // Most events first
         .slice(0, limit);
-      
+
       console.log(`✅ Found ${artists.length} trending artists with 1+ upcoming events (sorted by tour size)`);
-      
+
       console.log(`✅ Found ${artists.length} trending artists from popular events`);
 
       return artists.map(({ attraction }: { attraction: any }) => ({
@@ -1026,8 +1025,8 @@ export const getTrendingArtists = action({
             .filter((img: any) => img.url && img.width && img.height)
             .sort((a: any, b: any) => {
               // Prefer 16:9 ratio images first
-              const aRatio = Math.abs((a.width / a.height) - (16/9));
-              const bRatio = Math.abs((b.width / b.height) - (16/9));
+              const aRatio = Math.abs((a.width / a.height) - (16 / 9));
+              const bRatio = Math.abs((b.width / b.height) - (16 / 9));
               if (Math.abs(aRatio - bRatio) > 0.1) return aRatio - bRatio;
               // Then by width (higher quality)
               return b.width - a.width;
@@ -1080,13 +1079,13 @@ export const searchShowsByZipCode = action({
 
     const radius = args.radius || 40; // Default 40 miles
     const limit = args.limit || 50;
-    
+
     // Get upcoming shows within radius of zip code
     const now = new Date();
     const startDate = now.toISOString().split('T')[0];
     const futureDate = new Date(now.getTime() + (180 * 24 * 60 * 60 * 1000)); // Next 6 months
     const endDate = futureDate.toISOString().split('T')[0];
-    
+
     const url = `https://app.ticketmaster.com/discovery/v2/events.json?classificationName=music&postalCode=${args.zipCode}&radius=${radius}&unit=miles&startDateTime=${startDate}T00:00:00Z&endDateTime=${endDate}T23:59:59Z&size=${limit}&sort=date,asc&apikey=${apiKey}`;
 
     try {
@@ -1100,34 +1099,34 @@ export const searchShowsByZipCode = action({
 
       const data = await response.json();
       const events = data._embedded?.events || [];
-      
+
       console.log(`✅ Found ${events.length} shows near ${args.zipCode}`);
-      
+
       // Filter to only real concerts (no plays, theater, etc.)
       const concerts = events.filter((event: any) => {
         const venueName = event._embedded?.venues?.[0]?.name?.toLowerCase() || '';
         const artistName = event._embedded?.attractions?.[0]?.name?.toLowerCase() || '';
         const eventName = event.name?.toLowerCase() || '';
-        
+
         // Exclude non-concert events
-        const isNonConcert = artistName.includes('tribute') || 
-                            artistName.includes('orchestra') ||
-                            artistName.includes('symphony') ||
-                            artistName.includes('ballet') ||
-                            artistName.includes('opera') ||
-                            artistName.includes('broadway') ||
-                            artistName.includes('musical') ||
-                            artistName.includes('comedy') ||
-                            eventName.includes('play') ||
-                            eventName.includes('musical') ||
-                            venueName.includes('playhouse') ||
-                            venueName.includes('opera house');
-        
+        const isNonConcert = artistName.includes('tribute') ||
+          artistName.includes('orchestra') ||
+          artistName.includes('symphony') ||
+          artistName.includes('ballet') ||
+          artistName.includes('opera') ||
+          artistName.includes('broadway') ||
+          artistName.includes('musical') ||
+          artistName.includes('comedy') ||
+          eventName.includes('play') ||
+          eventName.includes('musical') ||
+          venueName.includes('playhouse') ||
+          venueName.includes('opera house');
+
         return !isNonConcert && event._embedded?.attractions?.[0]?.images?.length > 0;
       });
-      
+
       console.log(`🎯 Filtered to ${concerts.length} concerts`);
-      
+
       return concerts.map((event: any) => ({
         ticketmasterId: String(event.id || ''),
         artistTicketmasterId: String(event._embedded?.attractions?.[0]?.id || ''),
@@ -1137,8 +1136,8 @@ export const searchShowsByZipCode = action({
           const bestImage = images
             .filter((img: any) => img.url && img.width && img.height)
             .sort((a: any, b: any) => {
-              const aRatio = Math.abs((a.width / a.height) - (16/9));
-              const bRatio = Math.abs((b.width / b.height) - (16/9));
+              const aRatio = Math.abs((a.width / a.height) - (16 / 9));
+              const bRatio = Math.abs((b.width / b.height) - (16 / 9));
               if (Math.abs(aRatio - bRatio) > 0.1) return aRatio - bRatio;
               return b.width - a.width;
             })[0];

@@ -1,14 +1,14 @@
 import { query, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
-import { internal } from "./_generated/api";
+import { internalRef } from "./adminHelpers";
 
 // Helper to filter out non-concert content (secondary filter after API segmentId filtering)
 // The API now uses segmentId=KZFzniwnSyZfZ7v7nJ which is Music-only
 // This is a lightweight fallback filter for edge cases that slip through
 const isRealConcert = (name: string, genres?: string[]): boolean => {
   const lowerName = (name || '').toLowerCase();
-  
+
   // Reject patterns for non-concert content that might still appear in Music segment
   const rejectPatterns = [
     // Orchestral performances (often tagged as Music but aren't pop/rock concerts)
@@ -40,9 +40,9 @@ const isRealConcert = (name: string, genres?: string[]): boolean => {
     'wrestling', 'ufc', 'boxing', 'esports', 'podcast', 'lecture', 'speaker',
     'stand-up', 'standup', 'comedy show', 'comedy night'
   ];
-  
+
   if (rejectPatterns.some(p => lowerName.includes(p))) return false;
-  
+
   // Check genres - reject classical/opera/other non-concert genres
   if (genres && genres.length > 0) {
     const lowerGenres = genres.map(g => g.toLowerCase());
@@ -51,13 +51,11 @@ const isRealConcert = (name: string, genres?: string[]): boolean => {
     ];
     if (lowerGenres.some(g => nonConcertGenres.some(ng => g.includes(ng)))) return false;
   }
-  
+
   return true;
 };
 
-// Type workaround for Convex deep type instantiation issues
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
+
 
 const slugify = (value: string) =>
   value
@@ -182,54 +180,54 @@ export const getTrendingShows = query({
 
       // CRITICAL: Only use cache if we have valid shows after filtering
       if (validShows.length > 0) {
-      const uniqueShows = dedupeByKey(
+        const uniqueShows = dedupeByKey(
           validShows,
-        (show: any) =>
-          show?.slug ||
-          show?.ticketmasterId ||
-          show?.cachedTrending?.showSlug ||
-          show?.cachedTrending?.ticketmasterId ||
-          `${show?.artist?.name ?? show?.cachedTrending?.artistName ?? "unknown"}::${show?.venue?.name ?? show?.cachedTrending?.venueName ?? "unknown"}::${show?.date ?? show?.cachedTrending?.date ?? "unknown"}`,
-        limit * 2
-      );
-
-      const artistScoped = dedupeByKey(
-        uniqueShows,
-        (show: any) =>
-          show?.artist?._id ||
-          show?.artist?.slug ||
-          show?.cachedTrending?.artistSlug ||
-          show?.cachedTrending?.artistTicketmasterId ||
-          show?.artist?.ticketmasterId ||
-          show?.artist?.name ||
-          show?.cachedTrending?.artistName,
-        limit
-      );
-
-      // final cleanup to avoid Unknown entries, non-upcoming items, and non-concerts
-      const cleaned = artistScoped.filter((s: any) => {
-        const name = s?.artist?.name || s?.cachedTrending?.artistName || "";
-        const venue = s?.venue?.name || s?.cachedTrending?.venueName || "";
-        const status = normalizeShowStatus(s?.status || s?.cachedTrending?.status);
-        const genres = s?.artist?.genres || s?.cachedTrending?.genres || [];
-        return (
-          typeof name === "string" && name.length > 0 &&
-          !name.toLowerCase().includes("unknown") &&
-          typeof venue === "string" && venue.length > 0 &&
-          status === "upcoming" &&
-          isRealConcert(name, genres) // Filter out plays, musicals, film screenings
+          (show: any) =>
+            show?.slug ||
+            show?.ticketmasterId ||
+            show?.cachedTrending?.showSlug ||
+            show?.cachedTrending?.ticketmasterId ||
+            `${show?.artist?.name ?? show?.cachedTrending?.artistName ?? "unknown"}::${show?.venue?.name ?? show?.cachedTrending?.venueName ?? "unknown"}::${show?.date ?? show?.cachedTrending?.date ?? "unknown"}`,
+          limit * 2
         );
-      });
 
-      const lastUpdated = cached.reduce((max, row) => Math.max(max, row.lastUpdated || 0), 0) || undefined;
-      return {
-        page: cleaned.slice(0, limit),
-        isDone: cleaned.length < limit,
-        continueCursor: undefined,
-        source: "ticketmaster_cache" as const,
-        isFallback: false,
-        lastUpdated,
-      };
+        const artistScoped = dedupeByKey(
+          uniqueShows,
+          (show: any) =>
+            show?.artist?._id ||
+            show?.artist?.slug ||
+            show?.cachedTrending?.artistSlug ||
+            show?.cachedTrending?.artistTicketmasterId ||
+            show?.artist?.ticketmasterId ||
+            show?.artist?.name ||
+            show?.cachedTrending?.artistName,
+          limit
+        );
+
+        // final cleanup to avoid Unknown entries, non-upcoming items, and non-concerts
+        const cleaned = artistScoped.filter((s: any) => {
+          const name = s?.artist?.name || s?.cachedTrending?.artistName || "";
+          const venue = s?.venue?.name || s?.cachedTrending?.venueName || "";
+          const status = normalizeShowStatus(s?.status || s?.cachedTrending?.status);
+          const genres = s?.artist?.genres || s?.cachedTrending?.genres || [];
+          return (
+            typeof name === "string" && name.length > 0 &&
+            !name.toLowerCase().includes("unknown") &&
+            typeof venue === "string" && venue.length > 0 &&
+            status === "upcoming" &&
+            isRealConcert(name, genres) // Filter out plays, musicals, film screenings
+          );
+        });
+
+        const lastUpdated = cached.reduce((max, row) => Math.max(max, row.lastUpdated || 0), 0) || undefined;
+        return {
+          page: cleaned.slice(0, limit),
+          isDone: cleaned.length < limit,
+          continueCursor: undefined,
+          source: "ticketmaster_cache" as const,
+          isFallback: false,
+          lastUpdated,
+        };
       }
     }
 
@@ -397,13 +395,13 @@ export const getTrendingArtists = query({
         const upcoming = Math.max(docShows, cachedShows);
         const name = a?.name || '';
         const genres = a?.genres || [];
-        
+
         // CRITICAL: Must have upcoming shows - this section is "artists WITH upcoming shows"
         if (upcoming <= 0) return false;
-        
+
         // Must be a real concert (not a play, musical, or film screening)
         if (!isRealConcert(name, genres)) return false;
-        
+
         // All artists with shows pass - songs will be fetched on demand
         return true;
       });
@@ -435,13 +433,13 @@ export const getTrendingArtists = query({
       const upcoming = a?.upcomingShowsCount ?? 0;
       const name = a?.name || '';
       const genres = a?.genres || [];
-      
+
       // CRITICAL: Must have upcoming shows
       if (upcoming <= 0) return false;
-      
+
       // Must be a real concert (not a play, musical, or film screening)
       if (!isRealConcert(name, genres)) return false;
-      
+
       return true;
     });
 
@@ -475,7 +473,7 @@ export const getTrendingArtists = query({
           (typeof artist.upcomingShowsCount === "number"
             ? artist.upcomingShowsCount
             : 0) *
-            10 +
+          10 +
           (typeof artist.popularity === "number" ? artist.popularity : 0),
       }))
       .sort((a, b) => b.score - a.score)
@@ -520,20 +518,20 @@ export const replaceTrendingShowsCache = internalMutation({
     // CRITICAL: Filter to US-only shows AND real concerts before processing
     const usShows = args.shows.filter((show) => {
       const country = (show.venueCountry || '').toLowerCase();
-      const isUS = country === 'united states of america' || 
-             country === 'united states' || 
-             country === 'usa' || 
-             country === 'us';
-      
+      const isUS = country === 'united states of america' ||
+        country === 'united states' ||
+        country === 'usa' ||
+        country === 'us';
+
       // Also filter out non-concert events
       const artistName = (show.artistName || '').toLowerCase();
       const isConcert = isRealConcert(artistName, []);
-      
+
       return isUS && isConcert;
     });
-    
+
     console.log(`📊 Processing ${usShows.length} US concert shows out of ${args.shows.length} total`);
-    
+
     const existing = await ctx.db.query("trendingShows").collect();
     const existingMap = new Map(existing.map((doc) => [doc.ticketmasterId, doc]));
     const keep = new Set(usShows.map((show) => show.ticketmasterId));
@@ -556,13 +554,13 @@ export const replaceTrendingShowsCache = internalMutation({
         linkedArtist = linkedShow
           ? await ctx.db.get(linkedShow.artistId)
           : show.artistTicketmasterId
-          ? await ctx.db
+            ? await ctx.db
               .query("artists")
               .withIndex("by_ticketmaster_id", (q) =>
                 q.eq("ticketmasterId", show.artistTicketmasterId!)
               )
               .first()
-          : null;
+            : null;
       } catch (error) {
         console.error(`❌ Failed to get artist for trending show ${show.ticketmasterId}:`, error);
       }
@@ -645,9 +643,9 @@ export const replaceTrendingArtistsCache = internalMutation({
       }
       return isRealConcert(artist.name, artist.genres);
     });
-    
+
     console.log(`📊 Processing ${realConcertArtists.length} real concert artists out of ${args.artists.length} total (filtered residencies with 50+ events)`);
-    
+
     const existing = await ctx.db.query("trendingArtists").collect();
     const existingMap = new Map(existing.map((doc) => [doc.ticketmasterId, doc]));
     const keep = new Set(realConcertArtists.map((artist) => artist.ticketmasterId));
@@ -665,7 +663,7 @@ export const replaceTrendingArtistsCache = internalMutation({
       artist: typeof realConcertArtists[0];
       spotifyPopularity: number;
     }> = [];
-    
+
     for (const artist of realConcertArtists) {
       const linkedArtist = await ctx.db
         .query("artists")
@@ -673,10 +671,10 @@ export const replaceTrendingArtistsCache = internalMutation({
           q.eq("ticketmasterId", artist.ticketmasterId)
         )
         .first();
-      
+
       // Get Spotify popularity (0-100) if available
       const spotifyPopularity = linkedArtist?.popularity || 0;
-      
+
       enrichedArtists.push({
         ticketmasterId: artist.ticketmasterId,
         linkedArtist,
@@ -684,7 +682,7 @@ export const replaceTrendingArtistsCache = internalMutation({
         spotifyPopularity,
       });
     }
-    
+
     // STEP 2: Sort by Spotify popularity (DESC), then upcomingEvents as tiebreaker
     // This ensures artists like Beyonce (popularity 90+) rank higher than Barry Manilow
     enrichedArtists.sort((a, b) => {
@@ -695,14 +693,14 @@ export const replaceTrendingArtistsCache = internalMutation({
       // Secondary: Upcoming events (more events = bigger tour)
       return b.artist.upcomingEvents - a.artist.upcomingEvents;
     });
-    
+
     console.log(`🎵 Top 5 by Spotify popularity: ${enrichedArtists.slice(0, 5).map(a => `${a.artist.name}(${a.spotifyPopularity})`).join(', ')}`);
 
     // STEP 3: Update cache with new rankings
     for (let i = 0; i < enrichedArtists.length; i++) {
       const { ticketmasterId, linkedArtist, artist } = enrichedArtists[i];
       const newRank = i + 1; // 1-based rank
-      
+
       const name = linkedArtist?.name || artist.name || "Unknown Artist";
       const genres =
         linkedArtist?.genres && linkedArtist.genres.length > 0
@@ -756,18 +754,18 @@ export const updateArtistShowCounts = internalMutation({
     // Build a map of upcoming show counts per artist
     // Using .collect() with reasonable limits instead of pagination
     const upcomingShows = await ctx.db
-        .query("shows")
-        .withIndex("by_status", (q) => q.eq("status", "upcoming"))
+      .query("shows")
+      .withIndex("by_status", (q) => q.eq("status", "upcoming"))
       .collect();
 
     const artistShowCounts = new Map<string, number>();
     for (const show of upcomingShows) {
-        const artistKey = show.artistId.toString();
-        artistShowCounts.set(
-          artistKey,
-          (artistShowCounts.get(artistKey) || 0) + 1
-        );
-      }
+      const artistKey = show.artistId.toString();
+      artistShowCounts.set(
+        artistKey,
+        (artistShowCounts.get(artistKey) || 0) + 1
+      );
+    }
 
     // Get all artists and update counts where they differ
     const artists = await ctx.db.query("artists").collect();
@@ -775,21 +773,21 @@ export const updateArtistShowCounts = internalMutation({
     let updated = 0;
 
     for (const artist of artists) {
-        const key = artist._id.toString();
-        const newCount = artistShowCounts.get(key) || 0;
-        const currentCount =
-          typeof artist.upcomingShowsCount === "number"
-            ? artist.upcomingShowsCount
-            : 0;
+      const key = artist._id.toString();
+      const newCount = artistShowCounts.get(key) || 0;
+      const currentCount =
+        typeof artist.upcomingShowsCount === "number"
+          ? artist.upcomingShowsCount
+          : 0;
 
-        if (currentCount !== newCount) {
-          await ctx.db.patch(artist._id, {
-            upcomingShowsCount: newCount,
-            lastTrendingUpdate: now,
-          });
+      if (currentCount !== newCount) {
+        await ctx.db.patch(artist._id, {
+          upcomingShowsCount: newCount,
+          lastTrendingUpdate: now,
+        });
         updated++;
-        }
       }
+    }
 
     console.log(`✅ Updated show counts for ${updated} artists (${upcomingShows.length} upcoming shows)`);
     return null;
@@ -807,10 +805,10 @@ export const updateArtistTrending = internalMutation({
       const upcomingShows = typeof a.upcomingShowsCount === 'number' ? a.upcomingShowsCount : 0;
       const followers = typeof a.followers === 'number' ? a.followers : 0;
       const popularity = typeof a.popularity === 'number' ? a.popularity : 0;
-      
+
       // Calculate score with multiple factors
       const baseScore = upcomingShows + Math.floor(followers / 1_000_000) + Math.floor(popularity / 10);
-      
+
       return {
         artist: a,
         score: Math.max(1, baseScore), // FIXED: Minimum score 1 to ensure ranks set
@@ -918,23 +916,23 @@ export const updateEngagementCounts = internalMutation({
     const setlistIdToShowId = new Map<string, string>();
 
     for (const setlist of allSetlists) {
-        if (setlist.showId) {
-          const showKey = setlist.showId.toString();
-          setlistCounts.set(
-            showKey,
-            (setlistCounts.get(showKey) || 0) + 1
-          );
-          setlistIdToShowId.set((setlist as any)._id.toString(), showKey);
-        }
+      if (setlist.showId) {
+        const showKey = setlist.showId.toString();
+        setlistCounts.set(
+          showKey,
+          (setlistCounts.get(showKey) || 0) + 1
+        );
+        setlistIdToShowId.set((setlist as any)._id.toString(), showKey);
       }
+    }
 
     // Count votes per show via setlist->show mapping
     const allVotes = await ctx.db.query("votes").collect();
     const voteCounts = new Map<string, number>();
 
     for (const vote of allVotes) {
-        if (!vote.setlistId) continue;
-        const setlistKey = vote.setlistId.toString();
+      if (!vote.setlistId) continue;
+      const setlistKey = vote.setlistId.toString();
       const showKey = setlistIdToShowId.get(setlistKey);
       if (showKey) {
         voteCounts.set(
@@ -950,33 +948,33 @@ export const updateEngagementCounts = internalMutation({
       if (!sv.setlistId) continue;
       const setlistKey = sv.setlistId.toString();
       const showKey = setlistIdToShowId.get(setlistKey);
-        if (showKey) {
-          voteCounts.set(
-            showKey,
-            (voteCounts.get(showKey) || 0) + 1
-          );
-        }
+      if (showKey) {
+        voteCounts.set(
+          showKey,
+          (voteCounts.get(showKey) || 0) + 1
+        );
       }
+    }
 
     // Apply updates to shows
     const allShows = await ctx.db.query("shows").collect();
     let updated = 0;
 
     for (const show of allShows) {
-        const key = show._id.toString();
-        const newSetlistCount = setlistCounts.get(key) || 0;
-        const newVoteCount = voteCounts.get(key) || 0;
-        if (
-          show.setlistCount !== newSetlistCount ||
-          show.voteCount !== newVoteCount
-        ) {
-          await ctx.db.patch(show._id, {
-            setlistCount: newSetlistCount,
-            voteCount: newVoteCount,
-          });
-          updated++;
-        }
+      const key = show._id.toString();
+      const newSetlistCount = setlistCounts.get(key) || 0;
+      const newVoteCount = voteCounts.get(key) || 0;
+      if (
+        show.setlistCount !== newSetlistCount ||
+        show.voteCount !== newVoteCount
+      ) {
+        await ctx.db.patch(show._id, {
+          setlistCount: newSetlistCount,
+          voteCount: newVoteCount,
+        });
+        updated++;
       }
+    }
 
     console.log(`✅ Updated engagement counts for ${updated} shows (${allSetlists.length} setlists, ${allVotes.length + allSongVotes.length} total votes)`);
     return null;

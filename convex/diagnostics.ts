@@ -1,10 +1,10 @@
 import { internalQuery, action } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { internalRef } from "./adminHelpers";
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
+
 
 /**
  * Diagnostic tools for finding and fixing missing setlists
@@ -30,20 +30,20 @@ export const findShowsWithoutSetlists = internalQuery({
       hasSongs: boolean;
       artistSongCount: number;
     }> = [];
-    
+
     for (const show of shows) {
       const setlist = await ctx.db
         .query("setlists")
         .withIndex("by_show", (q) => q.eq("showId", show._id))
         .first();
-      
+
       if (!setlist) {
         const artist = await ctx.db.get(show.artistId);
         const artistSongs = await ctx.db
           .query("artistSongs")
           .withIndex("by_artist", (q) => q.eq("artistId", show.artistId))
           .collect();
-        
+
         missing.push({
           showId: show._id,
           artistName: artist?.name || "Unknown",
@@ -54,7 +54,7 @@ export const findShowsWithoutSetlists = internalQuery({
         });
       }
     }
-    
+
     return missing;
   },
 });
@@ -91,13 +91,13 @@ export const findArtistsWithoutSongs = internalQuery({
       hasSpotifyId: boolean;
       lastSynced: number | undefined;
     }> = [];
-    
+
     for (const artist of artists) {
       const artistSongs = await ctx.db
         .query("artistSongs")
         .withIndex("by_artist", (q) => q.eq("artistId", artist._id))
         .collect();
-      
+
       if (artistSongs.length === 0) {
         missing.push({
           artistId: artist._id,
@@ -107,7 +107,7 @@ export const findArtistsWithoutSongs = internalQuery({
         });
       }
     }
-    
+
     return missing;
   },
 });

@@ -1,11 +1,11 @@
 import { query, internalQuery, internalMutation, action } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
-import { internal } from "./_generated/api";
+import { internalRef } from "./adminHelpers";
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const internalRef = internal as any;
+
 
 // Helper function to create SEO-friendly slugs
 function createSEOSlug(name: string): string {
@@ -41,27 +41,27 @@ export const getRecentlyUpdated = query({
       .query("shows")
       .order("desc") // initial order, will sort by date below
       .take(limit * 3);
-    
-      // Populate artist and venue data
-  const enrichedShows = await Promise.all(
-    shows.map(async (show) => {
-      const [artist, venue] = await Promise.all([
-        ctx.db.get(show.artistId),
-        ctx.db.get(show.venueId),
-      ]);
-      // Skip shows with missing artist or venue
-      if (!artist || !venue) {
-        return null;
-      }
-      return { ...show, artist, venue };
-    })
-  );
-  
-  // Filter out null values and sort by show date (newest first)
-  return enrichedShows
-    .filter(show => show !== null)
-    .sort((a: any, b: any) => parseDate(b.date).getTime() - parseDate(a.date).getTime())
-    .slice(0, limit);
+
+    // Populate artist and venue data
+    const enrichedShows = await Promise.all(
+      shows.map(async (show) => {
+        const [artist, venue] = await Promise.all([
+          ctx.db.get(show.artistId),
+          ctx.db.get(show.venueId),
+        ]);
+        // Skip shows with missing artist or venue
+        if (!artist || !venue) {
+          return null;
+        }
+        return { ...show, artist, venue };
+      })
+    );
+
+    // Filter out null values and sort by show date (newest first)
+    return enrichedShows
+      .filter(show => show !== null)
+      .sort((a: any, b: any) => parseDate(b.date).getTime() - parseDate(a.date).getTime())
+      .slice(0, limit);
   },
 });
 
@@ -75,27 +75,27 @@ export const getUpcoming = query({
       .withIndex("by_status", (q) => q.eq("status", "upcoming"))
       .order("asc")
       .take(limit * 3);
-    
-      // Populate artist and venue data
-  const enrichedShows = await Promise.all(
-    shows.map(async (show) => {
-      const [artist, venue] = await Promise.all([
-        ctx.db.get(show.artistId),
-        ctx.db.get(show.venueId),
-      ]);
-      // Skip shows with missing artist or venue
-      if (!artist || !venue) {
-        return null;
-      }
-      return { ...show, artist, venue };
-    })
-  );
-  
-  // Filter out null values and sort by date ascending
-  return enrichedShows
-    .filter(show => show !== null)
-    .sort((a: any, b: any) => parseDate(a.date).getTime() - parseDate(b.date).getTime())
-    .slice(0, limit);
+
+    // Populate artist and venue data
+    const enrichedShows = await Promise.all(
+      shows.map(async (show) => {
+        const [artist, venue] = await Promise.all([
+          ctx.db.get(show.artistId),
+          ctx.db.get(show.venueId),
+        ]);
+        // Skip shows with missing artist or venue
+        if (!artist || !venue) {
+          return null;
+        }
+        return { ...show, artist, venue };
+      })
+    );
+
+    // Filter out null values and sort by date ascending
+    return enrichedShows
+      .filter(show => show !== null)
+      .sort((a: any, b: any) => parseDate(a.date).getTime() - parseDate(b.date).getTime())
+      .slice(0, limit);
   },
 });
 
@@ -109,27 +109,27 @@ export const getRecent = query({
       .withIndex("by_status", (q) => q.eq("status", "completed"))
       .order("desc")
       .take(limit * 3);
-    
-      // Populate artist and venue data
-  const enrichedShows = await Promise.all(
-    shows.map(async (show) => {
-      const [artist, venue] = await Promise.all([
-        ctx.db.get(show.artistId),
-        ctx.db.get(show.venueId),
-      ]);
-      // Skip shows with missing artist or venue
-      if (!artist || !venue) {
-        return null;
-      }
-      return { ...show, artist, venue };
-    })
-  );
-  
-  // Filter out null values and sort by date descending (most recent completed)
-  return enrichedShows
-    .filter(show => show !== null)
-    .sort((a: any, b: any) => parseDate(b.date).getTime() - parseDate(a.date).getTime())
-    .slice(0, limit);
+
+    // Populate artist and venue data
+    const enrichedShows = await Promise.all(
+      shows.map(async (show) => {
+        const [artist, venue] = await Promise.all([
+          ctx.db.get(show.artistId),
+          ctx.db.get(show.venueId),
+        ]);
+        // Skip shows with missing artist or venue
+        if (!artist || !venue) {
+          return null;
+        }
+        return { ...show, artist, venue };
+      })
+    );
+
+    // Filter out null values and sort by date descending (most recent completed)
+    return enrichedShows
+      .filter(show => show !== null)
+      .sort((a: any, b: any) => parseDate(b.date).getTime() - parseDate(a.date).getTime())
+      .slice(0, limit);
   },
 });
 
@@ -139,17 +139,17 @@ export const getById = query({
   handler: async (ctx, args) => {
     const show = await ctx.db.get(args.id);
     if (!show) return null;
-    
+
     const [artist, venue] = await Promise.all([
       ctx.db.get(show.artistId),
       ctx.db.get(show.venueId),
     ]);
-    
+
     // Return null if artist or venue is missing
     if (!artist || !venue) {
       return null;
     }
-    
+
     return { ...show, artist, venue };
   },
 });
@@ -169,7 +169,7 @@ export const getBySlug = query({
     if (!show) {
       const parts = args.slug.split("-");
       let partsToRemove = 0;
-      
+
       // Check for 3-part time suffix: -hh-mm-ss (e.g., -20-00-00)
       if (parts.length >= 3) {
         const last = parts[parts.length - 1];
@@ -179,7 +179,7 @@ export const getBySlug = query({
           partsToRemove = 3;
         }
       }
-      
+
       // Check for 2-part time suffix: -hh-mm (e.g., -20-00)
       if (partsToRemove === 0 && parts.length >= 2) {
         const last = parts[parts.length - 1];
@@ -188,7 +188,7 @@ export const getBySlug = query({
           partsToRemove = 2;
         }
       }
-      
+
       if (partsToRemove > 0) {
         const withoutTime = parts.slice(0, parts.length - partsToRemove).join("-");
         show = await ctx.db
@@ -197,14 +197,14 @@ export const getBySlug = query({
           .first();
       }
     }
-    
+
     if (!show || !show.slug) return null;
-    
+
     const [artist, venue] = await Promise.all([
       ctx.db.get(show.artistId),
       ctx.db.get(show.venueId),
     ]);
-    
+
     return { ...show, artist, venue };
   },
 });
@@ -226,7 +226,7 @@ export const normalizeSlugsInternal = internalMutation({
       if (!slug) continue;
       const parts = slug.split("-");
       if (parts.length < 2) continue;
-      
+
       // Check for 3-part time suffix: -hh-mm-ss (e.g., -20-00-00)
       let partsToRemove = 0;
       if (parts.length >= 3) {
@@ -238,7 +238,7 @@ export const normalizeSlugsInternal = internalMutation({
           partsToRemove = 3;
         }
       }
-      
+
       // Check for 2-part time suffix: -hh-mm (e.g., -20-00)
       if (partsToRemove === 0 && parts.length >= 2) {
         const last = parts[parts.length - 1];
@@ -248,7 +248,7 @@ export const normalizeSlugsInternal = internalMutation({
           partsToRemove = 2;
         }
       }
-      
+
       if (partsToRemove === 0) continue;
 
       const newSlug = parts.slice(0, parts.length - partsToRemove).join("-");
@@ -296,7 +296,7 @@ export const getBySlugOrId = query({
     if (!showDoc) {
       const parts = args.key.split("-");
       let partsToRemove = 0;
-      
+
       // Check for 3-part time suffix: -hh-mm-ss (e.g., -20-00-00)
       if (parts.length >= 3) {
         const last = parts[parts.length - 1];
@@ -306,7 +306,7 @@ export const getBySlugOrId = query({
           partsToRemove = 3;
         }
       }
-      
+
       // Check for 2-part time suffix: -hh-mm (e.g., -20-00)
       if (partsToRemove === 0 && parts.length >= 2) {
         const last = parts[parts.length - 1];
@@ -315,7 +315,7 @@ export const getBySlugOrId = query({
           partsToRemove = 2;
         }
       }
-      
+
       if (partsToRemove > 0) {
         const withoutTime = parts.slice(0, parts.length - partsToRemove).join("-");
         showDoc = await ctx.db
@@ -346,12 +346,12 @@ export const getBySlugOrId = query({
       ctx.db.get(showDoc.artistId),
       ctx.db.get(showDoc.venueId),
     ]);
-    
+
     // Return null if artist or venue is missing
     if (!artist || !venue) {
       return null;
     }
-    
+
     return { ...showDoc, artist, venue };
   },
 });
@@ -370,7 +370,7 @@ export const countByArtist = internalQuery({
 });
 
 export const getByArtist = query({
-  args: { 
+  args: {
     artistId: v.id("artists"),
     limit: v.optional(v.number())
   },
@@ -382,7 +382,7 @@ export const getByArtist = query({
       .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
       .order("desc")
       .take(limit);
-    
+
     // Populate venue data
     const enrichedShows = await Promise.all(
       shows.map(async (show) => {
@@ -390,14 +390,14 @@ export const getByArtist = query({
         return { ...show, venue };
       })
     );
-    
+
     return enrichedShows;
   },
 });
 
 // Get all shows with pagination and filtering
 export const getAll = query({
-  args: { 
+  args: {
     limit: v.optional(v.number()),
     status: v.optional(v.union(v.literal("upcoming"), v.literal("completed"), v.literal("cancelled")))
   },
@@ -417,7 +417,7 @@ export const getAll = query({
         .order("desc")
         .take(limit);
     }
-    
+
     // Populate artist and venue data
     const enrichedShows = await Promise.all(
       shows.map(async (show) => {
@@ -432,7 +432,7 @@ export const getAll = query({
         return { ...show, artist, venue };
       })
     );
-    
+
     // Filter out null values
     return enrichedShows.filter(show => show !== null);
   },
@@ -440,7 +440,7 @@ export const getAll = query({
 
 // Search shows across all fields
 export const searchShows = query({
-  args: { 
+  args: {
     query: v.string(),
     limit: v.optional(v.number())
   },
@@ -448,12 +448,12 @@ export const searchShows = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
     const searchTerm = args.query.toLowerCase();
-    
+
     // Get all shows (we'll filter in memory for simplicity)
     const shows = await ctx.db
       .query("shows")
       .take(100);
-    
+
     const enrichedShows = await Promise.all(
       shows.map(async (show) => {
         const [artist, venue] = await Promise.all([
@@ -463,10 +463,10 @@ export const searchShows = query({
         return { ...show, artist, venue };
       })
     );
-    
+
     // Filter by artist name, venue name, or city
     return enrichedShows
-      .filter(show => 
+      .filter(show =>
         show.artist?.name.toLowerCase().includes(searchTerm) ||
         show.venue?.name.toLowerCase().includes(searchTerm) ||
         show.venue?.city.toLowerCase().includes(searchTerm)
@@ -477,23 +477,23 @@ export const searchShows = query({
 
 // Get shows by city
 export const getByCity = query({
-  args: { 
+  args: {
     city: v.string(),
     limit: v.optional(v.number())
   },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
-    
+
     // Get venues in the city first
     const venues = await ctx.db
       .query("venues")
       .withIndex("by_location", (q) => q.eq("city", args.city))
       .collect();
-    
+
     const venueIds = venues.map(v => v._id);
     const shows = [];
-    
+
     // Get shows for each venue in the city
     for (const venueId of venueIds) {
       const venueShows = await ctx.db
@@ -502,12 +502,12 @@ export const getByCity = query({
         .take(limit);
       shows.push(...venueShows);
     }
-    
+
     // Sort by date and limit
     const sortedShows = shows
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, limit);
-    
+
     // Populate artist and venue data
     const enrichedShows = await Promise.all(
       sortedShows.map(async (show) => {
@@ -518,14 +518,14 @@ export const getByCity = query({
         return { ...show, artist, venue };
       })
     );
-    
+
     return enrichedShows;
   },
 });
 
 // Get shows by venue
 export const getByVenue = query({
-  args: { 
+  args: {
     venueId: v.id("venues"),
     limit: v.optional(v.number())
   },
@@ -537,7 +537,7 @@ export const getByVenue = query({
       .withIndex("by_venue", (q) => q.eq("venueId", args.venueId))
       .order("desc")
       .take(limit);
-    
+
     // Populate artist data
     const enrichedShows = await Promise.all(
       shows.map(async (show) => {
@@ -545,7 +545,7 @@ export const getByVenue = query({
         return { ...show, artist };
       })
     );
-    
+
     return enrichedShows;
   },
 });
@@ -631,14 +631,14 @@ export const createInternal = internalMutation({
       ctx.db.get(args.artistId),
       ctx.db.get(args.venueId),
     ]);
-    
+
     if (!artist || !venue) {
       throw new Error("Artist or venue not found");
     }
-    
+
     // Generate SEO-friendly slug: artist-name-venue-name-city-date
     const slug = createShowSlug(artist.name, venue.name, venue.city, args.date, args.startTime);
-    
+
     // ENHANCED: Initialize all optional fields with proper defaults
     const showId = await ctx.db.insert("shows", {
       ...args,
@@ -653,7 +653,7 @@ export const createInternal = internalMutation({
       lastSynced: Date.now(), // CRITICAL: Set sync timestamp
       importStatus: args.status === "completed" ? "pending" : undefined,
     });
-    
+
     console.log(`✅ Created internal show ${showId} with slug: ${slug}`);
     // FIXED: Single attempt to generate setlist, let cron handle retries
     try {
@@ -731,14 +731,14 @@ export const createFromTicketmaster = internalMutation({
       ctx.db.get(args.artistId),
       ctx.db.get(args.venueId),
     ]);
-    
+
     if (!artist || !venue) {
       throw new Error("Artist or venue not found");
     }
-    
+
     // Generate SEO-friendly slug: artist-name-venue-name-city-date
     const slug = createShowSlug(artist.name, venue.name, venue.city, args.date, args.startTime);
-    
+
     // ENHANCED: Initialize all optional fields with proper defaults
     const showId = await ctx.db.insert("shows", {
       artistId: args.artistId,
@@ -759,7 +759,7 @@ export const createFromTicketmaster = internalMutation({
       setlistfmId: undefined, // Will be set when setlist imported
       importStatus: args.status === "completed" ? "pending" : undefined, // Auto-queue completed shows for import
     });
-    
+
     console.log(`✅ Created show ${showId} with slug: ${slug}`);
 
     // FIXED: Single attempt to generate setlist, let cron handle retries
@@ -783,7 +783,7 @@ export const cleanupOrphanedShows = internalMutation({
   handler: async (ctx) => {
     const shows = await ctx.db.query("shows").take(100); // Limit to avoid timeout
     let deletedCount = 0;
-    
+
     for (const show of shows) {
       try {
         // Check if artist and venue still exist
@@ -791,7 +791,7 @@ export const cleanupOrphanedShows = internalMutation({
           ctx.db.get(show.artistId),
           ctx.db.get(show.venueId),
         ]);
-        
+
         // Delete show if artist or venue doesn't exist
         if (!artist || !venue) {
           await ctx.db.delete(show._id);
@@ -802,7 +802,7 @@ export const cleanupOrphanedShows = internalMutation({
         console.log(`⚠️ Error checking show ${show._id}:`, error);
       }
     }
-    
+
     console.log(`🧹 Cleaned up ${deletedCount} orphaned shows`);
     return null;
   },
@@ -818,22 +818,22 @@ export const cleanupOldShows = internalMutation({
       .query("shows")
       .filter((q) => q.lt(q.field("date"), args.cutoffDate))
       .collect();
-    
+
     for (const show of oldShows) {
       // Delete associated setlists first
       const setlists = await ctx.db
         .query("setlists")
         .withIndex("by_show", (q) => q.eq("showId", show._id))
         .collect();
-      
+
       for (const setlist of setlists) {
         await ctx.db.delete(setlist._id);
       }
-      
+
       // Delete the show
       await ctx.db.delete(show._id);
     }
-    
+
     console.log(`Cleaned up ${oldShows.length} old shows`);
   },
 });
@@ -848,11 +848,11 @@ export const deleteShowInternal = internalMutation({
       .query("setlists")
       .withIndex("by_show", (q) => q.eq("showId", args.showId))
       .collect();
-    
+
     for (const setlist of setlists) {
       await ctx.db.delete(setlist._id);
     }
-    
+
     // Delete the show
     await ctx.db.delete(args.showId);
     return null;
@@ -882,13 +882,13 @@ export const getAllInternal = internalQuery({
   returns: v.array(v.any()),
   handler: async (ctx) => {
     const shows = await ctx.db.query("shows").take(100);
-    
+
     // Enrich with artist and venue data
     const enrichedShows = await Promise.all(
       shows.map(async (show) => {
         const artist = show.artistId ? await ctx.db.get(show.artistId) : null;
         const venue = show.venueId ? await ctx.db.get(show.venueId) : null;
-        
+
         return {
           ...show,
           artist,
@@ -896,7 +896,7 @@ export const getAllInternal = internalQuery({
         };
       })
     );
-    
+
     return enrichedShows;
   },
 });
@@ -915,7 +915,7 @@ export const updateImportStatus = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.showId, { 
+    await ctx.db.patch(args.showId, {
       importStatus: args.status,
       lastSynced: Date.now(), // Update sync timestamp
     });
@@ -931,7 +931,7 @@ export const updatePriceRange = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.showId, { 
+    await ctx.db.patch(args.showId, {
       priceRange: args.priceRange,
       lastSynced: Date.now(),
     });
@@ -989,7 +989,7 @@ export const markCompleted = internalMutation({
       status: "completed",
       lastSynced: Date.now(),
     });
-    
+
     console.log(`✅ Marked show as completed: ${args.showId} (date: ${show.date})`);
   },
 });
@@ -1000,7 +1000,7 @@ export const autoTransitionStatuses = internalMutation({
   returns: v.null(),
   handler: async (ctx) => {
     console.log("🔄 Auto-transitioning show statuses based on date...");
-    
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
