@@ -262,8 +262,13 @@ export const getByShow = query({
           username = "setlist.fm";
         }
 
+        // Drop the heavy raw setlist.fm payload from this hot read path.
+        // The frontend never consumes `setlistfmData`, but it can be a large
+        // JSON blob that would otherwise ship on every show page load.
+        const { setlistfmData: _setlistfmData, ...setlistWithoutBlob } = setlist;
+
         return {
-          ...setlist,
+          ...setlistWithoutBlob,
           username,
           score: (setlist.upvotes || 0),
         };
