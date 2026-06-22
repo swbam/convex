@@ -17,6 +17,8 @@ const ORCHESTRATED_JOB_BOUNDS: Record<
   "auto-transition-shows": { minIntervalMs: 60 * MINUTE, maxIntervalMs: 24 * HOUR, defaultIntervalMs: 4 * HOUR },
   "populate-missing-fields": { minIntervalMs: 2 * HOUR, maxIntervalMs: 48 * HOUR, defaultIntervalMs: 8 * HOUR },
   "spotify-refresh": { minIntervalMs: 2 * HOUR, maxIntervalMs: 48 * HOUR, defaultIntervalMs: 12 * HOUR },
+  "refresh-managed-artists": { minIntervalMs: 15 * MINUTE, maxIntervalMs: 6 * HOUR, defaultIntervalMs: 60 * MINUTE },
+  "retry-empty-setlists": { minIntervalMs: 4 * HOUR, maxIntervalMs: 48 * HOUR, defaultIntervalMs: 12 * HOUR },
 };
 
 function clampIntervalMs(name: string, intervalMs: number): number {
@@ -155,5 +157,4 @@ export const requestRunNow = mutation({
     return { success: true };
   },
 });
-
 

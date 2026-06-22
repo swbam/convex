@@ -695,13 +695,17 @@ export const createFromTicketmaster = internalMutation({
     }
 
     if (existing) {
-      // Update existing show with new data if needed
-      if (args.ticketmasterId && !existing.ticketmasterId) {
-        await ctx.db.patch(existing._id, {
-          ticketmasterId: args.ticketmasterId,
-          ticketUrl: args.ticketUrl,
-          lastSynced: Date.now(),
-        });
+      const patch: Record<string, unknown> = {
+        lastSynced: Date.now(),
+      };
+      if (args.ticketmasterId && args.ticketmasterId !== existing.ticketmasterId) patch.ticketmasterId = args.ticketmasterId;
+      if (args.ticketUrl !== existing.ticketUrl) patch.ticketUrl = args.ticketUrl;
+      if (args.status !== existing.status) patch.status = args.status;
+      if (args.date !== existing.date) patch.date = args.date;
+      if (args.startTime !== existing.startTime) patch.startTime = args.startTime;
+      if (args.venueId !== existing.venueId) patch.venueId = args.venueId;
+      if (Object.keys(patch).length > 1) {
+        await ctx.db.patch(existing._id, patch);
       }
 
       // FIXED: Single attempt, let cron handle retries

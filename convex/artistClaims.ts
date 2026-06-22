@@ -95,9 +95,6 @@ export const startClaim = mutation({
     // Check if user is admin - admins can claim any artist
     const isAdmin = user.role === "admin";
 
-    // Only require Spotify for non-admins
-    if (!isAdmin && !user.spotifyId) return { success: false, message: "Connect Spotify first" };
-
     // Validate artist exists
     const artist = await ctx.db.get(args.artistId);
     if (!artist) return { success: false, message: "Artist not found" };
@@ -125,7 +122,7 @@ export const startClaim = mutation({
     // Enforce claim eligibility: artist must be in user's Spotify imports (followed or top artists)
     // BYPASS for admins - they can claim any artist for testing
     // Also bypass if explicitly requested (for users with other proof like email domain verification)
-    const shouldBypass = isAdmin || args.bypassSpotifyCheck;
+    const shouldBypass = isAdmin || args.bypassSpotifyCheck || !user.spotifyId;
 
     if (!shouldBypass) {
       const spotifyRelation = await ctx.db
@@ -184,6 +181,14 @@ export const adminQuickClaim = mutation({
       .first();
 
     if (existingMember) {
+      await ctx.runMutation(internalRef.artists.syncArtistPortalState, {
+        artistId: args.artistId,
+      });
+      await ctx.scheduler.runAfter(0, internalRef.artistAutomation.runManagedArtistWarmup, {
+        artistId: args.artistId,
+        reason: "admin_quick_claim_existing_member",
+        force: true,
+      });
       return { success: true, message: `Already have ${existingMember.role} access`, artistId: args.artistId };
     }
 
@@ -226,6 +231,14 @@ export const adminQuickClaim = mutation({
       artistId: args.artistId,
       role: memberRole,
       createdAt: Date.now(),
+    });
+    await ctx.runMutation(internalRef.artists.syncArtistPortalState, {
+      artistId: args.artistId,
+    });
+    await ctx.scheduler.runAfter(0, internalRef.artistAutomation.runManagedArtistWarmup, {
+      artistId: args.artistId,
+      reason: "admin_quick_claim",
+      force: true,
     });
 
     return {
@@ -554,12 +567,20 @@ export const checkDomainMatch = mutation({
           createdAt: Date.now(),
         });
       }
+      await ctx.runMutation(internalRef.artists.syncArtistPortalState, {
+        artistId: claim.artistId,
+      });
 
       // Send approval email
       const artist = await ctx.db.get(claim.artistId);
       await ctx.scheduler.runAfter(0, internalRef.artistClaims.sendApprovalEmail, {
         email: claim.verificationEmail,
-        artistName: artist?.name ?? "your artist",
+        artistName: (artist as any)?.name ?? "your artist",
+      });
+      await ctx.scheduler.runAfter(0, internalRef.artistAutomation.runManagedArtistWarmup, {
+        artistId: claim.artistId,
+        reason: "domain_auto_approved",
+        force: true,
       });
 
       return {
@@ -791,6 +812,9 @@ export const completeWebsiteVerification = internalMutation({
         createdAt: Date.now(),
       });
     }
+    await ctx.runMutation(internalRef.artists.syncArtistPortalState, {
+      artistId: claim.artistId,
+    });
 
     // Send approval email
     const artist = await ctx.db.get(claim.artistId);
@@ -800,6 +824,11 @@ export const completeWebsiteVerification = internalMutation({
         artistName: artist?.name ?? "your artist",
       });
     }
+    await ctx.scheduler.runAfter(0, internalRef.artistAutomation.runManagedArtistWarmup, {
+      artistId: claim.artistId,
+      reason: "website_auto_approved",
+      force: true,
+    });
 
     return null;
   },
@@ -902,7 +931,7 @@ export const submitClaim = mutation({
 
     await ctx.scheduler.runAfter(0, internalRef.artistClaims.notifyOwnerOfClaim, {
       claimId: args.claimId,
-      artistName: artist.name ?? "Unknown",
+      artistName: (artist as any).name ?? "Unknown",
       userEmail: claim.verificationEmail ?? user?.email ?? "unknown",
       userName: user?.name ?? user?.username ?? "Unknown",
       role: claim.officialRole,
@@ -923,7 +952,6 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const user = await getCurrentAppUser(ctx);
     if (!user) throw new Error("Sign in");
-    if (!user.spotifyId) throw new Error("Connect Spotify");
 
     const existingMember = await ctx.db.query("artistMembers").withIndex("by_user_artist", (q) => q.eq("userId", user._id).eq("artistId", args.artistId)).first();
     if (existingMember) return { status: "already_member", artistId: args.artistId };
@@ -931,11 +959,21 @@ export const create = mutation({
     const existingClaim = await ctx.db.query("artistClaims").withIndex("by_user_artist", (q) => q.eq("userId", user._id).eq("artistId", args.artistId)).first();
     if (existingClaim) return { status: existingClaim.status, claimId: existingClaim._id };
 
-    const spotifyRel = await ctx.db.query("userSpotifyArtists").withIndex("by_user_artist", (q) => q.eq("userId", user._id).eq("artistId", args.artistId)).first();
-    if (!spotifyRel) throw new Error("Artist not in your Spotify");
+    const spotifyRel = user.spotifyId
+      ? await ctx.db.query("userSpotifyArtists").withIndex("by_user_artist", (q) => q.eq("userId", user._id).eq("artistId", args.artistId)).first()
+      : null;
 
     const artist = await ctx.db.get(args.artistId);
-    const claimId = await ctx.db.insert("artistClaims", { userId: user._id, artistId: args.artistId, status: "pending", createdAt: Date.now(), submittedAt: Date.now(), spotifyUserId: user.spotifyId, evidence: args.evidence });
+    const claimId = await ctx.db.insert("artistClaims", {
+      userId: user._id,
+      artistId: args.artistId,
+      status: "pending",
+      createdAt: Date.now(),
+      submittedAt: Date.now(),
+      spotifyUserId: user.spotifyId,
+      evidence: args.evidence,
+      verificationProof: spotifyRel ? "spotify_linked" : undefined,
+    });
 
     await ctx.scheduler.runAfter(0, internalRef.artistClaims.notifyOwnerOfClaim, { claimId, artistName: artist?.name ?? "Unknown", userEmail: user.email ?? "unknown", userName: user.name ?? user.username ?? "Unknown" });
 
@@ -1013,6 +1051,9 @@ export const approve = mutation({
     const existing = await ctx.db.query("artistMembers").withIndex("by_user_artist", (q) => q.eq("userId", claim.userId).eq("artistId", claim.artistId)).first();
     if (existing) await ctx.db.patch(existing._id, { role: memberRole });
     else await ctx.db.insert("artistMembers", { userId: claim.userId, artistId: claim.artistId, role: memberRole, createdAt: Date.now() });
+    await ctx.runMutation(internalRef.artists.syncArtistPortalState, {
+      artistId: claim.artistId,
+    });
 
     await ctx.db.patch(args.claimId, { status: "approved", reviewedAt: Date.now(), reviewedBy: adminUserId, reviewNote: args.note });
 
@@ -1021,6 +1062,11 @@ export const approve = mutation({
     if (claim.verificationEmail || user?.email) {
       await ctx.scheduler.runAfter(0, internalRef.artistClaims.sendApprovalEmail, { email: claim.verificationEmail ?? user?.email ?? "", artistName: artist?.name ?? "your artist" });
     }
+    await ctx.scheduler.runAfter(0, internalRef.artistAutomation.runManagedArtistWarmup, {
+      artistId: claim.artistId,
+      reason: "manual_approval",
+      force: true,
+    });
 
     return { success: true };
   },

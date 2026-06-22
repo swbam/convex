@@ -14,7 +14,9 @@ const ENCRYPTION_SECRET = process.env.SPOTIFY_TOKEN_ENC_KEY;
 
 const getEncryptionKey = () => {
   if (!ENCRYPTION_SECRET) {
-    // Fallback: no encryption key configured, caller should store tokens as-is.
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("SPOTIFY_TOKEN_ENC_KEY is required in production.");
+    }
     return null;
   }
   return createHash("sha256").update(ENCRYPTION_SECRET).digest();
@@ -23,15 +25,9 @@ const getEncryptionKey = () => {
 const encryptToken = (token: string) => {
   const key = getEncryptionKey();
   if (!key) {
-    if (process.env.NODE_ENV === "production") {
-      console.warn(
-        "SPOTIFY_TOKEN_ENC_KEY not set; storing Spotify token unencrypted in production.",
-      );
-    } else {
-      console.warn(
-        "SPOTIFY_TOKEN_ENC_KEY not set; storing Spotify token unencrypted (development).",
-      );
-    }
+    console.warn(
+      "SPOTIFY_TOKEN_ENC_KEY not set; storing Spotify token unencrypted (development).",
+    );
     return token;
   }
 

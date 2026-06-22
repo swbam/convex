@@ -316,7 +316,7 @@ export const getCityDeltas = query({
 
       // Calculate deltas (city % vs tour %)
       const cityTotal = Array.from(citySongTotals.values()).reduce((a, b) => a + b, 0);
-      const tourTotal = Array.from(tourSongTotals.values()).reduce((a, b) => a.total + b.total, 0);
+      const tourTotal = Array.from(tourSongTotals.values()).reduce((sum, v) => sum + v.total, 0);
       
       if (cityTotal === 0 || tourTotal === 0) continue;
 
@@ -726,7 +726,7 @@ export const getHistoricalSetlists = query({
           songCount: actualSetlist.actualSetlist.length,
           songs: actualSetlist.actualSetlist,
           setlistId: actualSetlist._id,
-          setlistFmUrl: actualSetlist.setlistFmUrl,
+          setlistFmUrl: (actualSetlist as any).setlistfmData?.url,
         });
       }
     }

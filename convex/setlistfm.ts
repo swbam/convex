@@ -412,7 +412,9 @@ export const getCompletedShowsNeedingImport = internalQuery({
   handler: async (ctx) => {
     const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
 
-    // Get shows that need first-time import
+    // Get shows that need first-time import.
+    // Batch raised from 5→20 to clear backlog faster; per-show 2s spacing in
+    // checkCompletedShows keeps us within setlist.fm rate limits.
     const newShows = await ctx.db
       .query("shows")
       .withIndex("by_status", (q) => q.eq("status", "completed"))
@@ -421,7 +423,7 @@ export const getCompletedShowsNeedingImport = internalQuery({
         q.eq(q.field("importStatus"), "pending"),
         q.eq(q.field("importStatus"), "failed")
       ))
-      .take(5);
+      .take(20);
 
     // Also retry "not_found" shows after 24h (Setlist.fm data often appears late)
     const retryShows = await ctx.db
@@ -431,7 +433,7 @@ export const getCompletedShowsNeedingImport = internalQuery({
         q.eq(q.field("importStatus"), "not_found"),
         q.lt(q.field("lastSynced"), twentyFourHoursAgo)
       ))
-      .take(3);
+      .take(10);
 
     return [...newShows, ...retryShows];
   },

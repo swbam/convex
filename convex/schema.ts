@@ -42,6 +42,14 @@ const applicationTables = {
     lowerName: v.optional(v.string()),
     isActive: v.boolean(),
     lastSynced: v.optional(v.number()),
+    artistAccessEnabled: v.optional(v.boolean()),
+    artistAccessEnabledAt: v.optional(v.number()),
+    artistMemberCount: v.optional(v.number()),
+    lastShowSyncAt: v.optional(v.number()),
+    lastSpotifyBasicsSyncAt: v.optional(v.number()),
+    lastCatalogSyncAt: v.optional(v.number()),
+    lastAutonomousRefreshAt: v.optional(v.number()),
+    lastDemandReconcileAt: v.optional(v.number()),
     // CRITICAL: Track catalog sync attempts to prevent infinite loops
     catalogSyncAttemptedAt: v.optional(v.number()),
     catalogSyncStatus: v.optional(v.union(
@@ -78,7 +86,8 @@ const applicationTables = {
     .index("by_spotify_id", ["spotifyId"])
     .index("by_ticketmaster_id", ["ticketmasterId"])
     .index("by_lower_name", ["lowerName"])
-    .index("by_last_synced", ["lastSynced"]),
+    .index("by_last_synced", ["lastSynced"])
+    .index("by_artist_access_enabled", ["artistAccessEnabled"]),
 
   venues: defineTable({
     name: v.string(),

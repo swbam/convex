@@ -7,6 +7,6 @@ sleep 5
 
 # Refresh Ticketmaster-driven caches + update internal trending scores
 echo "📊 Refreshing trending (Ticketmaster caches + internal ranks)..."
-npm run -s sync:trending || true
+npm run -s sync:trending
 
 echo "✅ Post-deployment tasks completed!"

@@ -112,6 +112,17 @@ export const createFromTicketmaster = internalMutation({
         .first();
 
       if (existing) {
+        const patch: Record<string, unknown> = {};
+        if (args.address && args.address !== existing.address) patch.address = args.address;
+        if (args.state && args.state !== existing.state) patch.state = args.state;
+        if (args.country && args.country !== existing.country) patch.country = args.country;
+        if (args.capacity !== undefined && args.capacity !== existing.capacity) patch.capacity = args.capacity;
+        if (args.lat !== undefined && args.lat !== existing.lat) patch.lat = args.lat;
+        if (args.lng !== undefined && args.lng !== existing.lng) patch.lng = args.lng;
+        if (args.postalCode && args.postalCode !== existing.postalCode) patch.postalCode = args.postalCode;
+        if (Object.keys(patch).length > 0) {
+          await ctx.db.patch(existing._id, patch);
+        }
         return existing._id;
       }
     }
@@ -123,12 +134,17 @@ export const createFromTicketmaster = internalMutation({
       .first();
 
     if (existingByLocation) {
-      // Update with Ticketmaster ID if we found a match
-      if (args.ticketmasterId && !existingByLocation.ticketmasterId) {
-        await ctx.db.patch(existingByLocation._id, {
-          ticketmasterId: args.ticketmasterId,
-          postalCode: args.postalCode || existingByLocation.postalCode,
-        });
+      const patch: Record<string, unknown> = {};
+      if (args.ticketmasterId && !existingByLocation.ticketmasterId) patch.ticketmasterId = args.ticketmasterId;
+      if (args.address && args.address !== existingByLocation.address) patch.address = args.address;
+      if (args.state && args.state !== existingByLocation.state) patch.state = args.state;
+      if (args.country && args.country !== existingByLocation.country) patch.country = args.country;
+      if (args.capacity !== undefined && args.capacity !== existingByLocation.capacity) patch.capacity = args.capacity;
+      if (args.lat !== undefined && args.lat !== existingByLocation.lat) patch.lat = args.lat;
+      if (args.lng !== undefined && args.lng !== existingByLocation.lng) patch.lng = args.lng;
+      if (args.postalCode && args.postalCode !== existingByLocation.postalCode) patch.postalCode = args.postalCode;
+      if (Object.keys(patch).length > 0) {
+        await ctx.db.patch(existingByLocation._id, patch);
       }
       return existingByLocation._id;
     }

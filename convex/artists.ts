@@ -626,6 +626,78 @@ export const updateSyncStatus = internalMutation({
   },
 });
 
+export const syncArtistPortalState = internalMutation({
+  args: {
+    artistId: v.id("artists"),
+  },
+  returns: v.object({
+    enabled: v.boolean(),
+    memberCount: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const artist = await ctx.db.get(args.artistId);
+    if (!artist) {
+      return { enabled: false, memberCount: 0 };
+    }
+
+    const members = await ctx.db
+      .query("artistMembers")
+      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
+      .collect();
+
+    const enabled = members.length > 0;
+    const patch: Record<string, unknown> = {
+      artistAccessEnabled: enabled,
+      artistMemberCount: members.length,
+    };
+
+    if (enabled && !artist.artistAccessEnabledAt) {
+      patch.artistAccessEnabledAt = Date.now();
+    }
+
+    await ctx.db.patch(args.artistId, patch);
+    return { enabled, memberCount: members.length };
+  },
+});
+
+export const recordAutomationSync = internalMutation({
+  args: {
+    artistId: v.id("artists"),
+    lastShowSyncAt: v.optional(v.number()),
+    lastSpotifyBasicsSyncAt: v.optional(v.number()),
+    lastCatalogSyncAt: v.optional(v.number()),
+    lastAutonomousRefreshAt: v.optional(v.number()),
+    lastDemandReconcileAt: v.optional(v.number()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const updates: Record<string, number> = {};
+
+    if (args.lastShowSyncAt !== undefined) {
+      updates.lastShowSyncAt = args.lastShowSyncAt;
+    }
+    if (args.lastSpotifyBasicsSyncAt !== undefined) {
+      updates.lastSpotifyBasicsSyncAt = args.lastSpotifyBasicsSyncAt;
+    }
+    if (args.lastCatalogSyncAt !== undefined) {
+      updates.lastCatalogSyncAt = args.lastCatalogSyncAt;
+    }
+    if (args.lastAutonomousRefreshAt !== undefined) {
+      updates.lastAutonomousRefreshAt = args.lastAutonomousRefreshAt;
+    }
+    if (args.lastDemandReconcileAt !== undefined) {
+      updates.lastDemandReconcileAt = args.lastDemandReconcileAt;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      updates.lastSynced = Date.now();
+      await ctx.db.patch(args.artistId, updates);
+    }
+
+    return null;
+  },
+});
+
 
 
 // Internal queries for sync operations
@@ -821,6 +893,19 @@ export const getByTicketmasterIdInternal = internalQuery({
       .query("artists")
       .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.ticketmasterId))
       .first();
+  },
+});
+
+export const getManagedArtistsInternal = internalQuery({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("artists")
+      .withIndex("by_artist_access_enabled", (q) => q.eq("artistAccessEnabled", true))
+      .take(args.limit ?? 100);
   },
 });
 

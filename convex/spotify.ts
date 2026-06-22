@@ -115,6 +115,43 @@ async function batchFetchAlbumTracks(albumIds: string[], accessToken: string): P
   return tracksByAlbum;
 }
 
+// Cache the Spotify client-credentials "app token" across action invocations
+// in the same isolate. The token is valid ~1 hour; re-fetching it on every
+// catalog/basics/top-tracks call added latency and risked throttling the
+// token endpoint. Refresh slightly early (60s skew).
+let cachedSpotifyAppToken: { token: string; expiresAt: number } | null = null;
+
+async function getSpotifyAppToken(
+  clientId: string,
+  clientSecret: string,
+): Promise<string | null> {
+  const now = Date.now();
+  if (cachedSpotifyAppToken && cachedSpotifyAppToken.expiresAt > now + 60_000) {
+    return cachedSpotifyAppToken.token;
+  }
+
+  const tokenResponse = await fetchWithRetry("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Authorization": `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+    },
+    body: "grant_type=client_credentials",
+  });
+
+  if (!tokenResponse.ok) {
+    return null;
+  }
+
+  const tokenData = await tokenResponse.json();
+  const token = tokenData.access_token as string | undefined;
+  if (!token) return null;
+
+  const expiresInMs = (Number(tokenData.expires_in) || 3600) * 1000;
+  cachedSpotifyAppToken = { token, expiresAt: now + expiresInMs };
+  return token;
+}
+
 // Public action to trigger Spotify data enrichment
 export const enrichArtistData = action({
   args: {
@@ -148,26 +185,12 @@ export const enrichArtistBasics = internalAction({
     }
 
     try {
-      // Get access token
-      const tokenResponse = await fetchWithRetry(
-        "https://accounts.spotify.com/api/token",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
-          },
-          body: "grant_type=client_credentials",
-        }
-      );
-
-      if (!tokenResponse.ok) {
+      // Get a cached Spotify app token (client-credentials)
+      const accessToken = await getSpotifyAppToken(clientId, clientSecret);
+      if (!accessToken) {
         console.warn('Failed to get Spotify access token for basics');
         return null;
       }
-
-      const tokenData = await tokenResponse.json();
-      const accessToken = tokenData.access_token;
 
       // Search for artist (lightweight call)
       const searchResponse = await fetchWithRetry(
@@ -199,6 +222,10 @@ export const enrichArtistBasics = internalAction({
         popularity: spotifyArtist.popularity,
         genres: spotifyArtist.genres || [],
         images: spotifyArtist.images?.map((img: any) => img.url) || [],
+      });
+      await ctx.runMutation(internalRef.artists.recordAutomationSync, {
+        artistId: args.artistId,
+        lastSpotifyBasicsSyncAt: Date.now(),
       });
 
       console.log(`✅ Updated artist ${args.artistName} with Spotify basics (ID: ${spotifyArtist.id})`);
@@ -236,26 +263,12 @@ export const importArtistTopTracks = internalAction({
     const maxTracks = Math.max(1, Math.min(args.maxTracks ?? 25, 50));
 
     try {
-      // Get access token
-      const tokenResponse = await fetchWithRetry(
-        "https://accounts.spotify.com/api/token",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
-          },
-          body: "grant_type=client_credentials",
-        }
-      );
-
-      if (!tokenResponse.ok) {
+      // Get a cached Spotify app token (client-credentials)
+      const accessToken = await getSpotifyAppToken(clientId, clientSecret);
+      if (!accessToken) {
         console.warn("Failed to get Spotify access token for top tracks");
         return { imported: 0, reason: "spotify_token_failed" };
       }
-
-      const tokenData = await tokenResponse.json();
-      const accessToken = tokenData.access_token;
 
       // Search for artist
       const searchResponse = await fetchWithRetry(
@@ -430,25 +443,11 @@ export const syncArtistCatalog = internalAction({
     console.log(`🎵 Starting catalog sync for ${args.artistName} (Last attempt: ${artist.catalogSyncAttemptedAt ? new Date(artist.catalogSyncAttemptedAt).toISOString() : 'never'})`);
 
     try {
-      // Get access token
-      const tokenResponse = await fetchWithRetry(
-        "https://accounts.spotify.com/api/token",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
-          },
-          body: "grant_type=client_credentials",
-        }
-      );
-
-      if (!tokenResponse.ok) {
+      // Get a cached Spotify app token (client-credentials)
+      const accessToken = await getSpotifyAppToken(clientId, clientSecret);
+      if (!accessToken) {
         throw new Error('Failed to get Spotify access token');
       }
-
-      const tokenData = await tokenResponse.json();
-      const accessToken = tokenData.access_token;
 
       // Search for artist
       const searchResponse = await fetchWithRetry(
@@ -632,6 +631,12 @@ export const syncArtistCatalog = internalAction({
         artistId: args.artistId,
         catalogSyncStatus: songsImported > 0 ? "completed" : "failed",
       });
+      if (songsImported > 0) {
+        await ctx.runMutation(internalRef.artists.recordAutomationSync, {
+          artistId: args.artistId,
+          lastCatalogSyncAt: Date.now(),
+        });
+      }
 
       // CRITICAL FIX: Removed post-sync setlist generation to prevent infinite cascade
       // The cron job 'refresh-auto-setlists' will handle setlist generation separately

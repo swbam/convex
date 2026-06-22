@@ -108,6 +108,16 @@ const JOBS: Array<JobDef> = [
     lockStaleMs: 2 * HOUR,
   },
   {
+    name: "refresh-managed-artists",
+    kind: "action",
+    ref: internalRef.artistAutomation.refreshManagedArtistAutomation,
+    defaultIntervalMs: 60 * MINUTE,
+    minIntervalMs: 15 * MINUTE,
+    maxIntervalMs: 6 * HOUR,
+    lockName: "cron:refresh-managed-artists",
+    lockStaleMs: 45 * MINUTE,
+  },
+  {
     name: "retry-empty-setlists",
     kind: "action",
     ref: internalRef.setlistfm.retryEmptySetlists,
@@ -428,4 +438,3 @@ export const getRecentRuns = query({
     return await ctx.db.query("cronRuns").withIndex("by_started_at").order("desc").take(limit);
   },
 });
-

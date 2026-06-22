@@ -2,6 +2,7 @@ import { action, internalAction, internalQuery, internalMutation } from "./_gene
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { internalRef } from "./adminHelpers";
+import { Id } from "./_generated/dataModel";
 
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -211,9 +212,9 @@ export const regenerateEmptySetlists = internalMutation({
       const showIdStr = showIds[i];
 
       try {
-        // Get show to find artistId - need to query since we only have string ID
-        const shows = await ctx.db.query("shows").collect();
-        const show = shows.find(s => s._id === showIdStr);
+        // Direct point-read by id (showIdStr is an Id<"shows"> stored as string).
+        // Avoids an O(n^2) full "shows" table scan inside this loop.
+        const show = await ctx.db.get(showIdStr as Id<"shows">);
 
         if (!show || !show.artistId) {
           console.log(`⚠️ Show ${showIdStr} not found or missing artistId, skipping`);
@@ -515,8 +516,22 @@ export const cleanupOldOperationalData = internalAction({
       limit: 500,
     });
 
+    // Delete old completed/failed sync jobs (previously never cleaned up → unbounded growth)
+    let syncJobsDeleted = 0;
+    for (const status of ["completed", "failed"] as const) {
+      let batch = 0;
+      do {
+        batch = await ctx.runMutation(internalRef.maintenance.deleteOldSyncJobs, {
+          status,
+          cutoff,
+          limit: 500,
+        });
+        syncJobsDeleted += batch;
+      } while (batch === 500);
+    }
+
     console.log(
-      `✅ cleanupOldOperationalData complete. Deleted ${logsDeleted} errorLogs, ${webhooksDeleted} clerkWebhookEvents, ${cronRunsDeleted} cronRuns, ${adminAuditDeleted} adminAuditLogs`,
+      `✅ cleanupOldOperationalData complete. Deleted ${logsDeleted} errorLogs, ${webhooksDeleted} clerkWebhookEvents, ${cronRunsDeleted} cronRuns, ${adminAuditDeleted} adminAuditLogs, ${syncJobsDeleted} syncJobs`,
     );
     return null;
   },

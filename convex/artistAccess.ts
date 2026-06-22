@@ -1,6 +1,7 @@
 import { query, mutation, QueryCtx, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
+import { internalRef } from "./adminHelpers";
 
 // ============================================================================
 // HELPERS
@@ -76,7 +77,6 @@ export const getMyArtistAccess = query({
     hasAccess: v.boolean(),
     reason: v.optional(v.union(
       v.literal("not_signed_in"),
-      v.literal("no_spotify"),
       v.literal("not_an_artist")
     )),
     artists: v.optional(v.array(
@@ -91,10 +91,6 @@ export const getMyArtistAccess = query({
     
     if (!user) {
       return { hasAccess: false, reason: "not_signed_in" as const };
-    }
-
-    if (!user.spotifyId) {
-      return { hasAccess: false, reason: "no_spotify" as const };
     }
 
     // Check artistMembers table for approved claims and team invites
@@ -298,6 +294,14 @@ export const inviteTeamMember = mutation({
       createdAt: Date.now(),
       invitedBy: user._id,
     });
+    await ctx.runMutation(internalRef.artists.syncArtistPortalState, {
+      artistId: args.artistId,
+    });
+    await ctx.scheduler.runAfter(0, internalRef.artistAutomation.runManagedArtistWarmup, {
+      artistId: args.artistId,
+      reason: "team_member_invited",
+      force: false,
+    });
 
     return { success: true };
   },
@@ -347,6 +351,9 @@ export const removeTeamMember = mutation({
 
     // Delete the membership
     await ctx.db.delete(args.memberId);
+    await ctx.runMutation(internalRef.artists.syncArtistPortalState, {
+      artistId: args.artistId,
+    });
 
     return { success: true };
   },
@@ -410,6 +417,9 @@ export const leaveArtistTeam = mutation({
     }
 
     await ctx.db.delete(membership._id);
+    await ctx.runMutation(internalRef.artists.syncArtistPortalState, {
+      artistId: args.artistId,
+    });
     return { success: true };
   },
 });
@@ -739,14 +749,22 @@ export const acceptInvite = mutation({
       createdAt: Date.now(),
       invitedBy: invite.invitedBy,
     });
-    
+    await ctx.runMutation(internalRef.artists.syncArtistPortalState, {
+      artistId: invite.artistId,
+    });
+
     // Mark invite as accepted
     await ctx.db.patch(invite._id, {
       status: "accepted",
       acceptedAt: Date.now(),
       acceptedBy: user._id,
     });
-    
+    await ctx.scheduler.runAfter(0, internalRef.artistAutomation.runManagedArtistWarmup, {
+      artistId: invite.artistId,
+      reason: "invite_accepted",
+      force: false,
+    });
+
     return {
       success: true,
       message: `Welcome to ${artist.name}'s team!`,

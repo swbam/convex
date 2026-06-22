@@ -573,23 +573,40 @@ export const syncArtistShows = internalAction({
       return null;
     }
 
-    const url = `https://app.ticketmaster.com/discovery/v2/events.json?attractionId=${args.ticketmasterId}&size=200&apikey=${apiKey}`;
-
     try {
       console.log(`🔍 Fetching shows for Ticketmaster ID: ${args.ticketmasterId}`);
-      const response = await tmFetchWithRetry(url);
 
-      if (!response.ok) {
-        const errorMsg = `Ticketmaster API error: ${response.status}`;
-        console.error(`❌ ${errorMsg}`);
-        if (response.status === 429) {
-          console.error("⚠️  Rate limited by Ticketmaster API");
+      // Ticketmaster Discovery paginates results. Deep paging is capped at 1000
+      // items (size * page < 1000), so fetch up to 5 pages of 200 to capture
+      // large tours that previously got truncated at a single 200-event page.
+      const PAGE_SIZE = 200;
+      const MAX_PAGES = 5;
+      const events: any[] = [];
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const url = `https://app.ticketmaster.com/discovery/v2/events.json?attractionId=${args.ticketmasterId}&size=${PAGE_SIZE}&page=${page}&apikey=${apiKey}`;
+        const response = await tmFetchWithRetry(url);
+
+        if (!response.ok) {
+          const errorMsg = `Ticketmaster API error: ${response.status}`;
+          console.error(`❌ ${errorMsg}`);
+          if (response.status === 429) {
+            console.error("⚠️  Rate limited by Ticketmaster API");
+          }
+          // Abort if the very first page fails; otherwise keep what we gathered.
+          if (page === 0) return null;
+          break;
         }
-        return null;
-      }
 
-      const data = await response.json();
-      const events = data._embedded?.events || [];
+        const data = await response.json();
+        const pageEvents = data._embedded?.events || [];
+        events.push(...pageEvents);
+
+        const totalPages = Number(data.page?.totalPages ?? 1);
+        if (pageEvents.length < PAGE_SIZE || page + 1 >= totalPages) break;
+
+        // Gentle backoff between pages to respect rate limits.
+        await new Promise((r) => setTimeout(r, 250));
+      }
 
       console.log(`📅 Found ${events.length} shows for artist ${args.ticketmasterId}`);
 
@@ -709,6 +726,10 @@ export const syncArtistShows = internalAction({
       await ctx.runMutation(internalRef.artists.updateShowCount, {
         artistId: args.artistId,
         upcomingShowsCount: upcomingShows,
+      });
+      await ctx.runMutation(internalRef.artists.recordAutomationSync, {
+        artistId: args.artistId,
+        lastShowSyncAt: Date.now(),
       });
       console.log(`✅ Updated show count for artist: ${upcomingShows} upcoming shows`);
 

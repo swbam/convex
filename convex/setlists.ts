@@ -115,9 +115,10 @@ export const addSongToSetlist = mutation({
       // For anonymous users, enforce limit of 2 song adds per show
       if (isAnonymous) {
         const showAddAction = `add_song:${args.showId}`;
+        // Use the by_user index instead of an unindexed full-table scan.
         const showAdds = await ctx.db
           .query("userActions")
-          .filter((q) => q.eq(q.field("userId"), effectiveUserId))
+          .withIndex("by_user", (q) => q.eq("userId", effectiveUserId))
           .filter((q) => q.eq(q.field("action"), showAddAction))
           .collect();
 

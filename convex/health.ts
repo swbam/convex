@@ -47,11 +47,24 @@ export const validateEnvironment = action({
     warnings: v.array(v.string()),
   }),
   handler: async () => {
+    const alwaysRequired = [
+      "SPOTIFY_CLIENT_ID",
+      "SPOTIFY_CLIENT_SECRET",
+      "TICKETMASTER_API_KEY",
+      "SETLISTFM_API_KEY",
+      "SITE_URL",
+    ];
+    const productionRequired = [
+      "CLERK_SECRET_KEY",
+      "CLERK_WEBHOOK_SECRET",
+      "RESEND_API_KEY",
+      "OWNER_NOTIFICATION_EMAIL",
+      "SPOTIFY_TOKEN_ENC_KEY",
+    ];
+
     const required = [
-      'SPOTIFY_CLIENT_ID',
-      'SPOTIFY_CLIENT_SECRET', 
-      'TICKETMASTER_API_KEY',
-      'SETLISTFM_API_KEY'
+      ...alwaysRequired,
+      ...(process.env.NODE_ENV === "production" ? productionRequired : []),
     ];
 
     const missing: string[] = [];
@@ -70,6 +83,14 @@ export const validateEnvironment = action({
 
     if (process.env.TICKETMASTER_API_KEY && process.env.TICKETMASTER_API_KEY.length < 20) {
       warnings.push('TICKETMASTER_API_KEY appears to be too short');
+    }
+
+    if (!process.env.SPOTIFY_TOKEN_ENC_KEY) {
+      warnings.push('SPOTIFY_TOKEN_ENC_KEY is missing; Spotify OAuth tokens will not be launch-safe.');
+    }
+
+    if (!process.env.SENTRY_DSN) {
+      warnings.push('SENTRY_DSN is not configured; production error visibility will be limited.');
     }
 
     return {
