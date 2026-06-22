@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { motion, type MotionStyle, type Transition } from "framer-motion";
+import { motion, useReducedMotion, type MotionStyle, type Transition } from "framer-motion";
 
 interface BorderBeamProps {
   /**
@@ -63,6 +63,14 @@ export const BorderBeam = ({
   initialOffset = 0,
   borderWidth = 1,
 }: BorderBeamProps) => {
+  const prefersReducedMotion = useReducedMotion();
+
+  // Respect users who opt out of motion: skip the infinite rAF loop entirely,
+  // which also saves battery on mobile devices.
+  if (prefersReducedMotion) {
+    return null;
+  }
+
   return (
     <div
       className="pointer-events-none absolute inset-0 rounded-[inherit] border-transparent [mask-clip:padding-box,border-box] [mask-composite:intersect] [mask-image:linear-gradient(transparent,transparent),linear-gradient(#000,#000)] border-(length:--border-beam-width)"

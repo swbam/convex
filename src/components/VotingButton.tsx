@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { ChevronUp } from "lucide-react";
 import { motion } from 'framer-motion';
 import { toast } from "sonner";
-import { useDebounce } from "../lib/utils";
 
 interface VotingButtonProps {
   setlistId: Id<"setlists">;
@@ -19,59 +18,63 @@ export function VotingButton({ setlistId, onSignInRequired }: VotingButtonProps)
   const submitVote = useMutation(api.setlists.submitVote);
   const voteData = useQuery(api.setlists.getSetlistVotes, { setlistId });
 
-  const debouncedVote = useDebounce(async () => {
-    // FIXED: Only show sign-in modal AFTER user has tried voting once
+  const serverVoteCount = voteData?.accurate || 0;
+  const serverHasVoted = userVote === "accurate";
+
+  // Optimistic state for instant tap feedback; clears once the reactive
+  // server values catch up.
+  const [optimistic, setOptimistic] = useState<
+    { voted: boolean; count: number } | null
+  >(null);
+
+  useEffect(() => {
+    setOptimistic(null);
+  }, [serverVoteCount, serverHasVoted]);
+
+  const voteCount = optimistic?.count ?? serverVoteCount;
+  const hasVoted = optimistic?.voted ?? serverHasVoted;
+
+  const handleVote = async () => {
     if (!user) {
-      const hasTriedVoting = localStorage.getItem('hasTriedVoting') === 'true';
-      
-      if (hasTriedVoting) {
-        toast.info("Sign in to vote on setlists");
-        onSignInRequired?.();
-      } else {
-        // Mark that user has tried voting once
-        localStorage.setItem('hasTriedVoting', 'true');
-        toast.info("Sign in to save your vote");
-        onSignInRequired?.();
-      }
+      toast.info("Sign in to vote on setlists");
+      onSignInRequired?.();
       return;
     }
 
+    // Already upvoted (this vote is one-way) — nothing to do.
+    if (hasVoted || isVoting) return;
+
+    setOptimistic({ voted: true, count: voteCount + 1 });
     setIsVoting(true);
     try {
       await submitVote({ setlistId, voteType: "accurate" });
-      toast.success("Upvoted setlist");
     } catch (error) {
+      setOptimistic(null);
       toast.error("Failed to vote");
       console.error("Vote failed:", error);
     } finally {
       setIsVoting(false);
     }
-  }, 500);
-
-  const handleVote = async () => {
-    debouncedVote();
   };
-
-  const voteCount = voteData?.accurate || 0;
-  const hasVoted = userVote === "accurate";
 
   return (
     <motion.button
-      whileTap={{ scale: 0.98 }}
+      whileTap={{ scale: 0.95 }}
       whileHover={{ scale: 1.05 }}
-      onClick={handleVote}
+      onClick={() => void handleVote()}
       disabled={isVoting}
-      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 border ${
-        hasVoted 
-          ? "bg-primary/20 text-primary border-primary/30" 
+      aria-pressed={hasVoted}
+      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full transition-colors duration-200 border ${
+        hasVoted
+          ? "bg-primary/20 text-primary border-primary/30"
           : "bg-secondary text-muted-foreground hover:bg-secondary border-border"
       }`}
       title="Upvote this setlist"
     >
-      <ChevronUp 
-        className={`h-4 w-4 ${hasVoted ? "fill-current" : ""}`} 
+      <ChevronUp
+        className={`h-4 w-4 ${hasVoted ? "fill-current" : ""}`}
       />
-      <span className={`font-semibold text-sm ${hasVoted ? "text-primary" : "text-muted-foreground"}`}>
+      <span className={`font-semibold text-sm tabular-nums ${hasVoted ? "text-primary" : "text-muted-foreground"}`}>
         {voteCount}
       </span>
     </motion.button>

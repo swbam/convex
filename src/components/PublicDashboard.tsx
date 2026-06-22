@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { TrendingUp, Users, MapPin, Music, Sparkles, ArrowRight, Ticket, Loader2 } from "lucide-react";
 import { SearchBar } from "./SearchBar";
 import { Id } from "../../convex/_generated/dataModel";
-import { ArtistCardSkeleton, ShowCardSkeleton, FestivalCardSkeleton } from "./LoadingSkeleton";
+import { GridSkeleton } from "./LoadingSkeleton";
 import { motion } from "framer-motion";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
@@ -322,14 +322,18 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                   </button>
                 </div>
                 
-                {/* Grid layout for Spotify artists */}
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                {/* Horizontal snap-scroll on mobile, grid on larger screens */}
+                <div className="flex sm:grid sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 overflow-x-auto sm:overflow-x-visible snap-x snap-mandatory -mx-4 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {sortedSpotifyArtists.slice(0, 12).map((item) => (
-                    <SpotifyArtistCard
+                    <div
                       key={item.artist._id}
-                      item={item}
-                      onClick={() => onArtistClick(item.artist._id)}
-                    />
+                      className="shrink-0 w-[30%] min-[420px]:w-[24%] sm:w-auto snap-start"
+                    >
+                      <SpotifyArtistCard
+                        item={item}
+                        onClick={() => onArtistClick(item.artist._id)}
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -445,9 +449,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
           
           <div>
             {isLoading ? (
-              <div className="flex gap-4 overflow-hidden">
-                {[...Array(6)].map((_, i) => <ArtistCardSkeleton key={i} />)}
-              </div>
+              <GridSkeleton count={12} />
             ) : (trendingArtists as any[])?.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Music className="h-12 w-12 text-muted-foreground/50 mb-4" />
@@ -539,9 +541,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
 
           <div>
             {isLoading ? (
-              <div className="flex gap-4 overflow-hidden">
-                {[...Array(6)].map((_, i) => <ShowCardSkeleton key={i} />)}
-              </div>
+              <GridSkeleton count={12} />
             ) : (trendingShows as any[])?.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Music className="h-12 w-12 text-muted-foreground/50 mb-4" />

@@ -108,7 +108,7 @@ export const voteOnSong = mutation({
           .filter((q) => q.eq(q.field("userId"), effectiveUserId))
           .collect();
 
-        const ANON_VOTE_LIMIT = 2;
+        const ANON_VOTE_LIMIT = 5;
         if (setlistVotes.length >= ANON_VOTE_LIMIT) {
           throw new Error(`Anonymous users can only vote on ${ANON_VOTE_LIMIT} songs per show. Sign up for more!`);
         }

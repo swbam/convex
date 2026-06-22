@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { ArrowLeft, Calendar, MapPin, Users, Music, Plus, Loader2 } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Users, Music, Plus, Loader2, Heart, Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
@@ -207,6 +207,30 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                       </>
                     )}
                   </div>
+
+                  {/* Follow button */}
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => void handleFollow()}
+                    aria-pressed={!!isFollowing}
+                    className={`mt-3 sm:mt-4 inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition-colors min-h-[40px] ${
+                      isFollowing
+                        ? "bg-secondary text-foreground border border-border"
+                        : "bg-primary text-primary-foreground hover:bg-primary/90"
+                    }`}
+                  >
+                    {isFollowing ? (
+                      <>
+                        <Check className="h-4 w-4" />
+                        Following
+                      </>
+                    ) : (
+                      <>
+                        <Heart className="h-4 w-4" />
+                        Follow
+                      </>
+                    )}
+                  </motion.button>
                 </div>
               </div>
             </div>
@@ -468,10 +492,11 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                           e.stopPropagation();
                           handleAddToSetlist(song.title);
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-accent transition-all"
-                        title={user ? "Add to setlist" : "Add to prediction (1 free action)"}
+                        className="flex items-center justify-center w-9 h-9 -mr-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent active:bg-accent transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                        aria-label={user ? `Add ${song.title} to setlist` : `Add ${song.title} to prediction`}
+                        title={user ? "Add to setlist" : "Add to prediction"}
                       >
-                        <Plus className="h-3 w-3" />
+                        <Plus className="h-4 w-4" />
                       </button>
                     </div>
                   );

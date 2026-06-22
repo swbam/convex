@@ -122,7 +122,7 @@ export const addSongToSetlist = mutation({
           .filter((q) => q.eq(q.field("action"), showAddAction))
           .collect();
 
-        const ANON_ADD_LIMIT = 2;
+        const ANON_ADD_LIMIT = 5;
         if (showAdds.length >= ANON_ADD_LIMIT) {
           throw new Error(`Anonymous users can only add ${ANON_ADD_LIMIT} songs per show. Sign up for more!`);
         }

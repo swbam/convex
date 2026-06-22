@@ -103,32 +103,37 @@ export function ShowDetail({
     return "anon_default";
   });
 
-  // Per-show tracking for anonymous users
-  const votedKey = `hasVoted_${showId}`;
-  const addedKey = `hasAdded_${showId}`;
+  // Per-show free-action budget for anonymous users (kept in sync with the
+  // server-side anonymous limits in songVotes/setlists).
+  const ANON_FREE_VOTES = 5;
+  const ANON_FREE_ADDS = 5;
+  const votedKey = `voteCount_${showId}`;
+  const addedKey = `addCount_${showId}`;
 
-  const [hasVoted, setHasVoted] = useState(() => {
+  const [voteActionCount, setVoteActionCount] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem(votedKey) === "true";
+      return parseInt(localStorage.getItem(votedKey) || "0", 10) || 0;
     }
-    return false;
+    return 0;
   });
 
-  const [hasAdded, setHasAdded] = useState(() => {
+  const [addActionCount, setAddActionCount] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem(addedKey) === "true";
+      return parseInt(localStorage.getItem(addedKey) || "0", 10) || 0;
     }
-    return false;
+    return 0;
   });
+
+  const hasAdded = addActionCount >= ANON_FREE_ADDS;
 
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      localStorage.setItem(votedKey, hasVoted.toString());
-      localStorage.setItem(addedKey, hasAdded.toString());
+      localStorage.setItem(votedKey, voteActionCount.toString());
+      localStorage.setItem(addedKey, addActionCount.toString());
     }
-  }, [hasVoted, hasAdded, votedKey, addedKey]);
+  }, [voteActionCount, addActionCount, votedKey, addedKey]);
 
 
   const predictionSetlist = useMemo(() => {
@@ -280,20 +285,20 @@ export function ShowDetail({
   }, [showId, setlists, predictionSetlist, ensureAutoSetlist]);
 
   const handleVoteAction = () => {
-    if (hasVoted) {
+    if (voteActionCount >= ANON_FREE_VOTES) {
       setShowAuthModal(true);
       return false;
     }
-    setHasVoted(true);
+    setVoteActionCount((c) => c + 1);
     return true;
   };
 
   const handleAddAction = () => {
-    if (hasAdded) {
+    if (addActionCount >= ANON_FREE_ADDS) {
       setShowAuthModal(true);
       return false;
     }
-    setHasAdded(true);
+    setAddActionCount((c) => c + 1);
     return true;
   };
 
@@ -341,6 +346,15 @@ export function ShowDetail({
 
   const showDate = new Date(show.date);
   const isUpcoming = show.status === "upcoming";
+
+  // First-paint images straight from the show doc so the hero renders
+  // immediately; the media action upgrades these once it resolves.
+  const fallbackImage =
+    (show as any)?.artist?.images?.[0] ||
+    (show as any)?.artistImage ||
+    (show as any)?.cachedTrending?.artistImage;
+  const effectiveHero = heroImage || fallbackImage;
+  const effectiveAvatar = avatarImage || heroImage || fallbackImage;
 
   const renderSetlistHeader = () => {
     if (!show.importStatus)
@@ -420,9 +434,9 @@ export function ShowDetail({
         <div className="relative w-full overflow-hidden min-h-[180px] sm:min-h-[240px] lg:min-h-[280px]">
           {/* Background Image Layer - Full bleed, high quality */}
           <div className="absolute inset-0 z-0">
-            {heroImage ? (
+            {effectiveHero ? (
               <img
-                src={heroImage}
+                src={effectiveHero}
                 alt=""
                 className="w-full h-full object-cover object-center scale-105"
                 style={{ imageRendering: 'auto' }}
@@ -457,9 +471,9 @@ export function ShowDetail({
                     aria-label={spotifyLink ? "View artist on Spotify" : undefined}
                     className="relative block w-24 h-24 sm:w-32 sm:h-32 lg:w-36 lg:h-36 rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10 dark:ring-white/20"
                   >
-                    {(avatarImage || heroImage) ? (
+                    {effectiveAvatar ? (
                       <img
-                        src={avatarImage || heroImage}
+                        src={effectiveAvatar}
                         alt={show?.artist?.name}
                         className="w-full h-full object-cover"
                       />
@@ -546,6 +560,20 @@ export function ShowDetail({
                   </div>
                 </div>
 
+                {/* Mobile-only sign-in nudge - keeps the CTA in view near the voting action */}
+                {!user && isUpcoming && (
+                  <button
+                    onClick={onSignInRequired}
+                    className="lg:hidden w-full mb-4 flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-left transition-colors active:bg-primary/20"
+                  >
+                    <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <Vote className="h-4 w-4 text-primary" />
+                      Sign in to vote & request songs
+                    </span>
+                    <span className="text-xs font-semibold text-primary">Sign in</span>
+                  </button>
+                )}
+
                 {/* Song Addition: Combined Search + Dropdown */}
                 {!hasActualSetlist && isUpcoming && songs && songs.length > 0 && (
                   <div className="mb-4">
@@ -607,8 +635,8 @@ export function ShowDetail({
                             key={`actual-${index}`}
                             song={song}
                             index={index}
-                            predictionSetlistId={predictionSetlistId}
                             predictedSongTitleSet={predictedSongTitleSet}
+                            voteCount={songVoteCountMap.get((song?.title ?? "").toLowerCase().trim()) || 0}
                           />
                         ))}
                       </div>
@@ -719,8 +747,8 @@ export function ShowDetail({
                   </div>
                 ) : (
                   <div className="mt-6 touch-manipulation">
-                    {/* Setlist - sorted by vote count */}
-                    <div className="space-y-2">
+                    {/* Setlist - sorted by vote count, animates on reorder */}
+                    <motion.div layout className="space-y-2">
                         {sortedPredictionSongs.map((songTitle: string, index: number) => {
                           // Use pre-fetched vote data to avoid N+1 queries
                           const normalizedTitle = songTitle.toLowerCase().trim();
@@ -729,7 +757,7 @@ export function ShowDetail({
                           );
                           return (
                             <FanRequestSongRow
-                              key={`setlist-song-${songTitle}-${index}`}
+                              key={`setlist-song-${normalizedTitle}`}
                               songTitle={songTitle}
                               index={index}
                               predictionSetlistId={predictionSetlist._id}
@@ -745,7 +773,7 @@ export function ShowDetail({
                             />
                           );
                         })}
-                    </div>
+                    </motion.div>
                   </div>
                 )}
               </div>
@@ -920,9 +948,9 @@ export function ShowDetail({
               <BorderBeam size={100} duration={8} className="opacity-20" />
             </MagicCard>
 
-            {/* Call to Action - Only for upcoming shows */}
+            {/* Call to Action - desktop sidebar only (mobile uses inline nudge above) */}
             {!user && isUpcoming && (
-              <MagicCard className="p-0 rounded-xl border border-border bg-card">
+              <MagicCard className="hidden lg:block p-0 rounded-xl border border-border bg-card">
                 <div className="p-4 sm:p-6 text-center">
                   <div className="flex items-center justify-center gap-3 mb-4">
                     <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
@@ -1046,55 +1074,56 @@ function FanRequestSongRow({
       : "skip"
   );
 
-  const voteCount = preloadedVoteCount ?? songVotes?.upvotes ?? 0;
-  const userVoted = preloadedUserVoted ?? songVotes?.userVoted ?? false;
+  const serverVoteCount = preloadedVoteCount ?? songVotes?.upvotes ?? 0;
+  const serverUserVoted = preloadedUserVoted ?? songVotes?.userVoted ?? false;
+
+  // Optimistic state: instant feedback on tap, self-heals when the
+  // reactive server value catches up (cleared via the effect below).
+  const [optimistic, setOptimistic] = useState<
+    { voted: boolean; count: number } | null
+  >(null);
+
+  useEffect(() => {
+    setOptimistic(null);
+  }, [serverVoteCount, serverUserVoted]);
+
+  const voteCount = optimistic?.count ?? serverVoteCount;
+  const userVoted = optimistic?.voted ?? serverUserVoted;
 
   const handleVote = async () => {
     if (!predictionSetlistId) return;
 
-    if (!user) {
-      if (!handleVoteAction()) {
-        setShowAuthModal(true);
-        return;
-      }
-      // For anonymous, still call mutation if backend supports
-      try {
-        const result = await voteOnSong({
-          setlistId: predictionSetlistId,
-          songTitle,
-          voteType: "upvote",
-          anonId,
-        });
-        if (result?.action === "removed") {
-          toast.success("Vote removed");
-        } else {
-          toast.success("Vote added!");
-        }
-      } catch {
-        toast.error("Vote failed");
-      }
+    // Anonymous gate — only block once the local free-action budget is spent.
+    if (!user && !handleVoteAction()) {
+      setShowAuthModal(true);
       return;
     }
 
+    // Optimistically flip the vote so the tap feels instant on mobile.
+    const nextVoted = !userVoted;
+    setOptimistic({
+      voted: nextVoted,
+      count: Math.max(0, voteCount + (nextVoted ? 1 : -1)),
+    });
+
     try {
-      const result = await voteOnSong({
+      await voteOnSong({
         setlistId: predictionSetlistId,
         songTitle,
         voteType: "upvote",
+        ...(!user && { anonId }),
       });
-      if (result?.action === "removed") {
-        toast.success("Vote removed");
-      } else {
-        toast.success("Vote added!");
-      }
     } catch {
+      setOptimistic(null);
       toast.error("Vote failed");
     }
   };
 
   return (
-    <div
-      className="flex items-center justify-between py-3 px-4 rounded-lg hover:bg-secondary active:bg-secondary transition-all duration-150 active:scale-[0.98] min-h-[52px]"
+    <motion.div
+      layout
+      transition={{ type: "spring", stiffness: 500, damping: 40 }}
+      className="flex items-center justify-between py-3 px-4 rounded-lg hover:bg-secondary active:bg-secondary transition-colors duration-150 min-h-[52px]"
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         {/* Minimal status indicator */}
@@ -1134,34 +1163,44 @@ function FanRequestSongRow({
 
       {/* Reddit-style upvote icon + count below - only clickable for upcoming shows */}
       {!wasPlayed && isUpcoming && (
-        <button
+        <motion.button
+          whileTap={{ scale: 0.9 }}
           onClick={() => {
             void handleVote();
           }}
-          className={`flex flex-col items-center gap-0.5 text-base transition-all duration-150 active:scale-95 min-w-[44px] min-h-[44px] justify-center ${
+          aria-pressed={userVoted}
+          aria-label={userVoted ? `Remove vote for ${songTitle}` : `Vote for ${songTitle}`}
+          className={`flex flex-col items-center gap-0.5 text-base transition-colors duration-150 min-w-[44px] min-h-[44px] justify-center ${
             userVoted ? "text-primary" : "text-muted-foreground active:text-foreground sm:hover:text-foreground"
           }`}
         >
-          <ChevronUp
-            className={`h-4 w-4 ${userVoted ? "fill-current" : ""}`}
-          />
+          <motion.div
+            key={userVoted ? "voted" : "unvoted"}
+            initial={{ scale: 0.6 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 600, damping: 18 }}
+          >
+            <ChevronUp
+              className={`h-4 w-4 ${userVoted ? "fill-current" : ""}`}
+            />
+          </motion.div>
           <span
-            className={`font-semibold text-base ${
+            className={`font-semibold text-base tabular-nums ${
               userVoted ? "text-primary" : "text-muted-foreground"
             }`}
           >
             {voteCount}
           </span>
-        </button>
+        </motion.button>
       )}
       {/* Show vote count (non-clickable) for completed shows or played songs */}
       {(wasPlayed || !isUpcoming) && (
         <div className={`flex flex-col items-center gap-0.5 text-sm ${wasPlayed ? "text-green-400" : "text-muted-foreground"}`}>
           <ChevronUp className={`h-4 w-4 ${wasPlayed ? "fill-current" : ""}`} />
-          <span className="font-semibold text-base">{voteCount}</span>
+          <span className="font-semibold text-base tabular-nums">{voteCount}</span>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -1169,27 +1208,17 @@ function FanRequestSongRow({
 function ActualSetlistSongRow({
   song,
   index,
-  predictionSetlistId,
   predictedSongTitleSet,
+  voteCount,
 }: {
   song: any;
   index: number;
-  predictionSetlistId?: Id<"setlists">;
   predictedSongTitleSet: Set<string>;
+  voteCount: number;
 }) {
   const normalizedTitle = (song?.title ?? "").toLowerCase().trim();
   const wasRequested =
     normalizedTitle.length > 0 && predictedSongTitleSet.has(normalizedTitle);
-
-  // Get real vote count if the song was requested
-  const songVotes = useQuery(
-    api.songVotes.getSongVotes,
-    wasRequested && predictionSetlistId
-      ? { setlistId: predictionSetlistId, songTitle: song.title }
-      : "skip"
-  );
-
-  const voteCount = songVotes?.upvotes || 0;
 
   return (
     <div

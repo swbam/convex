@@ -1,6 +1,6 @@
 import React from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, Mic, Calendar, TrendingUp, Activity as ActivityIcon, User, Sparkles } from 'lucide-react'
+import { Home, Search, Calendar, TrendingUp, User } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
 
 interface TabItem {
@@ -19,24 +19,17 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
   const navigate = useNavigate()
   const { isSignedIn } = useUser()
 
-  const navItems = React.useMemo<TabItem[]>(() => {
-    const base: TabItem[] = [
-      { to: '/', label: 'Home', icon: Home },
-      { to: '/artists', label: 'Artists', icon: Mic },
-      { to: '/shows', label: 'Shows', icon: Calendar },
-      { to: '/festivals', label: 'Festivals', icon: Sparkles },
-      { to: '/trending', label: 'Trending', icon: TrendingUp },
-    ]
+  // Keep to four primary tabs + the user/menu button (5 total) so the bar
+  // stays comfortable on small phones. Artists/Festivals/Activity remain
+  // reachable via Search, the menu, and the header.
+  const navItems = React.useMemo<TabItem[]>(() => [
+    { to: '/', label: 'Home', icon: Home },
+    { to: '/search', label: 'Search', icon: Search },
+    { to: '/shows', label: 'Shows', icon: Calendar },
+    { to: '/trending', label: 'Trending', icon: TrendingUp },
+  ], [])
 
-    if (isSignedIn) {
-      base.push({ to: '/activity', label: 'Activity', icon: ActivityIcon, requiresAuth: true })
-    }
-
-    return base
-  }, [isSignedIn])
-
-  const totalColumns = navItems.length + 1;
-  const gridColumnsClass = totalColumns === 6 ? 'grid-cols-6' : 'grid-cols-5';
+  const gridColumnsClass = 'grid-cols-5';
 
   return (
     <nav
@@ -74,17 +67,12 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
                   <div className="absolute top-0 inset-x-4 h-0.5 bg-primary rounded-full animate-in slide-in-from-bottom-2 duration-300" />
                 )}
 
-                {/* Icon with notification badge support */}
+                {/* Icon */}
                 <div className="relative">
                   <Icon className={[
                     'h-5 w-5 transition-all duration-200',
                     isActive ? 'scale-110' : ''
                   ].join(' ')} />
-
-                  {/* Example notification badge - can be made dynamic */}
-                  {item.to === '/activity' && isSignedIn && (
-                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
-                  )}
                 </div>
 
                 {/* Label */}
