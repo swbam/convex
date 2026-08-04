@@ -76,16 +76,11 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
 
   return (
     <motion.span
-      className="flex items-center gap-2.5"
+      className="flex items-center"
       whileHover={shouldReduceMotion ? undefined : { scale: 1.015 }}
       whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
       transition={{ duration: 0.12, ease: 'easeOut' }}
     >
-      <span className="relative flex h-8 w-8 items-end justify-center gap-[3px] overflow-hidden rounded-[10px] border border-foreground/15 bg-foreground pb-[7px] text-background shadow-sm">
-        <span className="h-2 w-[3px] rounded-full bg-current" />
-        <span className="h-4 w-[3px] rounded-full bg-current" />
-        <span className="h-3 w-[3px] rounded-full bg-current" />
-      </span>
       <span
         className={`whitespace-nowrap font-bold tracking-[-0.045em] text-foreground ${
           compact ? 'text-[1.2rem]' : 'text-[1.35rem]'

@@ -787,6 +787,10 @@ export const getTrendingShows = action({
     date: v.string(),
     startTime: v.optional(v.string()),
     artistImage: v.optional(v.string()),
+    artistImages: v.optional(v.array(v.string())),
+    artistGenres: v.optional(v.array(v.string())),
+    artistUpcomingEvents: v.optional(v.number()),
+    artistUrl: v.optional(v.string()),
     ticketUrl: v.optional(v.string()),
     priceRange: v.optional(v.string()),
     status: v.string(),
@@ -826,27 +830,89 @@ export const getTrendingShows = action({
         .slice(0, limit);
     };
 
+    const mapHomepageEvent = (event: any) => {
+      const attraction = event?._embedded?.attractions?.[0];
+      const images = (attraction?.images || [])
+        .filter((img: any) => img.url && img.width && img.height)
+        .sort((a: any, b: any) => {
+          const aRatio = Math.abs((a.width / a.height) - (16 / 9));
+          const bRatio = Math.abs((b.width / b.height) - (16 / 9));
+          if (Math.abs(aRatio - bRatio) > 0.1) return aRatio - bRatio;
+          return b.width - a.width;
+        });
+      const genres = Array.from(new Set<string>(
+        (attraction?.classifications || [])
+          .flatMap((classification: any) => [
+            classification?.genre?.name,
+            classification?.subGenre?.name,
+          ])
+          .filter((value: unknown): value is string =>
+            typeof value === "string" && value.length > 0 && value !== "Undefined"
+          ) as string[]
+      ));
+      const upcomingEvents = Number(attraction?.upcomingEvents?._total || 0);
+
+      return {
+        ticketmasterId: String(event.id || ''),
+        artistTicketmasterId: attraction?.id ? String(attraction.id) : undefined,
+        artistName: String(attraction?.name || 'Unknown Artist'),
+        venueName: String(event._embedded?.venues?.[0]?.name || 'Unknown Venue'),
+        venueCity: String(event._embedded?.venues?.[0]?.city?.name || ''),
+        venueState: event._embedded?.venues?.[0]?.state?.stateCode
+          ? String(event._embedded.venues[0].state.stateCode)
+          : undefined,
+        venueCountry: String(event._embedded?.venues?.[0]?.country?.name || ''),
+        date: String(event.dates?.start?.localDate || ''),
+        startTime: event.dates?.start?.localTime
+          ? String(event.dates.start.localTime)
+          : undefined,
+        artistImage: images[0]?.url ? String(images[0].url) : undefined,
+        artistImages: images.slice(0, 3).map((img: any) => String(img.url)),
+        artistGenres: genres,
+        artistUpcomingEvents: Number.isFinite(upcomingEvents) ? upcomingEvents : 0,
+        artistUrl: attraction?.url ? String(attraction.url) : undefined,
+        ticketUrl: event.url ? String(event.url) : undefined,
+        priceRange: event.priceRanges?.[0]
+          ? `$${event.priceRanges[0].min}-${event.priceRanges[0].max}`
+          : undefined,
+        status: String(event.dates?.status?.code || 'unknown'),
+      };
+    };
+
     // ULTRA-ENHANCED: Get top trending stadium shows with proper Ticketmaster API usage
     const now = new Date();
     const startDate = now.toISOString().split('T')[0]; // Today
     const futureDate = new Date(now.getTime() + (180 * 24 * 60 * 60 * 1000)); // Next 6 months
     const endDate = futureDate.toISOString().split('T')[0];
 
-    // CRITICAL: Use Ticketmaster's discovery API with proper filters
-    // - segmentId=KZFzniwnSyZfZ7v7nJ is the OFFICIAL Music segment ID (filters out theatre, film, sports)
-    // - sort=relevance,desc gives POPULARITY-based results (biggest/trending shows first)
-    // - This is the key difference - date,asc just gives today's shows (any random small venue)
-    const url = `https://app.ticketmaster.com/discovery/v2/events.json?segmentId=KZFzniwnSyZfZ7v7nJ&countryCode=US&startDateTime=${startDate}T00:00:00Z&endDateTime=${endDate}T23:59:59Z&size=200&sort=relevance,desc&apikey=${apiKey}`;
+    // Ticketmaster relevance is deterministic, so repeatedly fetching page zero
+    // refreshes timestamps without materially changing the homepage. Scan three
+    // bounded pages (600 events maximum), then collapse to one event per artist.
+    // This remains a single Convex action and feeds both homepage caches.
+    const urls = [0, 1, 2].map(
+      (page) =>
+        `https://app.ticketmaster.com/discovery/v2/events.json?segmentId=KZFzniwnSyZfZ7v7nJ&countryCode=US&startDateTime=${startDate}T00:00:00Z&endDateTime=${endDate}T23:59:59Z&size=200&page=${page}&sort=relevance,desc&apikey=${apiKey}`
+    );
 
     try {
-      console.log(`🎫 Fetching trending shows from Ticketmaster...`);
-      const response = await tmFetchWithRetry(url);
-      if (!response.ok) {
-        console.error("Ticketmaster API error:", response.status, response.statusText);
+      console.log(`🎫 Fetching homepage discovery events from Ticketmaster...`);
+      const fetchedEvents: any[] = [];
 
-        // FALLBACK: Try simpler query if detailed one fails - MUST include US filter
-        // Use segmentId for Music to filter out theatre, film, sports
-        // sort=relevance,desc gives popularity-based results
+      // Fetch sequentially to avoid a burst of parallel requests against the
+      // Ticketmaster quota. Individual pages already have bounded retries.
+      for (let page = 0; page < urls.length; page++) {
+        const response = await tmFetchWithRetry(urls[page]);
+        if (!response.ok) {
+          console.warn(`Ticketmaster discovery page ${page} returned ${response.status}`);
+          continue;
+        }
+        const data = await response.json();
+        fetchedEvents.push(...(data._embedded?.events || []));
+      }
+
+      if (fetchedEvents.length === 0) {
+        // Last-resort single-page query without a date window. The caller keeps
+        // the previous cache if this also fails or returns no usable events.
         const fallbackUrl = `https://app.ticketmaster.com/discovery/v2/events.json?segmentId=KZFzniwnSyZfZ7v7nJ&countryCode=US&size=200&sort=relevance,desc&apikey=${apiKey}`;
         const fallbackResponse = await tmFetchWithRetry(fallbackUrl);
         if (!fallbackResponse.ok) return [];
@@ -854,37 +920,19 @@ export const getTrendingShows = action({
         const events = fallbackData._embedded?.events || [];
         const diverseEvents = selectArtistDiverseEvents(events);
         console.log(`✅ Fetched ${events.length} shows (fallback query)`);
-        return diverseEvents.map((event: any) => ({
-          ticketmasterId: String(event.id || ''),
-          artistTicketmasterId: String(event._embedded?.attractions?.[0]?.id || ''),
-          artistName: String(event._embedded?.attractions?.[0]?.name || 'Unknown Artist'),
-          venueName: String(event._embedded?.venues?.[0]?.name || 'Unknown Venue'),
-          venueCity: String(event._embedded?.venues?.[0]?.city?.name || ''),
-          venueState: event._embedded?.venues?.[0]?.state?.stateCode ? String(event._embedded.venues[0].state.stateCode) : undefined,
-          venueCountry: String(event._embedded?.venues?.[0]?.country?.name || ''),
-          date: String(event.dates?.start?.localDate || ''),
-          startTime: event.dates?.start?.localTime ? String(event.dates.start.localTime) : undefined,
-          artistImage: (() => {
-            const images = event._embedded?.attractions?.[0]?.images || [];
-            const bestImage = images
-              .filter((img: any) => img.url && img.width && img.height)
-              .sort((a: any, b: any) => {
-                const aRatio = Math.abs((a.width / a.height) - (16 / 9));
-                const bRatio = Math.abs((b.width / b.height) - (16 / 9));
-                if (Math.abs(aRatio - bRatio) > 0.1) return aRatio - bRatio;
-                return b.width - a.width;
-              })[0];
-            return bestImage?.url ? String(bestImage.url) : undefined;
-          })(),
-          ticketUrl: event.url ? String(event.url) : undefined,
-          priceRange: event.priceRanges?.[0] ? `$${event.priceRanges[0].min}-${event.priceRanges[0].max}` : undefined,
-          status: String(event.dates?.status?.code || 'unknown'),
-        }));
+        return diverseEvents.map(mapHomepageEvent);
       }
 
-      const data = await response.json();
-      const events = data._embedded?.events || [];
-      console.log(`✅ Fetched ${events.length} trending shows from Ticketmaster`);
+      // An event may occur in neighboring relevance pages while inventory is
+      // changing, so dedupe before quality filtering and artist selection.
+      const events = Array.from(
+        new Map(
+          fetchedEvents
+            .filter((event: any) => event?.id)
+            .map((event: any) => [String(event.id), event])
+        ).values()
+      );
+      console.log(`✅ Fetched ${events.length} unique homepage events from Ticketmaster`);
 
       // ULTRA-FILTER: Get only real, high-quality shows
       const majorEvents = events.filter((event: any) => {
@@ -920,6 +968,8 @@ export const getTrendingShows = action({
           artistName.includes('silent disco') ||
           artistName.includes('karaoke') ||
           artistName.includes('trivia') ||
+          artistName.includes('concert tour') ||
+          artistName.includes('worlds collide') ||
           artistName.includes('film with') ||
           artistName.includes('- film') ||
           artistName.includes('orchestra') ||
@@ -960,35 +1010,7 @@ export const getTrendingShows = action({
 
       console.log(`🎯 Selected ${finalEvents.length} artist-diverse upcoming shows`);
 
-      return finalEvents.map((event: any) => ({
-        ticketmasterId: String(event.id || ''),
-        artistTicketmasterId: String(event._embedded?.attractions?.[0]?.id || ''),
-        artistName: String(event._embedded?.attractions?.[0]?.name || 'Unknown Artist'),
-        venueName: String(event._embedded?.venues?.[0]?.name || 'Unknown Venue'),
-        venueCity: String(event._embedded?.venues?.[0]?.city?.name || ''),
-        venueState: event._embedded?.venues?.[0]?.state?.stateCode ? String(event._embedded.venues[0].state.stateCode) : undefined,
-        venueCountry: String(event._embedded?.venues?.[0]?.country?.name || ''),
-        date: String(event.dates?.start?.localDate || ''),
-        startTime: event.dates?.start?.localTime ? String(event.dates.start.localTime) : undefined,
-        artistImage: (() => {
-          const images = event._embedded?.attractions?.[0]?.images || [];
-          // Find highest quality image (16_9 ratio, then largest width)
-          const bestImage = images
-            .filter((img: any) => img.url && img.width && img.height)
-            .sort((a: any, b: any) => {
-              // Prefer 16:9 ratio images
-              const aRatio = Math.abs((a.width / a.height) - (16 / 9));
-              const bRatio = Math.abs((b.width / b.height) - (16 / 9));
-              if (Math.abs(aRatio - bRatio) > 0.1) return aRatio - bRatio;
-              // Then by width (higher quality)
-              return b.width - a.width;
-            })[0];
-          return bestImage?.url ? String(bestImage.url) : undefined;
-        })(),
-        ticketUrl: event.url ? String(event.url) : undefined,
-        priceRange: event.priceRanges?.[0] ? `$${event.priceRanges[0].min}-${event.priceRanges[0].max}` : undefined,
-        status: String(event.dates?.status?.code || 'unknown'),
-      }));
+      return finalEvents.map(mapHomepageEvent);
     } catch (error) {
       console.error("Failed to get trending shows:", error);
       return [];
@@ -1067,7 +1089,9 @@ export const getTrendingArtists = action({
           name.includes('silent disco') ||
           name.includes('karaoke') ||
           name.includes('trivia') ||
-          name.includes('game night');
+          name.includes('game night') ||
+          name.includes('concert tour') ||
+          name.includes('worlds collide');
         if (isBadContent) continue;
 
         const upcomingEvents = attraction.upcomingEvents?._total || 0;

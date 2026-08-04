@@ -152,6 +152,34 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
     return trendingArtists.filter((artist) => getArtistCategory(artist) === artistCategory);
   }, [artistCategory, trendingArtists]);
 
+  // Keep the strongest touring artists prominent while using the wider cache
+  // to surface a small rotating group of rising/discovery acts on every cache
+  // cycle. Without this mix, Spotify popularity makes the first row look frozen
+  // even when Ticketmaster has supplied new tour inventory.
+  const surfacedTrendingArtists = useMemo(() => {
+    if (!Array.isArray(visibleTrendingArtists)) return visibleTrendingArtists;
+    if (artistCategory !== "All" || visibleTrendingArtists.length <= 12) {
+      return visibleTrendingArtists.slice(0, 12);
+    }
+
+    const leaders = visibleTrendingArtists.slice(0, 8);
+    const discoveryPool = visibleTrendingArtists.slice(8);
+    const lastUpdated = Number((dbTrendingArtistsResult as any)?.lastUpdated || 0);
+    const refreshCycle = Math.floor(lastUpdated / (3 * 60 * 60 * 1000));
+    const offset = discoveryPool.length > 0 ? refreshCycle % discoveryPool.length : 0;
+    const rotatedDiscoveries = [
+      ...discoveryPool.slice(offset),
+      ...discoveryPool.slice(0, offset),
+    ].slice(0, 4);
+
+    return [
+      ...leaders.slice(0, 4),
+      ...rotatedDiscoveries.slice(0, 2),
+      ...leaders.slice(4, 8),
+      ...rotatedDiscoveries.slice(2, 4),
+    ];
+  }, [artistCategory, dbTrendingArtistsResult, visibleTrendingArtists]);
+
   const visibleTrendingShows = useMemo(() => {
     if (!Array.isArray(trendingShows)) return trendingShows;
     return [...trendingShows].sort((a: any, b: any) => {
@@ -559,7 +587,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 >
                   {/* Mobile: editorial horizontal snap-scroll shelf */}
                   <div className="sm:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory -mx-4 px-4 scrollbar-hide">
-                    {(visibleTrendingArtists as any[]).slice(0, 12).map((artist: any, index: number) => {
+                    {(surfacedTrendingArtists as any[]).map((artist: any, index: number) => {
                       const artistId = artist?._id || artist?.artistId;
                       const isImporting = importingArtist === artist.ticketmasterId;
 
@@ -576,7 +604,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                   </div>
                   {/* Desktop: grid */}
                   <div className="hidden sm:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                    {(visibleTrendingArtists as any[]).slice(0, 12).map((artist: any, index: number) => {
+                    {(surfacedTrendingArtists as any[]).map((artist: any, index: number) => {
                       const artistId = artist?._id || artist?.artistId;
                       const isImporting = importingArtist === artist.ticketmasterId;
 

@@ -24,6 +24,8 @@ const isRealConcert = (name: string, genres?: string[]): boolean => {
     'movie scores', 'film scores', 'soundtrack',
     // Documentary/tribute screenings (sometimes tagged as Music)
     'documentary', 'at the max', 'making sense',
+    // Ticketmaster occasionally exposes a branded event/tour as an attraction.
+    'concert tour', 'worlds collide',
     // Tribute bands (detected by common patterns)
     'smells like nirvana', 'tribute', 'experience featuring',
     // Award ceremonies and non-performance events
@@ -193,22 +195,11 @@ export const getTrendingShows = query({
           limit * 2
         );
 
-        const artistScoped = dedupeByKey(
-          uniqueShows,
-          (show: any) =>
-            show?.artist?._id ||
-            show?.artist?.slug ||
-            show?.cachedTrending?.artistSlug ||
-            show?.cachedTrending?.artistTicketmasterId ||
-            show?.artist?.ticketmasterId ||
-            show?.artist?.name ||
-            show?.cachedTrending?.artistName,
-          limit
-        );
-
-        // final cleanup to avoid Unknown entries, non-upcoming items, and non-concerts
+        // Clean candidates before applying the final artist cap. Filtering after
+        // a limit of 48 could return only 47 even when valid backfill candidates
+        // were already present in the cache.
         const today = new Date().toISOString().slice(0, 10);
-        const cleaned = artistScoped.filter((s: any) => {
+        const cleanedCandidates = uniqueShows.filter((s: any) => {
           const name = s?.artist?.name || s?.cachedTrending?.artistName || "";
           const venue = s?.venue?.name || s?.cachedTrending?.venueName || "";
           const status = normalizeShowStatus(s?.status || s?.cachedTrending?.status);
@@ -222,6 +213,19 @@ export const getTrendingShows = query({
             isRealConcert(name, genres) // Filter out plays, musicals, film screenings
           );
         });
+
+        const cleaned = dedupeByKey(
+          cleanedCandidates,
+          (show: any) =>
+            show?.artist?._id ||
+            show?.artist?.slug ||
+            show?.cachedTrending?.artistSlug ||
+            show?.cachedTrending?.artistTicketmasterId ||
+            show?.artist?.ticketmasterId ||
+            show?.artist?.name ||
+            show?.cachedTrending?.artistName,
+          limit
+        );
 
         // This surface is explicitly "Upcoming Shows", so nearest dates win
         // after popularity curation and artist-level deduplication.
@@ -553,7 +557,7 @@ export const replaceTrendingShowsCache = internalMutation({
         seenArtists.add(key);
         return true;
       })
-      .slice(0, 60);
+      .slice(0, 80);
 
     console.log(`📊 Processing ${diverseShows.length} artist-diverse US concerts from ${args.shows.length} Ticketmaster events`);
 

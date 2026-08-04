@@ -793,6 +793,63 @@ export const testSyncTrendingShows = internalAction({
   },
 });
 
+const deriveHomepageArtistsFromShows = (shows: any[], limit: number) => {
+  const artists = new Map<string, any>();
+  const nonArtistPatterns = [
+    "tribute",
+    "experience",
+    "cover",
+    "orchestra",
+    "symphony",
+    "ballet",
+    "opera",
+    "musical",
+    "on ice",
+    "cirque",
+    "bingo",
+    "dance party",
+    "silent disco",
+    "karaoke",
+    "trivia",
+    "game night",
+    "concert tour",
+    "worlds collide",
+  ];
+
+  for (const show of shows) {
+    const ticketmasterId = String(show?.artistTicketmasterId || "").trim();
+    const name = String(show?.artistName || "").trim();
+    const normalizedName = name.toLowerCase();
+    if (
+      !ticketmasterId ||
+      !name ||
+      artists.has(ticketmasterId) ||
+      nonArtistPatterns.some((pattern) => normalizedName.includes(pattern))
+    ) {
+      continue;
+    }
+
+    artists.set(ticketmasterId, {
+      ticketmasterId,
+      name,
+      genres: Array.isArray(show.artistGenres) ? show.artistGenres : [],
+      images: Array.isArray(show.artistImages)
+        ? show.artistImages
+        : show.artistImage
+          ? [show.artistImage]
+          : [],
+      upcomingEvents: Number.isFinite(show.artistUpcomingEvents)
+        ? show.artistUpcomingEvents
+        : 1,
+      url: show.artistUrl,
+    });
+  }
+
+  return Array.from(artists.values())
+    .sort((a, b) => b.upcomingEvents - a.upcomingEvents)
+    .slice(0, limit);
+};
+
 // Refresh trending cache from Ticketmaster API (fetches fresh data)
 export const refreshTrendingCache = action({
   args: {},
@@ -833,8 +890,23 @@ export const refreshTrendingCache = action({
         console.log("✅ Trending shows cache updated");
       }
 
-      // Step 3: Fetch fresh trending artists from Ticketmaster
-      const freshArtists = await ctx.runAction(internalRef.ticketmaster.getTrendingArtists, { limit: 50 });
+      // Step 3: Derive artists from the same wide Ticketmaster event scan. This
+      // avoids making a second identical API request and keeps both caches on
+      // one coherent discovery snapshot.
+      let freshArtists = deriveHomepageArtistsFromShows(freshShows, 60);
+      if (freshArtists.length < 12) {
+        const supplementalArtists = await ctx.runAction(
+          internalRef.ticketmaster.getTrendingArtists,
+          { limit: 60 }
+        );
+        const merged = new Map(
+          [...freshArtists, ...supplementalArtists].map((artist: any) => [
+            artist.ticketmasterId,
+            artist,
+          ])
+        );
+        freshArtists = Array.from(merged.values()).slice(0, 60);
+      }
       console.log(`📊 Fetched ${freshArtists.length} artists from Ticketmaster`);
       if (freshArtists.length === 0) {
         throw new Error("Ticketmaster returned no homepage artists; preserving the previous artist cache");
@@ -914,8 +986,22 @@ export const refreshTrendingCacheInternal = internalAction({
         console.log("✅ Trending shows cache updated");
       }
 
-      // Step 3: Fetch fresh trending artists and import them with full sync
-      const freshArtists = await ctx.runAction(internalRef.ticketmaster.getTrendingArtists, { limit: 50 });
+      // Step 3: Reuse the event scan for artists; only call the separate
+      // attraction action if Ticketmaster returned an unusually small result.
+      let freshArtists = deriveHomepageArtistsFromShows(freshShows, 60);
+      if (freshArtists.length < 12) {
+        const supplementalArtists = await ctx.runAction(
+          internalRef.ticketmaster.getTrendingArtists,
+          { limit: 60 }
+        );
+        const merged = new Map(
+          [...freshArtists, ...supplementalArtists].map((artist: any) => [
+            artist.ticketmasterId,
+            artist,
+          ])
+        );
+        freshArtists = Array.from(merged.values()).slice(0, 60);
+      }
       console.log(`📊 Fetched ${freshArtists.length} artists from Ticketmaster`);
       if (freshArtists.length === 0) {
         throw new Error("Ticketmaster returned no homepage artists; preserving the previous artist cache");
