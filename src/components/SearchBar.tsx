@@ -3,6 +3,8 @@ import { useQuery, useAction } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { Id } from '../../convex/_generated/dataModel'
 import { toast } from 'sonner'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { Music2, Search as SearchIcon, X } from 'lucide-react'
 
 type SortBy = 'relevance' | 'popularity' | 'recent' | 'alphabetical'
 
@@ -21,12 +23,14 @@ interface SearchBarProps {
   onResultClick: (type: 'artist' | 'show' | 'venue', id: Id<'artists'> | Id<'shows'> | Id<'venues'>, slug?: string) => void
   placeholder?: string
   className?: string
+  autoFocus?: boolean
 }
 
 export function SearchBar({ 
   onResultClick, 
   placeholder = "Search artists...", 
-  className = "" 
+  className = "",
+  autoFocus = false,
 }: SearchBarProps) {
   const [query, setQuery] = useState('')
   // Global search limited to artists only per PRD
@@ -37,6 +41,7 @@ export function SearchBar({
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
+  const shouldReduceMotion = useReducedMotion()
 
   // Debounce search query with shorter delay for better UX
   useEffect(() => {
@@ -193,16 +198,19 @@ export function SearchBar({
     setIsOpen(false)
   }
 
-  const getTypeIcon = () => '🎵'
-
-  const getTypeColor = (_type: 'artist' = 'artist') => 'text-muted-foreground'
+  const showResults = isOpen && debouncedQuery.length >= 2
 
   return (
     <div ref={searchRef} className={`relative ${className} z-[100]`}>
       <div className="relative">
-        <span className="absolute left-2.5 sm:left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground text-responsive-sm">🔍</span>
+        <SearchIcon
+          className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground"
+          aria-hidden="true"
+        />
         <input
           type="text"
+          autoFocus={autoFocus}
+          aria-label={placeholder}
           placeholder={placeholder}
           value={query}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
@@ -210,106 +218,121 @@ export function SearchBar({
             setIsOpen(true)
           }}
           onFocus={() => setIsOpen(true)}
-          className="pl-8 sm:pl-10 pr-8 sm:pr-12 h-9 sm:h-10 w-full rounded-lg sm:rounded-xl border border-border bg-background/50 px-2.5 sm:px-3 py-2 text-responsive-sm placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-200 touch-target"
+          className="h-11 w-full rounded-xl border border-border/90 bg-background/65 py-2 pl-10 pr-11 text-sm text-foreground shadow-sm outline-none transition-[border-color,background-color,box-shadow] duration-150 placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-background focus:ring-2 focus:ring-ring/25 sm:h-10"
         />
-        
-        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+
+        <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center">
           {query && (
-            <button
+            <motion.button
+              type="button"
               onClick={clearSearch}
-              className="h-5 w-5 sm:h-6 sm:w-6 p-0 text-zinc-400 hover:text-foreground bg-transparent border-none cursor-pointer flex items-center justify-center touch-target"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              whileTap={shouldReduceMotion ? undefined : { scale: 0.88 }}
               aria-label="Clear search"
             >
-              ✕
-            </button>
+              <X className="h-4 w-4" />
+            </motion.button>
           )}
-          {/* Filters temporarily removed for a cleaner desktop nav */}
         </div>
       </div>
 
-      {/* Search Results Dropdown - CRITICAL: High z-index for mobile */}
-      {isOpen && debouncedQuery.length >= 2 && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 sm:mt-2 z-[9999] bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-lg sm:rounded-xl max-h-[60vh] sm:max-h-[70vh] lg:max-h-[32rem] overflow-hidden">
-          <div className="p-0">
-            <div className="max-h-[60vh] sm:max-h-[70vh] lg:max-h-[30rem] overflow-y-auto">
+      <AnimatePresence initial={false}>
+        {showResults && (
+          <motion.div
+            className="absolute left-0 right-0 top-full z-[9999] mt-2 max-h-[min(65vh,32rem)] overflow-hidden rounded-2xl border border-border/90 bg-background/95 shadow-[0_22px_70px_rgba(0,0,0,0.34)] backdrop-blur-2xl"
+            initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: -6, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.99 }}
+            transition={{ duration: shouldReduceMotion ? 0 : 0.16, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="max-h-[min(65vh,30rem)] overflow-y-auto overscroll-contain p-1.5 sm:p-2">
               {sortedResults.length > 0 ? (
-                <div className="p-1.5 sm:p-2">
-                  {/* Active Filters */}
+                <div>
                   {sortBy !== 'relevance' && (
-                    <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3 px-1.5 sm:px-2">
-                      <span className="text-[10px] sm:text-xs text-muted-foreground">Sort:</span>
-                      <span className="text-[10px] sm:text-xs bg-accent text-foreground px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
+                    <div className="mb-2 flex items-center gap-2 px-2 pt-1">
+                      <span className="text-[11px] text-muted-foreground">Sort:</span>
+                      <span className="rounded-md bg-accent px-2 py-1 text-[11px] text-foreground">
                         {sortBy}
                       </span>
                     </div>
                   )}
-                  
-                  {/* Results */}
-                  <div className="space-y-0.5 sm:space-y-1">
+
+                  <motion.div
+                    className="space-y-0.5"
+                    variants={{
+                      hidden: { opacity: 1 },
+                      show: {
+                        opacity: 1,
+                        transition: { staggerChildren: shouldReduceMotion ? 0 : 0.028 },
+                      },
+                    }}
+                    initial="hidden"
+                    animate="show"
+                  >
                     {sortedResults.map((result, index) => (
-                      <div key={`${result.type}-${result.id}-${index}`}>
-                        <button
+                      <motion.div
+                        key={`${result.type}-${result.id}-${index}`}
+                        variants={{
+                          hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 4 },
+                          show: { opacity: 1, y: 0 },
+                        }}
+                      >
+                        <motion.button
+                          type="button"
                           onClick={() => { void handleResultClick(result) }}
-                          className="w-full flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-md sm:rounded-lg hover:bg-accent/50 active:bg-accent/60 transition-all duration-200 text-left border-none bg-transparent cursor-pointer group touch-manipulation"
+                          className="group flex min-h-14 w-full items-center gap-3 rounded-xl p-2 text-left outline-none transition-colors hover:bg-accent/65 focus-visible:bg-accent/65 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:p-2.5"
+                          whileHover={shouldReduceMotion ? undefined : { x: 2 }}
+                          whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
                         >
-                          {result.image && (
+                          {result.image ? (
                             <img
                               src={result.image}
                               alt={result.title}
-                              className="w-8 h-8 sm:w-10 sm:h-10 rounded-md sm:rounded-lg object-cover flex-shrink-0"
+                              className="h-10 w-10 flex-shrink-0 rounded-[10px] object-cover sm:h-11 sm:w-11"
                               loading="lazy"
                             />
+                          ) : (
+                            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] border border-border bg-secondary/60 sm:h-11 sm:w-11">
+                              <Music2 className="h-[18px] w-[18px] text-muted-foreground" />
+                            </span>
                           )}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
-                              <span className={`text-responsive-xs sm:text-responsive-sm ${getTypeColor('artist')}`}>
-                                {getTypeIcon()}
-                              </span>
-                              <span className="font-medium text-foreground text-responsive-sm truncate">
-                                {result.title}
-                              </span>
-                            </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-semibold text-foreground">
+                              {result.title}
+                            </span>
                             {result.subtitle && (
-                              <p className="text-responsive-xs text-muted-foreground truncate group-hover:text-foreground transition-colors">
+                              <p className="mt-0.5 truncate text-xs text-muted-foreground transition-colors group-hover:text-foreground/75">
                                 {result.subtitle}
                               </p>
                             )}
                             {result.metadata && (
-                              <p className="text-[10px] sm:text-xs text-muted-foreground/70 truncate">
+                              <p className="mt-0.5 truncate text-[11px] text-muted-foreground/70">
                                 {result.metadata}
                               </p>
                             )}
                           </div>
-                        </button>
-                        {index < sortedResults.length - 1 && (
-                          <div className="bg-border my-1.5 sm:my-2 h-px opacity-50"></div>
-                        )}
-                      </div>
+                        </motion.button>
+                      </motion.div>
                     ))}
-                  </div>
+                  </motion.div>
                 </div>
               ) : (
-                <div className="p-3 sm:p-4 text-center text-muted-foreground text-responsive-xs sm:text-responsive-sm">
+                <div className="p-5 text-center text-sm text-muted-foreground">
                   No results found for "{debouncedQuery}"
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Backdrop to close search - keep below dropdown so results remain clickable */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 z-[9998]" 
-          onClick={() => setIsOpen(false)}
-        />
-      )}
-      
-      {/* Backdrop to close filters */}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {showFilters && (
-        <div 
-          className="fixed inset-0 z-[59]" 
+        <button
+          type="button"
+          aria-label="Close search filters"
+          className="fixed inset-0 z-[59] cursor-default"
           onClick={() => setShowFilters(false)}
         />
       )}

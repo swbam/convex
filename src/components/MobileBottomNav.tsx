@@ -1,118 +1,160 @@
 import React from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, Search, Calendar, TrendingUp, User } from 'lucide-react'
 import { useUser } from '@clerk/clerk-react'
-
-interface TabItem {
-  to: string
-  label: string
-  icon: React.ComponentType<{ className?: string }>
-  requiresAuth?: boolean
-}
+import { motion, useReducedMotion } from 'framer-motion'
+import { Calendar, Home, Search, TrendingUp, User } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 interface MobileBottomNavProps {
+  menuOpen?: boolean
+  searchOpen?: boolean
   onMenuClick?: () => void
+  onSearchClick?: () => void
 }
 
-export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
+interface TabItem {
+  key: string
+  to?: string
+  label: string
+  icon: LucideIcon
+  active: boolean
+  onClick: () => void
+}
+
+export function MobileBottomNav({
+  menuOpen = false,
+  searchOpen = false,
+  onMenuClick,
+  onSearchClick,
+}: MobileBottomNavProps) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { isSignedIn } = useUser()
+  const shouldReduceMotion = useReducedMotion()
 
-  // Keep to four primary tabs + the user/menu button (5 total) so the bar
-  // stays comfortable on small phones. Artists/Festivals/Activity remain
-  // reachable via Search, the menu, and the header.
-  const navItems = React.useMemo<TabItem[]>(() => [
-    { to: '/', label: 'Home', icon: Home },
-    { to: '/search', label: 'Search', icon: Search },
-    { to: '/shows', label: 'Shows', icon: Calendar },
-    { to: '/trending', label: 'Trending', icon: TrendingUp },
-  ], [])
-
-  const gridColumnsClass = 'grid-cols-5';
+  const tabs = React.useMemo<TabItem[]>(
+    () => [
+      {
+        key: 'home',
+        to: '/',
+        label: 'Home',
+        icon: Home,
+        active: pathname === '/',
+        onClick: () => void navigate('/'),
+      },
+      {
+        key: 'search',
+        label: 'Search',
+        icon: Search,
+        active: searchOpen || pathname === '/search',
+        onClick: () => onSearchClick?.(),
+      },
+      {
+        key: 'shows',
+        to: '/shows',
+        label: 'Shows',
+        icon: Calendar,
+        active: pathname.startsWith('/shows'),
+        onClick: () => void navigate('/shows'),
+      },
+      {
+        key: 'trending',
+        to: '/trending',
+        label: 'Trending',
+        icon: TrendingUp,
+        active: pathname.startsWith('/trending'),
+        onClick: () => void navigate('/trending'),
+      },
+      {
+        key: 'account',
+        label: isSignedIn ? 'Menu' : 'Sign in',
+        icon: User,
+        active:
+          menuOpen ||
+          pathname === '/signin' ||
+          pathname === '/profile' ||
+          pathname === '/dashboard',
+        onClick: () => {
+          if (isSignedIn) onMenuClick?.()
+          else void navigate('/signin')
+        },
+      },
+    ],
+    [isSignedIn, menuOpen, navigate, onMenuClick, onSearchClick, pathname, searchOpen],
+  )
 
   return (
-    <nav
-      className="fixed bottom-0 inset-x-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border md:hidden safe-area-bottom"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+    <motion.nav
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-[110] px-2 pb-[max(0.45rem,env(safe-area-inset-bottom))] md:hidden"
+      initial={{ opacity: shouldReduceMotion ? 1 : 0, y: shouldReduceMotion ? 0 : 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: shouldReduceMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
+      aria-label="Mobile navigation"
     >
-      <ul className={`grid ${gridColumnsClass} relative`}>
-        {navItems.map((item) => {
-          const isActive = pathname === item.to ||
-            (item.to !== '/' && pathname.startsWith(item.to))
-          const Icon = item.icon
-
-          const handleClick = () => {
-            if (item.requiresAuth && !isSignedIn) {
-              navigate('/signin')
-            } else {
-              navigate(item.to)
-            }
-          }
-
+      <motion.ul
+        className="pointer-events-auto mx-auto grid h-[66px] max-w-md grid-cols-5 rounded-[22px] border border-border/80 bg-background/90 p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-2xl"
+        variants={{
+          hidden: { opacity: 1 },
+          show: {
+            opacity: 1,
+            transition: { staggerChildren: shouldReduceMotion ? 0 : 0.035 },
+          },
+        }}
+        initial="hidden"
+        animate="show"
+      >
+        {tabs.map((tab) => {
+          const Icon = tab.icon
           return (
-            <li key={item.to} className="relative">
-              <button
-                onClick={handleClick}
-                className={[
-                  'relative flex flex-col items-center justify-center w-full py-2 px-1 transition-all duration-200 touch-target',
-                  'hover:bg-accent/20 active:bg-accent/30 active:scale-95',
-                  isActive ? 'text-primary' : 'text-muted-foreground',
-                ].join(' ')}
-                aria-label={item.label}
-                aria-current={isActive ? 'page' : undefined}
+            <motion.li
+              key={tab.key}
+              className="relative min-w-0"
+              variants={{
+                hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 5 },
+                show: { opacity: 1, y: 0 },
+              }}
+            >
+              <motion.button
+                type="button"
+                onClick={tab.onClick}
+                className={`relative flex h-full w-full min-w-0 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[17px] px-1 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${
+                  tab.active ? 'text-foreground' : 'text-muted-foreground'
+                }`}
+                whileHover={shouldReduceMotion ? undefined : { scale: 1.025 }}
+                whileTap={shouldReduceMotion ? undefined : { scale: 0.92 }}
+                transition={{ duration: 0.1, ease: 'easeOut' }}
+                aria-label={tab.label}
+                aria-current={tab.active && tab.to ? 'page' : undefined}
               >
-                {/* Active indicator */}
-                {isActive && (
-                  <div className="absolute top-0 inset-x-4 h-0.5 bg-primary rounded-full animate-in slide-in-from-bottom-2 duration-300" />
+                {tab.active && (
+                  <motion.span
+                    layoutId="mobile-navigation-active"
+                    className="absolute inset-0 rounded-[17px] border border-border bg-accent/85 shadow-sm"
+                    transition={
+                      shouldReduceMotion
+                        ? { duration: 0 }
+                        : { type: 'spring', stiffness: 520, damping: 42, mass: 0.65 }
+                    }
+                  />
                 )}
-
-                {/* Icon */}
-                <div className="relative">
-                  <Icon className={[
-                    'h-5 w-5 transition-all duration-200',
-                    isActive ? 'scale-110' : ''
-                  ].join(' ')} />
-                </div>
-
-                {/* Label */}
-                <span className={[
-                  'text-[10px] mt-1 font-medium transition-all duration-200',
-                  isActive ? 'text-primary' : ''
-                ].join(' ')}>
-                  {item.label}
+                <motion.span
+                  className="relative z-10 flex h-7 items-center justify-center"
+                  animate={{ y: tab.active && !shouldReduceMotion ? -1 : 0 }}
+                  transition={{ duration: 0.12 }}
+                >
+                  <Icon className={`h-[20px] w-[20px] ${tab.active ? 'stroke-[2.35]' : 'stroke-[1.9]'}`} />
+                  {tab.key === 'account' && isSignedIn && (
+                    <span className="absolute right-0 top-0 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background" />
+                  )}
+                </motion.span>
+                <span className="relative z-10 max-w-full truncate text-[10px] font-semibold leading-none tracking-[-0.01em]">
+                  {tab.label}
                 </span>
-              </button>
-            </li>
+              </motion.button>
+            </motion.li>
           )
         })}
-
-        {/* User Menu Button */}
-        <li className="relative">
-          <button
-            onClick={() => {
-              if (!isSignedIn) {
-                navigate('/signin')
-              } else {
-                // Open the mobile menu
-                onMenuClick?.()
-              }
-            }}
-            className="relative flex flex-col items-center justify-center w-full py-2 px-1 transition-all duration-200 touch-target hover:bg-accent/20 active:bg-accent/30 active:scale-95 text-muted-foreground"
-            aria-label="User menu"
-          >
-            <div className="relative">
-              <User className="h-5 w-5 transition-all duration-200" />
-              {isSignedIn && (
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
-              )}
-            </div>
-            <span className="text-[10px] mt-1 font-medium">
-              {isSignedIn ? 'Menu' : 'Sign In'}
-            </span>
-          </button>
-        </li>
-      </ul>
-    </nav>
+      </motion.ul>
+    </motion.nav>
   )
 }

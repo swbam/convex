@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Moon, Sun } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
 export function MobileThemeToggle() {
   const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
+  const shouldReduceMotion = useReducedMotion();
 
   // useEffect only runs on the client, preventing hydration mismatch
   useEffect(() => {
@@ -15,7 +17,7 @@ export function MobileThemeToggle() {
     // Return placeholder to avoid layout shift
     return (
       <button
-        className="w-8 h-8 flex items-center justify-center rounded-md opacity-0"
+        className="flex h-11 w-11 items-center justify-center rounded-xl opacity-0"
         disabled
         aria-label="Toggle theme"
       >
@@ -25,17 +27,29 @@ export function MobileThemeToggle() {
   }
 
   return (
-    <button
+    <motion.button
+      type="button"
       onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-accent/50 transition-all active:scale-95 touch-target"
-      aria-label="Toggle theme"
+      className="flex h-11 w-11 items-center justify-center rounded-xl border border-border/70 bg-secondary/55 text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      whileTap={shouldReduceMotion ? undefined : { scale: 0.9 }}
+      aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
     >
-      {theme === 'dark' ? (
-        <Sun className="h-4 w-4 text-yellow-400/80" />
-      ) : (
-        <Moon className="h-4 w-4 text-slate-600" />
-      )}
-    </button>
+      <AnimatePresence initial={false} mode="wait">
+        <motion.span
+          key={theme}
+          className="flex items-center justify-center"
+          initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, rotate: -18, scale: 0.75 }}
+          animate={{ opacity: 1, rotate: 0, scale: 1 }}
+          exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, rotate: 18, scale: 0.75 }}
+          transition={{ duration: shouldReduceMotion ? 0 : 0.14, ease: 'easeOut' }}
+        >
+          {theme === 'dark' ? (
+            <Sun className="h-[18px] w-[18px] text-yellow-400" />
+          ) : (
+            <Moon className="h-[18px] w-[18px] text-slate-600" />
+          )}
+        </motion.span>
+      </AnimatePresence>
+    </motion.button>
   );
 }
-
