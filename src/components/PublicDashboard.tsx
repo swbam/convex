@@ -3,11 +3,11 @@ import { useQuery, useAction } from "convex/react";
 import { useUser } from "@clerk/clerk-react";
 import { api } from "../../convex/_generated/api";
 import { useNavigate } from "react-router-dom";
-import { MapPin, Music, ArrowRight, Loader2 } from "lucide-react";
+import { MapPin, Music, ArrowRight, Loader2, Radio, CalendarDays, Flame, Clock3 } from "lucide-react";
 import { SearchBar } from "./SearchBar";
 import { Id } from "../../convex/_generated/dataModel";
 import { GridSkeleton } from "./LoadingSkeleton";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { FaSpotify } from "react-icons/fa";
@@ -22,17 +22,44 @@ interface PublicDashboardProps {
   navigate: (path: string) => void;
 }
 
+type ArtistCategory = "All" | "Pop" | "Hip-Hop & R&B" | "Rock & Indie" | "Country & Folk" | "Latin" | "Electronic";
+
+const ARTIST_CATEGORIES: Array<{ label: ArtistCategory; terms: string[] }> = [
+  { label: "All", terms: [] },
+  { label: "Pop", terms: ["pop"] },
+  { label: "Hip-Hop & R&B", terms: ["hip hop", "hip-hop", "rap", "r&b", "trap"] },
+  { label: "Rock & Indie", terms: ["rock", "metal", "punk", "alternative", "indie", "grunge"] },
+  { label: "Country & Folk", terms: ["country", "americana", "folk", "bluegrass", "red dirt"] },
+  { label: "Latin", terms: ["latin", "banda", "norte", "regional mexican", "reggaeton", "salsa", "bachata"] },
+  { label: "Electronic", terms: ["electronic", "dance", "edm", "house", "techno", "dj"] },
+];
+
+const getArtistCategory = (artist: any): ArtistCategory | "Other" => {
+  const genreText = [
+    ...(Array.isArray(artist?.genres) ? artist.genres : []),
+    ...(Array.isArray(artist?.cachedTrending?.genres) ? artist.cachedTrending.genres : []),
+  ].join(" ").toLowerCase();
+
+  for (const category of ARTIST_CATEGORIES.slice(1)) {
+    if (category.terms.some((term) => genreText.includes(term))) return category.label;
+  }
+  return "Other";
+};
+
 export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardProps) {
   const navigateTo = useNavigate();
   const { user, isSignedIn, isLoaded: isClerkLoaded } = useUser();
+  const shouldReduceMotion = useReducedMotion();
+  const [artistCategory, setArtistCategory] = useState<ArtistCategory>("All");
+  const [showOrder, setShowOrder] = useState<"soonest" | "popular">("soonest");
   
   // Import action for artists not yet in DB
   const triggerArtistSync = useAction(api.ticketmaster.triggerFullArtistSync);
   const [importingArtist, setImportingArtist] = useState<string | null>(null);
 
   // Load trending data
-  const dbTrendingShowsResult = useQuery(api.trending.getTrendingShows, { limit: 20 });
-  const dbTrendingArtistsResult = useQuery(api.trending.getTrendingArtists, { limit: 20 });
+  const dbTrendingShowsResult = useQuery(api.trending.getTrendingShows, { limit: 48 });
+  const dbTrendingArtistsResult = useQuery(api.trending.getTrendingArtists, { limit: 50 });
   
   // Load featured festivals
   const featuredFestivals = useQuery(api.festivals.getFeatured, { limit: 8 });
@@ -104,6 +131,39 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
     return dedupe(dbTrendingShows, (s) => (s.slug || s.cachedTrending?.showSlug || s.ticketmasterId || s._id || '').toString().toLowerCase());
   }, [dbTrendingShows]);
 
+  const availableArtistCategories = useMemo(() => {
+    if (!Array.isArray(trendingArtists)) return [{ label: "All" as ArtistCategory, count: 0 }];
+    const counts = new Map<ArtistCategory, number>();
+    for (const artist of trendingArtists) {
+      const category = getArtistCategory(artist);
+      if (category !== "Other") counts.set(category, (counts.get(category) || 0) + 1);
+    }
+    return ARTIST_CATEGORIES
+      .map((category) => ({
+        label: category.label,
+        count: category.label === "All" ? trendingArtists.length : counts.get(category.label) || 0,
+      }))
+      .filter((category) => category.label === "All" || category.count > 0);
+  }, [trendingArtists]);
+
+  const visibleTrendingArtists = useMemo(() => {
+    if (!Array.isArray(trendingArtists)) return trendingArtists;
+    if (artistCategory === "All") return trendingArtists;
+    return trendingArtists.filter((artist) => getArtistCategory(artist) === artistCategory);
+  }, [artistCategory, trendingArtists]);
+
+  const visibleTrendingShows = useMemo(() => {
+    if (!Array.isArray(trendingShows)) return trendingShows;
+    return [...trendingShows].sort((a: any, b: any) => {
+      if (showOrder === "popular") {
+        const aScore = (a?.voteCount || 0) * 100 + (1000 - (a?.cachedTrending?.rank || 999));
+        const bScore = (b?.voteCount || 0) * 100 + (1000 - (b?.cachedTrending?.rank || 999));
+        if (aScore !== bScore) return bScore - aScore;
+      }
+      return String(a?.date || "").localeCompare(String(b?.date || ""));
+    });
+  }, [showOrder, trendingShows]);
+
   const isLoading = dbTrendingShows === undefined || dbTrendingArtists === undefined;
 
   const formatUpdatedAt = (ts?: number) => {
@@ -142,7 +202,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
-      transition: { staggerChildren: 0.1, delayChildren: 0.05 }
+      transition: { staggerChildren: shouldReduceMotion ? 0 : 0.1, delayChildren: shouldReduceMotion ? 0 : 0.05 }
     }
   };
 
@@ -150,7 +210,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
     hidden: { opacity: 0 },
     show: { 
       opacity: 1,
-      transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] }
+      transition: { duration: shouldReduceMotion ? 0 : 0.3, ease: [0.16, 1, 0.3, 1] }
     }
   };
 
@@ -158,7 +218,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
-      transition: { staggerChildren: 0.05 }
+      transition: { staggerChildren: shouldReduceMotion ? 0 : 0.05 }
     }
   };
 
@@ -166,7 +226,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
     hidden: { opacity: 0 },
     show: { 
       opacity: 1,
-      transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] }
+      transition: { duration: shouldReduceMotion ? 0 : 0.25, ease: [0.16, 1, 0.3, 1] }
     }
   };
 
@@ -288,6 +348,43 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
         </div>
       </motion.section>
 
+      {/* Live discovery pulse — makes freshness and catalog depth visible. */}
+      <motion.section
+        className="container mx-auto mb-6 px-4 sm:mb-8"
+        initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: shouldReduceMotion ? 0 : 0.28, delay: shouldReduceMotion ? 0 : 0.12 }}
+      >
+        <div className="grid grid-cols-[1.2fr_1fr_1fr] overflow-hidden rounded-2xl border border-border/80 bg-card/55 shadow-sm backdrop-blur-xl">
+          <div className="flex min-w-0 items-center gap-2.5 border-r border-border/70 px-3 py-3 sm:px-4">
+            <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+              <Radio className="h-4 w-4" />
+              <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold text-foreground sm:text-sm">Live tour pulse</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">
+                {trendingShowsMeta?.isFallback
+                  ? "Refreshing discovery"
+                  : `Updated ${formatUpdatedAt(trendingShowsMeta?.lastUpdated) || "recently"}`}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col justify-center border-r border-border/70 px-3 py-3 text-center sm:px-4">
+            <span className="text-lg font-bold tracking-tight text-foreground sm:text-xl">
+              {Array.isArray(trendingArtists) ? trendingArtists.length : "—"}
+            </span>
+            <span className="text-[10px] text-muted-foreground sm:text-xs">artists touring</span>
+          </div>
+          <div className="flex flex-col justify-center px-3 py-3 text-center sm:px-4">
+            <span className="text-lg font-bold tracking-tight text-foreground sm:text-xl">
+              {Array.isArray(trendingShows) ? trendingShows.length : "—"}
+            </span>
+            <span className="text-[10px] text-muted-foreground sm:text-xs">show picks</span>
+          </div>
+        </div>
+      </motion.section>
+
       {/* Personalization Layer - signed-in users only (signed-out CTA lives below the first trending section) */}
       {isClerkLoaded && isSignedIn && (hasSpotify ? sortedSpotifyArtists.length > 0 : true) && (
       <div className="container mx-auto px-4 mb-6 sm:mb-8">
@@ -375,9 +472,13 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
         <section className="relative">
           <div className="flex items-end justify-between gap-3 mb-3 sm:mb-4">
             <div className="min-w-0">
+              <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-400/90 sm:text-[11px]">
+                <Flame className="h-3.5 w-3.5" />
+                Touring now
+              </div>
               <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground">Trending Artists</h2>
               <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
-                Popular artists with upcoming shows
+                Explore the artists moving tickets across every sound
                 {trendingArtistsMeta && (
                   <span className="text-muted-foreground/60">
                     {" "}·{" "}
@@ -388,13 +489,49 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 )}
               </p>
             </div>
-            <button
+            <motion.button
               onClick={() => navigateTo('/trending')}
               className="shrink-0 text-xs sm:text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors min-h-[44px]"
+              whileHover={shouldReduceMotion ? undefined : { x: 2 }}
+              whileTap={shouldReduceMotion ? undefined : { scale: 0.97 }}
             >
               View all <ArrowRight className="h-3 w-3" />
-            </button>
+            </motion.button>
           </div>
+
+          {!isLoading && availableArtistCategories.length > 1 && (
+            <div className="-mx-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
+              {availableArtistCategories.map((category) => {
+                const active = artistCategory === category.label;
+                return (
+                  <motion.button
+                    key={category.label}
+                    type="button"
+                    onClick={() => setArtistCategory(category.label)}
+                    className={`relative flex h-9 shrink-0 snap-start items-center gap-1.5 overflow-hidden rounded-full border px-3 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${
+                      active
+                        ? "border-foreground/20 text-background"
+                        : "border-border bg-card/55 text-muted-foreground hover:text-foreground"
+                    }`}
+                    whileHover={shouldReduceMotion ? undefined : { y: -1 }}
+                    whileTap={shouldReduceMotion ? undefined : { scale: 0.96 }}
+                  >
+                    {active && (
+                      <motion.span
+                        layoutId="homepage-artist-category"
+                        className="absolute inset-0 bg-foreground"
+                        transition={shouldReduceMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 40 }}
+                      />
+                    )}
+                    <span className="relative z-10">{category.label}</span>
+                    <span className={`relative z-10 text-[10px] ${active ? "text-background/65" : "text-muted-foreground/60"}`}>
+                      {category.count}
+                    </span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          )}
 
           <div>
             {isLoading ? (
@@ -406,46 +543,56 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                   <GridSkeleton count={12} />
                 </div>
               </>
-            ) : (trendingArtists as any[])?.length === 0 ? (
+            ) : (visibleTrendingArtists as any[])?.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Music className="h-12 w-12 text-muted-foreground/50 mb-4" />
                 <p className="text-muted-foreground">No trending artists yet</p>
               </div>
             ) : (
-              <>
-                {/* Mobile: editorial horizontal snap-scroll shelf */}
-                <div className="sm:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory -mx-4 px-4 scrollbar-hide">
-                  {(trendingArtists as any[]).slice(0, 12).map((artist: any, index: number) => {
-                    const artistId = artist?._id || artist?.artistId;
-                    const isImporting = importingArtist === artist.ticketmasterId;
+              <AnimatePresence initial={false} mode="wait">
+                <motion.div
+                  key={artistCategory}
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="show"
+                  exit={{ opacity: 0 }}
+                >
+                  {/* Mobile: editorial horizontal snap-scroll shelf */}
+                  <div className="sm:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory -mx-4 px-4 scrollbar-hide">
+                    {(visibleTrendingArtists as any[]).slice(0, 12).map((artist: any, index: number) => {
+                      const artistId = artist?._id || artist?.artistId;
+                      const isImporting = importingArtist === artist.ticketmasterId;
 
-                    return (
-                      <ArtistShelfCard
-                        key={`shelf-${artistId || artist.ticketmasterId}-${index}`}
-                        artist={artist}
-                        onClick={() => handleTrendingArtistClick(artist)}
-                        isLoading={isImporting}
-                      />
-                    );
-                  })}
-                </div>
-                {/* Desktop: grid */}
-                <div className="hidden sm:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                  {(trendingArtists as any[]).slice(0, 12).map((artist: any, index: number) => {
-                    const artistId = artist?._id || artist?.artistId;
-                    const isImporting = importingArtist === artist.ticketmasterId;
+                      return (
+                        <motion.div key={`shelf-${artistId || artist.ticketmasterId}-${index}`} variants={cardVariants} className="shrink-0 snap-start">
+                          <ArtistShelfCard
+                            artist={artist}
+                            onClick={() => handleTrendingArtistClick(artist)}
+                            isLoading={isImporting}
+                          />
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                  {/* Desktop: grid */}
+                  <div className="hidden sm:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {(visibleTrendingArtists as any[]).slice(0, 12).map((artist: any, index: number) => {
+                      const artistId = artist?._id || artist?.artistId;
+                      const isImporting = importingArtist === artist.ticketmasterId;
 
-                    return (
-                      <ArtistCard
-                        key={`${artistId || artist.ticketmasterId}-${index}`}
-                        artist={artist}
-                        onClick={() => handleTrendingArtistClick(artist)}
-                        isLoading={isImporting}
-                      />
-                    );
-                  })}
-                </div>
-              </>
+                      return (
+                        <motion.div key={`${artistId || artist.ticketmasterId}-${index}`} variants={cardVariants}>
+                          <ArtistCard
+                            artist={artist}
+                            onClick={() => handleTrendingArtistClick(artist)}
+                            isLoading={isImporting}
+                          />
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              </AnimatePresence>
             )}
           </div>
         </section>
@@ -513,9 +660,13 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
         <section className="relative">
           <div className="flex items-end justify-between gap-3 mb-3 sm:mb-4">
             <div className="min-w-0">
+              <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-400/90 sm:text-[11px]">
+                <CalendarDays className="h-3.5 w-3.5" />
+                Pick a night
+              </div>
               <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground">Upcoming Shows</h2>
               <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
-                Popular upcoming concerts
+                Artist-diverse concerts, refreshed automatically
                 {trendingShowsMeta && (
                   <span className="text-muted-foreground/60">
                     {" "}·{" "}
@@ -526,36 +677,81 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 )}
               </p>
             </div>
-            <button
+            <motion.button
               onClick={() => navigateTo('/shows')}
               className="shrink-0 text-xs sm:text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors min-h-[44px]"
+              whileHover={shouldReduceMotion ? undefined : { x: 2 }}
+              whileTap={shouldReduceMotion ? undefined : { scale: 0.97 }}
             >
               View all <ArrowRight className="h-3 w-3" />
-            </button>
+            </motion.button>
           </div>
+
+          {!isLoading && Array.isArray(visibleTrendingShows) && visibleTrendingShows.length > 1 && (
+            <div className="mb-4 inline-flex rounded-xl border border-border bg-card/55 p-1">
+              {([
+                { value: "soonest", label: "Soonest", icon: Clock3 },
+                { value: "popular", label: "Popular", icon: Flame },
+              ] as const).map((option) => {
+                const Icon = option.icon;
+                const active = showOrder === option.value;
+                return (
+                  <motion.button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setShowOrder(option.value)}
+                    className={`relative flex h-8 items-center gap-1.5 overflow-hidden rounded-lg px-3 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${
+                      active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    whileTap={shouldReduceMotion ? undefined : { scale: 0.96 }}
+                  >
+                    {active && (
+                      <motion.span
+                        layoutId="homepage-show-order"
+                        className="absolute inset-0 border border-border/80 bg-accent/80 shadow-sm"
+                        transition={shouldReduceMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 40 }}
+                      />
+                    )}
+                    <Icon className="relative z-10 h-3.5 w-3.5" />
+                    <span className="relative z-10">{option.label}</span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          )}
 
           <div>
             {isLoading ? (
               <GridSkeleton count={12} />
-            ) : (trendingShows as any[])?.length === 0 ? (
+            ) : (visibleTrendingShows as any[])?.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Music className="h-12 w-12 text-muted-foreground/50 mb-4" />
                 <p className="text-muted-foreground">No shows available</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {(trendingShows as any[]).slice(0, 12).map((show: any, index: number) => (
-                  <ShowCard
-                    key={`${show._id || show.showId}-${index}`}
-                    show={show}
-                    onClick={() => {
-                      const showId = show._id || show.showId;
-                      const slug = show.slug || show.cachedTrending?.showSlug;
-                      onShowClick(showId || slug || show.ticketmasterId, slug);
-                    }}
-                  />
-                ))}
-              </div>
+              <AnimatePresence initial={false} mode="wait">
+                <motion.div
+                  key={showOrder}
+                  className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="show"
+                  exit={{ opacity: 0 }}
+                >
+                  {(visibleTrendingShows as any[]).slice(0, 12).map((show: any, index: number) => (
+                    <motion.div key={`${show._id || show.showId}-${index}`} variants={cardVariants}>
+                      <ShowCard
+                        show={show}
+                        onClick={() => {
+                          const showId = show._id || show.showId;
+                          const slug = show.slug || show.cachedTrending?.showSlug;
+                          onShowClick(showId || slug || show.ticketmasterId, slug);
+                        }}
+                      />
+                    </motion.div>
+                  ))}
+                </motion.div>
+              </AnimatePresence>
             )}
           </div>
         </section>
@@ -675,23 +871,28 @@ function ArtistShelfSkeleton() {
 // Show Card - Compact with silver glow
 function ShowCard({ show, onClick }: { show: any; onClick: () => void }) {
   const showDate = new Date(show.date);
+  const shouldReduceMotion = useReducedMotion();
+  const artistName = show.artist?.name || show.artistName || "Artist";
+  const venueName = show.venue?.name || show.venueName || "Venue TBA";
+  const location = formatLocation(show.venue?.city || show.venueCity, show.venue?.state || show.venueState);
 
   return (
     <motion.div 
       className="w-full cursor-pointer"
       onClick={onClick}
-      whileHover={{ y: -4 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={shouldReduceMotion ? undefined : { y: -4 }}
+      whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
     >
-      <div className="glow-card glow-card-hover overflow-hidden">
-        <div className="relative w-full aspect-square overflow-hidden rounded-t-[0.75rem]">
+      <div className="glow-card glow-card-hover group overflow-hidden">
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-[0.75rem] sm:aspect-square">
           {(() => {
             const imgSrc = show?.artist?.images?.[0] || show?.artistImage || show?.cachedTrending?.artistImage;
             return imgSrc ? (
               <img
                 src={imgSrc}
-                alt={show.artist?.name || show.artistName}
-                className="w-full h-full object-cover"
+                alt={artistName}
+                loading="lazy"
+                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.035]"
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-secondary to-secondary/50 flex items-center justify-center">
@@ -701,30 +902,28 @@ function ShowCard({ show, onClick }: { show: any; onClick: () => void }) {
               </div>
             );
           })()}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-transparent" />
           
           {/* Date Badge */}
-          <div className="absolute top-1.5 right-1.5">
-            <div className="bg-background/90 backdrop-blur-sm rounded-md px-1.5 py-0.5 border border-border/50">
-              <p className="text-foreground text-[10px] font-semibold">
-                {showDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          <div className="absolute left-2 top-2">
+            <div className="rounded-lg border border-white/15 bg-black/70 px-2 py-1 text-white backdrop-blur-sm">
+              <p className="text-[10px] font-semibold uppercase tracking-wide">
+                {showDate.toLocaleDateString('en-US', { month: 'short' })}
               </p>
+              <p className="text-base font-bold leading-none">{showDate.getDate()}</p>
             </div>
           </div>
         </div>
 
         <div className="p-2.5 sm:p-3">
           <h3 className="text-foreground font-semibold text-xs sm:text-sm line-clamp-1">
-            {show.artist?.name || show.artistName}
+            {artistName}
           </h3>
-          {show.venue && (
-            <div className="mt-1">
-              <p className="text-muted-foreground text-[10px] sm:text-xs flex items-center gap-1">
-                <MapPin className="h-2.5 w-2.5 flex-shrink-0" />
-                <span className="truncate">{formatLocation(show.venue?.city || show.venueCity, show.venue?.state || show.venueState)}</span>
-              </p>
-            </div>
-          )}
+          <p className="mt-1 truncate text-[10px] font-medium text-foreground/70 sm:text-xs">{venueName}</p>
+          <p className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground sm:text-xs">
+            <MapPin className="h-2.5 w-2.5 flex-shrink-0" />
+            <span className="truncate">{location || "Location TBA"}</span>
+          </p>
         </div>
       </div>
     </motion.div>

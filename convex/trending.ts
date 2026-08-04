@@ -143,7 +143,9 @@ export const getTrendingShows = query({
       .query("trendingShows")
       .withIndex("by_rank")
       .order("asc")
-      .take(limit * 3);
+      // Read the full bounded discovery cache before deduping. Ticketmaster can
+      // rank many dates from one residency ahead of every other artist.
+      .take(Math.max(limit * 10, 200));
 
     // CRITICAL FIX: Process cache but fallback if no valid shows after filtering
     let validShows: any[] = [];
@@ -205,6 +207,7 @@ export const getTrendingShows = query({
         );
 
         // final cleanup to avoid Unknown entries, non-upcoming items, and non-concerts
+        const today = new Date().toISOString().slice(0, 10);
         const cleaned = artistScoped.filter((s: any) => {
           const name = s?.artist?.name || s?.cachedTrending?.artistName || "";
           const venue = s?.venue?.name || s?.cachedTrending?.venueName || "";
@@ -215,8 +218,17 @@ export const getTrendingShows = query({
             !name.toLowerCase().includes("unknown") &&
             typeof venue === "string" && venue.length > 0 &&
             status === "upcoming" &&
+            typeof s?.date === "string" && s.date >= today &&
             isRealConcert(name, genres) // Filter out plays, musicals, film screenings
           );
+        });
+
+        // This surface is explicitly "Upcoming Shows", so nearest dates win
+        // after popularity curation and artist-level deduplication.
+        cleaned.sort((a: any, b: any) => {
+          const dateOrder = String(a?.date || "").localeCompare(String(b?.date || ""));
+          if (dateOrder !== 0) return dateOrder;
+          return (a?.cachedTrending?.rank ?? 9999) - (b?.cachedTrending?.rank ?? 9999);
         });
 
         const lastUpdated = cached.reduce((max, row) => Math.max(max, row.lastUpdated || 0), 0) || undefined;
@@ -530,11 +542,24 @@ export const replaceTrendingShowsCache = internalMutation({
       return isUS && isConcert;
     });
 
-    console.log(`📊 Processing ${usShows.length} US concert shows out of ${args.shows.length} total`);
+    // Defense in depth: even if the upstream API returns dozens of dates from
+    // one residency, the homepage cache stores one representative event per act.
+    const seenArtists = new Set<string>();
+    const diverseShows = [...usShows]
+      .sort((a, b) => a.rank - b.rank)
+      .filter((show) => {
+        const key = slugify(show.artistName || show.artistTicketmasterId || "");
+        if (!key || seenArtists.has(key)) return false;
+        seenArtists.add(key);
+        return true;
+      })
+      .slice(0, 60);
+
+    console.log(`📊 Processing ${diverseShows.length} artist-diverse US concerts from ${args.shows.length} Ticketmaster events`);
 
     const existing = await ctx.db.query("trendingShows").collect();
     const existingMap = new Map(existing.map((doc) => [doc.ticketmasterId, doc]));
-    const keep = new Set(usShows.map((show) => show.ticketmasterId));
+    const keep = new Set(diverseShows.map((show) => show.ticketmasterId));
 
     for (const doc of existing) {
       if (!keep.has(doc.ticketmasterId)) {
@@ -542,7 +567,7 @@ export const replaceTrendingShowsCache = internalMutation({
       }
     }
 
-    for (const show of usShows) {
+    for (const show of diverseShows) {
       const linkedShow = await ctx.db
         .query("shows")
         .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", show.ticketmasterId))

@@ -13,7 +13,7 @@ type Item = {
   disabled?: boolean;
 };
 
-// Tailwind `sm` breakpoint — below this the open state renders as a bottom sheet.
+// Tailwind `sm` breakpoint — below this the open state renders as a full-screen browser.
 const MOBILE_QUERY = "(max-width: 639px)";
 
 export function SongCombobox({
@@ -29,6 +29,7 @@ export function SongCombobox({
 }) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
+  const [mobileSearchOpen, setMobileSearchOpen] = React.useState(false);
   const shouldReduceMotion = useReducedMotion();
   const [isMobile, setIsMobile] = React.useState(() =>
     typeof window !== "undefined"
@@ -51,12 +52,47 @@ export function SongCombobox({
     );
   }, [items, query]);
 
+  const alphabeticalGroups = React.useMemo(() => {
+    const collator = new Intl.Collator(undefined, {
+      sensitivity: "base",
+      numeric: true,
+    });
+    const sorted = [...filtered].sort((a, b) =>
+      collator.compare(a.title, b.title)
+    );
+    const groups = new Map<string, Item[]>();
+
+    for (const item of sorted) {
+      const firstCharacter = item.title.trim().charAt(0).toUpperCase();
+      const letter = /^[A-Z]$/.test(firstCharacter) ? firstCharacter : "#";
+      const group = groups.get(letter) ?? [];
+      group.push(item);
+      groups.set(letter, group);
+    }
+
+    return Array.from(groups.entries());
+  }, [filtered]);
+
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const sheetRef = React.useRef<HTMLDivElement | null>(null);
+  const searchInputRef = React.useRef<HTMLInputElement | null>(null);
+  const groupRefs = React.useRef(new Map<string, HTMLElement>());
 
   const close = React.useCallback(() => {
     setOpen(false);
     setQuery("");
+    setMobileSearchOpen(false);
+  }, []);
+
+  const openMobileSearch = React.useCallback(() => {
+    setMobileSearchOpen(true);
+    window.requestAnimationFrame(() => searchInputRef.current?.focus());
+  }, []);
+
+  const closeMobileSearch = React.useCallback(() => {
+    searchInputRef.current?.blur();
+    setQuery("");
+    setMobileSearchOpen(false);
   }, []);
 
   const handlePick = React.useCallback(
@@ -136,26 +172,15 @@ export function SongCombobox({
     <div className="relative flex-1">
       <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 opacity-60" />
       <Input
+        ref={searchInputRef}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search songs…"
-        autoFocus
-        className="h-10 pl-8 sm:h-9"
+        autoFocus={!isMobile}
+        className="h-11 pl-8 text-base sm:h-9 sm:text-sm"
       />
     </div>
   );
-
-  // Virtualized list height for the mobile sheet (~70vh minus handle + search).
-  const sheetListHeight =
-    typeof window !== "undefined"
-      ? Math.max(
-          200,
-          Math.min(
-            Math.round(window.innerHeight * 0.7) - 132,
-            filtered.length * 48
-          )
-        )
-      : 320;
 
   return (
     <div className="relative" ref={containerRef}>
@@ -167,7 +192,14 @@ export function SongCombobox({
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className="text-sm opacity-80">{placeholder}</span>
+        <span className="min-w-0">
+          <span className="block truncate text-sm opacity-80 sm:hidden">
+            Browse {items.length} songs
+          </span>
+          <span className="hidden truncate text-sm opacity-80 sm:block">
+            {placeholder}
+          </span>
+        </span>
         <ChevronDown
           className={`h-4 w-4 opacity-70 transition-transform duration-200 ${
             open ? "rotate-180" : ""
@@ -226,7 +258,8 @@ export function SongCombobox({
         )}
       </AnimatePresence>
 
-      {/* Mobile: bottom sheet portaled to <body> so it can't be clipped or push the setlist */}
+      {/* Mobile: full-screen alphabetical browser. Search is opt-in so opening the
+          picker never summons the keyboard or obscures the catalog. */}
       {typeof document !== "undefined" &&
         createPortal(
           <AnimatePresence initial={false}>
@@ -246,7 +279,7 @@ export function SongCombobox({
                   role="dialog"
                   aria-modal="true"
                   aria-label="Add a song"
-                  className="absolute inset-x-0 bottom-0 flex max-h-[72vh] flex-col rounded-t-2xl border-t border-border bg-popover shadow-2xl"
+                  className="absolute inset-0 flex h-[100dvh] flex-col overflow-hidden bg-background shadow-2xl"
                   initial={{ y: shouldReduceMotion ? 0 : "100%" }}
                   animate={{ y: 0 }}
                   exit={{ y: shouldReduceMotion ? 0 : "100%" }}
@@ -255,55 +288,127 @@ export function SongCombobox({
                     ease: [0.22, 1, 0.36, 1],
                   }}
                 >
-              <div className="flex justify-center pb-1 pt-2.5">
-                <div className="h-1 w-9 rounded-full bg-muted-foreground/30" />
-              </div>
-              <div className="flex items-center gap-2 border-b border-border px-3 pb-3 pt-1">
-                {searchBox}
-                <button
-                  type="button"
-                  onClick={close}
-                  aria-label="Close song search"
-                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground active:bg-secondary"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+                  <header className="z-20 border-b border-border/70 bg-background/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl">
+                    <AnimatePresence initial={false} mode="wait">
+                      {mobileSearchOpen ? (
+                        <motion.div
+                          key="search"
+                          className="flex items-center gap-2"
+                          initial={{ opacity: 0, x: shouldReduceMotion ? 0 : 8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: shouldReduceMotion ? 0 : 8 }}
+                          transition={{ duration: shouldReduceMotion ? 0 : 0.15 }}
+                        >
+                          {searchBox}
+                          <button
+                            type="button"
+                            onClick={closeMobileSearch}
+                            className="h-11 flex-shrink-0 px-1 text-sm font-semibold text-primary"
+                          >
+                            Cancel
+                          </button>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="title"
+                          className="flex items-center justify-between gap-3"
+                          initial={{ opacity: 0, x: shouldReduceMotion ? 0 : -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: shouldReduceMotion ? 0 : -8 }}
+                          transition={{ duration: shouldReduceMotion ? 0 : 0.15 }}
+                        >
+                          <div className="min-w-0">
+                            <p className="text-lg font-bold tracking-tight text-foreground">
+                              Add a song
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {items.length} songs · alphabetical
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={openMobileSearch}
+                              aria-label="Search songs"
+                              className="flex h-11 w-11 items-center justify-center rounded-full bg-secondary text-foreground active:scale-95 active:bg-accent"
+                            >
+                              <Search className="h-5 w-5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={close}
+                              aria-label="Close song browser"
+                              className="flex h-11 w-11 items-center justify-center rounded-full bg-secondary text-foreground active:scale-95 active:bg-accent"
+                            >
+                              <X className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </header>
 
-              {filtered.length === 0 ? (
-                <div className="pb-[max(1rem,env(safe-area-inset-bottom))]">
-                  {emptyState}
-                </div>
-              ) : filtered.length <= 200 ? (
-                <div className="flex-1 overflow-y-auto overscroll-contain">
-                  <ul
-                    role="listbox"
-                    className="p-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-                  >
-                    {filtered.map((it) => (
-                      <li key={it.id}>{renderRow(it, true)}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : (
-                <div className="pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-                  <List
-                    height={sheetListHeight}
-                    width={"100%"}
-                    itemCount={filtered.length}
-                    itemSize={48}
-                  >
-                    {({ index, style }) => {
-                      const it = filtered[index];
-                      return (
-                        <div style={style} key={it.id} className="px-2">
-                          {renderRow(it, true)}
+                  {filtered.length === 0 ? (
+                    <div className="flex-1">{emptyState}</div>
+                  ) : (
+                    <div className="relative min-h-0 flex-1">
+                      <div className="h-full overflow-y-auto overscroll-contain scroll-smooth pb-[max(1rem,env(safe-area-inset-bottom))]">
+                        <div role="listbox" className="pr-8">
+                          {alphabeticalGroups.map(([letter, group]) => (
+                            <section
+                              key={letter}
+                              ref={(node) => {
+                                if (node) groupRefs.current.set(letter, node);
+                                else groupRefs.current.delete(letter);
+                              }}
+                              aria-labelledby={`song-group-${letter}`}
+                            >
+                              <div
+                                id={`song-group-${letter}`}
+                                className="sticky top-0 z-10 border-y border-border/60 bg-secondary/95 px-4 py-1 text-xs font-bold tracking-[0.14em] text-primary backdrop-blur-xl"
+                              >
+                                {letter}
+                              </div>
+                              <ul>
+                                {group.map((item) => (
+                                  <li
+                                    key={item.id}
+                                    className="border-b border-border/45 px-1 last:border-b-0"
+                                  >
+                                    {renderRow(item, true)}
+                                  </li>
+                                ))}
+                              </ul>
+                            </section>
+                          ))}
                         </div>
-                      );
-                    }}
-                  </List>
-                </div>
-              )}
+
+                        {!mobileSearchOpen && alphabeticalGroups.length > 1 && (
+                          <nav
+                            aria-label="Song initials"
+                            className="fixed right-0 top-1/2 z-20 flex -translate-y-1/2 flex-col items-center rounded-l-xl border-y border-l border-border/60 bg-background/80 px-1 py-1.5 shadow-lg backdrop-blur-xl"
+                          >
+                            {alphabeticalGroups.map(([letter]) => (
+                              <button
+                                type="button"
+                                key={letter}
+                                onClick={() =>
+                                  groupRefs.current.get(letter)?.scrollIntoView({
+                                    behavior: shouldReduceMotion ? "auto" : "smooth",
+                                    block: "start",
+                                  })
+                                }
+                                className="flex min-h-[18px] min-w-[24px] items-center justify-center text-[10px] font-bold leading-none text-primary active:scale-125"
+                                aria-label={`Jump to songs starting with ${letter}`}
+                              >
+                                {letter}
+                              </button>
+                            ))}
+                          </nav>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
               </div>
             )}

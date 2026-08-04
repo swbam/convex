@@ -805,6 +805,9 @@ export const refreshTrendingCache = action({
       // Step 1: Fetch fresh trending shows from Ticketmaster API
       const freshShows = await ctx.runAction(internalRef.ticketmaster.getTrendingShows, { limit: 100 });
       console.log(`📊 Fetched ${freshShows.length} shows from Ticketmaster`);
+      if (freshShows.length === 0) {
+        throw new Error("Ticketmaster returned no homepage shows; preserving the previous cache");
+      }
 
       // Step 2: Replace the trending cache with fresh data
       if (freshShows.length > 0) {
@@ -833,6 +836,9 @@ export const refreshTrendingCache = action({
       // Step 3: Fetch fresh trending artists from Ticketmaster
       const freshArtists = await ctx.runAction(internalRef.ticketmaster.getTrendingArtists, { limit: 50 });
       console.log(`📊 Fetched ${freshArtists.length} artists from Ticketmaster`);
+      if (freshArtists.length === 0) {
+        throw new Error("Ticketmaster returned no homepage artists; preserving the previous artist cache");
+      }
 
       if (freshArtists.length > 0) {
         await ctx.runMutation(internalRef.trending.replaceTrendingArtistsCache, {
@@ -880,6 +886,9 @@ export const refreshTrendingCacheInternal = internalAction({
       // Step 1: Fetch fresh trending shows from Ticketmaster API
       const freshShows = await ctx.runAction(internalRef.ticketmaster.getTrendingShows, { limit: 100 });
       console.log(`📊 Fetched ${freshShows.length} shows from Ticketmaster`);
+      if (freshShows.length === 0) {
+        throw new Error("Ticketmaster returned no homepage shows; preserving the previous cache");
+      }
 
       // Step 2: Replace the trending cache with fresh data
       if (freshShows.length > 0) {
@@ -908,6 +917,9 @@ export const refreshTrendingCacheInternal = internalAction({
       // Step 3: Fetch fresh trending artists and import them with full sync
       const freshArtists = await ctx.runAction(internalRef.ticketmaster.getTrendingArtists, { limit: 50 });
       console.log(`📊 Fetched ${freshArtists.length} artists from Ticketmaster`);
+      if (freshArtists.length === 0) {
+        throw new Error("Ticketmaster returned no homepage artists; preserving the previous artist cache");
+      }
 
       if (freshArtists.length > 0) {
         // Filter out non-concert artists before caching
@@ -964,6 +976,9 @@ export const refreshTrendingCacheInternal = internalAction({
       console.log("🎉 [CRON] Trending cache refresh complete");
     } catch (e) {
       console.error("❌ [CRON] Failed to refresh trending cache:", e);
+      // Let the orchestrator record a real failure instead of reporting a false
+      // success while production continues serving the last-known-good cache.
+      throw e;
     }
     return null;
   },

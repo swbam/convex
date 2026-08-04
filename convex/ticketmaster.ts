@@ -800,6 +800,32 @@ export const getTrendingShows = action({
 
     const limit = args.limit || 50;
 
+    // Ticketmaster relevance often puts every date from one stadium run first.
+    // Scan the complete result page, keep the strongest event per artist, then
+    // order those representative events by date for the homepage.
+    const selectArtistDiverseEvents = (events: any[]) => {
+      const selected = new Map<string, any>();
+      for (const event of events) {
+        const attraction = event?._embedded?.attractions?.[0];
+        const key = String(attraction?.name || attraction?.id || "")
+          .trim()
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
+        if (!key || selected.has(key)) continue;
+        selected.set(key, event);
+      }
+      return Array.from(selected.values())
+        .sort((a: any, b: any) => {
+          const aDate = String(a?.dates?.start?.localDate || "9999-12-31");
+          const bDate = String(b?.dates?.start?.localDate || "9999-12-31");
+          return aDate.localeCompare(bDate);
+        })
+        .slice(0, limit);
+    };
+
     // ULTRA-ENHANCED: Get top trending stadium shows with proper Ticketmaster API usage
     const now = new Date();
     const startDate = now.toISOString().split('T')[0]; // Today
@@ -810,7 +836,7 @@ export const getTrendingShows = action({
     // - segmentId=KZFzniwnSyZfZ7v7nJ is the OFFICIAL Music segment ID (filters out theatre, film, sports)
     // - sort=relevance,desc gives POPULARITY-based results (biggest/trending shows first)
     // - This is the key difference - date,asc just gives today's shows (any random small venue)
-    const url = `https://app.ticketmaster.com/discovery/v2/events.json?segmentId=KZFzniwnSyZfZ7v7nJ&countryCode=US&startDateTime=${startDate}T00:00:00Z&endDateTime=${endDate}T23:59:59Z&size=${limit * 2}&sort=relevance,desc&apikey=${apiKey}`;
+    const url = `https://app.ticketmaster.com/discovery/v2/events.json?segmentId=KZFzniwnSyZfZ7v7nJ&countryCode=US&startDateTime=${startDate}T00:00:00Z&endDateTime=${endDate}T23:59:59Z&size=200&sort=relevance,desc&apikey=${apiKey}`;
 
     try {
       console.log(`🎫 Fetching trending shows from Ticketmaster...`);
@@ -821,13 +847,14 @@ export const getTrendingShows = action({
         // FALLBACK: Try simpler query if detailed one fails - MUST include US filter
         // Use segmentId for Music to filter out theatre, film, sports
         // sort=relevance,desc gives popularity-based results
-        const fallbackUrl = `https://app.ticketmaster.com/discovery/v2/events.json?segmentId=KZFzniwnSyZfZ7v7nJ&countryCode=US&size=${limit}&sort=relevance,desc&apikey=${apiKey}`;
+        const fallbackUrl = `https://app.ticketmaster.com/discovery/v2/events.json?segmentId=KZFzniwnSyZfZ7v7nJ&countryCode=US&size=200&sort=relevance,desc&apikey=${apiKey}`;
         const fallbackResponse = await tmFetchWithRetry(fallbackUrl);
         if (!fallbackResponse.ok) return [];
         const fallbackData = await fallbackResponse.json();
         const events = fallbackData._embedded?.events || [];
+        const diverseEvents = selectArtistDiverseEvents(events);
         console.log(`✅ Fetched ${events.length} shows (fallback query)`);
-        return events.map((event: any) => ({
+        return diverseEvents.map((event: any) => ({
           ticketmasterId: String(event.id || ''),
           artistTicketmasterId: String(event._embedded?.attractions?.[0]?.id || ''),
           artistName: String(event._embedded?.attractions?.[0]?.name || 'Unknown Artist'),
@@ -925,10 +952,15 @@ export const getTrendingShows = action({
 
       console.log(`🎯 Filtered to ${majorEvents.length} major venue events`);
 
-      // Use majorEvents if we have good results, otherwise fallback to all events
-      const finalEvents = majorEvents.length >= 10 ? majorEvents : events;
+      // Major venues receive priority, but the wider Music segment fills the
+      // shelf so discovery does not collapse to a handful of stadium acts.
+      // Name-first deduplication also catches Ticketmaster attractions that use
+      // different IDs for the same displayed artist.
+      const finalEvents = selectArtistDiverseEvents([...majorEvents, ...events]);
 
-      return finalEvents.slice(0, limit).map((event: any) => ({
+      console.log(`🎯 Selected ${finalEvents.length} artist-diverse upcoming shows`);
+
+      return finalEvents.map((event: any) => ({
         ticketmasterId: String(event.id || ''),
         artistTicketmasterId: String(event._embedded?.attractions?.[0]?.id || ''),
         artistName: String(event._embedded?.attractions?.[0]?.name || 'Unknown Artist'),
