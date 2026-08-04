@@ -165,7 +165,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
     const leaders = visibleTrendingArtists.slice(0, 8);
     const discoveryPool = visibleTrendingArtists.slice(8);
     const lastUpdated = Number((dbTrendingArtistsResult as any)?.lastUpdated || 0);
-    const refreshCycle = Math.floor(lastUpdated / (3 * 60 * 60 * 1000));
+    const refreshCycle = Math.floor(lastUpdated / (60 * 60 * 1000));
     const offset = discoveryPool.length > 0 ? refreshCycle % discoveryPool.length : 0;
     const rotatedDiscoveries = [
       ...discoveryPool.slice(offset),
@@ -184,8 +184,16 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
     if (!Array.isArray(trendingShows)) return trendingShows;
     return [...trendingShows].sort((a: any, b: any) => {
       if (showOrder === "popular") {
-        const aScore = (a?.voteCount || 0) * 100 + (1000 - (a?.cachedTrending?.rank || 999));
-        const bScore = (b?.voteCount || 0) * 100 + (1000 - (b?.cachedTrending?.rank || 999));
+        // Ticketmaster relevance supplies broad market demand; live fan voting
+        // and Convex engagement provide a setlists.live-specific boost.
+        const aScore =
+          (a?.voteCount || 0) * 100 +
+          (a?.trendingScore || 0) * 25 +
+          (1000 - (a?.cachedTrending?.rank || 999));
+        const bScore =
+          (b?.voteCount || 0) * 100 +
+          (b?.trendingScore || 0) * 25 +
+          (1000 - (b?.cachedTrending?.rank || 999));
         if (aScore !== bScore) return bScore - aScore;
       }
       return String(a?.date || "").localeCompare(String(b?.date || ""));
@@ -716,35 +724,52 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
           </div>
 
           {!isLoading && Array.isArray(visibleTrendingShows) && visibleTrendingShows.length > 1 && (
-            <div className="mb-4 inline-flex rounded-xl border border-border bg-card/55 p-1">
-              {([
-                { value: "soonest", label: "Soonest", icon: Clock3 },
-                { value: "popular", label: "Popular", icon: Flame },
-              ] as const).map((option) => {
-                const Icon = option.icon;
-                const active = showOrder === option.value;
-                return (
-                  <motion.button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setShowOrder(option.value)}
-                    className={`relative flex h-8 items-center gap-1.5 overflow-hidden rounded-lg px-3 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${
-                      active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-                    }`}
-                    whileTap={shouldReduceMotion ? undefined : { scale: 0.96 }}
-                  >
-                    {active && (
-                      <motion.span
-                        layoutId="homepage-show-order"
-                        className="absolute inset-0 border border-border/80 bg-accent/80 shadow-sm"
-                        transition={shouldReduceMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 40 }}
-                      />
-                    )}
-                    <Icon className="relative z-10 h-3.5 w-3.5" />
-                    <span className="relative z-10">{option.label}</span>
-                  </motion.button>
-                );
-              })}
+            <div className="mb-4 flex flex-wrap items-center gap-2.5">
+              <div className="inline-flex rounded-xl border border-border bg-card/55 p-1">
+                {([
+                  { value: "soonest", label: "Soonest", icon: Clock3 },
+                  { value: "popular", label: "Popular", icon: Flame },
+                ] as const).map((option) => {
+                  const Icon = option.icon;
+                  const active = showOrder === option.value;
+                  return (
+                    <motion.button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setShowOrder(option.value)}
+                      className={`relative flex h-8 items-center gap-1.5 overflow-hidden rounded-lg px-3 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${
+                        active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      whileHover={shouldReduceMotion ? undefined : { y: -1 }}
+                      whileTap={shouldReduceMotion ? undefined : { scale: 0.96 }}
+                    >
+                      {active && (
+                        <motion.span
+                          layoutId="homepage-show-order"
+                          className="absolute inset-0 border border-border/80 bg-accent/80 shadow-sm"
+                          transition={shouldReduceMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 40 }}
+                        />
+                      )}
+                      <Icon className="relative z-10 h-3.5 w-3.5" />
+                      <span className="relative z-10">{option.label}</span>
+                    </motion.button>
+                  );
+                })}
+              </div>
+              <AnimatePresence initial={false} mode="wait">
+                <motion.span
+                  key={showOrder}
+                  className="text-[11px] text-muted-foreground sm:text-xs"
+                  initial={{ opacity: 0, x: shouldReduceMotion ? 0 : 4 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: shouldReduceMotion ? 0 : -4 }}
+                  transition={{ duration: shouldReduceMotion ? 0 : 0.14 }}
+                >
+                  {showOrder === "soonest"
+                    ? "Nearest tour dates first"
+                    : "Ticketmaster demand + live fan activity"}
+                </motion.span>
+              </AnimatePresence>
             </div>
           )}
 

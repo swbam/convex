@@ -9,6 +9,10 @@ import { internalRef } from "./adminHelpers";
 const isRealConcert = (name: string, genres?: string[]): boolean => {
   const lowerName = (name || '').toLowerCase();
 
+  // Festivals have their own discovery surface and should not masquerade as
+  // individual artists or headline shows on the homepage.
+  if (/\bfest(?:ival)?\b/.test(lowerName)) return false;
+
   // Reject patterns for non-concert content that might still appear in Music segment
   const rejectPatterns = [
     // Orchestral performances (often tagged as Music but aren't pop/rock concerts)

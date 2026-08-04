@@ -791,6 +791,7 @@ export const getTrendingShows = action({
     artistGenres: v.optional(v.array(v.string())),
     artistUpcomingEvents: v.optional(v.number()),
     artistUrl: v.optional(v.string()),
+    popularityRank: v.number(),
     ticketUrl: v.optional(v.string()),
     priceRange: v.optional(v.string()),
     status: v.string(),
@@ -821,16 +822,10 @@ export const getTrendingShows = action({
         if (!key || selected.has(key)) continue;
         selected.set(key, event);
       }
-      return Array.from(selected.values())
-        .sort((a: any, b: any) => {
-          const aDate = String(a?.dates?.start?.localDate || "9999-12-31");
-          const bDate = String(b?.dates?.start?.localDate || "9999-12-31");
-          return aDate.localeCompare(bDate);
-        })
-        .slice(0, limit);
+      return Array.from(selected.values()).slice(0, limit);
     };
 
-    const mapHomepageEvent = (event: any) => {
+    const mapHomepageEvent = (event: any, popularityRank: number) => {
       const attraction = event?._embedded?.attractions?.[0];
       const images = (attraction?.images || [])
         .filter((img: any) => img.url && img.width && img.height)
@@ -871,6 +866,7 @@ export const getTrendingShows = action({
         artistGenres: genres,
         artistUpcomingEvents: Number.isFinite(upcomingEvents) ? upcomingEvents : 0,
         artistUrl: attraction?.url ? String(attraction.url) : undefined,
+        popularityRank,
         ticketUrl: event.url ? String(event.url) : undefined,
         priceRange: event.priceRanges?.[0]
           ? `$${event.priceRanges[0].min}-${event.priceRanges[0].max}`
@@ -920,7 +916,9 @@ export const getTrendingShows = action({
         const events = fallbackData._embedded?.events || [];
         const diverseEvents = selectArtistDiverseEvents(events);
         console.log(`✅ Fetched ${events.length} shows (fallback query)`);
-        return diverseEvents.map(mapHomepageEvent);
+        return diverseEvents.map((event: any, index: number) =>
+          mapHomepageEvent(event, index + 1)
+        );
       }
 
       // An event may occur in neighboring relevance pages while inventory is
@@ -931,6 +929,9 @@ export const getTrendingShows = action({
             .filter((event: any) => event?.id)
             .map((event: any) => [String(event.id), event])
         ).values()
+      );
+      const popularityRanks = new Map(
+        events.map((event: any, index: number) => [String(event.id), index + 1])
       );
       console.log(`✅ Fetched ${events.length} unique homepage events from Ticketmaster`);
 
@@ -1010,7 +1011,12 @@ export const getTrendingShows = action({
 
       console.log(`🎯 Selected ${finalEvents.length} artist-diverse upcoming shows`);
 
-      return finalEvents.map(mapHomepageEvent);
+      return finalEvents.map((event: any, index: number) =>
+        mapHomepageEvent(
+          event,
+          popularityRanks.get(String(event.id)) ?? index + 1
+        )
+      );
     } catch (error) {
       console.error("Failed to get trending shows:", error);
       return [];
@@ -1091,7 +1097,8 @@ export const getTrendingArtists = action({
           name.includes('trivia') ||
           name.includes('game night') ||
           name.includes('concert tour') ||
-          name.includes('worlds collide');
+          name.includes('worlds collide') ||
+          /\bfest(?:ival)?\b/.test(name);
         if (isBadContent) continue;
 
         const upcomingEvents = attraction.upcomingEvents?._total || 0;

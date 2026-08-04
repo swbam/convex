@@ -10,7 +10,7 @@ const ORCHESTRATED_JOB_BOUNDS: Record<
   { minIntervalMs: number; maxIntervalMs: number; defaultIntervalMs: number }
 > = {
   "update-trending": { minIntervalMs: 60 * MINUTE, maxIntervalMs: 24 * HOUR, defaultIntervalMs: 6 * HOUR },
-  "refresh-trending-cache": { minIntervalMs: 60 * MINUTE, maxIntervalMs: 48 * HOUR, defaultIntervalMs: 3 * HOUR },
+  "refresh-trending-cache": { minIntervalMs: 30 * MINUTE, maxIntervalMs: 48 * HOUR, defaultIntervalMs: HOUR },
   "update-artist-trending": { minIntervalMs: 60 * MINUTE, maxIntervalMs: 24 * HOUR, defaultIntervalMs: 6 * HOUR },
   "update-show-trending": { minIntervalMs: 60 * MINUTE, maxIntervalMs: 24 * HOUR, defaultIntervalMs: 6 * HOUR },
   "update-artist-show-counts": { minIntervalMs: 60 * MINUTE, maxIntervalMs: 24 * HOUR, defaultIntervalMs: 6 * HOUR },

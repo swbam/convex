@@ -824,7 +824,8 @@ const deriveHomepageArtistsFromShows = (shows: any[], limit: number) => {
       !ticketmasterId ||
       !name ||
       artists.has(ticketmasterId) ||
-      nonArtistPatterns.some((pattern) => normalizedName.includes(pattern))
+      nonArtistPatterns.some((pattern) => normalizedName.includes(pattern)) ||
+      /\bfest(?:ival)?\b/.test(normalizedName)
     ) {
       continue;
     }
@@ -884,7 +885,9 @@ export const refreshTrendingCache = action({
             ticketUrl: show.ticketUrl,
             priceRange: show.priceRange,
             status: show.status || "upcoming",
-            rank: index + 1,
+            rank: Number.isFinite(show.popularityRank)
+              ? show.popularityRank
+              : index + 1,
           })),
         });
         console.log("✅ Trending shows cache updated");
@@ -980,7 +983,9 @@ export const refreshTrendingCacheInternal = internalAction({
             ticketUrl: show.ticketUrl,
             priceRange: show.priceRange,
             status: show.status || "upcoming",
-            rank: index + 1,
+            rank: Number.isFinite(show.popularityRank)
+              ? show.popularityRank
+              : index + 1,
           })),
         });
         console.log("✅ Trending shows cache updated");
