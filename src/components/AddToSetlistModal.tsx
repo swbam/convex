@@ -16,7 +16,7 @@ interface AddToSetlistModalProps {
 
 // Per-show free-add budget for anonymous users (mirrors ShowDetail and the
 // server-side anonymous limits in setlists).
-const ANON_FREE_ADDS = 5;
+const ANON_FREE_ADDS = 2;
 
 export function AddToSetlistModal({ 
   isOpen, 
@@ -55,13 +55,18 @@ export function AddToSetlistModal({
 
     setIsAdding(true);
     try {
-      await addSongToSetlist({
+      const result = await addSongToSetlist({
         showId,
         song: {
           title: songTitle,
         },
         anonId: !user && anonId ? anonId : undefined,
       });
+
+      if (!result.added) {
+        toast.info(`"${songTitle}" is already in this setlist prediction`);
+        return;
+      }
 
       // Track anonymous adds against the per-show budget
       if (!user) {

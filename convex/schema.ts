@@ -299,6 +299,7 @@ const applicationTables = {
     timestamp: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_user_action", ["userId", "action"])
     .index("by_action", ["action"])
     .index("by_user_time", ["userId", "timestamp"]),
 

@@ -41,6 +41,9 @@ interface ShowDetailProps {
   onSignInRequired: () => void;
 }
 
+const ANON_FREE_VOTES = 2;
+const ANON_FREE_ADDS = 2;
+
 export function ShowDetail({
   showId,
   onArtistClick,
@@ -108,8 +111,6 @@ export function ShowDetail({
 
   // Per-show free-action budget for anonymous users (kept in sync with the
   // server-side anonymous limits in songVotes/setlists).
-  const ANON_FREE_VOTES = 5;
-  const ANON_FREE_ADDS = 5;
   const votedKey = `voteCount_${showId}`;
   const addedKey = `addCount_${showId}`;
 
@@ -150,8 +151,24 @@ export function ShowDetail({
   const predictionSetlistId = predictionSetlist?._id as Id<"setlists"> | undefined;
   const allSongVotes = useQuery(
     api.songVotes.getSetlistSongVotes,
-    predictionSetlistId ? { setlistId: predictionSetlistId } : "skip"
+    predictionSetlistId
+      ? {
+          setlistId: predictionSetlistId,
+          anonId: !user ? anonId : undefined,
+        }
+      : "skip"
   );
+
+  // The backend is authoritative for active anonymous upvotes. Reconcile the
+  // local counter after load so clearing/staling UI state cannot create a
+  // misleading prompt or allowance.
+  useEffect(() => {
+    if (user || !allSongVotes) return;
+    const activeVotes = (allSongVotes as any[]).filter(
+      (vote) => vote?.userVoted,
+    ).length;
+    setVoteActionCount(activeVotes);
+  }, [allSongVotes, user]);
 
   // Map of normalized song title -> vote count for this prediction setlist
   const songVoteCountMap = useMemo(() => {
@@ -288,8 +305,15 @@ export function ShowDetail({
       setShowAuthModal(true);
       return false;
     }
-    setVoteActionCount((c) => c + 1);
     return true;
+  };
+
+  const recordVoteAction = (action: "added" | "removed") => {
+    setVoteActionCount((count) =>
+      action === "added"
+        ? Math.min(ANON_FREE_VOTES, count + 1)
+        : Math.max(0, count - 1),
+    );
   };
 
   const handleAddAction = () => {
@@ -297,7 +321,6 @@ export function ShowDetail({
       setShowAuthModal(true);
       return false;
     }
-    setAddActionCount((c) => c + 1);
     return true;
   };
 
@@ -308,7 +331,7 @@ export function ShowDetail({
       const selectedSong = songs?.find((s) => s?.title === songTitle);
       if (!selectedSong) return;
 
-      const setlistId = await addSongToSetlist({
+      const result = await addSongToSetlist({
         showId,
         song: {
           title: selectedSong.title,
@@ -319,23 +342,23 @@ export function ShowDetail({
         ...(!user && { anonId }),
       });
 
-      // Automatically upvote the song when adding it (so it appears at top)
-      if (setlistId) {
-        try {
-          await voteOnSong({
-            setlistId,
-            songTitle: selectedSong.title,
-            voteType: "upvote",
-            ...(!user && { anonId }),
-          });
-        } catch {
-          // Ignore vote errors (might have already voted)
-        }
+      if (!result.added) {
+        toast.info(`"${songTitle}" is already in the setlist`);
+        return;
       }
 
+      // Adding and upvoting are separate free actions. A song request no
+      // longer silently consumes one of the visitor's two upvotes.
+      if (!user) setAddActionCount((count) => count + 1);
+
       toast.success(`Added "${songTitle}" to the setlist`);
-    } catch {
-      toast.error("Failed to add song to setlist");
+    } catch (error) {
+      const message = error instanceof Error ? error.message.toLowerCase() : "";
+      if (!user && message.includes("anonymous users can only add")) {
+        setShowAuthModal(true);
+      } else {
+        toast.error("Failed to add song to setlist");
+      }
     }
   };
 
@@ -788,6 +811,7 @@ export function ShowDetail({
                               user={user}
                               voteOnSong={voteOnSong}
                               handleVoteAction={handleVoteAction}
+                              recordVoteAction={recordVoteAction}
                               setShowAuthModal={setShowAuthModal}
                               anonId={anonId}
                               isUpcoming={isUpcoming}
@@ -1046,6 +1070,7 @@ function FanRequestSongRow({
   user,
   voteOnSong,
   handleVoteAction,
+  recordVoteAction,
   setShowAuthModal,
   anonId,
   isUpcoming,
@@ -1059,6 +1084,7 @@ function FanRequestSongRow({
   user: any;
   voteOnSong: any;
   handleVoteAction: () => boolean;
+  recordVoteAction: (action: "added" | "removed") => void;
   setShowAuthModal: (show: boolean) => void;
   anonId: string;
   isUpcoming: boolean;
@@ -1076,6 +1102,7 @@ function FanRequestSongRow({
       ? {
           setlistId: predictionSetlistId,
           songTitle,
+          anonId: !user ? anonId : undefined,
         }
       : "skip"
   );
@@ -1088,6 +1115,7 @@ function FanRequestSongRow({
   const [optimistic, setOptimistic] = useState<
     { voted: boolean; count: number } | null
   >(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setOptimistic(null);
@@ -1097,10 +1125,10 @@ function FanRequestSongRow({
   const userVoted = optimistic?.voted ?? serverUserVoted;
 
   const handleVote = async () => {
-    if (!predictionSetlistId) return;
+    if (!predictionSetlistId || isSubmitting) return;
 
-    // Anonymous gate — only block once the local free-action budget is spent.
-    if (!user && !handleVoteAction()) {
+    // Removing an existing vote always remains available and frees a slot.
+    if (!user && !userVoted && !handleVoteAction()) {
       setShowAuthModal(true);
       return;
     }
@@ -1111,17 +1139,28 @@ function FanRequestSongRow({
       voted: nextVoted,
       count: Math.max(0, voteCount + (nextVoted ? 1 : -1)),
     });
+    setIsSubmitting(true);
 
     try {
-      await voteOnSong({
+      const result = await voteOnSong({
         setlistId: predictionSetlistId,
         songTitle,
         voteType: "upvote",
         ...(!user && { anonId }),
       });
-    } catch {
+      if (!user && result?.action) {
+        recordVoteAction(result.action as "added" | "removed");
+      }
+    } catch (error) {
       setOptimistic(null);
-      toast.error("Vote failed");
+      const message = error instanceof Error ? error.message.toLowerCase() : "";
+      if (!user && message.includes("anonymous users can only vote")) {
+        setShowAuthModal(true);
+      } else {
+        toast.error("Vote failed");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1170,9 +1209,10 @@ function FanRequestSongRow({
           onClick={() => {
             void handleVote();
           }}
+          disabled={isSubmitting}
           aria-pressed={userVoted}
           aria-label={userVoted ? `Remove vote for ${songTitle}` : `Vote for ${songTitle}`}
-          className={`flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-1.5 rounded-xl border flex-shrink-0 transition-colors duration-150 ${
+          className={`flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-1.5 rounded-xl border flex-shrink-0 transition-colors duration-150 disabled:opacity-70 ${
             userVoted
               ? "bg-primary border-primary text-primary-foreground"
               : "bg-secondary/60 border-border text-muted-foreground active:bg-secondary sm:hover:bg-secondary sm:hover:text-foreground"

@@ -4,6 +4,8 @@ import { internalRef } from "./adminHelpers";
 import { getAuthUserId } from "./auth";
 import { Id } from "./_generated/dataModel";
 
+const ANON_VOTE_LIMIT = 2;
+
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 
@@ -104,11 +106,11 @@ export const voteOnSong = mutation({
       if (isAnonymous) {
         const setlistVotes = await ctx.db
           .query("songVotes")
-          .withIndex("by_setlist", (q) => q.eq("setlistId", args.setlistId))
-          .filter((q) => q.eq(q.field("userId"), effectiveUserId))
-          .collect();
+          .withIndex("by_user_setlist_song", (q) =>
+            q.eq("userId", effectiveUserId).eq("setlistId", args.setlistId),
+          )
+          .take(ANON_VOTE_LIMIT);
 
-        const ANON_VOTE_LIMIT = 5;
         if (setlistVotes.length >= ANON_VOTE_LIMIT) {
           throw new Error(`Anonymous users can only vote on ${ANON_VOTE_LIMIT} songs per show. Sign up for more!`);
         }
@@ -198,7 +200,8 @@ export const voteOnSong = mutation({
 export const getSongVotes = query({
   args: {
     setlistId: v.id("setlists"),
-    songTitle: v.string()
+    songTitle: v.string(),
+    anonId: v.optional(v.string()),
   },
   returns: v.object({
     upvotes: v.number(),
@@ -206,6 +209,7 @@ export const getSongVotes = query({
   }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
+    const effectiveUserId = userId || args.anonId;
 
     const votes = await ctx.db
       .query("songVotes")
@@ -215,7 +219,9 @@ export const getSongVotes = query({
       )
       .collect();
 
-    const userVote = userId ? votes.find(v => v.userId === userId) : null;
+    const userVote = effectiveUserId
+      ? votes.find((vote) => vote.userId === effectiveUserId)
+      : null;
 
     return {
       upvotes: votes.length,
@@ -226,7 +232,10 @@ export const getSongVotes = query({
 
 // Get all votes for a setlist (for displaying song popularity)
 export const getSetlistSongVotes = query({
-  args: { setlistId: v.id("setlists") },
+  args: {
+    setlistId: v.id("setlists"),
+    anonId: v.optional(v.string()),
+  },
   returns: v.array(v.object({
     songTitle: v.string(),
     upvotes: v.number(),
@@ -234,6 +243,7 @@ export const getSetlistSongVotes = query({
   })),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
+    const effectiveUserId = userId || args.anonId;
 
     const votes = await ctx.db
       .query("songVotes")
@@ -246,7 +256,7 @@ export const getSetlistSongVotes = query({
     for (const vote of votes) {
       const current = songVoteMap.get(vote.songTitle) || { upvotes: 0, userVoted: false };
       current.upvotes++;
-      if (userId && vote.userId === userId) {
+      if (effectiveUserId && vote.userId === effectiveUserId) {
         current.userVoted = true;
       }
       songVoteMap.set(vote.songTitle, current);

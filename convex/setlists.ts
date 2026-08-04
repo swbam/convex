@@ -7,6 +7,8 @@ import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { getAuthUserId } from "./auth";
 
+const ANON_ADD_LIMIT = 2;
+
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 
@@ -115,14 +117,15 @@ export const addSongToSetlist = mutation({
       // For anonymous users, enforce limit of 2 song adds per show
       if (isAnonymous) {
         const showAddAction = `add_song:${args.showId}`;
-        // Use the by_user index instead of an unindexed full-table scan.
+        // Stop after the exact limit instead of scanning every action the
+        // anonymous visitor has ever taken.
         const showAdds = await ctx.db
           .query("userActions")
-          .withIndex("by_user", (q) => q.eq("userId", effectiveUserId))
-          .filter((q) => q.eq(q.field("action"), showAddAction))
-          .collect();
+          .withIndex("by_user_action", (q) =>
+            q.eq("userId", effectiveUserId).eq("action", showAddAction),
+          )
+          .take(ANON_ADD_LIMIT);
 
-        const ANON_ADD_LIMIT = 5;
         if (showAdds.length >= ANON_ADD_LIMIT) {
           throw new Error(`Anonymous users can only add ${ANON_ADD_LIMIT} songs per show. Sign up for more!`);
         }
@@ -137,6 +140,7 @@ export const addSongToSetlist = mutation({
         .first();
 
       let setlistId: Id<"setlists">;
+      let added = false;
 
       if (communitySetlist) {
         // Add song if not already present (case insensitive to avoid duplicates)
@@ -152,6 +156,7 @@ export const addSongToSetlist = mutation({
             lastUpdated: Date.now(),
           });
           setlistId = communitySetlist._id;
+          added = true;
         } else {
           setlistId = communitySetlist._id;
         }
@@ -170,10 +175,13 @@ export const addSongToSetlist = mutation({
           downvotes: 0,
         });
         await incrementShowSetlistCount(ctx, args.showId);
+        added = true;
       }
 
-      // Log the action for anonymous users (authenticated don't need limit tracking)
-      if (typeof effectiveUserId === "string") {
+      // Only successful anonymous additions consume the free-add allowance.
+      // Convex IDs are strings at runtime, so use the auth-derived flag rather
+      // than typeof to avoid logging authenticated users here.
+      if (isAnonymous && added) {
         await ctx.db.insert("userActions", {
           userId: effectiveUserId,
           action: `add_song:${args.showId}`,
@@ -181,7 +189,7 @@ export const addSongToSetlist = mutation({
         });
       }
 
-      return setlistId;
+      return { setlistId, added };
     } catch (error) {
       // Track song addition errors
       await trackError(ctx, "add_song_to_setlist", error, {

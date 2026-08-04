@@ -26,20 +26,28 @@ describe('Song votes (requires ENABLE_CONVEX_RUN=true and TEST_SETLIST_ID)', () 
     });
     expect(res1.status).toBe(0);
 
-    // Second vote on a different song should fail due to anon limit of 1
+    // A second vote on a different song is still within the free allowance.
     const res2 = runConvex('songVotes:voteOnSong', {
       setlistId,
       songTitle: 'Another Song',
       voteType: 'upvote',
       anonId,
     });
+    expect(res2.status).toBe(0);
+
+    // A third active vote should fail due to the anonymous limit of 2.
+    const res3 = runConvex('songVotes:voteOnSong', {
+      setlistId,
+      songTitle: 'Third Song',
+      voteType: 'upvote',
+      anonId,
+    });
     // Either non-zero exit or an error string in stderr depending on environment
-    expect([0, 1]).toContain(res2.status);
-    if (res2.status === 0) {
+    expect([0, 1]).toContain(res3.status);
+    if (res3.status === 0) {
       // If CLI swallowed the error, ensure error text exists
-      expect(res2.stdout + res2.stderr).toMatch(/Anonymous users can only upvote one song total/);
+      expect(res3.stdout + res3.stderr).toMatch(/Anonymous users can only vote on 2 songs per show/);
     }
   });
 });
-
 
