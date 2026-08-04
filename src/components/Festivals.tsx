@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MagicCard } from './ui/magic-card';
 import { buildTicketmasterAffiliateUrl } from '../utils/ticketmaster';
 import { pageVariants, sectionVariants, gridContainerVariants, gridItemVariants } from './animations/FadeIn';
+import { SEOHead } from './SEOHead';
 
 interface FestivalsProps {
   onFestivalClick: (slug: string) => void;
@@ -186,6 +187,10 @@ export function Festivals({ onFestivalClick }: FestivalsProps) {
 
   return (
     <div className="space-y-8 relative z-10">
+      <SEOHead
+        title={`Music Festival Lineups & Setlists ${currentYear} | setlists.live`}
+        description={`Explore ${currentYear} music festival lineups, dates, and set times — from Coachella to Bonnaroo. Vote on festival setlists and plan every day of the weekend.`}
+      />
       {/* ===== HERO SLIDER SECTION ===== */}
       {featuredFestivals.length > 0 && (
         <div className="relative w-full overflow-hidden">

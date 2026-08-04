@@ -1,8 +1,10 @@
 import React from "react";
 import { motion, useReducedMotion } from "framer-motion";
+import { useQuery, useAction } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import {
     TrendingUp, Music, Calendar, Database, Mic, RefreshCw, Loader2,
-    Shield, AlertCircle, CheckCircle, Sparkles, ImageIcon, Trash2,
+    Shield, AlertCircle, CheckCircle, Sparkles, ImageIcon, Trash2, Activity,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -64,6 +66,130 @@ function SectionTitle({ icon: Icon, children }: { icon: React.ElementType; child
             <Icon className="h-4 w-4 text-muted-foreground/50" />
             {children}
         </motion.h3>
+    );
+}
+
+/* ─── Setlist.fm import health ─── */
+const IMPORT_STATUS_META = [
+    { key: "completed", label: "Completed", chip: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", alwaysShow: true },
+    { key: "not_found", label: "Not found", chip: "bg-amber-500/10 text-amber-400 border-amber-500/20", alwaysShow: true },
+    { key: "failed", label: "Failed", chip: "bg-red-500/10 text-red-400 border-red-500/20", alwaysShow: true },
+    { key: "pending", label: "Pending", chip: "bg-white/[0.04] text-muted-foreground/70 border-white/[0.08]", alwaysShow: false },
+    { key: "importing", label: "Importing", chip: "bg-white/[0.04] text-muted-foreground/70 border-white/[0.08]", alwaysShow: false },
+    { key: "unset", label: "No status", chip: "bg-white/[0.04] text-muted-foreground/70 border-white/[0.08]", alwaysShow: false },
+] as const;
+
+function ImportHealthCard() {
+    const importStats = useQuery(api.setlistfm.getImportStats);
+
+    // Loading — skeleton matching neighboring sections
+    if (importStats === undefined) {
+        return <div className="h-28 rounded-xl bg-white/[0.02] animate-pulse" />;
+    }
+
+    // Non-admin — hide the card entirely
+    if (importStats === null) return null;
+
+    const recent = importStats.recentBreakdown ?? {};
+    const global = importStats.globalCounts ?? {};
+    const formatGlobal = (value: number) =>
+        value === importStats.globalCountsCappedAt ? `${value.toLocaleString()}+` : value.toLocaleString();
+
+    const globalParts = IMPORT_STATUS_META
+        .map((m) => ({ label: m.label, value: global[m.key] ?? 0 }))
+        .filter((p) => p.value > 0);
+
+    return (
+        <motion.div variants={fadeUp} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+            <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                    <Activity className="h-4 w-4 text-emerald-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-foreground text-sm">Setlist.fm Import Health</h3>
+                    <p className="text-[11px] text-muted-foreground/40">
+                        Completed shows from the last {importStats.windowDays} days by import status
+                    </p>
+                </div>
+                <span className="text-xs text-muted-foreground/40 font-mono tabular-nums flex-shrink-0">
+                    {importStats.recentCompletedShows.toLocaleString()} shows
+                </span>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+                {IMPORT_STATUS_META
+                    .filter((m) => m.alwaysShow || (recent[m.key] ?? 0) > 0)
+                    .map((m) => (
+                        <span
+                            key={m.key}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-medium ${m.chip}`}
+                        >
+                            {m.label}
+                            <span className="font-semibold tabular-nums">{(recent[m.key] ?? 0).toLocaleString()}</span>
+                        </span>
+                    ))}
+            </div>
+
+            <p className="mt-3 text-[11px] text-muted-foreground/30">
+                All-time:{" "}
+                {globalParts.length === 0
+                    ? "no import records yet"
+                    : globalParts.map((p) => `${p.label} ${formatGlobal(p.value)}`).join(" · ")}
+            </p>
+        </motion.div>
+    );
+}
+
+/* ─── Setlist.fm history import (manual trigger) ─── */
+function ImportSetlistHistoryCard() {
+    const [artistId, setArtistId] = React.useState("");
+    const [running, setRunning] = React.useState(false);
+    // api.admin.importSetlistHistoryForArtist is added by the backend concurrently;
+    // cast keeps this compiling if generated types lag the new action.
+    const importSetlistHistory = useAction((api as any).admin.importSetlistHistoryForArtist);
+
+    const handleImport = async () => {
+        const id = artistId.trim();
+        if (!id) {
+            toast.error("Enter an artist ID");
+            return;
+        }
+        setRunning(true);
+        try {
+            await importSetlistHistory({ artistId: id as any });
+            toast.success("Setlist history import started");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to import setlist history");
+        } finally {
+            setRunning(false);
+        }
+    };
+
+    return (
+        <motion.div variants={fadeUp} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2.5">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-medium">Import setlist history by Artist ID</p>
+            <div className="flex gap-2">
+                <Input
+                    placeholder="artistId"
+                    value={artistId}
+                    onChange={(e) => setArtistId(e.target.value)}
+                    className="border-white/[0.08] bg-white/[0.02] placeholder:text-muted-foreground/30"
+                />
+                <Button
+                    onClick={() => void handleImport()}
+                    disabled={running}
+                    variant="outline"
+                    className="border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05] whitespace-nowrap"
+                >
+                    {running ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    {running ? "Importing..." : "Import setlist history"}
+                </Button>
+            </div>
+        </motion.div>
     );
 }
 
@@ -134,6 +260,8 @@ export function AdminSyncSection(props: AdminSyncSectionProps) {
                     <SyncButton icon={RefreshCw} label="Import from Setlist.fm" loadingLabel="Importing..." loading={props.setlistSyncing} onClick={props.onSyncSetlists} />
                     <SyncButton icon={Database} label="Import Artist Catalogs" loadingLabel="Syncing..." loading={props.catalogSyncing} onClick={props.onResyncCatalogs} />
                 </motion.div>
+                <ImportSetlistHistoryCard />
+                <ImportHealthCard />
             </div>
 
             {/* ─── Force Sync & Engagement ─── */}

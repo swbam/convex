@@ -6,6 +6,7 @@ import { TrendingUp, Music, MapPin, Calendar, Clock, ChevronRight, Users, Loader
 import { motion } from 'framer-motion';
 import { useArtistImport, useShowImport } from '../hooks/useArtistImport';
 import { formatLocation } from '../lib/utils';
+import { SEOHead } from './SEOHead';
 
 interface TrendingProps {
   onArtistClick: (artistKey: Id<'artists'> | string, slug?: string) => void;
@@ -45,6 +46,10 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6 relative z-10">
+      <SEOHead
+        title="Trending Concerts This Week – Hot Setlists & Artists"
+        description="See which artists, shows, and setlists fans are voting on right now. Trending concerts updated in real time — join the vote before the show starts."
+      />
       {/* Streamlined Header with Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         {/* Tab Navigation */}

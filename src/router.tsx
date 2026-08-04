@@ -1,25 +1,29 @@
 import React from 'react';
 import { createBrowserRouter, Navigate, useRouteError, Outlet } from 'react-router-dom';
 import { App } from './App';
-import { SignInPage } from './pages/SignInPage';
-import { SignUpPage } from './pages/SignUpPage';
-import { UserProfilePage } from './pages/UserProfilePage';
-import { SSOCallback } from './pages/SSOCallback';
-import { SpotifyConnectPage } from './pages/SpotifyConnectPage';
-import { PrivacyPage } from './pages/PrivacyPage';
-import { TermsPage } from './pages/TermsPage';
-import { AboutPage } from './pages/AboutPage';
-import { BlogPage } from './pages/BlogPage';
-import { BlogPostPage } from './pages/BlogPostPage';
 import { ArtistNotFound } from './components/ArtistNotFound';
 import { ShowNotFound } from './components/ShowNotFound'; // Assume similar for shows
-import { ForArtistsPage } from './pages/ForArtistsPage';
-import { ForArtistsDashboardPage } from './pages/ForArtistsDashboardPage';
-import { ForArtistsShowDemandPage } from './pages/ForArtistsShowDemandPage';
-import { ForArtistsTeamPage } from './pages/ForArtistsTeamPage';
-import { ArtistClaimPage } from './pages/ArtistClaimPage';
-import { AcceptInvitePage } from './pages/AcceptInvitePage';
 import { ProtectedLayout } from './components/ProtectedLayout';
+import { SEOHead } from './components/SEOHead';
+
+// Keep the fan-facing shell lean. Auth, studio, blog/Sanity, and legal pages
+// are loaded only when their route is visited.
+const SignInPage = React.lazy(() => import('./pages/SignInPage').then((m) => ({ default: m.SignInPage })));
+const SignUpPage = React.lazy(() => import('./pages/SignUpPage').then((m) => ({ default: m.SignUpPage })));
+const UserProfilePage = React.lazy(() => import('./pages/UserProfilePage').then((m) => ({ default: m.UserProfilePage })));
+const SSOCallback = React.lazy(() => import('./pages/SSOCallback').then((m) => ({ default: m.SSOCallback })));
+const SpotifyConnectPage = React.lazy(() => import('./pages/SpotifyConnectPage').then((m) => ({ default: m.SpotifyConnectPage })));
+const PrivacyPage = React.lazy(() => import('./pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })));
+const TermsPage = React.lazy(() => import('./pages/TermsPage').then((m) => ({ default: m.TermsPage })));
+const AboutPage = React.lazy(() => import('./pages/AboutPage').then((m) => ({ default: m.AboutPage })));
+const BlogPage = React.lazy(() => import('./pages/BlogPage').then((m) => ({ default: m.BlogPage })));
+const BlogPostPage = React.lazy(() => import('./pages/BlogPostPage').then((m) => ({ default: m.BlogPostPage })));
+const ForArtistsPage = React.lazy(() => import('./pages/ForArtistsPage').then((m) => ({ default: m.ForArtistsPage })));
+const ForArtistsDashboardPage = React.lazy(() => import('./pages/ForArtistsDashboardPage').then((m) => ({ default: m.ForArtistsDashboardPage })));
+const ForArtistsShowDemandPage = React.lazy(() => import('./pages/ForArtistsShowDemandPage').then((m) => ({ default: m.ForArtistsShowDemandPage })));
+const ForArtistsTeamPage = React.lazy(() => import('./pages/ForArtistsTeamPage').then((m) => ({ default: m.ForArtistsTeamPage })));
+const ArtistClaimPage = React.lazy(() => import('./pages/ArtistClaimPage').then((m) => ({ default: m.ArtistClaimPage })));
+const AcceptInvitePage = React.lazy(() => import('./pages/AcceptInvitePage').then((m) => ({ default: m.AcceptInvitePage })));
 
 // Error boundary component for 404
 function Error404({ resetErrorBoundary }: { resetErrorBoundary: () => void }) {
@@ -33,12 +37,14 @@ export const router = createBrowserRouter([
     element: <App />,
   },
   {
+    // SEOHead applies the robots "noindex" meta for these auth paths
+    // (see NOINDEX_PREFIXES in SEOHead).
     path: '/signin',
-    element: <SignInPage />,
+    element: <><SEOHead /><SignInPage /></>,
   },
   {
     path: '/signup',
-    element: <SignUpPage />,
+    element: <><SEOHead /><SignUpPage /></>,
   },
   {
     path: '/sso-callback',

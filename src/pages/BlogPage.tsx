@@ -80,9 +80,8 @@ export function BlogPage() {
   return (
     <AppLayout>
       <SEOHead
-        title="Blog | setlists.live"
-        description="Concert news, setlist predictions, artist spotlights, and music industry insights from the setlists.live team."
-        canonicalUrl="/blog"
+        title="Concert Blog – Setlist Guides & Tour News | setlists.live"
+        description="Concert news, setlist predictions, festival guides, and artist spotlights from the setlists.live team. Read the latest before your next show."
       />
 
       {/* Full Width Hero Header */}

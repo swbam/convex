@@ -298,7 +298,10 @@ export const getUserActivityStats = query({
     }
     
     // ENHANCED: Calculate REAL user rank based on total votes
-    const allUsers = await ctx.db.query("users").collect();
+    // Bounded read: capped so a growing users table can't blow Convex's read
+    // limits. Rank is computed over the first 2000 users (currently the whole
+    // table); behavior is identical for those users.
+    const allUsers = await ctx.db.query("users").take(2000);
     const userVoteCounts = await Promise.all(
       allUsers.map(async (u) => {
         const uVotes = await ctx.db
@@ -451,8 +454,10 @@ export const getTrendingSetlists = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
     
-    // Get all setlists and calculate vote counts
-    const setlists = await ctx.db.query("setlists").collect();
+    // Bounded read: full-table .collect() on setlists exceeds Convex's read
+    // limits at prod scale. Take the newest 2000 (desc by _creationTime) so
+    // trending candidates are recent setlists, not the oldest rows.
+    const setlists = await ctx.db.query("setlists").order("desc").take(2000);
     const setlistsWithVotes = await Promise.all(
       setlists.map(async (setlist) => {
         const votes = await ctx.db

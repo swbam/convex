@@ -6,7 +6,8 @@ const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 const UPCOMING_URGENT_WINDOW_MS = 7 * DAY;
-const COMPLETED_IMPORT_WINDOW_MS = 3 * DAY;
+// Widened from 3 to 14 days to match the setlist.fm import-retry window
+const COMPLETED_IMPORT_WINDOW_MS = 14 * DAY;
 const DEMAND_RECONCILE_WINDOW_MS = 12 * HOUR;
 const MAX_AUTOMATED_ARTISTS_PER_RUN = 8;
 
@@ -39,7 +40,7 @@ export const getManagedArtistSyncCandidates = internalQuery({
       artists.map(async (artist) => {
         const upcomingShows = await ctx.db
           .query("shows")
-          .withIndex("by_artist_and_status", (q) => q.eq("artistId", artist._id).eq("status", "upcoming"))
+          .withIndex("by_artist_status_and_date", (q) => q.eq("artistId", artist._id).eq("status", "upcoming"))
           .order("asc")
           .take(3);
 
@@ -99,12 +100,12 @@ export const getArtistWarmupSnapshot = internalQuery({
     const [upcomingShows, completedShows, artistSongs] = await Promise.all([
       ctx.db
         .query("shows")
-        .withIndex("by_artist_and_status", (q) => q.eq("artistId", args.artistId).eq("status", "upcoming"))
+        .withIndex("by_artist_status_and_date", (q) => q.eq("artistId", args.artistId).eq("status", "upcoming"))
         .order("asc")
         .collect(),
       ctx.db
         .query("shows")
-        .withIndex("by_artist_and_status", (q) => q.eq("artistId", args.artistId).eq("status", "completed"))
+        .withIndex("by_artist_status_and_date", (q) => q.eq("artistId", args.artistId).eq("status", "completed"))
         .order("desc")
         .take(10),
       ctx.db
@@ -309,6 +310,14 @@ export const runManagedArtistWarmup = internalAction({
           showDate: show.date,
         });
         scheduledCompletedImports += 1;
+      }
+
+      // One-time setlist.fm history import so the artist's Past tab has data.
+      if (!snapshot.artist.lastSetlistfmHistorySyncAt) {
+        await ctx.scheduler.runAfter(0, internalRef.setlistfmHistory.importArtistHistory, {
+          artistId: args.artistId,
+        });
+        steps.push("setlistfm_history_import");
       }
 
       await ctx.runMutation(internalRef.artists.recordAutomationSync, {

@@ -8,6 +8,7 @@ import { formatLocation, formatTimeCompact } from '../lib/utils';
 import { useShowImport } from '../hooks/useArtistImport';
 import { pageVariants, sectionVariants, gridContainerVariants, gridItemVariants, headerVariants } from './animations/FadeIn';
 import { GridSkeleton } from './LoadingSkeleton';
+import { SEOHead } from './SEOHead';
 
 interface ShowsProps {
   onShowClick: (showId: Id<'shows'>, slug?: string) => void;
@@ -105,12 +106,16 @@ export function Shows({ onShowClick }: ShowsProps) {
   };
 
   return (
-    <motion.div 
+    <motion.div
       className="container mx-auto px-4 py-6 space-y-6 relative z-10"
       initial="hidden"
       animate="show"
       variants={pageVariants}
     >
+      <SEOHead
+        title="Upcoming Concerts – Vote on Setlists by City & Date"
+        description="Find upcoming concerts near you, filter by city, and vote on the songs you want played. Setlist predictions for hundreds of shows, updated daily."
+      />
       {/* Streamlined Header with Search */}
       <motion.div 
         className="flex flex-col sm:flex-row sm:items-center gap-4"

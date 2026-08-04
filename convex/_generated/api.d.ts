@@ -44,6 +44,7 @@ import type * as logger from "../logger.js";
 import type * as maintenance from "../maintenance.js";
 import type * as media from "../media.js";
 import type * as setlistfm from "../setlistfm.js";
+import type * as setlistfmHistory from "../setlistfmHistory.js";
 import type * as setlists from "../setlists.js";
 import type * as shows from "../shows.js";
 import type * as songVotes from "../songVotes.js";
@@ -106,6 +107,7 @@ declare const fullApi: ApiFromModules<{
   maintenance: typeof maintenance;
   media: typeof media;
   setlistfm: typeof setlistfm;
+  setlistfmHistory: typeof setlistfmHistory;
   setlists: typeof setlists;
   shows: typeof shows;
   songVotes: typeof songVotes;

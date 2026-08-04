@@ -55,8 +55,6 @@ export const validateEnvironment = action({
       "SITE_URL",
     ];
     const productionRequired = [
-      "CLERK_SECRET_KEY",
-      "CLERK_WEBHOOK_SECRET",
       "RESEND_API_KEY",
       "OWNER_NOTIFICATION_EMAIL",
       "SPOTIFY_TOKEN_ENC_KEY",
@@ -93,6 +91,14 @@ export const validateEnvironment = action({
       warnings.push('SENTRY_DSN is not configured; production error visibility will be limited.');
     }
 
+    if (process.env.NODE_ENV === "production" && !process.env.CLERK_SECRET_KEY) {
+      warnings.push('CLERK_SECRET_KEY is not configured; Clerk admin role sync will be skipped.');
+    }
+
+    if (process.env.NODE_ENV === "production" && !process.env.CLERK_WEBHOOK_SECRET) {
+      warnings.push('CLERK_WEBHOOK_SECRET is not configured; Clerk webhook ingestion will reject requests.');
+    }
+
     return {
       valid: missing.length === 0,
       missing,
@@ -113,12 +119,19 @@ export const getSystemStats = query({
     lastSyncTimestamp: v.optional(v.number()),
   }),
   handler: async (ctx) => {
+    // Bounded reads: full-table .collect() here blew Convex's 16MB byte-read
+    // limit in production (shows/setlists/votes are large). Counts are capped
+    // at COUNT_CAP — read "5000" as "5000+".
+    const COUNT_CAP = 5000;
     const [artists, shows, setlists, votes, syncJobs] = await Promise.all([
-      ctx.db.query("artists").collect(),
-      ctx.db.query("shows").collect(),
-      ctx.db.query("setlists").collect(),
-      ctx.db.query("votes").collect(),
-      ctx.db.query("syncJobs").withIndex("by_status", (q) => q.eq("status", "running")).collect(),
+      ctx.db.query("artists").take(COUNT_CAP),
+      ctx.db.query("shows").take(COUNT_CAP),
+      ctx.db.query("setlists").take(COUNT_CAP),
+      ctx.db.query("votes").take(COUNT_CAP),
+      ctx.db
+        .query("syncJobs")
+        .withIndex("by_status", (q) => q.eq("status", "running"))
+        .take(500),
     ]);
 
     // Find most recent sync timestamp

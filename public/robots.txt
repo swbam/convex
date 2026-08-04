@@ -2,13 +2,15 @@
 User-agent: *
 Allow: /
 
-# Block admin and API routes
+# Block admin, auth, and account routes from indexing
 Disallow: /admin
-Disallow: /api/
-
-# Block auth pages from indexing
-Disallow: /sign-in
-Disallow: /sign-up
+Disallow: /signin
+Disallow: /signup
+Disallow: /profile
+Disallow: /for-artists
+Disallow: /sso-callback
+Disallow: /spotify-connect
+Disallow: /studio
 
 # Sitemap location
 Sitemap: https://www.setlists.live/sitemap.xml

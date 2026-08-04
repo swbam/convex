@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Music } from "lucide-react";
 
 
@@ -24,6 +24,7 @@ import { toast } from "sonner";
 
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import AdminDashboard from "./components/AdminDashboard";
+import { SEOHead } from "./components/SEOHead";
 import { AuthGuard } from "./components/AuthGuard";
 import { BackendErrorMonitor } from "./components/BackendErrorMonitor";
 
@@ -36,27 +37,11 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const _params = useParams();
+  const shouldReduceMotion = useReducedMotion();
 
   const [currentView, setCurrentView] = useState<View>("home");
   const [selectedArtistId, setSelectedArtistId] = useState<Id<"artists"> | null>(null);
   const [selectedShowId, setSelectedShowId] = useState<Id<"shows"> | null>(null);
-
-
-
-  const user = useQuery(api.auth.loggedInUser);
-
-  // Log user auth state for debugging
-  useEffect(() => {
-    console.log('🔍 App.tsx: User auth state', {
-      convexUser: user,
-      hasIdentity: !!user?.identity,
-      hasAppUser: !!user?.appUser,
-      needsSetup: user?.needsSetup,
-      currentPath: location.pathname,
-      timestamp: new Date().toISOString()
-    });
-  }, [user, location.pathname]);
-
   // Note: User creation is now handled by AuthGuard component
   // This prevents duplicate creation attempts and race conditions
 
@@ -94,7 +79,6 @@ function App() {
   // Update view based on current route
   useEffect(() => {
     const path = location.pathname;
-    console.log('🔄 Route change detected:', path, 'current view:', currentView);
 
     // Basic SEO title updates per route
     if (path === '/') {
@@ -104,11 +88,9 @@ function App() {
       setCurrentView('home');
     } else if (path === '/festivals') {
       // Handle /festivals BEFORE /artists/ and /shows/ to ensure exact match
-      console.log('🎪 Setting view to festivals');
       setCurrentView('festivals');
       document.title = 'Music Festivals – setlists.live';
     } else if (path.startsWith('/festivals/')) {
-      console.log('🎪 Setting view to festival detail');
       setCurrentView('festival');
       document.title = 'Festival – setlists.live';
     } else if (path.startsWith('/artists/')) {
@@ -238,24 +220,37 @@ function App() {
     toast.info("Sign in to add more songs and create setlists");
   };
 
-  // Page transition variants - opacity-only to prevent layout shift
+  // Keep route changes understated and non-blocking. Waiting for the old page
+  // to fully exit caused a visible black flash on slower mobile devices.
   const pageVariants = {
-    initial: { opacity: 0 },
+    initial: {
+      opacity: shouldReduceMotion ? 1 : 0.985,
+      y: shouldReduceMotion ? 0 : 4,
+    },
     animate: {
       opacity: 1,
+      y: 0,
       transition: {
-        duration: 0.2,
+        duration: shouldReduceMotion ? 0 : 0.18,
         ease: [0.25, 0.1, 0.25, 1]
       }
     },
     exit: {
-      opacity: 0,
-      transition: { duration: 0.15 }
+      opacity: shouldReduceMotion ? 1 : 0,
+      transition: { duration: shouldReduceMotion ? 0 : 0.1 }
     }
   };
 
+  const transitionKey =
+    currentView === "artist"
+      ? `artist:${selectedArtistId ?? artistSlug ?? "loading"}`
+      : currentView === "show"
+        ? `show:${selectedShowId ?? showSlug ?? "loading"}`
+        : currentView === "festival"
+          ? `festival:${festivalSlug ?? "loading"}`
+          : currentView;
+
   const renderMainContent = () => {
-    console.log('🎨 renderMainContent called with view:', currentView);
     switch (currentView) {
       case "artist":
         // CRITICAL FIX: Proper artist loading states
@@ -432,7 +427,11 @@ function App() {
         return null;
       case "admin":
         return (
-          <AdminDashboard />
+          <>
+            {/* SEOHead applies the robots "noindex" meta for /admin */}
+            <SEOHead />
+            <AdminDashboard />
+          </>
         );
       case "docs":
         return <DocsPage />;
@@ -483,13 +482,14 @@ function App() {
           <AuthGuard>
             <ScrollToTop />
             <AppLayout>
-              <AnimatePresence mode="wait">
+              <AnimatePresence initial={false} mode="popLayout">
                 <motion.div
-                  key={location.pathname}
+                  key={transitionKey}
                   variants={pageVariants}
                   initial="initial"
                   animate="animate"
                   exit="exit"
+                  className="min-w-0"
                 >
                   {renderMainContent()}
                 </motion.div>

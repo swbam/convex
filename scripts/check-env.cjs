@@ -22,8 +22,6 @@ const backendRequired = [
 ];
 
 const productionOnly = [
-  'CLERK_SECRET_KEY',
-  'CLERK_WEBHOOK_SECRET',
   'RESEND_API_KEY',
   'OWNER_NOTIFICATION_EMAIL',
   'SPOTIFY_TOKEN_ENC_KEY',
@@ -58,6 +56,12 @@ if (missing.length > 0) {
   const warnings = [];
   if (!process.env.SENTRY_DSN) {
     warnings.push('SENTRY_DSN is not set');
+  }
+  if (isProductionLike && !process.env.CLERK_SECRET_KEY) {
+    warnings.push('CLERK_SECRET_KEY is not set; Clerk admin role sync will be skipped');
+  }
+  if (isProductionLike && !process.env.CLERK_WEBHOOK_SECRET) {
+    warnings.push('CLERK_WEBHOOK_SECRET is not set; Clerk webhook ingestion will reject requests');
   }
   if (warnings.length > 0) {
     console.warn('⚠️ Env warnings:', warnings.join(', '));

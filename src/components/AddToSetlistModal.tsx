@@ -14,6 +14,10 @@ interface AddToSetlistModalProps {
   onSignInRequired: () => void;
 }
 
+// Per-show free-add budget for anonymous users (mirrors ShowDetail and the
+// server-side anonymous limits in setlists).
+const ANON_FREE_ADDS = 5;
+
 export function AddToSetlistModal({ 
   isOpen, 
   onClose, 
@@ -31,19 +35,20 @@ export function AddToSetlistModal({
   const upcomingShows = shows?.filter(show => show.status === "upcoming") || [];
 
   const handleAddToShow = async (showId: Id<"shows">) => {
-    // Generate or get anonymous user ID from localStorage
-    let anonId = localStorage.getItem('anonUserId');
+    // Shared anonymous identity — same localStorage key ShowDetail uses
+    let anonId = localStorage.getItem("anonId");
     if (!anonId && !user) {
-      anonId = `anon_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      localStorage.setItem('anonUserId', anonId);
+      anonId = `anon_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+      localStorage.setItem("anonId", anonId);
     }
 
-    // Check if anonymous user has already added a song
-    const hasAddedBefore = localStorage.getItem('hasAddedSong') === 'true';
-    
-    // FIXED: Only show sign-in modal AFTER user has tried adding 1 song
-    if (!user && hasAddedBefore) {
-      toast.info("Sign in to add more songs to your predictions");
+    // Per-show free-add budget (same counter ShowDetail tracks)
+    const addedKey = `addCount_${showId}`;
+    const addCount = parseInt(localStorage.getItem(addedKey) || "0", 10) || 0;
+    if (!user && addCount >= ANON_FREE_ADDS) {
+      toast.info(
+        `You've used your ${ANON_FREE_ADDS} free song adds for this show — sign in to add more`
+      );
       onSignInRequired();
       return;
     }
@@ -58,17 +63,17 @@ export function AddToSetlistModal({
         anonId: !user && anonId ? anonId : undefined,
       });
 
-      // Mark that anonymous user has added their first song
+      // Track anonymous adds against the per-show budget
       if (!user) {
-        localStorage.setItem('hasAddedSong', 'true');
+        localStorage.setItem(addedKey, String(addCount + 1));
       }
 
       toast.success(`Added "${songTitle}" to your setlist prediction`);
       onClose();
     } catch (error: any) {
-      // Handle backend limit error gracefully
-      if (error?.message?.includes("Anonymous users can only add one song")) {
-        toast.info("Sign in to add more songs to your predictions");
+      // Handle backend anonymous-limit errors gracefully
+      if (error?.message?.toLowerCase().includes("anonymous")) {
+        toast.info("Sign in to keep adding songs to predictions");
         onSignInRequired();
       } else {
         toast.error("Failed to add song to setlist");
@@ -80,7 +85,7 @@ export function AddToSetlistModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-card/50 z-50 flex items-end sm:items-center justify-center sm:p-4 safe-area-bottom">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center sm:p-4 safe-area-bottom">
       <div className="bg-card border rounded-t-xl sm:rounded-xl shadow-lg w-full sm:max-w-md max-h-[85vh] sm:max-h-[80vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom-5 sm:slide-in-from-bottom-0 duration-300">
         <div className="flex items-center justify-between p-3 sm:p-4 border-b sticky top-0 bg-card z-10">
           <h2 className="text-responsive-base sm:text-responsive-lg font-semibold">Add to Setlist</h2>

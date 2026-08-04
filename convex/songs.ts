@@ -14,6 +14,18 @@ export const countByArtist = internalQuery({
   },
 });
 
+export const countByArtistPublic = query({
+  args: { artistId: v.id("artists") },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const artistSongs = await ctx.db
+      .query("artistSongs")
+      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
+      .collect();
+    return artistSongs.length;
+  },
+});
+
 export const getByArtist = query({
   args: { 
     artistId: v.id("artists"),
@@ -21,18 +33,16 @@ export const getByArtist = query({
   },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
-    // Default to 200 songs - enough for most artist catalogs
-    const limit = args.limit || 200;
-    
-    console.log(`🔍 getByArtist query called for artist: ${args.artistId}, limit: ${limit}`);
+    // The show picker can request a complete large catalog, while compact
+    // surfaces (artist cards/details) pass a much smaller limit. Keep a hard
+    // upper bound so one public query cannot create an unbounded read.
+    const limit = Math.max(1, Math.min(args.limit ?? 200, 500));
     
     // Get artist-song relationships
     const artistSongs = await ctx.db
       .query("artistSongs")
       .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
       .take(limit);
-
-    console.log(`📊 Found ${artistSongs.length} artistSong relationships`);
 
     // Get the actual songs
     const songs = await Promise.all(
@@ -45,8 +55,6 @@ export const getByArtist = query({
     const studioSongs = (songs.filter(Boolean) as Array<any>)
       .filter((s) => !s.isLive && !s.isRemix)
       .filter((s) => !/(commentary)/i.test(s.title || ''));
-
-    console.log(`✅ Returning ${studioSongs.length} studio songs`);
 
     return studioSongs.sort((a, b) => (b?.popularity || 0) - (a?.popularity || 0));
   },

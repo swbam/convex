@@ -1,6 +1,6 @@
-import { action, internalAction, internalQuery } from "./_generated/server";
+import { action, internalAction, internalQuery, query } from "./_generated/server";
 import { v } from "convex/values";
-import { internalRef } from "./adminHelpers";
+import { internalRef, requireAdmin } from "./adminHelpers";
 import { Id } from "./_generated/dataModel";
 
 // Type workaround for Convex deep type instantiation issues
@@ -410,32 +410,101 @@ export const getCompletedShowsNeedingImport = internalQuery({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx) => {
-    const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
+    const now = Date.now();
+    const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
+    const today = new Date(now).toISOString().slice(0, 10);
+    const windowStart = new Date(now - 14 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
 
-    // Get shows that need first-time import.
-    // Batch raised from 5→20 to clear backlog faster; per-show 2s spacing in
-    // checkCompletedShows keeps us within setlist.fm rate limits.
-    const newShows = await ctx.db
+    // Scan a bounded 14-day date window instead of filtering the full
+    // completed-shows table: an index filter that finds few matches scans
+    // until the 4096-document read limit and kills the cron. Setlist.fm data
+    // lands 1-3 days after a show; beyond 14 days it almost never appears, so
+    // recent shows are also the only ones worth the daily API budget. Older
+    // backlog is handled by admin backfill actions.
+    const recent = await ctx.db
       .query("shows")
-      .withIndex("by_status", (q) => q.eq("status", "completed"))
-      .filter((q) => q.or(
-        q.eq(q.field("importStatus"), undefined),
-        q.eq(q.field("importStatus"), "pending"),
-        q.eq(q.field("importStatus"), "failed")
-      ))
-      .take(20);
+      .withIndex("by_status_and_date", (q) =>
+        q.eq("status", "completed").gte("date", windowStart).lte("date", today),
+      )
+      .order("desc")
+      .take(600);
 
-    // Also retry "not_found" shows after 24h (Setlist.fm data often appears late)
-    const retryShows = await ctx.db
-      .query("shows")
-      .withIndex("by_status", (q) => q.eq("status", "completed"))
-      .filter((q) => q.and(
-        q.eq(q.field("importStatus"), "not_found"),
-        q.lt(q.field("lastSynced"), twentyFourHoursAgo)
-      ))
-      .take(10);
+    // First-time imports, newest shows first (batch of 20; per-show 2s spacing
+    // in checkCompletedShows keeps us within setlist.fm rate limits).
+    const newShows = recent
+      .filter(
+        (s) =>
+          s.importStatus === undefined ||
+          s.importStatus === "pending" ||
+          s.importStatus === "failed"
+      )
+      .slice(0, 20);
+
+    // Retry "not_found" once per 24h while the show is inside the 14-day
+    // window, then stop — previously these retried forever and ancient shows
+    // starved the retry budget for fresh ones.
+    const retryShows = recent
+      .filter(
+        (s) =>
+          s.importStatus === "not_found" &&
+          (s.lastSynced ?? 0) < twentyFourHoursAgo
+      )
+      .slice(0, 10);
 
     return [...newShows, ...retryShows];
+  },
+});
+
+// Admin observability: importStatus breakdown for recently-completed shows
+// plus bounded global counts (capped at 1000 per status to stay within read
+// limits — "1000" should be read as "1000+").
+export const getImportStats = query({
+  args: {},
+  returns: v.union(v.null(), v.any()),
+  handler: async (ctx) => {
+    try {
+      await requireAdmin(ctx);
+    } catch {
+      return null;
+    }
+
+    const now = Date.now();
+    const today = new Date(now).toISOString().slice(0, 10);
+    const windowStart = new Date(now - 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+
+    const recent = await ctx.db
+      .query("shows")
+      .withIndex("by_status_and_date", (q) =>
+        q.eq("status", "completed").gte("date", windowStart).lte("date", today),
+      )
+      .order("desc")
+      .take(2000);
+    const recentBreakdown: Record<string, number> = {};
+    for (const s of recent) {
+      const key = s.importStatus ?? "unset";
+      recentBreakdown[key] = (recentBreakdown[key] ?? 0) + 1;
+    }
+
+    const globalCounts: Record<string, number> = {};
+    for (const status of ["pending", "importing", "completed", "not_found", "failed"] as const) {
+      const rows = await ctx.db
+        .query("shows")
+        .withIndex("by_import_status", (q) => q.eq("importStatus", status))
+        .take(1000);
+      globalCounts[status] = rows.length;
+    }
+
+    return {
+      windowDays: 30,
+      recentCompletedShows: recent.length,
+      recentBreakdown,
+      globalCounts,
+      globalCountsCappedAt: 1000,
+    };
   },
 });
 
@@ -450,7 +519,8 @@ export const getShowsWithEmptySetlists = internalQuery({
     // Get completed shows that might have empty setlists
     const completedShows = await ctx.db
       .query("shows")
-      .withIndex("by_status", (q) => q.eq("status", "completed"))
+      .withIndex("by_status_and_date", (q) => q.eq("status", "completed"))
+      .order("desc")
       .filter((q) => q.and(
         q.eq(q.field("importStatus"), "completed"),
         q.lt(q.field("lastSynced"), twentyFourHoursAgo)
@@ -535,7 +605,8 @@ export const getPendingImports = internalQuery({
   handler: async (ctx) => {
     return await ctx.db
       .query("shows")
-      .withIndex("by_status", (q) => q.eq("status", "completed"))
+      .withIndex("by_status_and_date", (q) => q.eq("status", "completed"))
+      .order("desc")
       .filter((q) => q.or(
         q.eq(q.field("importStatus"), "pending"),
         q.eq(q.field("importStatus"), undefined)

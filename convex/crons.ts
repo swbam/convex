@@ -14,9 +14,11 @@ const crons = cronJobs();
 // DAILY JOBS (run once per day at specific times)
 // -----------------------------------------------
 
-// Setlist.fm import: Daily at midnight PST (8:00 UTC)
-// Setlist.fm data often takes 1-3 days to appear, so daily is plenty
-crons.cron("check-completed-shows", "0 8 * * *", internalRef.setlistfm.checkCompletedShows, {});
+// Setlist.fm import: Every 6 hours (setlists usually appear within hours of a show)
+// API budget: 4 runs/day x <=30 shows ~= <=240 calls/day, plus history backfill
+// (48 runs x 10 artists ~= 480 calls/day) ~= 720/day total — well under
+// setlist.fm's ~1440/day (~1 req/min sustained) allowance.
+crons.cron("check-completed-shows", "0 */6 * * *", internalRef.setlistfm.checkCompletedShows, {});
 
 // Daily cleanup: Run at 3:00 AM UTC
 crons.cron("daily-cleanup", "0 3 * * *", internalRef.maintenance.cleanupOrphanedRecords, {});

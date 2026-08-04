@@ -60,21 +60,20 @@ export function VotingButton({ setlistId, onSignInRequired }: VotingButtonProps)
   return (
     <motion.button
       whileTap={{ scale: 0.95 }}
-      whileHover={{ scale: 1.05 }}
       onClick={() => void handleVote()}
       disabled={isVoting}
       aria-pressed={hasVoted}
-      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full transition-colors duration-200 border ${
+      className={`inline-flex items-center justify-center gap-2 px-4 min-h-[44px] min-w-[44px] rounded-full transition-colors duration-200 border ${
         hasVoted
-          ? "bg-primary/20 text-primary border-primary/30"
-          : "bg-secondary text-muted-foreground hover:bg-secondary border-border"
+          ? "bg-primary text-primary-foreground border-primary"
+          : "bg-secondary text-muted-foreground border-border active:bg-secondary/80 sm:hover:text-foreground"
       }`}
       title="Upvote this setlist"
     >
       <ChevronUp
         className={`h-4 w-4 ${hasVoted ? "fill-current" : ""}`}
       />
-      <span className={`font-semibold text-sm tabular-nums ${hasVoted ? "text-primary" : "text-muted-foreground"}`}>
+      <span className="font-semibold text-sm tabular-nums">
         {voteCount}
       </span>
     </motion.button>

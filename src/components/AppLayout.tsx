@@ -14,9 +14,10 @@ import { MobileBottomNav } from './MobileBottomNav'
 import { PageContainer } from './PageContainer'
 import { Button } from './ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from './ui/dropdown-menu'
-import { Home, Mic, Menu, X, User, Settings, Shield, LogIn, Calendar, Activity, Sparkles, TrendingUp } from 'lucide-react'
+import { Home, Mic, Menu, X, User, Settings, Shield, Calendar, Activity, Sparkles, TrendingUp } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { MobileThemeToggle } from './MobileThemeToggle'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 
 interface AppLayoutProps {
   children?: React.ReactNode
@@ -31,11 +32,19 @@ const navigationItems = [
   { name: 'Studio', href: '/studio', icon: Settings },
 ]
 
+const desktopNavItemClass = (isActive: boolean) =>
+  `flex h-9 items-center rounded-lg px-3 text-sm font-medium transition-colors duration-150 ${
+    isActive
+      ? 'bg-accent text-foreground'
+      : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground'
+  }`
+
 export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { user, isSignedIn } = useUser()
+  const shouldReduceMotion = useReducedMotion()
 
   // Get user's app data to check admin status
   const appUser = useQuery(api.auth.loggedInUser)
@@ -47,20 +56,29 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="flex min-h-dvh bg-transparent text-foreground relative w-full max-w-[100vw]" style={{ overflowX: 'clip' }}>
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-card/80 backdrop-blur-sm lg:hidden animate-in fade-in-0 duration-300"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      <AnimatePresence initial={false}>
+        {sidebarOpen && (
+          <>
+            <motion.div
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm lg:hidden"
+              initial={{ opacity: shouldReduceMotion ? 1 : 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: shouldReduceMotion ? 1 : 0 }}
+              transition={{ duration: shouldReduceMotion ? 0 : 0.18 }}
+              onClick={() => setSidebarOpen(false)}
+            />
 
-      {/* Mobile-only Sidebar (hidden on desktop for centered layout) */}
-      <aside className={`
-        fixed inset-y-0 left-0 z-50 w-[85vw] max-w-sm transform transition-transform duration-300 ease-in-out
-        lg:hidden safe-area-top safe-area-bottom
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
+            {/* Mobile-only Sidebar (hidden on desktop for centered layout) */}
+            <motion.aside
+              className="fixed inset-y-0 left-0 z-50 w-[85vw] max-w-sm lg:hidden safe-area-top safe-area-bottom"
+              initial={{ x: shouldReduceMotion ? 0 : '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: shouldReduceMotion ? 0 : '-100%' }}
+              transition={{
+                duration: shouldReduceMotion ? 0 : 0.24,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+            >
         <div className="h-full rounded-none border-r border-border bg-background/95 backdrop-blur-xl overflow-y-auto">
           {/* Sidebar Header with Magic UI */}
           <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-xl border-b border-border">
@@ -262,7 +280,10 @@ export function AppLayout({ children }: AppLayoutProps) {
             )}
           </div>
         </div>
-      </aside>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Top navigation - FIXED at root level for reliable sticky behavior */}
       <header className="fixed top-0 left-0 right-0 z-[100] border-b border-border bg-background/95 backdrop-blur-xl safe-area-top shadow-sm">
@@ -272,20 +293,20 @@ export function AppLayout({ children }: AppLayoutProps) {
               <span className="text-xl sm:text-2xl font-bold text-foreground" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>setlists.live</span>
             </button>
 
-            <nav className="hidden md:flex items-center gap-1">
-              <button onClick={() => void navigate('/')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname === '/' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Home</button>
-              <button onClick={() => void navigate('/artists')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/artists') ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Artists</button>
-              <button onClick={() => void navigate('/shows')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/shows') ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Shows</button>
-              <button onClick={() => void navigate('/festivals')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/festivals') ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Festivals</button>
-              <button onClick={() => void navigate('/trending')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/trending') ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Trending</button>
-              <button onClick={() => void navigate('/blog')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/blog') ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Blog</button>
+            <nav className="hidden md:flex items-center gap-0.5">
+              <button onClick={() => void navigate('/')} className={desktopNavItemClass(location.pathname === '/')}>Home</button>
+              <button onClick={() => void navigate('/artists')} className={desktopNavItemClass(location.pathname.startsWith('/artists'))}>Artists</button>
+              <button onClick={() => void navigate('/shows')} className={desktopNavItemClass(location.pathname.startsWith('/shows'))}>Shows</button>
+              <button onClick={() => void navigate('/festivals')} className={desktopNavItemClass(location.pathname.startsWith('/festivals'))}>Festivals</button>
+              <button onClick={() => void navigate('/trending')} className={desktopNavItemClass(location.pathname.startsWith('/trending'))}>Trending</button>
+              <button onClick={() => void navigate('/blog')} className={desktopNavItemClass(location.pathname.startsWith('/blog'))}>Blog</button>
               {/* Dashboard link - only show for signed-in users */}
               {isSignedIn && (
-                <button onClick={() => void navigate('/dashboard')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname === '/dashboard' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Dashboard</button>
+                <button onClick={() => void navigate('/dashboard')} className={desktopNavItemClass(location.pathname === '/dashboard')}>Dashboard</button>
               )}
               {/* Admin link - only show for admin users */}
               {appUser?.appUser?.role === 'admin' && (
-                <button onClick={() => void navigate('/admin')} className={`px-3.5 py-2 rounded-lg text-base font-medium transition-all ${location.pathname.startsWith('/admin') ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}>Admin</button>
+                <button onClick={() => void navigate('/admin')} className={desktopNavItemClass(location.pathname.startsWith('/admin'))}>Admin</button>
               )}
             </nav>
 
@@ -315,7 +336,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               {isSignedIn && user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="hidden md:flex items-center gap-2">
+                    <Button variant="ghost" className="hidden h-9 items-center gap-2 rounded-lg px-3 text-sm md:flex">
                       <div className="w-6 h-6 bg-primary/20 border border-primary/30 rounded-full flex items-center justify-center text-xs font-semibold text-primary">
                         {user.firstName?.[0] || user.emailAddresses[0]?.emailAddress[0]?.toUpperCase() || 'U'}
                       </div>
@@ -347,12 +368,19 @@ export function AppLayout({ children }: AppLayoutProps) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <div className="hidden md:flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => void navigate('/signin')}>
-                    <LogIn className="h-4 w-4 mr-2" />
+                <div className="hidden md:flex items-center gap-1.5">
+                  <Button
+                    variant="ghost"
+                    onClick={() => void navigate('/signin')}
+                    className="h-9 rounded-lg px-3 text-sm font-medium text-muted-foreground shadow-none hover:text-foreground"
+                  >
                     Sign In
                   </Button>
-                  <Button variant="default" size="sm" onClick={() => void navigate('/signup')}>
+                  <Button
+                    variant="default"
+                    onClick={() => void navigate('/signup')}
+                    className="h-9 rounded-lg px-4 text-sm font-semibold shadow-none"
+                  >
                     Sign Up
                   </Button>
                 </div>

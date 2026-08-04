@@ -802,11 +802,14 @@ export const getAllInternal = internalQuery({
 export const resetInactiveTrendingScores = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const artists = await ctx.db.query("artists").collect();
-    
+    // Bounded read: artists is ~1.1k rows today; cap so growth can't blow
+    // Convex's read limits. Artists beyond the cap are skipped this run.
+    const artists = await ctx.db.query("artists").take(3000);
+
     for (const artist of artists) {
-      // Reset trending score to 0 for artists with low activity
-      if ((artist.trendingScore || 0) < 5) {
+      // Reset trending score to 0 for artists with low activity.
+      // Skip artists already at exactly 0 — no-op patches cause OCC conflicts.
+      if ((artist.trendingScore || 0) < 5 && artist.trendingScore !== 0) {
         await ctx.db.patch(artist._id, {
           trendingScore: 0,
         });
@@ -1018,15 +1021,20 @@ export const deleteArtistInternal = internalMutation({
   },
 });
 
-// Get all artist slugs for sitemap generation
+// Get active artist slugs for sitemap generation (bounded at 5000 docs;
+// table is ~1.1k rows today). lastmod is the most recent sync timestamp.
 export const getAllSlugs = internalQuery({
   args: {},
-  returns: v.array(v.string()),
+  returns: v.array(v.object({ slug: v.string(), lastmod: v.optional(v.number()) })),
   handler: async (ctx) => {
     const artists = await ctx.db
       .query("artists")
       .filter((q) => q.eq(q.field("isActive"), true))
-      .collect();
-    return artists.map((a) => a.slug).filter((s): s is string => !!s);
+      .take(5000);
+    const results: { slug: string; lastmod?: number }[] = [];
+    for (const a of artists) {
+      if (a.slug) results.push({ slug: a.slug, lastmod: a.lastSynced ?? a._creationTime });
+    }
+    return results;
   },
 });

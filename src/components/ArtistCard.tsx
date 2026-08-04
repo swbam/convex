@@ -6,6 +6,7 @@ import { useMutation } from "convex/react";
 import { Heart, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
+import { formatCompactNumber } from "../lib/format";
 
 interface ArtistCardProps {
   artist: any;
@@ -35,12 +36,35 @@ function ArtistCardComponent({
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+  };
+
+  const metaParts: string[] = [];
+  if (artist.genres?.[0]) {
+    metaParts.push(artist.genres[0]);
+  }
+  if (artist.upcomingShowsCount > 0) {
+    metaParts.push(`${artist.upcomingShowsCount} ${artist.upcomingShowsCount === 1 ? 'show' : 'shows'}`);
+  }
+  if (typeof artist.followers === 'number' && artist.followers > 0) {
+    metaParts.push(`${formatCompactNumber(artist.followers)} fans`);
+  }
+
   return (
     <motion.div
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
       whileTap={{ scale: 0.98 }}
       className={cn(
         "group relative overflow-hidden touch-manipulation cursor-pointer transition-all duration-200",
+        // Keyboard focus
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset rounded-xl",
         // Mobile: simple border bottom for list feel
         "border-b border-border/50 last:border-b-0",
         // Desktop: glow card styling
@@ -50,12 +74,12 @@ function ArtistCardComponent({
       <div className="flex items-center gap-3 p-3 sm:p-4 min-h-[72px]">
         {/* Artist Image - Compact Circle */}
         <div className="relative flex-shrink-0">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden bg-secondary ring-1 ring-border">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden bg-secondary ring-1 ring-border transition-colors group-hover:ring-primary/40">
             {artist.images?.[0] ? (
-              <img 
-                src={artist.images[0]} 
+              <img
+                src={artist.images[0]}
                 alt={artist.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-foreground/40 text-xl font-bold">
@@ -70,19 +94,11 @@ function ArtistCardComponent({
           <h3 className="text-foreground font-semibold text-base leading-tight line-clamp-1 mb-0.5">
             {artist.name}
           </h3>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {artist.genres?.[0] && (
-              <span className="line-clamp-1">{artist.genres[0]}</span>
-            )}
-            {artist.genres?.[0] && artist.upcomingShowsCount > 0 && (
-              <span className="text-foreground/20">•</span>
-            )}
-            {artist.upcomingShowsCount > 0 && (
-              <span className="font-medium text-foreground/60">
-                {artist.upcomingShowsCount} {artist.upcomingShowsCount === 1 ? 'show' : 'shows'}
-              </span>
-            )}
-          </div>
+          {metaParts.length > 0 && (
+            <p className="text-xs text-muted-foreground line-clamp-1">
+              {metaParts.join(' · ')}
+            </p>
+          )}
         </div>
 
         {/* Actions - Compact Right Side */}
@@ -90,19 +106,19 @@ function ArtistCardComponent({
           {showFollowButton && (
             <button
               onClick={handleFollow}
-              className="p-2 rounded-full hover:bg-secondary active:bg-secondary/80 transition-colors touch-manipulation"
+              className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-secondary active:bg-secondary/80 transition-colors touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
               aria-label={isFollowing ? "Unfollow" : "Follow"}
             >
-              <Heart 
+              <Heart
                 className={`h-5 w-5 transition-colors ${
-                  isFollowing 
-                    ? 'fill-red-500 text-red-500' 
+                  isFollowing
+                    ? 'fill-red-500 text-red-500'
                     : 'text-muted-foreground hover:text-foreground'
-                }`} 
+                }`}
               />
             </button>
           )}
-          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-muted-foreground transition-colors" />
+          <ChevronRight className="h-5 w-5 text-muted-foreground transition-colors" />
         </div>
       </div>
     </motion.div>

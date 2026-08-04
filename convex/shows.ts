@@ -72,9 +72,9 @@ export const getUpcoming = query({
     const limit = args.limit || 15;
     const shows = await ctx.db
       .query("shows")
-      .withIndex("by_status", (q) => q.eq("status", "upcoming"))
+      .withIndex("by_status_and_date", (q) => q.eq("status", "upcoming"))
       .order("asc")
-      .take(limit * 3);
+      .take(limit);
 
     // Populate artist and venue data
     const enrichedShows = await Promise.all(
@@ -91,10 +91,9 @@ export const getUpcoming = query({
       })
     );
 
-    // Filter out null values and sort by date ascending
+    // The compound index already guarantees chronological order.
     return enrichedShows
       .filter(show => show !== null)
-      .sort((a: any, b: any) => parseDate(a.date).getTime() - parseDate(b.date).getTime())
       .slice(0, limit);
   },
 });
@@ -106,9 +105,9 @@ export const getRecent = query({
     const limit = args.limit || 10;
     const shows = await ctx.db
       .query("shows")
-      .withIndex("by_status", (q) => q.eq("status", "completed"))
+      .withIndex("by_status_and_date", (q) => q.eq("status", "completed"))
       .order("desc")
-      .take(limit * 3);
+      .take(limit);
 
     // Populate artist and venue data
     const enrichedShows = await Promise.all(
@@ -125,10 +124,9 @@ export const getRecent = query({
       })
     );
 
-    // Filter out null values and sort by date descending (most recent completed)
+    // The compound index already guarantees newest-completed first.
     return enrichedShows
       .filter(show => show !== null)
-      .sort((a: any, b: any) => parseDate(b.date).getTime() - parseDate(a.date).getTime())
       .slice(0, limit);
   },
 });
@@ -376,12 +374,31 @@ export const getByArtist = query({
   },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
-    const limit = args.limit || 10;
-    const shows = await ctx.db
-      .query("shows")
-      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
-      .order("desc")
-      .take(limit);
+    const limit = Math.max(1, Math.min(args.limit ?? 10, 100));
+    const [upcoming, completed, cancelled] = await Promise.all([
+      ctx.db
+        .query("shows")
+        .withIndex("by_artist_status_and_date", (q) =>
+          q.eq("artistId", args.artistId).eq("status", "upcoming"),
+        )
+        .order("asc")
+        .take(limit),
+      ctx.db
+        .query("shows")
+        .withIndex("by_artist_status_and_date", (q) =>
+          q.eq("artistId", args.artistId).eq("status", "completed"),
+        )
+        .order("desc")
+        .take(limit),
+      ctx.db
+        .query("shows")
+        .withIndex("by_artist_status_and_date", (q) =>
+          q.eq("artistId", args.artistId).eq("status", "cancelled"),
+        )
+        .order("desc")
+        .take(Math.min(limit, 20)),
+    ]);
+    const shows = [...upcoming, ...completed, ...cancelled];
 
     // Populate venue data
     const enrichedShows = await Promise.all(
@@ -408,12 +425,13 @@ export const getAll = query({
     if (args.status) {
       shows = await ctx.db
         .query("shows")
-        .withIndex("by_status", (q) => q.eq("status", args.status as "upcoming" | "completed" | "cancelled"))
-        .order("desc")
+        .withIndex("by_status_and_date", (q) => q.eq("status", args.status as "upcoming" | "completed" | "cancelled"))
+        .order(args.status === "upcoming" ? "asc" : "desc")
         .take(limit);
     } else {
       shows = await ctx.db
         .query("shows")
+        .withIndex("by_date")
         .order("desc")
         .take(limit);
     }
@@ -531,12 +549,31 @@ export const getByVenue = query({
   },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
-    const limit = args.limit || 50;
-    const shows = await ctx.db
-      .query("shows")
-      .withIndex("by_venue", (q) => q.eq("venueId", args.venueId))
-      .order("desc")
-      .take(limit);
+    const limit = Math.max(1, Math.min(args.limit ?? 50, 100));
+    const [upcoming, completed, cancelled] = await Promise.all([
+      ctx.db
+        .query("shows")
+        .withIndex("by_venue_status_and_date", (q) =>
+          q.eq("venueId", args.venueId).eq("status", "upcoming"),
+        )
+        .order("asc")
+        .take(limit),
+      ctx.db
+        .query("shows")
+        .withIndex("by_venue_status_and_date", (q) =>
+          q.eq("venueId", args.venueId).eq("status", "completed"),
+        )
+        .order("desc")
+        .take(limit),
+      ctx.db
+        .query("shows")
+        .withIndex("by_venue_status_and_date", (q) =>
+          q.eq("venueId", args.venueId).eq("status", "cancelled"),
+        )
+        .order("desc")
+        .take(Math.min(limit, 20)),
+    ]);
+    const shows = [...upcoming, ...completed, ...cancelled];
 
     // Populate artist data
     const enrichedShows = await Promise.all(
@@ -556,7 +593,8 @@ export const getAllByArtistInternal = internalQuery({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("shows")
-      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
+      .withIndex("by_artist_and_date", (q) => q.eq("artistId", args.artistId))
+      .order("asc")
       .collect();
   },
 });
@@ -567,7 +605,8 @@ export const getUpcomingShows = internalQuery({
   handler: async (ctx) => {
     const shows = await ctx.db
       .query("shows")
-      .withIndex("by_status", (q) => q.eq("status", "upcoming"))
+      .withIndex("by_status_and_date", (q) => q.eq("status", "upcoming"))
+      .order("asc")
       .collect();
 
     // Populate artist and venue data
@@ -593,8 +632,9 @@ export const getByArtistAndDateInternal = internalQuery({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("shows")
-      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
-      .filter((q) => q.eq(q.field("date"), args.date))
+      .withIndex("by_artist_and_date", (q) =>
+        q.eq("artistId", args.artistId).eq("date", args.date),
+      )
       .first();
   },
 });
@@ -608,8 +648,9 @@ export const countUpcomingByArtist = internalQuery({
   handler: async (ctx, args) => {
     const shows = await ctx.db
       .query("shows")
-      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
-      .filter((q) => q.eq(q.field("status"), "upcoming"))
+      .withIndex("by_artist_status_and_date", (q) =>
+        q.eq("artistId", args.artistId).eq("status", "upcoming"),
+      )
       .collect();
     return shows.length;
   },
@@ -688,8 +729,9 @@ export const createFromTicketmaster = internalMutation({
     if (!existing) {
       existing = await ctx.db
         .query("shows")
-        .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
-        .filter((q) => q.eq(q.field("date"), args.date))
+        .withIndex("by_artist_and_date", (q) =>
+          q.eq("artistId", args.artistId).eq("date", args.date),
+        )
         .filter((q) => q.eq(q.field("venueId"), args.venueId))
         .first();
     }
@@ -1007,11 +1049,14 @@ export const autoTransitionStatuses = internalMutation({
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const todayIso = today.toISOString().slice(0, 10);
 
     // Get upcoming shows that might need transitioning
     const upcomingShows = await ctx.db
       .query("shows")
-      .withIndex("by_status", (q) => q.eq("status", "upcoming"))
+      .withIndex("by_status_and_date", (q) =>
+        q.eq("status", "upcoming").lt("date", todayIso),
+      )
       .collect();
 
     let transitioned = 0;
@@ -1055,19 +1100,63 @@ export const getUpcomingCountByArtist = internalQuery({
   handler: async (ctx, args) => {
     const shows = await ctx.db
       .query("shows")
-      .withIndex("by_status_and_artist", (q) => q.eq("status", "upcoming").eq("artistId", args.artistId))
+      .withIndex("by_artist_status_and_date", (q) =>
+        q.eq("artistId", args.artistId).eq("status", "upcoming"),
+      )
       .collect();
 
     return shows.length;
   },
 });
 
-// Get all show slugs for sitemap generation
+// Get show slugs worth indexing for sitemap generation.
+// Bounded read: upcoming shows plus shows from the last ~180 days via the
+// by_date index, capped at 4000 docs total so we never hit Convex's read limit.
+// Upcoming shows are read first (soonest first) so that when the window holds
+// more than the cap, it's the oldest completed shows that get truncated —
+// never the future ones.
 export const getAllSlugs = internalQuery({
   args: {},
-  returns: v.array(v.string()),
+  returns: v.array(
+    v.object({ slug: v.string(), date: v.string(), lastmod: v.number() })
+  ),
   handler: async (ctx) => {
-    const shows = await ctx.db.query("shows").collect();
-    return shows.map((s) => s.slug).filter((slug): slug is string => !!slug);
+    const CAP = 4000;
+    // "YYYY-MM-DD" — matches shows.date string format
+    const today = new Date().toISOString().slice(0, 10);
+    const cutoff = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+
+    // 1) Today + future shows, soonest first.
+    const upcoming = await ctx.db
+      .query("shows")
+      .withIndex("by_date", (q) => q.gte("date", today))
+      .take(CAP);
+
+    // 2) Fill the remaining budget with recent past shows, newest first.
+    const remaining = CAP - upcoming.length;
+    const recent =
+      remaining > 0
+        ? await ctx.db
+            .query("shows")
+            .withIndex("by_date", (q) => q.gte("date", cutoff).lt("date", today))
+            .order("desc")
+            .take(remaining)
+        : [];
+
+    const results: { slug: string; date: string; lastmod: number }[] = [];
+    for (const s of [...upcoming, ...recent]) {
+      if (s.slug) {
+        results.push({
+          slug: s.slug,
+          date: s.date,
+          // Real modification time — a future event date is not a lastmod,
+          // and provably-wrong values make Google distrust the whole sitemap.
+          lastmod: s.lastSynced ?? s._creationTime,
+        });
+      }
+    }
+    return results;
   },
 });

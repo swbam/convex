@@ -2,6 +2,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { TrendingUp } from "lucide-react";
+import { formatCompactNumber } from "../lib/format";
 
 interface TrendingArtistsProps {
   onArtistClick: (artistId: Id<"artists">) => void;
@@ -41,20 +42,23 @@ export function TrendingArtists({ onArtistClick }: TrendingArtistsProps) {
   return (
     <div className="space-y-3">
       {artists.map((artist, index) => (
-        <div 
-          key={artist._id} 
+        <button
+          key={artist._id}
+          type="button"
           onClick={() => onArtistClick(artist._id)}
-          className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent cursor-pointer transition-colors"
+          className="group flex w-full items-center gap-3 p-3 rounded-lg text-left hover:bg-accent cursor-pointer transition-colors touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
         >
-          <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-semibold">
+          <div className="w-8 h-8 flex-shrink-0 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-semibold">
             {index + 1}
           </div>
           {artist.images?.[0] && (
-            <img
-              src={artist.images[0]}
-              alt={artist.name}
-              className="w-12 h-12 rounded-md object-cover"
-            />
+            <div className="w-12 h-12 flex-shrink-0 rounded-md overflow-hidden">
+              <img
+                src={artist.images[0]}
+                alt={artist.name}
+                className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
+              />
+            </div>
           )}
           <div className="flex-1 min-w-0">
             <h6 className="font-medium truncate">{artist.name}</h6>
@@ -62,15 +66,17 @@ export function TrendingArtists({ onArtistClick }: TrendingArtistsProps) {
               <p className="text-sm text-muted-foreground truncate">{artist.genres[0]}</p>
             )}
           </div>
-          <div className="text-right">
+          <div className="text-right flex-shrink-0">
             <div className="text-sm font-medium">
-              {typeof artist.trendingScore === 'number' && Number.isFinite(artist.trendingScore) 
-                ? artist.trendingScore 
-                : 0}
+              {formatCompactNumber(
+                typeof artist.trendingScore === 'number' && Number.isFinite(artist.trendingScore)
+                  ? artist.trendingScore
+                  : 0
+              )}
             </div>
             <div className="text-xs text-muted-foreground">trending</div>
           </div>
-        </div>
+        </button>
       ))}
     </div>
   );

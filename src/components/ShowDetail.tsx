@@ -13,6 +13,7 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
+  Clock,
 } from "lucide-react";
 import {
   Dialog,
@@ -28,7 +29,6 @@ import { SEOHead } from "./SEOHead";
 import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { buildTicketmasterAffiliateUrl } from "../utils/ticketmaster";
-import { Badge } from "./ui/badge";
 import { motion } from "framer-motion";
 import { SongCombobox } from "./SongCombobox";
 import { formatLocation } from "../lib/utils";
@@ -52,7 +52,10 @@ export function ShowDetail({
     show?.artistId
       ? {
           artistId: show.artistId,
-          limit: 200,
+          // The production catalog can exceed 200 songs (Chris Brown currently
+          // has 266). SongCombobox virtualizes large lists, so expose the full
+          // launch-sized catalog instead of silently truncating the picker.
+          limit: 500,
         }
       : "skip"
   );
@@ -223,10 +226,6 @@ export function ShowDetail({
 
   // Simple analytics
   const catalogCount = songs?.length || 0;
-  const predictedCount = predictionSetlist?.songs?.length || 0;
-  const catalogCoverage = catalogCount
-    ? Math.round((predictedCount / catalogCount) * 100)
-    : 0;
 
   // Memoize song items for combobox (moved from JSX to fix hooks rules violation)
   const songComboboxItems = useMemo(() => {
@@ -356,73 +355,14 @@ export function ShowDetail({
   const effectiveHero = heroImage || fallbackImage;
   const effectiveAvatar = avatarImage || heroImage || fallbackImage;
 
-  const renderSetlistHeader = () => {
-    if (!show.importStatus)
-      return <h3 className="text-xl font-bold mb-4">Setlist</h3>;
-
-    let badgeContent;
-    let icon;
-    let statusMessage = "";
-    switch (show.importStatus) {
-      case "completed":
-        badgeContent = "Imported";
-        icon = <CheckCircle className="h-4 w-4" />;
-        break;
-      case "importing":
-        badgeContent = "Importing";
-        icon = <Loader2 className="h-4 w-4 animate-spin" />;
-        statusMessage = "Checking Setlist.fm...";
-        break;
-      case "not_found":
-        badgeContent = "Not on Setlist.fm";
-        icon = <AlertCircle className="h-4 w-4" />;
-        statusMessage = "No setlist found on Setlist.fm yet. Will retry automatically.";
-        break;
-      case "failed":
-        badgeContent = "Failed";
-        icon = <AlertCircle className="h-4 w-4" />;
-        break;
-      default:
-        badgeContent = "Pending";
-        statusMessage = "Waiting to check Setlist.fm...";
-    }
-
-    return (
-      <div className="space-y-2 mb-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold">
-            Setlist {show.importStatus !== "completed" && `(${badgeContent})`}
-          </h3>
-          <Badge
-            variant={show.importStatus === "completed" ? "default" : "secondary"}
-            className="flex items-center gap-1"
-          >
-            {icon} {badgeContent}
-          </Badge>
-        </div>
-        {statusMessage && !hasActualSetlist && (
-          <p className="text-sm text-muted-foreground">
-            {statusMessage}
-          </p>
-        )}
-        {(show.importStatus === "failed" || show.importStatus === "not_found") && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              void triggerSetlistSync({
-                showId: showId,
-                artistName: show.artist?.name || "",
-                venueCity: show.venue?.city || "",
-                showDate: show.date,
-              });
-            }}
-          >
-            Retry Import
-          </Button>
-        )}
-      </div>
-    );
+  const handleRetryImport = () => {
+    void triggerSetlistSync({
+      showId,
+      artistName: show.artist?.name || "",
+      venueCity: show.venue?.city || "",
+      showDate: show.date,
+    });
+    toast.info("Retrying setlist.fm import…");
   };
 
   return (
@@ -560,6 +500,78 @@ export function ShowDetail({
                   </div>
                 </div>
 
+                {/* Awaiting-import status banner — completed show, no official setlist yet */}
+                {!isUpcoming && !hasActualSetlist && (() => {
+                  const status = show.importStatus;
+                  const isFailed = status === "failed";
+                  return (
+                    <div
+                      className={`mb-4 flex items-start gap-3 rounded-xl border px-4 py-3.5 ${
+                        isFailed
+                          ? "border-red-500/30 bg-red-500/10"
+                          : "border-border bg-secondary/50"
+                      }`}
+                    >
+                      {status === "importing" ? (
+                        <Loader2 className="mt-0.5 h-5 w-5 flex-shrink-0 animate-spin text-primary" />
+                      ) : isFailed ? (
+                        <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" />
+                      ) : status === "not_found" ? (
+                        <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-muted-foreground" />
+                      ) : (
+                        <Clock className="mt-0.5 h-5 w-5 flex-shrink-0 text-muted-foreground" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        {status === "importing" ? (
+                          <>
+                            <p className="text-sm font-semibold text-foreground">
+                              Importing from setlist.fm…
+                            </p>
+                            <p className="mt-0.5 text-sm text-muted-foreground">
+                              Hang tight — this usually takes under a minute.
+                            </p>
+                          </>
+                        ) : isFailed ? (
+                          <>
+                            <p className="text-sm font-semibold text-foreground">
+                              Setlist import failed
+                            </p>
+                            <p className="mt-0.5 text-sm text-muted-foreground">
+                              We couldn&apos;t pull this show from setlist.fm.
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-2.5"
+                              onClick={handleRetryImport}
+                            >
+                              Retry Import
+                            </Button>
+                          </>
+                        ) : status === "not_found" ? (
+                          <>
+                            <p className="text-sm font-semibold text-foreground">
+                              Not on setlist.fm yet
+                            </p>
+                            <p className="mt-0.5 text-sm text-muted-foreground">
+                              We re-check daily for two weeks.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm font-semibold text-foreground">
+                              Official setlist on the way
+                            </p>
+                            <p className="mt-0.5 text-sm text-muted-foreground">
+                              setlist.fm data usually appears 1–3 days after the show.
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Mobile-only sign-in nudge - keeps the CTA in view near the voting action */}
                 {!user && isUpcoming && (
                   <button
@@ -580,11 +592,11 @@ export function ShowDetail({
                     <SongCombobox
                       disabled={false}
                       placeholder={
-                        user 
-                          ? "Add a song..." 
-                          : hasAdded 
-                            ? "Sign in to add more songs" 
-                            : "Add a song (1 free action)"
+                        user
+                          ? `Search ${songs.length} catalog songs…`
+                          : hasAdded
+                            ? "Sign in to add more songs"
+                            : `Search ${songs.length} songs • ${ANON_FREE_ADDS - addActionCount} free adds`
                       }
                       items={songComboboxItems}
                       onSelect={(title) => {
@@ -747,6 +759,17 @@ export function ShowDetail({
                   </div>
                 ) : (
                   <div className="mt-6 touch-manipulation">
+                    {/* After the show, the prediction list is a historical record */}
+                    {!isUpcoming && (
+                      <div className="mb-3 flex items-baseline justify-between">
+                        <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                          Fan predictions
+                        </h3>
+                        <span className="text-xs text-muted-foreground">
+                          voted before the show
+                        </span>
+                      </div>
+                    )}
                     {/* Setlist - sorted by vote count, animates on reorder */}
                     <motion.div layout className="space-y-2">
                         {sortedPredictionSongs.map((songTitle: string, index: number) => {
@@ -885,26 +908,8 @@ export function ShowDetail({
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Catalog songs</span>
+                    <span className="text-sm text-muted-foreground">Songs in catalog</span>
                     <span className="font-medium text-foreground">{catalogCount}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Coverage</span>
-                    <span className="font-medium text-foreground">
-                      {catalogCoverage}%
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Studio songs available
-                    </span>
-                    <span className="font-medium text-foreground">
-                      {songs
-                        ?.filter(Boolean)
-                        .filter((s) => s && !s.isLive && !s.isRemix).length || 0}
-                    </span>
                   </div>
 
                   {predictionSetlist && (
@@ -987,8 +992,9 @@ export function ShowDetail({
           <DialogHeader>
             <DialogTitle className="text-foreground">Unlock More Actions</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              You've used your free action. Sign up to vote on more songs and
-              create setlists!
+              You've hit the free limit for this show ({ANON_FREE_VOTES} votes
+              and {ANON_FREE_ADDS} song adds). Sign up for unlimited voting and
+              song requests!
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -1123,12 +1129,12 @@ function FanRequestSongRow({
     <motion.div
       layout
       transition={{ type: "spring", stiffness: 500, damping: 40 }}
-      className="flex items-center justify-between py-3 px-4 rounded-lg hover:bg-secondary active:bg-secondary transition-colors duration-150 min-h-[52px]"
+      className="flex items-center justify-between gap-2 py-2 pl-3 pr-2 sm:pl-4 rounded-lg border border-border/60 bg-secondary/40 hover:bg-secondary/70 active:bg-secondary/70 transition-colors duration-150 min-h-[56px]"
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         {/* Minimal status indicator */}
         {wasPlayed ? (
-          <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+          <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
             <svg
               className="w-3 h-3 text-green-400"
               fill="none"
@@ -1144,60 +1150,61 @@ function FanRequestSongRow({
             </svg>
           </div>
         ) : (
-          <span className="text-sm text-muted-foreground w-5 text-center font-semibold">
+          <span className="w-6 flex-shrink-0 text-center text-xs font-medium tabular-nums text-muted-foreground/70">
             {index + 1}
           </span>
         )}
 
         <div className="flex-1 min-w-0">
-          <h3
-            className={`font-semibold text-base leading-tight ${
-              wasPlayed ? "text-foreground" : "text-muted-foreground"
-            } truncate`}
-          >
+          <h3 className="font-medium text-sm sm:text-base leading-tight text-foreground truncate">
             {songTitle}
           </h3>
           {wasPlayed && <p className="text-xs text-green-400 mt-0.5">Played</p>}
         </div>
       </div>
 
-      {/* Reddit-style upvote icon + count below - only clickable for upcoming shows */}
+      {/* Fused upvote pill: chevron above count - only tappable for upcoming shows */}
       {!wasPlayed && isUpcoming && (
         <motion.button
-          whileTap={{ scale: 0.9 }}
+          whileTap={{ scale: 0.94 }}
           onClick={() => {
             void handleVote();
           }}
           aria-pressed={userVoted}
           aria-label={userVoted ? `Remove vote for ${songTitle}` : `Vote for ${songTitle}`}
-          className={`flex flex-col items-center gap-0.5 text-base transition-colors duration-150 min-w-[44px] min-h-[44px] justify-center ${
-            userVoted ? "text-primary" : "text-muted-foreground active:text-foreground sm:hover:text-foreground"
+          className={`flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-1.5 rounded-xl border flex-shrink-0 transition-colors duration-150 ${
+            userVoted
+              ? "bg-primary border-primary text-primary-foreground"
+              : "bg-secondary/60 border-border text-muted-foreground active:bg-secondary sm:hover:bg-secondary sm:hover:text-foreground"
           }`}
         >
           <motion.div
             key={userVoted ? "voted" : "unvoted"}
-            initial={{ scale: 0.6 }}
+            initial={{ scale: 0.7 }}
             animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 600, damping: 18 }}
+            transition={{ type: "spring", stiffness: 600, damping: 20 }}
           >
             <ChevronUp
+              strokeWidth={2.5}
               className={`h-4 w-4 ${userVoted ? "fill-current" : ""}`}
             />
           </motion.div>
-          <span
-            className={`font-semibold text-base tabular-nums ${
-              userVoted ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
+          <span className="mt-0.5 text-sm font-semibold leading-none tabular-nums">
             {voteCount}
           </span>
         </motion.button>
       )}
       {/* Show vote count (non-clickable) for completed shows or played songs */}
       {(wasPlayed || !isUpcoming) && (
-        <div className={`flex flex-col items-center gap-0.5 text-sm ${wasPlayed ? "text-green-400" : "text-muted-foreground"}`}>
+        <div
+          className={`flex flex-col items-center justify-center min-w-[44px] min-h-[44px] flex-shrink-0 ${
+            wasPlayed ? "text-green-400" : "text-muted-foreground"
+          }`}
+        >
           <ChevronUp className={`h-4 w-4 ${wasPlayed ? "fill-current" : ""}`} />
-          <span className="font-semibold text-base tabular-nums">{voteCount}</span>
+          <span className="mt-0.5 text-sm font-semibold leading-none tabular-nums">
+            {voteCount}
+          </span>
         </div>
       )}
     </motion.div>

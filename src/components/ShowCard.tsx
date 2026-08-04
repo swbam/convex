@@ -44,15 +44,30 @@ function ShowCardComponent({
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Only handle keys targeted at the card itself — nested interactive
+    // elements (e.g. the Tickets button) keep their native activation.
+    if (e.target !== e.currentTarget) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+  };
+
   const dateInfo = formatDate(show.date);
   const time = getTime();
 
   return (
     <motion.div
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
       whileTap={{ scale: 0.98 }}
       className={cn(
         "group relative overflow-hidden touch-manipulation cursor-pointer transition-all duration-200",
+        // Keyboard focus
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset rounded-xl",
         // Mobile: simple border bottom for list feel
         "border-b border-border/50 last:border-b-0",
         // Desktop: glow card styling
@@ -108,7 +123,8 @@ function ShowCardComponent({
           {show.ticketUrl && (
             <button
               onClick={handleTicketClick}
-              className="px-3 py-1.5 rounded-full bg-secondary hover:bg-secondary/80 active:bg-white/30 transition-colors text-xs font-medium text-foreground flex items-center gap-1.5 touch-manipulation"
+              aria-label="Buy tickets"
+              className="min-h-[44px] min-w-[44px] px-3 rounded-full bg-secondary hover:bg-secondary/80 active:bg-secondary/60 transition-colors text-xs font-medium text-foreground flex items-center justify-center gap-1.5 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
             >
               <Ticket className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Tickets</span>

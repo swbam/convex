@@ -108,16 +108,36 @@ async function tmFetchWithRetry(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let lastError: any;
   while (attempt < maxAttempts) {
+    attempt += 1;
     try {
-      return await tmFetchWithTimeout(url, init);
+      const response = await tmFetchWithTimeout(url, init);
+      const retryableStatus =
+        response.status === 429 ||
+        response.status === 500 ||
+        response.status === 502 ||
+        response.status === 503 ||
+        response.status === 504;
+
+      if (!retryableStatus || attempt >= maxAttempts) {
+        return response;
+      }
+
+      const retryAfterSeconds = Number(response.headers.get("retry-after"));
+      const backoffMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+        ? Math.min(retryAfterSeconds * 1000, 30_000)
+        : Math.min(500 * 2 ** (attempt - 1), 5_000);
+      console.warn(
+        `Ticketmaster returned ${response.status}; retrying (${attempt}/${maxAttempts})`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
     } catch (error) {
       lastError = error;
-      attempt += 1;
       if (attempt >= maxAttempts) {
-        console.error(`Ticketmaster fetch failed after ${attempt} attempts for ${url}:`, error);
+        // Do not log the URL: Ticketmaster credentials are query parameters.
+        console.error(`Ticketmaster fetch failed after ${attempt} attempts:`, error);
         throw error;
       }
-      const backoffMs = 500 * attempt;
+      const backoffMs = Math.min(500 * 2 ** (attempt - 1), 5_000);
       await new Promise((resolve) => setTimeout(resolve, backoffMs));
     }
   }
@@ -267,6 +287,7 @@ const triggerFullArtistSyncImpl = async (ctx: any, args: any) => {
     shows: 0,
     catalog: 3000,
     basics: 6000,
+    history: 8000,
     counts: 10000,
   } as const;
 
@@ -316,7 +337,11 @@ const triggerFullArtistSyncImpl = async (ctx: any, args: any) => {
       artistId,
       artistName: args.artistName,
     }),
-    // Priority 4: Update counts (after everything else) - starts after 10 seconds
+    // Priority 4: Past setlists from setlist.fm (populates the Past tab) - starts after 8 seconds
+    ctx.scheduler.runAfter(SCHEDULER_DELAYS.history, internalRef.setlistfmHistory.importArtistHistory, {
+      artistId,
+    }),
+    // Priority 5: Update counts (after everything else) - starts after 10 seconds
     ctx.scheduler.runAfter(SCHEDULER_DELAYS.counts, internalRef.maintenance.updateArtistCounts, { artistId }),
   ]);
 

@@ -403,9 +403,23 @@ export function BlogPostPage() {
       <SEOHead
         title={seoTitle}
         description={seoDescription}
-        canonicalUrl={`/blog/${post.slug.current}`}
-        ogImage={post.mainImage?.asset ? urlFor(post.mainImage).width(1200).height(630).url() : (heroImageUrl || undefined)}
-        ogType="article"
+        image={post.mainImage?.asset ? urlFor(post.mainImage).width(1200).height(630).url() : (heroImageUrl || undefined)}
+        type="article"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: post.title,
+          description: seoDescription,
+          datePublished: post.publishedAt,
+          ...(post.mainImage?.asset
+            ? { image: urlFor(post.mainImage).width(1200).height(630).url() }
+            : heroImageUrl
+              ? { image: heroImageUrl }
+              : {}),
+          ...(post.author?.name ? { author: { "@type": "Person", name: post.author.name } } : {}),
+          publisher: { "@type": "Organization", name: "setlists.live", url: "https://www.setlists.live" },
+          mainEntityOfPage: `https://www.setlists.live/blog/${post.slug.current}`,
+        }}
       />
 
       {/* Reading Progress Bar */}

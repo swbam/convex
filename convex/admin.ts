@@ -130,8 +130,11 @@ export const promoteUserByEmail = mutation({
       .withIndex("by_email", (q) => q.eq("email", args.email))
       .first();
     if (!user) {
-      // Try case-insensitive scan if exact not found
-      const users = await ctx.db.query("users").collect();
+      // Try case-insensitive scan if exact not found.
+      // Bounded read: full-table .collect() risks Convex's doc/byte read
+      // limits; scan is capped at the first 2000 users (behavior preserved
+      // for tables under the cap).
+      const users = await ctx.db.query("users").take(2000);
       const match = users.find(u => (u.email || "").toLowerCase() === targetEmail);
       if (!match) return { success: true, promoted: false };
       await ctx.db.patch(match._id, { role: "admin" });
@@ -337,11 +340,20 @@ export const getAdminStatsInternal = internalQuery({
   args: {},
   returns: v.any(),
   handler: async (ctx: QueryCtx) => {
-    const users = await ctx.db.query("users").collect();
-    const artists = await ctx.db.query("artists").collect();
-    const shows = await ctx.db.query("shows").collect();
-    const setlists = await ctx.db.query("setlists").collect();
-    const votes = await ctx.db.query("votes").collect();
+    // Bounded reads (see health.getSystemStats): full-table .collect() blows
+    // Convex's doc/byte read limits at production scale (shows ~45k rows).
+    // Counts are capped at their COUNT_CAP — read a value at its cap as "N+"
+    // (e.g. 5000 means 5000+).
+    const USER_COUNT_CAP = 2000;
+    const ARTIST_COUNT_CAP = 3000;
+    const COUNT_CAP = 5000;
+    const [users, artists, shows, setlists, votes] = await Promise.all([
+      ctx.db.query("users").take(USER_COUNT_CAP),
+      ctx.db.query("artists").take(ARTIST_COUNT_CAP),
+      ctx.db.query("shows").take(COUNT_CAP),
+      ctx.db.query("setlists").take(COUNT_CAP),
+      ctx.db.query("votes").take(COUNT_CAP),
+    ]);
 
     return {
       totalUsers: users.length,
@@ -1012,8 +1024,18 @@ export const cleanupNonUSShowsInternal = internalMutation({
     }
     console.log(`🗑️ Deleted ${cacheDeleted} non-US/non-concert entries from trending cache`);
 
-    // Clean up main shows table
-    const allShows = await ctx.db.query("shows").collect();
+    // Clean up main shows table.
+    // Bounded read: the US/concert filter needs venue+artist joins, so it is
+    // not indexable; a full-table .collect() blows Convex's doc/byte read
+    // limits at ~45k shows. Process the first 4000 per invocation — re-run
+    // to continue cleanup if truncated.
+    const SHOW_SCAN_CAP = 4000;
+    const allShows = await ctx.db.query("shows").take(SHOW_SCAN_CAP);
+    if (allShows.length === SHOW_SCAN_CAP) {
+      console.warn(
+        `⚠️ cleanupNonUSShowsInternal: shows scan truncated at ${SHOW_SCAN_CAP}; re-run to process remaining shows`
+      );
+    }
     for (const show of allShows) {
       const venue = await ctx.db.get(show.venueId);
       const artist = await ctx.db.get(show.artistId);
@@ -1535,11 +1557,14 @@ export const getSystemHealth = query({
   }),
   handler: async (ctx) => {
     await requireAdmin(ctx); // Admin access required
+    // Bounded reads (see health.getSystemStats): full-table .collect() blows
+    // Convex's doc/byte read limits at production scale (shows ~45k rows).
+    // Counts derived from these are capped — read a value at its cap as "N+".
     const [artists, shows, songs, votes] = await Promise.all([
-      ctx.db.query("artists").collect(),
-      ctx.db.query("shows").collect(),
-      ctx.db.query("songs").collect(),
-      ctx.db.query("votes").collect(),
+      ctx.db.query("artists").take(3000),
+      ctx.db.query("shows").take(5000),
+      ctx.db.query("songs").take(5000),
+      ctx.db.query("votes").take(5000),
     ]);
 
     // Check for orphaned records
@@ -2401,8 +2426,16 @@ export const deleteResidencyArtistsInternal = internalMutation({
     let deletedShows = 0;
     let deletedSongs = 0;
 
-    // Get all artists
-    const artists = await ctx.db.query("artists").collect();
+    // Bounded read: full-table .collect() risks Convex's doc/byte read
+    // limits; scan the first 3000 artists per invocation — re-run to
+    // continue if truncated.
+    const ARTIST_SCAN_CAP = 3000;
+    const artists = await ctx.db.query("artists").take(ARTIST_SCAN_CAP);
+    if (artists.length === ARTIST_SCAN_CAP) {
+      console.warn(
+        `⚠️ deleteResidencyArtistsInternal: artists scan truncated at ${ARTIST_SCAN_CAP}; re-run to process remaining artists`
+      );
+    }
 
     for (const artist of artists) {
       // Count their shows
@@ -2532,8 +2565,20 @@ export const backfillShowSongDemandInternal = internalMutation({
       shows = await Promise.all(args.showIds.map(id => ctx.db.get(id)));
       shows = shows.filter(Boolean);
     } else {
-      // Process all shows with upcoming or recent status
-      shows = await ctx.db.query("shows").collect();
+      // Process shows with upcoming status (the stated intent of this branch).
+      // Bounded, indexed read: a full-table .collect() blows Convex's
+      // doc/byte read limits at ~45k shows. Completed/older shows can be
+      // targeted explicitly via args.showIds.
+      const SHOW_SCAN_CAP = 4000;
+      shows = await ctx.db
+        .query("shows")
+        .withIndex("by_status", (q) => q.eq("status", "upcoming"))
+        .take(SHOW_SCAN_CAP);
+      if (shows.length === SHOW_SCAN_CAP) {
+        console.warn(
+          `⚠️ backfillShowSongDemandInternal: upcoming-shows scan truncated at ${SHOW_SCAN_CAP}; pass showIds to process the remainder`
+        );
+      }
     }
 
     for (const show of shows) {
@@ -2663,5 +2708,28 @@ export const backfillShowSongDemandInternal = internalMutation({
       demandRecordsDeleted,
       totalVotesProcessed,
     };
+  },
+});
+
+// Import an artist's recent past setlists from setlist.fm (admin dashboard button + CLI testing)
+export const importSetlistHistoryForArtist = action({
+  args: { artistId: v.id("artists") },
+  returns: v.object({
+    imported: v.number(),
+    skipped: v.number(),
+    artistName: v.optional(v.string()),
+    reason: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    await requireAdminForAction(ctx);
+    const result: {
+      imported: number;
+      skipped: number;
+      artistName?: string;
+      reason?: string;
+    } = await ctx.runAction(internalRef.setlistfmHistory.importArtistHistory, {
+      artistId: args.artistId,
+    });
+    return result;
   },
 });

@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import { buildTicketmasterAffiliateUrl } from '../utils/ticketmaster';
 import { toast } from 'sonner';
+import { SEOHead } from './SEOHead';
 
 interface FestivalDetailProps {
   festivalSlug: string;
@@ -152,6 +153,22 @@ export function FestivalDetail({
 
   return (
     <div className="space-y-8 relative z-10">
+      <SEOHead
+        title={`${festival.name} – Lineup, Set Times & Setlists`}
+        description={`${festival.name}: ${formatDateRange(festival.startDate, festival.endDate)} in ${festival.location}. ${totalArtists > 0 ? `Browse all ${totalArtists} artists, ` : 'Browse the lineup, '}see set times, and vote on the setlists you want to hear.`}
+        image={festival.imageUrl}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Festival",
+          name: festival.name,
+          startDate: festival.startDate,
+          endDate: festival.endDate,
+          ...(festival.imageUrl ? { image: festival.imageUrl } : {}),
+          location: { "@type": "Place", name: festival.location },
+          url: `https://www.setlists.live/festivals/${festivalSlug}`,
+          ...(festival.ticketUrl ? { offers: { "@type": "Offer", url: festival.ticketUrl } } : {}),
+        }}
+      />
       {/* ===== FULL-WIDTH HERO HEADER ===== */}
       <div className="relative w-full overflow-hidden">
         {/* Hero Container */}

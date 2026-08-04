@@ -861,7 +861,8 @@ export const refreshMissingAutoSetlists = internalMutation({
       // Default: only upcoming (normal cron behavior)
       shows = await ctx.db
         .query("shows")
-        .withIndex("by_status", (q) => q.eq("status", "upcoming"))
+        .withIndex("by_status_and_date", (q) => q.eq("status", "upcoming"))
+        .order("asc")
         .take(limit);
     }
 

@@ -39,27 +39,10 @@ if (!convexUrl || !publishableKey) {
       return React.useMemo(
         () => ({
           ...auth,
-          getToken: async (args?: any) => {
-            // Request JWT with template name "convex" (matches Clerk template name)
-            console.log('🔐 Requesting Clerk JWT with template "convex"', { args });
-            try {
-              const token = await auth.getToken({ ...args, template: "convex" });
-              console.log('🔐 JWT received:', token ? '✅ Token exists (length: ' + token.length + ')' : '❌ No token');
-              if (token) {
-                // Decode JWT to inspect claims (for debugging only)
-                try {
-                  const payload = JSON.parse(atob(token.split('.')[1]));
-                  console.log('🔐 JWT payload:', payload);
-                } catch (e) {
-                  console.warn('Could not decode JWT for inspection');
-                }
-              }
-              return token;
-            } catch (error) {
-              console.error('🔐 JWT request failed:', error);
-              throw error;
-            }
-          },
+          // Request the Convex JWT template without logging or decoding tokens
+          // in production browser sessions.
+          getToken: async (args?: any) =>
+            await auth.getToken({ ...args, template: "convex" }),
         }),
         [auth]
       );
@@ -84,7 +67,15 @@ if (!convexUrl || !publishableKey) {
             }}
           >
             <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-              <RouterProvider router={router} />
+              <React.Suspense
+                fallback={
+                  <div className="flex min-h-dvh items-center justify-center bg-background text-foreground">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted border-t-foreground motion-reduce:animate-none" />
+                  </div>
+                }
+              >
+                <RouterProvider router={router} />
+              </React.Suspense>
               <Toaster 
                 position="bottom-right"
                 richColors

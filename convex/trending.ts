@@ -234,7 +234,7 @@ export const getTrendingShows = query({
     // Fallback: derive from upcoming shows (no engagement-based ranking)
     const shows = await ctx.db
       .query("shows")
-      .withIndex("by_status", (q) => q.eq("status", "upcoming"))
+      .withIndex("by_status_and_date", (q) => q.eq("status", "upcoming"))
       .order("asc")
       .take(limit * 3);
 
@@ -751,12 +751,15 @@ export const updateArtistShowCounts = internalMutation({
   handler: async (ctx) => {
     console.log("🔄 Updating artist show counts...");
 
-    // Build a map of upcoming show counts per artist
-    // Using .collect() with reasonable limits instead of pagination
+    // Build a map of upcoming show counts per artist.
+    // Bounded read: unbounded .collect() exceeds Convex's read limits at prod
+    // scale (~45k shows). Counts are capped — computed from at most the first
+    // 5000 upcoming shows.
     const upcomingShows = await ctx.db
       .query("shows")
-      .withIndex("by_status", (q) => q.eq("status", "upcoming"))
-      .collect();
+      .withIndex("by_status_and_date", (q) => q.eq("status", "upcoming"))
+      .order("asc")
+      .take(5000);
 
     const artistShowCounts = new Map<string, number>();
     for (const show of upcomingShows) {
@@ -767,8 +770,10 @@ export const updateArtistShowCounts = internalMutation({
       );
     }
 
-    // Get all artists and update counts where they differ
-    const artists = await ctx.db.query("artists").collect();
+    // Get artists and update counts where they differ.
+    // Bounded read: artists is ~1.1k rows today; cap so growth can't blow
+    // Convex's read limits.
+    const artists = await ctx.db.query("artists").take(3000);
     const now = Date.now();
     let updated = 0;
 
@@ -799,7 +804,9 @@ export const updateArtistTrending = internalMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    const artists = await ctx.db.query("artists").collect();
+    // Bounded like updateShowTrending: .collect() on a growing table
+    // eventually hits Convex's 4096-document read limit.
+    const artists = await ctx.db.query("artists").take(3000);
     const scored = artists.map((a) => {
       // Ensure all numeric values are properly handled to prevent NaN
       const upcomingShows = typeof a.upcomingShowsCount === 'number' ? a.upcomingShowsCount : 0;
@@ -820,9 +827,17 @@ export const updateArtistTrending = internalMutation({
     const TOP_N = 100;
     for (let i = 0; i < scored.length; i += 1) {
       const { artist, score } = scored[i];
+      const newScore = Number.isFinite(score) ? score : 1; // Minimum score 1
+      const newRank = i < TOP_N ? i + 1 : 0;
+      // Scores are integers here, so most runs change nothing — skipping
+      // no-op patches avoids OCC conflicts with sync mutations that touch
+      // the same artist documents.
+      if (artist.trendingScore === newScore && artist.trendingRank === newRank) {
+        continue;
+      }
       await ctx.db.patch(artist._id, {
-        trendingScore: Number.isFinite(score) ? score : 1, // FIXED: Minimum score 1
-        trendingRank: i < TOP_N ? i + 1 : 0,
+        trendingScore: newScore,
+        trendingRank: newRank,
         lastTrendingUpdate: Date.now(),
       });
     }
@@ -834,12 +849,30 @@ export const updateShowTrending = internalMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    const upcoming = await ctx.db
-      .query("shows")
-      .withIndex("by_status", (q) => q.eq("status", "upcoming"))
-      .collect();
-
     const now = Date.now();
+    // Start the window one day back (UTC): a show dated "yesterday" in UTC is
+    // still the same evening in US timezones and remains status "upcoming"
+    // until autoTransitionStatuses completes it the day after. Starting at the
+    // UTC "today" boundary would drop these "tonight" shows from trending —
+    // and the demotion loop below would zero them out — during peak pre-show
+    // hours. Non-upcoming shows in that extra day are filtered out below.
+    const windowStart = new Date(now - 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    // Shows more than 30 days out decay to score 0, so only the 30-day window
+    // affects ranking. Bounding the scan keeps reads well under Convex's
+    // 4096-document limit even on large production datasets.
+    const horizon = new Date(now + 31 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+
+    const upcoming = (await ctx.db
+      .query("shows")
+      .withIndex("by_date", (q) => q.gte("date", windowStart).lte("date", horizon))
+      .order("asc")
+      .take(2000))
+      .filter((show) => show.status === "upcoming");
+
     const parsed = upcoming
       .map((s) => {
         const showDate = new Date(s.date).getTime();
@@ -860,14 +893,40 @@ export const updateShowTrending = internalMutation({
     });
 
     const TOP_N = 200;
-    for (let i = 0; i < parsed.length; i += 1) {
-      const { show } = parsed[i];
+    const rankedShowIds = new Set<string>();
+
+    for (let i = 0; i < Math.min(parsed.length, TOP_N); i += 1) {
+      const { show, score } = parsed[i];
+      rankedShowIds.add(show._id);
+      // Store scores at coarse precision so unchanged rankings become no-op
+      // writes. Vote mutations patch these same documents concurrently; every
+      // skipped patch here is one less OCC conflict.
+      const newScore = Number.isFinite(score) ? Math.round(score * 100) / 100 : 0;
+      const newRank = i + 1;
+      if (show.trendingRank === newRank && show.trendingScore === newScore) {
+        continue;
+      }
       await ctx.db.patch(show._id, {
-        trendingScore: Number.isFinite(parsed[i].score) ? parsed[i].score : 0,
-        trendingRank: i < TOP_N ? i + 1 : 0,
-        lastTrendingUpdate: Date.now(),
+        trendingScore: newScore,
+        trendingRank: newRank,
+        lastTrendingUpdate: now,
       });
     }
+
+    const previouslyRanked = await ctx.db
+      .query("shows")
+      .withIndex("by_trending_rank", (q) => q.gt("trendingRank", 0))
+      .take(TOP_N * 2);
+
+    for (const show of previouslyRanked) {
+      if (rankedShowIds.has(show._id)) continue;
+      await ctx.db.patch(show._id, {
+        trendingScore: 0,
+        trendingRank: 0,
+        lastTrendingUpdate: now,
+      });
+    }
+
     return null;
   },
 });
@@ -901,82 +960,95 @@ export const getTopRankedShows = internalQuery({
   },
 });
 
-// Update engagement counts (voteCount and setlistCount) for shows
-// FIXED: Use .collect() instead of .paginate() to avoid "multiple paginated queries" error
-// Convex only supports a single paginated query per function
+// Update engagement counts (voteCount and setlistCount) for shows.
+// REWORKED: the previous version full-table-scanned setlists, votes,
+// songVotes, AND shows (~45k rows) — that hard-fails Convex's per-function
+// read limits at prod scale. Instead we bound the recompute to shows in a
+// recent window (last 90 days + future) via the by_date index, then read each
+// show's setlists (by_show) and per-setlist votes/songVotes (by_setlist) with
+// bounded takes. Counts are capped by the per-item takes below; shows outside
+// the window (or beyond the per-run cap) keep their existing counts.
 export const updateEngagementCounts = internalMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
     console.log("🔄 Updating show engagement counts...");
 
-    // Count setlists per show
-    const allSetlists = await ctx.db.query("setlists").collect();
-    const setlistCounts = new Map<string, number>();
-    const setlistIdToShowId = new Map<string, string>();
+    // Shows in window: last 90 days + future (dates are "YYYY-MM-DD" strings).
+    const now = Date.now();
+    const windowStart = new Date(now - 90 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const windowShows = await ctx.db
+      .query("shows")
+      .withIndex("by_date", (q) => q.gte("date", windowStart))
+      .take(2000);
 
-    for (const setlist of allSetlists) {
-      if (setlist.showId) {
-        const showKey = setlist.showId.toString();
-        setlistCounts.set(
-          showKey,
-          (setlistCounts.get(showKey) || 0) + 1
-        );
-        setlistIdToShowId.set((setlist as any)._id.toString(), showKey);
-      }
-    }
+    // Per-show sub-reads (setlists + votes + songVotes) for 2000 shows would
+    // exceed read limits, so process at most 300 shows per invocation,
+    // prioritizing shows closest to today (most trending-relevant).
+    const MAX_SHOWS_PER_RUN = 300;
+    const byProximity = [...windowShows].sort((a, b) => {
+      const aMs = new Date(a.date).getTime();
+      const bMs = new Date(b.date).getTime();
+      const aDist = Number.isFinite(aMs) ? Math.abs(aMs - now) : Infinity;
+      const bDist = Number.isFinite(bMs) ? Math.abs(bMs - now) : Infinity;
+      return aDist - bDist;
+    });
+    const showsToProcess = byProximity.slice(0, MAX_SHOWS_PER_RUN);
+    const skipped = windowShows.length - showsToProcess.length;
 
-    // Count votes per show via setlist->show mapping
-    const allVotes = await ctx.db.query("votes").collect();
-    const voteCounts = new Map<string, number>();
-
-    for (const vote of allVotes) {
-      if (!vote.setlistId) continue;
-      const setlistKey = vote.setlistId.toString();
-      const showKey = setlistIdToShowId.get(setlistKey);
-      if (showKey) {
-        voteCounts.set(
-          showKey,
-          (voteCounts.get(showKey) || 0) + 1
-        );
-      }
-    }
-
-    // Also count songVotes for shows
-    const allSongVotes = await ctx.db.query("songVotes").collect();
-    for (const sv of allSongVotes) {
-      if (!sv.setlistId) continue;
-      const setlistKey = sv.setlistId.toString();
-      const showKey = setlistIdToShowId.get(setlistKey);
-      if (showKey) {
-        voteCounts.set(
-          showKey,
-          (voteCounts.get(showKey) || 0) + 1
-        );
-      }
-    }
-
-    // Apply updates to shows
-    const allShows = await ctx.db.query("shows").collect();
     let updated = 0;
+    let setlistsSeen = 0;
+    let votesSeen = 0;
 
-    for (const show of allShows) {
-      const key = show._id.toString();
-      const newSetlistCount = setlistCounts.get(key) || 0;
-      const newVoteCount = voteCounts.get(key) || 0;
+    for (const show of showsToProcess) {
+      // Bounded per-show reads; counts cap at the take() sizes.
+      const setlists = await ctx.db
+        .query("setlists")
+        .withIndex("by_show", (q) => q.eq("showId", show._id))
+        .take(20);
+
+      let voteCount = 0;
+      for (const setlist of setlists) {
+        const [votes, songVotes] = await Promise.all([
+          ctx.db
+            .query("votes")
+            .withIndex("by_setlist", (q) => q.eq("setlistId", setlist._id))
+            .take(500),
+          ctx.db
+            .query("songVotes")
+            .withIndex("by_setlist", (q) => q.eq("setlistId", setlist._id))
+            .take(500),
+        ]);
+        voteCount += votes.length + songVotes.length;
+      }
+
+      setlistsSeen += setlists.length;
+      votesSeen += voteCount;
+
+      const newSetlistCount = setlists.length;
+      // Patch only when changed — no-op patches cause OCC conflicts.
       if (
         show.setlistCount !== newSetlistCount ||
-        show.voteCount !== newVoteCount
+        show.voteCount !== voteCount
       ) {
         await ctx.db.patch(show._id, {
           setlistCount: newSetlistCount,
-          voteCount: newVoteCount,
+          voteCount,
         });
         updated++;
       }
     }
 
-    console.log(`✅ Updated engagement counts for ${updated} shows (${allSetlists.length} setlists, ${allVotes.length + allSongVotes.length} total votes)`);
+    if (skipped > 0) {
+      console.log(
+        `⚠️ Engagement recompute is partial: ${skipped} of ${windowShows.length} in-window shows skipped this run (cap ${MAX_SHOWS_PER_RUN}/invocation).`
+      );
+    }
+    console.log(
+      `✅ Updated engagement counts for ${updated}/${showsToProcess.length} processed shows (${setlistsSeen} setlists, ${votesSeen} votes counted)`
+    );
     return null;
   },
 });

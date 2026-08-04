@@ -46,6 +46,9 @@ const applicationTables = {
     artistAccessEnabledAt: v.optional(v.number()),
     artistMemberCount: v.optional(v.number()),
     lastShowSyncAt: v.optional(v.number()),
+    // setlist.fm history import (past setlists for the Past tab)
+    setlistfmMbid: v.optional(v.string()),
+    lastSetlistfmHistorySyncAt: v.optional(v.number()),
     lastSpotifyBasicsSyncAt: v.optional(v.number()),
     lastCatalogSyncAt: v.optional(v.number()),
     lastAutonomousRefreshAt: v.optional(v.number()),
@@ -87,6 +90,7 @@ const applicationTables = {
     .index("by_ticketmaster_id", ["ticketmasterId"])
     .index("by_lower_name", ["lowerName"])
     .index("by_last_synced", ["lastSynced"])
+    .index("by_setlistfm_history_sync", ["lastSetlistfmHistorySyncAt"])
     .index("by_artist_access_enabled", ["artistAccessEnabled"]),
 
   venues: defineTable({
@@ -174,10 +178,15 @@ const applicationTables = {
     .index("by_artist", ["artistId"])
     .index("by_venue", ["venueId"])
     .index("by_status", ["status"])
+    .index("by_status_and_date", ["status", "date"])
     .index("by_status_and_artist", ["status", "artistId"]) // For status-filtered queries
     .index("by_artist_and_status", ["artistId", "status"]) // For artist page status filtering
+    .index("by_artist_and_date", ["artistId", "date"])
+    .index("by_artist_status_and_date", ["artistId", "status", "date"])
     .index("by_date", ["date"])
+    .index("by_venue_status_and_date", ["venueId", "status", "date"])
     .index("by_ticketmaster_id", ["ticketmasterId"])
+    .index("by_setlistfm_id", ["setlistfmId"]) // For setlist.fm history dedup
     .index("by_trending_rank", ["trendingRank"])
     .index("by_import_status", ["importStatus"]) // For import monitoring
     .index("by_festival", ["festivalId"]), // For festival pages
@@ -200,6 +209,7 @@ const applicationTables = {
     isPrimaryArtist: v.boolean(),
   })
     .index("by_artist", ["artistId"])
+    .index("by_artist_and_song", ["artistId", "songId"])
     .index("by_song", ["songId"]),
 
   setlists: defineTable({

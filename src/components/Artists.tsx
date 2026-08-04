@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
-import { Search, Music, ChevronLeft, ChevronRight, Calendar, Users, Loader2 } from 'lucide-react';
+import { Search, Music, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { formatCompactNumber } from '../lib/format';
 import { useArtistImport } from '../hooks/useArtistImport';
 import { pageVariants, sectionVariants, gridContainerVariants, gridItemVariants, headerVariants } from './animations/FadeIn';
 import { GridSkeleton } from './LoadingSkeleton';
+import { SEOHead } from './SEOHead';
 
 interface ArtistsProps {
   onArtistClick: (artistId: Id<'artists'>, slug?: string) => void;
@@ -74,12 +76,16 @@ export function Artists({ onArtistClick }: ArtistsProps) {
   };
 
   return (
-    <motion.div 
+    <motion.div
       className="container mx-auto px-4 py-6 space-y-6 relative z-10"
       initial="hidden"
       animate="show"
       variants={pageVariants}
     >
+      <SEOHead
+        title="Browse Touring Artists – Setlists & Upcoming Shows"
+        description="Browse hundreds of touring artists, see who's trending, and vote on the setlists for their upcoming shows. Find your favorite artist's next concert."
+      />
       {/* Streamlined Header with Search */}
       <motion.div 
         className="flex flex-col sm:flex-row sm:items-center gap-4"
@@ -90,7 +96,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <input
             type="text"
-            placeholder="Search artists..."
+            placeholder="Filter artists…"
             value={searchQuery}
             onChange={handleSearch}
             className="w-full pl-10 pr-10 py-2.5 bg-secondary border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-foreground placeholder-muted-foreground text-sm"
@@ -106,7 +112,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
         </div>
         
         {/* Count - Right aligned on desktop */}
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground/70 text-xs sm:text-right">
           {filteredArtists.length} {filteredArtists.length === 1 ? 'artist' : 'artists'}
         </p>
       </motion.div>
@@ -204,7 +210,7 @@ export function Artists({ onArtistClick }: ArtistsProps) {
   );
 }
 
-// Compact Artist Card - Matching Homepage Style
+// Compact Artist Card - image-forward grid tile
 function ArtistCard({ artist, onClick, isImporting }: { artist: any; onClick: () => void; isImporting?: boolean }) {
   const artistImage = Array.isArray(artist.images) && artist.images.length > 0 ? artist.images[0] : undefined;
   const upcomingCount = typeof artist.upcomingShowsCount === 'number'
@@ -213,61 +219,65 @@ function ArtistCard({ artist, onClick, isImporting }: { artist: any; onClick: ()
       ? artist.upcomingEvents
       : 0;
 
+  const metaParts: string[] = [];
+  if (upcomingCount > 0) {
+    metaParts.push(`${upcomingCount} ${upcomingCount === 1 ? 'show' : 'shows'}`);
+  }
+  if (typeof artist.followers === 'number' && artist.followers > 0) {
+    metaParts.push(`${formatCompactNumber(artist.followers)} fans`);
+  }
+  if (metaParts.length === 0 && artist.genres?.[0]) {
+    metaParts.push(artist.genres[0]);
+  }
+
   return (
-    <motion.div 
-      className={`cursor-pointer ${isImporting ? 'pointer-events-none opacity-70' : ''}`}
+    <motion.button
+      type="button"
       onClick={onClick}
-      whileHover={{ y: -4 }}
+      disabled={isImporting}
       whileTap={{ scale: 0.98 }}
+      className="group relative block w-full text-left rounded-xl overflow-hidden bg-card ring-1 ring-border transition-all duration-200 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-70 disabled:pointer-events-none cursor-pointer touch-manipulation"
     >
-      <div className="glow-card glow-card-hover overflow-hidden relative">
-        {isImporting && (
-          <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      {isImporting && (
+        <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      )}
+
+      {/* Artist Image */}
+      <div className="relative w-full aspect-square overflow-hidden bg-secondary">
+        {artistImage ? (
+          <img
+            src={artistImage}
+            alt={artist.name}
+            loading="lazy"
+            className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-secondary to-secondary/50 flex items-center justify-center">
+            <span className="text-foreground/60 font-bold text-2xl">
+              {artist.name?.slice(0, 2).toUpperCase()}
+            </span>
           </div>
         )}
-        {/* Artist Image */}
-        <div className="relative w-full aspect-square overflow-hidden">
-          {artistImage ? (
-            <img
-              src={artistImage}
-              alt={artist.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-secondary to-secondary/50 flex items-center justify-center">
-              <span className="text-foreground/60 font-bold text-xl">
-                {artist.name?.slice(0, 2).toUpperCase()}
-              </span>
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-        </div>
-
-        {/* Content */}
-        <div className="p-2.5 sm:p-3">
-          <h3 className="text-foreground font-semibold text-xs sm:text-sm line-clamp-1">
-            {artist.name}
-          </h3>
-          <div className="flex items-center gap-2 mt-1 text-muted-foreground text-[10px] sm:text-xs">
-            {upcomingCount > 0 && (
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {upcomingCount}
-              </span>
-            )}
-            {artist.followers && (
-              <span className="flex items-center gap-1">
-                <Users className="h-3 w-3" />
-                {artist.followers > 1000 
-                  ? `${(artist.followers / 1000).toFixed(0)}k` 
-                  : artist.followers
-                }
-              </span>
-            )}
-          </div>
-        </div>
+        {/* Bottom scrim so the name band reads against the artwork */}
+        <div
+          className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none"
+          aria-hidden="true"
+        />
       </div>
-    </motion.div>
+
+      {/* Name + metadata */}
+      <div className="px-3 pb-3 pt-2.5">
+        <h3 className="text-foreground font-semibold text-base leading-tight line-clamp-1">
+          {artist.name}
+        </h3>
+        {metaParts.length > 0 && (
+          <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
+            {metaParts.join(' · ')}
+          </p>
+        )}
+      </div>
+    </motion.button>
   );
 }

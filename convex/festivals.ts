@@ -818,13 +818,17 @@ export const linkShowToFestival = internalMutation({
   },
 });
 
-// Get all festival slugs for sitemap generation
+// Get all festival slugs for sitemap generation (bounded; small table).
 export const getAllSlugs = internalQuery({
   args: {},
-  returns: v.array(v.string()),
+  returns: v.array(v.object({ slug: v.string(), lastmod: v.optional(v.number()) })),
   handler: async (ctx) => {
-    const festivals = await ctx.db.query("festivals").collect();
-    return festivals.map((f) => f.slug).filter((slug): slug is string => !!slug);
+    const festivals = await ctx.db.query("festivals").take(500);
+    const results: { slug: string; lastmod?: number }[] = [];
+    for (const f of festivals) {
+      if (f.slug) results.push({ slug: f.slug, lastmod: f.lastSynced ?? f._creationTime });
+    }
+    return results;
   },
 });
 

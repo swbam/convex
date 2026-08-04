@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { ArrowLeft, Calendar, MapPin, Users, Music, Plus, Loader2, Heart, Check } from "lucide-react";
+import { Calendar, ChevronRight, Users, Music, Plus, Loader2, Heart, Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
@@ -15,7 +15,6 @@ import { motion } from "framer-motion";
 import { useAction } from "convex/react";
 import { formatLocation, formatTimeCompact } from "../lib/utils";
 import { DetailPageSkeleton } from "./LoadingSkeleton";
-import { pageVariants, sectionVariants, gridContainerVariants, gridItemVariants } from './animations/FadeIn';
 
 interface ArtistDetailProps {
   artistId: Id<"artists">;
@@ -27,7 +26,10 @@ interface ArtistDetailProps {
 export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }: ArtistDetailProps) {
   const artist = useQuery(api.artists.getById, { id: artistId });
   const shows = useQuery(api.shows.getByArtist, { artistId, limit: 50 });
-  const songs = useQuery(api.songs.getByArtist, { artistId, limit: 200 });
+  // This surface only renders a short top-songs list. Avoid hydrating the
+  // entire catalog here; the show voting picker requests the full set.
+  const songs = useQuery(api.songs.getByArtist, { artistId, limit: 25 });
+  const catalogSongCount = useQuery(api.songs.countByArtistPublic, { artistId });
   const isFollowing = useQuery(api.artists.isFollowing, { artistId });
   const user = useQuery(api.auth.loggedInUser);
   // Media selection via backend (Ticketmaster hero, Spotify avatar)
@@ -51,6 +53,20 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
       }
     })();
   }, [artistId, getArtistImages]);
+
+  // If this artist's setlist.fm history was never imported (backlog artists
+  // predating the feature), trigger it on first view — the backend skips
+  // anything synced within the last 6h, so repeat visits are free.
+  const requestHistoryImport = useAction((api as any).setlistfmHistory.requestArtistHistoryImport);
+  const historyRequestedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!artist || historyRequestedRef.current) return;
+    if ((artist as any).lastSetlistfmHistorySyncAt) return;
+    historyRequestedRef.current = true;
+    void requestHistoryImport({ artistId }).catch(() => {
+      // non-critical background trigger
+    });
+  }, [artist, artistId, requestHistoryImport]);
 
   const [anonymousActions, setAnonymousActions] = useState(0);
   const [addToSetlistModal, setAddToSetlistModal] = useState<{ isOpen: boolean; songTitle: string }>({ isOpen: false, songTitle: "" });
@@ -124,7 +140,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
       <SEOHead />
       <div className="space-y-4 sm:space-y-8 relative z-10">
         {/* Hero Header - Apple Music/Spotify-inspired immersive design */}
-        <div className="relative w-full overflow-hidden min-h-[200px] sm:min-h-[260px] lg:min-h-[320px]">
+        <div className="relative w-full overflow-hidden min-h-[176px] sm:min-h-[260px] lg:min-h-[320px]">
           {/* Background Image Layer - Full bleed, high quality */}
           <div className="absolute inset-0 z-0">
             {heroImage ? (
@@ -153,8 +169,8 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
 
           {/* Content - Positioned at bottom for Apple Music style */}
           <div className="relative z-10 h-full flex items-end">
-            <div className="w-full px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8 lg:pb-10 pt-16 sm:pt-20">
-              <div className="flex flex-row items-end gap-4 sm:gap-6 lg:gap-8 max-w-6xl mx-auto">
+            <div className="w-full px-4 sm:px-6 lg:px-8 pb-5 sm:pb-8 lg:pb-10 pt-12 sm:pt-20">
+              <div className="flex flex-row items-end gap-3.5 sm:gap-6 lg:gap-8 max-w-6xl mx-auto">
                 {/* Artist Image - Premium shadow and border treatment */}
                 <div className="flex-shrink-0">
                   <a
@@ -162,7 +178,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={spotifyLink ? "View artist on Spotify" : undefined}
-                    className="relative block w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10 dark:ring-white/20"
+                    className="relative block w-[72px] h-[72px] sm:w-28 sm:h-28 lg:w-36 lg:h-36 rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10 dark:ring-white/20"
                   >
                     {(avatarImage || heroImage) ? (
                       <img
@@ -172,7 +188,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                       />
                     ) : (
                       <div className="w-full h-full bg-secondary flex items-center justify-center">
-                        <span className="text-3xl font-bold text-muted-foreground">
+                        <span className="text-xl sm:text-2xl font-bold text-muted-foreground">
                           {artist.name?.slice(0, 2).toUpperCase()}
                         </span>
                       </div>
@@ -187,46 +203,34 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                     {artist.name}
                   </h1>
 
-                  {/* Meta Info - Subtle but readable */}
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm sm:text-base text-foreground/80 mt-2 sm:mt-3">
-                    {artist.followers && (
-                      <div className="flex items-center gap-1.5">
-                        <Users className="h-4 w-4 sm:h-5 sm:w-5 opacity-70" />
-                        <span className="font-medium">{(artist.followers / 1000000).toFixed(1)}M followers</span>
-                      </div>
-                    )}
-                    <span className="text-foreground/40">•</span>
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="h-4 w-4 sm:h-5 sm:w-5 opacity-70" />
-                      <span className="font-medium">{upcomingShows.length} upcoming</span>
-                    </div>
+                  {/* Meta Info - single muted line */}
+                  <p className="mt-1 sm:mt-2 text-xs sm:text-sm font-medium text-foreground/75 truncate">
+                    {artist.followers ? `${formatFollowerCount(artist.followers)} followers · ` : ""}
+                    {upcomingShows.length} upcoming
                     {artist.genres && artist.genres.length > 0 && (
-                      <>
-                        <span className="text-foreground/40 hidden sm:inline">•</span>
-                        <span className="hidden sm:inline font-medium opacity-80">{artist.genres[0]}</span>
-                      </>
+                      <span className="hidden sm:inline"> · {artist.genres[0]}</span>
                     )}
-                  </div>
+                  </p>
 
-                  {/* Follow button */}
+                  {/* Follow button - compact outlined pill */}
                   <motion.button
-                    whileTap={{ scale: 0.96 }}
+                    whileTap={{ scale: 0.97 }}
                     onClick={() => void handleFollow()}
                     aria-pressed={!!isFollowing}
-                    className={`mt-3 sm:mt-4 inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition-colors min-h-[40px] ${
+                    className={`mt-2.5 sm:mt-4 inline-flex items-center gap-1.5 rounded-full border px-4 min-h-[40px] text-xs sm:text-sm font-semibold transition-colors ${
                       isFollowing
-                        ? "bg-secondary text-foreground border border-border"
-                        : "bg-primary text-primary-foreground hover:bg-primary/90"
+                        ? "border-border bg-secondary text-foreground"
+                        : "border-foreground/30 bg-background/50 text-foreground backdrop-blur-sm hover:bg-secondary/70 active:bg-secondary/70"
                     }`}
                   >
                     {isFollowing ? (
                       <>
-                        <Check className="h-4 w-4" />
+                        <Check className="h-3.5 w-3.5" />
                         Following
                       </>
                     ) : (
                       <>
-                        <Heart className="h-4 w-4" />
+                        <Heart className="h-3.5 w-3.5" />
                         Follow
                       </>
                     )}
@@ -240,201 +244,106 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         {/* Main Content */}
         <div className="container mx-auto px-4 sm:px-6 pb-4 sm:pb-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          {/* Upcoming Shows - Main Content */}
+          {/* Shows - Main Content */}
         <div className="lg:col-span-2">
-          <MagicCard className="p-0 rounded-xl border border-border bg-card">
-            <div className="px-4 py-4 sm:p-6">
-                <Tabs defaultValue="upcoming" className="w-full">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
-                      <Calendar className="h-4 w-4 text-foreground" />
-                    </div>
+          <Tabs defaultValue="upcoming" className="w-full">
+                {/* Sticky tab bar - stays under the fixed app header while scrolling */}
+                <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-30 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0 py-2 mb-2 bg-background/95 backdrop-blur">
+                  <div className="flex items-center justify-between gap-3">
                     <h2 className="text-lg sm:text-xl font-bold text-foreground">Shows</h2>
+                    <TabsList className="inline-flex bg-secondary/50 rounded-lg p-0.5 gap-0.5 h-auto">
+                      <TabsTrigger value="upcoming" className="data-[state=active]:bg-background px-3 py-1.5 min-h-[36px] text-xs rounded-md">
+                        Upcoming
+                      </TabsTrigger>
+                      <TabsTrigger value="past" className="data-[state=active]:bg-background px-3 py-1.5 min-h-[36px] text-xs rounded-md">
+                        Past
+                      </TabsTrigger>
+                    </TabsList>
                   </div>
-                  <TabsList className="inline-flex bg-secondary/50 rounded-lg p-0.5 gap-0.5 h-auto">
-                    <TabsTrigger value="upcoming" className="data-[state=active]:bg-background px-2.5 py-1 text-xs rounded-md">
-                      <Calendar className="h-3 w-3 mr-1" />
-                      Upcoming
-                    </TabsTrigger>
-                    <TabsTrigger value="past" className="data-[state=active]:bg-background px-2.5 py-1 text-xs rounded-md">
-                      <Music className="h-3 w-3 mr-1" />
-                      Past
-                    </TabsTrigger>
-                  </TabsList>
                 </div>
-                
-                <TabsContent value="upcoming" className="mt-6">
+
+            <MagicCard className="p-0 rounded-xl border border-border bg-card">
+              <div className="px-2 py-1.5 sm:px-3 sm:py-2">
+
+                <TabsContent value="upcoming" className="mt-0">
                   {!shows ? (
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="p-4 rounded-lg border border-border min-h-[56px] flex items-center animate-pulse">
-                    <div className="flex-1">
-                      <div className="h-5 bg-secondary rounded w-3/4 mb-2"></div>
-                      <div className="h-4 bg-secondary rounded w-1/2"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : isImportingShows ? (
-                <MagicCard className="p-8 rounded-xl border-0 bg-card">
-                  <div className="flex flex-col items-center justify-center space-y-4">
-                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                    <div className="text-center">
-                      <p className="text-lg font-medium text-foreground">Fetching Shows</p>
-                      <p className="text-sm text-muted-foreground mt-2">
+                    <ShowRowsSkeleton />
+                  ) : isImportingShows ? (
+                    <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <p className="mt-4 text-base font-medium text-foreground">Fetching Shows</p>
+                      <p className="text-sm text-muted-foreground mt-1">
                         Importing {artist.name}'s tour dates from Ticketmaster...
                       </p>
-                      <div className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                        <span className="animate-pulse">⚡</span>
-                        <span>Usually takes 3-5 seconds</span>
-                      </div>
+                      <p className="mt-2 text-xs text-muted-foreground">Usually takes 3-5 seconds</p>
                     </div>
-                  </div>
-                  <BorderBeam size={150} duration={8} className="opacity-30" />
-                </MagicCard>
-            ) : hasImportError ? (
-              <MagicCard className="p-8 rounded-xl border-0 bg-red-500/10 border border-red-500/20">
-                <div className="text-center space-y-4">
-                  <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto">
-                    <Music className="h-8 w-8 text-red-400" />
-                  </div>
-                  <p className="text-red-400 font-medium">{hasImportError}</p>
-                  <p className="text-sm text-muted-foreground">There was an issue importing show data.</p>
-                  <Button onClick={() => window.location.reload()} variant="outline">
-                    Retry Import
-                  </Button>
-                </div>
-              </MagicCard>
-            ) : upcomingShows.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No upcoming shows scheduled</p>
-                <p className="text-sm mt-1">Check back later for tour announcements</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {upcomingShows.map((show, idx) => (
-                  <div
-                    key={show._id}
-                    className="p-4 rounded-xl border border-border bg-secondary/50 hover:bg-secondary active:bg-secondary cursor-pointer transition-all duration-150 active:scale-[0.98] min-h-[56px] flex items-center"
-                    onClick={() => onShowClick(show._id, (show as any).slug)}
-                  >
-                    <div className="flex justify-between items-start w-full">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg sm:text-xl font-extrabold text-foreground mb-1.5 leading-tight">{show.venue?.name}</h3>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1.5">
-                            <MapPin className="h-3.5 w-3.5" />
-                            <span>{formatLocation(show.venue?.city, show.venue?.state)}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <Calendar className="h-3.5 w-3.5" />
-                            <span>
-                              {new Date(show.date).toLocaleDateString('en-US', {
-                                weekday: 'short',
-                                month: 'short',
-                                day: 'numeric'
-                              })}
-                            </span>
-                          </div>
-                          {show.startTime && (
-                            <span className="text-xs">{formatTimeCompact(show.startTime)}</span>
-                          )}
-                        </div>
+                  ) : hasImportError ? (
+                    <div className="text-center py-10 px-4 space-y-3">
+                      <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center mx-auto">
+                        <Music className="h-6 w-6 text-red-400" />
                       </div>
-                      <div className="text-right">
-                        <div className={`px-3 py-1 rounded-full text-sm font-medium border ${
-                          new Date(show.date).toDateString() === new Date().toDateString()
-                            ? "border-foreground text-foreground" 
-                            : "border-border text-muted-foreground"
-                        }`}>
-                          {new Date(show.date).toDateString() === new Date().toDateString() ? "Tonight" : "Upcoming"}
-                        </div>
-                      </div>
+                      <p className="text-red-400 font-medium text-sm">{hasImportError}</p>
+                      <p className="text-sm text-muted-foreground">There was an issue importing show data.</p>
+                      <Button onClick={() => window.location.reload()} variant="outline" size="sm">
+                        Retry Import
+                      </Button>
                     </div>
-                    
-                    {show.venue?.capacity && (
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Users className="h-4 w-4" />
-                        <span>{show.venue.capacity.toLocaleString()} capacity</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                  </div>
+                  ) : upcomingShows.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No upcoming shows scheduled</p>
+                      <p className="text-sm mt-1">Check back later for tour announcements</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col divide-y divide-border/50">
+                      {upcomingShows.map((show) => (
+                        <ArtistShowRow
+                          key={show._id}
+                          show={show}
+                          onClick={() => onShowClick(show._id, (show as any).slug)}
+                        />
+                      ))}
+                    </div>
                   )}
                 </TabsContent>
                 
-                <TabsContent value="past" className="mt-6">
+                <TabsContent value="past" className="mt-0">
                   {!shows ? (
-                    <div className="space-y-3">
-                      {[...Array(5)].map((_, i) => (
-                        <div key={i} className="p-4 rounded-lg border border-border min-h-[56px] flex items-center animate-pulse">
-                          <div className="flex-1">
-                            <div className="h-5 bg-secondary rounded w-3/4 mb-2"></div>
-                            <div className="h-4 bg-secondary rounded w-1/2"></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <ShowRowsSkeleton />
                   ) : recentShows.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No past shows recorded</p>
-                      <p className="text-sm mt-1">Past shows will appear here after they happen</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {recentShows.map((show) => (
-                    <div
-                      key={show._id}
-                      className="p-4 rounded-xl border border-border bg-secondary/50 hover:bg-secondary active:bg-secondary cursor-pointer transition-all duration-150 active:scale-[0.98] min-h-[56px] flex items-center"
-                      onClick={() => onShowClick(show._id, (show as any).slug)}
-                    >
-                      <div className="flex justify-between items-start w-full">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-lg sm:text-xl font-extrabold text-foreground mb-1.5 leading-tight">{show.venue?.name}</h3>
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1.5">
-                              <MapPin className="h-3.5 w-3.5" />
-                              <span>{formatLocation(show.venue?.city, show.venue?.state)}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <Calendar className="h-3.5 w-3.5" />
-                              <span>
-                                {new Date(show.date).toLocaleDateString('en-US', {
-                                  weekday: 'short',
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: 'numeric'
-                                })}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="px-3 py-1 rounded-full text-sm font-medium border border-green-500 text-green-500">
-                            Completed
-                          </div>
-                        </div>
+                    // lastSetlistfmHistorySyncAt is an optional field being added by the
+                    // setlist.fm history import; absent (undefined) means the first import
+                    // hasn't completed yet. Cast in case generated types lag the schema.
+                    !(artist as any).lastSetlistfmHistorySyncAt ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <Loader2 className="h-12 w-12 mx-auto mb-4 opacity-50 animate-spin" />
+                        <p>Importing recent setlists from setlist.fm</p>
+                        <p className="text-sm mt-1">Check back in a minute</p>
                       </div>
-                      
-                      {show.venue?.capacity && (
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Users className="h-4 w-4" />
-                          <span>{show.venue.capacity.toLocaleString()} capacity</span>
-                        </div>
-                      )}
-                    </div>
+                    ) : (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>No recent setlists found on setlist.fm for this artist</p>
+                        <p className="text-sm mt-1">Past shows will appear here after they happen</p>
+                      </div>
+                    )
+                  ) : (
+                    <div className="flex flex-col divide-y divide-border/50">
+                      {recentShows.map((show) => (
+                        <ArtistShowRow
+                          key={show._id}
+                          show={show}
+                          past
+                          onClick={() => onShowClick(show._id, (show as any).slug)}
+                        />
                       ))}
                     </div>
                   )}
                 </TabsContent>
-              </Tabs>
-            </div>
-            <BorderBeam size={120} duration={10} className="opacity-20" />
-          </MagicCard>
+              </div>
+              <BorderBeam size={120} duration={10} className="opacity-20" />
+            </MagicCard>
+          </Tabs>
         </div>
 
         {/* Top Songs - Right Sidebar */}
@@ -524,7 +433,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Total songs</span>
-                  <span className="font-medium text-foreground">{songs?.length || 0}</span>
+                  <span className="font-medium text-foreground">{catalogSongCount ?? 0}</span>
                 </div>
                 
                 {artist.followers && (
@@ -558,5 +467,104 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
       onSignInRequired={onSignInRequired}
     />
   </>
+  );
+}
+
+function formatFollowerCount(count: number): string {
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
+  if (count >= 1_000) return `${Math.round(count / 1_000)}K`;
+  return count.toLocaleString();
+}
+
+/** Dense, tappable show row: date block · venue/location · status/chevron */
+function ArtistShowRow({
+  show,
+  past = false,
+  onClick,
+}: {
+  show: any;
+  past?: boolean;
+  onClick: () => void;
+}) {
+  const date = new Date(show.date);
+  const month = date.toLocaleDateString('en-US', { month: 'short' });
+  const day = date.getDate();
+  const weekday = date.toLocaleDateString('en-US', { weekday: 'short' });
+  const year = date.getFullYear();
+  const isTonight = !past && date.toDateString() === new Date().toDateString();
+  const time = !past ? formatTimeCompact(show.startTime) : null;
+  const hasSetlist = past && show.importStatus === "completed";
+
+  const metaParts: string[] = [formatLocation(show.venue?.city, show.venue?.state)];
+  if (past) {
+    if (year !== new Date().getFullYear()) metaParts.push(String(year));
+  } else {
+    metaParts.push(weekday);
+    if (time) metaParts.push(time);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full flex items-center gap-3 px-1.5 sm:px-2 py-2 min-h-[64px] text-left rounded-lg transition-colors duration-150 hover:bg-secondary/40 active:bg-secondary/50 touch-manipulation"
+    >
+      {/* Compact date block */}
+      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-secondary ring-1 ring-border flex flex-col items-center justify-center">
+        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground leading-none">
+          {month}
+        </span>
+        <span className="text-lg font-bold text-foreground leading-none mt-0.5">
+          {day}
+        </span>
+      </div>
+
+      {/* Venue + location */}
+      <div className="flex-1 min-w-0">
+        <p className="text-[15px] font-semibold text-foreground leading-tight truncate">
+          {show.venue?.name || "Venue TBA"}
+        </p>
+        <p className="text-xs text-muted-foreground truncate mt-0.5">
+          {metaParts.filter(Boolean).join(" · ")}
+        </p>
+      </div>
+
+      {/* Status + chevron */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {isTonight && (
+          <span className="text-[11px] font-semibold text-foreground border border-foreground/50 rounded-full px-2 py-0.5">
+            Tonight
+          </span>
+        )}
+        {past && (
+          hasSetlist ? (
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-green-500 bg-green-500/10 rounded-full px-2 py-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500" aria-hidden="true" />
+              Setlist
+            </span>
+          ) : (
+            <span className="text-[11px] text-muted-foreground">Awaiting setlist</span>
+          )
+        )}
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      </div>
+    </button>
+  );
+}
+
+/** Loading skeleton matching ArtistShowRow dimensions */
+function ShowRowsSkeleton() {
+  return (
+    <div className="flex flex-col divide-y divide-border/50">
+      {[...Array(5)].map((_, i) => (
+        <div key={i} className="flex items-center gap-3 px-1.5 sm:px-2 py-2 min-h-[64px] animate-pulse">
+          <div className="w-12 h-12 rounded-lg bg-secondary flex-shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 bg-secondary rounded w-3/4" />
+            <div className="h-3 bg-secondary rounded w-1/2" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

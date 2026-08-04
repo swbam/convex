@@ -3,7 +3,7 @@ import { useQuery, useAction } from "convex/react";
 import { useUser } from "@clerk/clerk-react";
 import { api } from "../../convex/_generated/api";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, Users, MapPin, Music, Sparkles, ArrowRight, Ticket, Loader2 } from "lucide-react";
+import { MapPin, Music, ArrowRight, Loader2 } from "lucide-react";
 import { SearchBar } from "./SearchBar";
 import { Id } from "../../convex/_generated/dataModel";
 import { GridSkeleton } from "./LoadingSkeleton";
@@ -238,44 +238,41 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
 
   return (
     <div className="w-full">
-      {/* Hero Section with Search */}
-      <motion.section 
-        className="relative w-full pt-8 pb-10 md:pt-12 md:pb-14"
+      {/* Hero Section — action-first: headline, one subline, search as the hero object */}
+      <motion.section
+        className="relative w-full pt-6 pb-6 md:pt-12 md:pb-10"
         initial="hidden"
         animate="show"
         variants={heroVariants}
       >
         <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center space-y-4">
-            <motion.h1 
+          <div className="max-w-3xl mx-auto text-center">
+            <motion.h1
               variants={itemVariants}
-              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight gradient-text"
+              className="text-[1.75rem] leading-[1.15] sm:text-4xl md:text-5xl font-bold tracking-tight gradient-text"
             >
-              Crowdsourced Concert Setlists
+              See what fans want to hear — before doors open
             </motion.h1>
-            
-            <motion.p 
+
+            <motion.p
               variants={itemVariants}
-              className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto"
+              className="mt-2 text-sm md:text-base text-muted-foreground max-w-xl mx-auto"
             >
-              See your favorite artists' upcoming shows. Vote on songs before the concert. See what actually got played after.
+              Vote on the setlist for any upcoming show.{' '}
+              <a
+                href="/about"
+                className="whitespace-nowrap text-muted-foreground/80 underline underline-offset-4 decoration-border hover:text-foreground transition-colors"
+              >
+                How it works <span aria-hidden="true">→</span>
+              </a>
             </motion.p>
-            
-            <motion.a
-              href="/about"
+
+            {/* Search Bar — the primary hero action */}
+            <motion.div
               variants={itemVariants}
-              className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors"
+              className="mt-4 md:mt-5 max-w-md mx-auto relative z-[100]"
             >
-              How it works
-              <span aria-hidden="true">→</span>
-            </motion.a>
-        
-            {/* Search Bar */}
-            <motion.div 
-              variants={itemVariants}
-              className="max-w-md mx-auto pt-2 relative z-[100]"
-            >
-              <SearchBar 
+              <SearchBar
                 onResultClick={(type, id, slug) => {
                   if (type === 'artist') {
                     navigateTo(`/artists/${slug || id}`);
@@ -291,10 +288,11 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
         </div>
       </motion.section>
 
-      {/* Personalization Layer - Conditional based on auth status */}
-      <div className="container mx-auto px-4 mb-8">
+      {/* Personalization Layer - signed-in users only (signed-out CTA lives below the first trending section) */}
+      {isClerkLoaded && isSignedIn && (hasSpotify ? sortedSpotifyArtists.length > 0 : true) && (
+      <div className="container mx-auto px-4 mb-6 sm:mb-8">
         {/* State 1: Logged in WITH Spotify - Show their artists on tour */}
-        {isClerkLoaded && isSignedIn && hasSpotify && sortedSpotifyArtists.length > 0 && (
+        {hasSpotify && sortedSpotifyArtists.length > 0 && (
           <motion.section
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -342,160 +340,163 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
           </motion.section>
         )}
         
-        {/* State 2: Logged in WITHOUT Spotify - Show connect CTA */}
-        {isClerkLoaded && isSignedIn && !hasSpotify && (
+        {/* State 2: Logged in WITHOUT Spotify - compact connect banner */}
+        {!hasSpotify && (
           <motion.section
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
           >
-            <MagicCard className="p-0 rounded-xl border-0 bg-gradient-to-br from-green-500/10 to-green-500/5 overflow-hidden">
-              <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <FaSpotify className="h-6 w-6 text-green-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-foreground">See Your Artists on Tour</h3>
-                    <p className="text-sm text-muted-foreground">Connect Spotify to instantly see which of your favorite artists have upcoming shows</p>
-                  </div>
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="flex items-center gap-3 p-3 sm:p-4">
+                <FaSpotify className="h-5 w-5 text-green-400 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground truncate">See your artists on tour</p>
+                  <p className="text-xs text-muted-foreground truncate">Connect Spotify to find their upcoming shows</p>
                 </div>
-                <button 
+                <button
                   onClick={() => navigateTo('/spotify-connect')}
-                  className="w-full sm:w-auto px-6 py-2.5 bg-green-500 hover:bg-green-600 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+                  className="shrink-0 min-h-[44px] px-4 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-full transition-colors flex items-center justify-center gap-2"
                 >
                   <FaSpotify className="h-4 w-4" />
-                  Connect Spotify
+                  Connect
                 </button>
               </div>
-              <BorderBeam size={100} duration={10} className="opacity-20" />
-            </MagicCard>
-          </motion.section>
-        )}
-        
-        {/* State 3: Logged OUT (or Clerk not loaded) - Show sign up with Spotify CTA */}
-        {(!isClerkLoaded || !isSignedIn) && (
-          <motion.section
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            <MagicCard className="p-0 rounded-xl border-0 bg-gradient-to-br from-green-500/10 via-card to-card overflow-hidden">
-              <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="h-6 w-6 text-green-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-foreground">Get Personalized Shows</h3>
-                    <p className="text-sm text-muted-foreground">Sign up with Spotify to instantly see your top artists' upcoming concerts</p>
-                  </div>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                  <button 
-                    onClick={() => navigateTo('/signup')}
-                    className="w-full sm:w-auto px-6 py-2.5 bg-green-500 hover:bg-green-600 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
-                  >
-                    <FaSpotify className="h-4 w-4" />
-                    Sign up with Spotify
-                  </button>
-                  <button 
-                    onClick={() => navigateTo('/signin')}
-                    className="w-full sm:w-auto px-6 py-2.5 bg-secondary hover:bg-secondary/80 text-foreground font-medium rounded-xl transition-colors"
-                  >
-                    Sign in
-                  </button>
-                </div>
-              </div>
-              <BorderBeam size={100} duration={10} className="opacity-20" />
-            </MagicCard>
+            </div>
           </motion.section>
         )}
       </div>
+      )}
 
       {/* Content Sections */}
-      <div className="container mx-auto px-4 space-y-12 pb-16">
-        
+      <div className="container mx-auto px-4 space-y-8 md:space-y-12 pb-16">
+
         {/* Trending Artists */}
         <section className="relative">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-secondary flex items-center justify-center border border-border">
-                <Users className="h-5 w-5 sm:h-6 sm:w-6 text-foreground/80" />
-              </div>
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-foreground">Trending Artists</h2>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  Popular artists with upcoming shows
-                  {trendingArtistsMeta && (
-                    <>
-                      {" "}
-                      •{" "}
-                      {trendingArtistsMeta.isFallback
-                        ? "Refreshing… showing fallback"
-                        : `Updated ${formatUpdatedAt(trendingArtistsMeta.lastUpdated) ?? "recently"}`}
-                    </>
-                  )}
-                </p>
-              </div>
+          <div className="flex items-end justify-between gap-3 mb-3 sm:mb-4">
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground">Trending Artists</h2>
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
+                Popular artists with upcoming shows
+                {trendingArtistsMeta && (
+                  <span className="text-muted-foreground/60">
+                    {" "}·{" "}
+                    {trendingArtistsMeta.isFallback
+                      ? "Refreshing…"
+                      : `Updated ${formatUpdatedAt(trendingArtistsMeta.lastUpdated) ?? "recently"}`}
+                  </span>
+                )}
+              </p>
             </div>
             <button
               onClick={() => navigateTo('/trending')}
-              className="text-xs sm:text-sm text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+              className="shrink-0 text-xs sm:text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors min-h-[44px]"
             >
               View all <ArrowRight className="h-3 w-3" />
             </button>
           </div>
-          
+
           <div>
             {isLoading ? (
-              <GridSkeleton count={12} />
+              <>
+                <div className="sm:hidden">
+                  <ArtistShelfSkeleton />
+                </div>
+                <div className="hidden sm:block">
+                  <GridSkeleton count={12} />
+                </div>
+              </>
             ) : (trendingArtists as any[])?.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Music className="h-12 w-12 text-muted-foreground/50 mb-4" />
                 <p className="text-muted-foreground">No trending artists yet</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {(trendingArtists as any[]).slice(0, 12).map((artist: any, index: number) => {
-                  const artistId = artist?._id || artist?.artistId;
-                  const isImporting = importingArtist === artist.ticketmasterId;
-                  
-                  return (
-                    <ArtistCard 
-                      key={`${artistId || artist.ticketmasterId}-${index}`}
-                      artist={artist} 
-                      onClick={() => handleTrendingArtistClick(artist)}
-                      isLoading={isImporting}
-                    />
-                  );
-                })}
-              </div>
+              <>
+                {/* Mobile: editorial horizontal snap-scroll shelf */}
+                <div className="sm:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory -mx-4 px-4 scrollbar-hide">
+                  {(trendingArtists as any[]).slice(0, 12).map((artist: any, index: number) => {
+                    const artistId = artist?._id || artist?.artistId;
+                    const isImporting = importingArtist === artist.ticketmasterId;
+
+                    return (
+                      <ArtistShelfCard
+                        key={`shelf-${artistId || artist.ticketmasterId}-${index}`}
+                        artist={artist}
+                        onClick={() => handleTrendingArtistClick(artist)}
+                        isLoading={isImporting}
+                      />
+                    );
+                  })}
+                </div>
+                {/* Desktop: grid */}
+                <div className="hidden sm:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                  {(trendingArtists as any[]).slice(0, 12).map((artist: any, index: number) => {
+                    const artistId = artist?._id || artist?.artistId;
+                    const isImporting = importingArtist === artist.ticketmasterId;
+
+                    return (
+                      <ArtistCard
+                        key={`${artistId || artist.ticketmasterId}-${index}`}
+                        artist={artist}
+                        onClick={() => handleTrendingArtistClick(artist)}
+                        isLoading={isImporting}
+                      />
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
         </section>
 
+        {/* Signed-out CTA — compact banner, demoted below the first trending section */}
+        {(!isClerkLoaded || !isSignedIn) && (
+          <motion.section
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="flex items-center gap-3 p-3 sm:p-4">
+                <FaSpotify className="h-5 w-5 text-green-400 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground truncate">Get personalized shows</p>
+                  <button
+                    onClick={() => navigateTo('/signin')}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Already have an account? <span className="underline underline-offset-2">Sign in</span>
+                  </button>
+                </div>
+                <button
+                  onClick={() => navigateTo('/signup')}
+                  className="shrink-0 min-h-[44px] px-4 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-full transition-colors flex items-center justify-center gap-2"
+                >
+                  <FaSpotify className="h-4 w-4" />
+                  Sign up<span className="hidden sm:inline"> with Spotify</span>
+                </button>
+              </div>
+            </div>
+          </motion.section>
+        )}
+
         {/* Featured Festivals */}
         {featuredFestivals && featuredFestivals.length > 0 && (
           <section className="relative">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center border border-border">
-                  <Ticket className="h-5 w-5 sm:h-6 sm:w-6 text-purple-400" />
-                </div>
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-foreground">Upcoming Festivals</h2>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Major music festivals this year</p>
-                </div>
+            <div className="flex items-end justify-between gap-3 mb-3 sm:mb-4">
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground">Upcoming Festivals</h2>
+                <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">Major music festivals this year</p>
               </div>
               <button
                 onClick={() => navigateTo('/festivals')}
-                className="text-xs sm:text-sm text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+                className="shrink-0 text-xs sm:text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors min-h-[44px]"
               >
                 View all <ArrowRight className="h-3 w-3" />
               </button>
             </div>
-            
+
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {featuredFestivals.slice(0, 6).map((festival: any) => (
                 <FestivalCard
@@ -510,30 +511,24 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
 
         {/* Upcoming Shows */}
         <section className="relative">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-secondary flex items-center justify-center border border-border">
-                <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-foreground/80" />
-              </div>
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-foreground">Upcoming Shows</h2>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  Popular upcoming concerts
-                  {trendingShowsMeta && (
-                    <>
-                      {" "}
-                      •{" "}
-                      {trendingShowsMeta.isFallback
-                        ? "Refreshing… showing fallback"
-                        : `Updated ${formatUpdatedAt(trendingShowsMeta.lastUpdated) ?? "recently"}`}
-                    </>
-                  )}
-                </p>
-              </div>
+          <div className="flex items-end justify-between gap-3 mb-3 sm:mb-4">
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground">Upcoming Shows</h2>
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
+                Popular upcoming concerts
+                {trendingShowsMeta && (
+                  <span className="text-muted-foreground/60">
+                    {" "}·{" "}
+                    {trendingShowsMeta.isFallback
+                      ? "Refreshing…"
+                      : `Updated ${formatUpdatedAt(trendingShowsMeta.lastUpdated) ?? "recently"}`}
+                  </span>
+                )}
+              </p>
             </div>
             <button
               onClick={() => navigateTo('/shows')}
-              className="text-xs sm:text-sm text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+              className="shrink-0 text-xs sm:text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors min-h-[44px]"
             >
               View all <ArrowRight className="h-3 w-3" />
             </button>
@@ -617,6 +612,63 @@ function ArtistCard({ artist, onClick, isLoading }: { artist: any; onClick: () =
         </div>
       </div>
     </motion.div>
+  );
+}
+
+// Artist Shelf Card - image-led card for the mobile horizontal snap-scroll shelf
+function ArtistShelfCard({ artist, onClick, isLoading }: { artist: any; onClick: () => void; isLoading?: boolean }) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      whileTap={{ scale: 0.97 }}
+      className={`relative shrink-0 snap-start w-[40vw] max-w-[170px] aspect-[4/5] rounded-xl overflow-hidden bg-secondary border border-border text-left ${isLoading ? 'pointer-events-none' : ''}`}
+    >
+      {artist.images?.[0] ? (
+        <img
+          src={artist.images[0]}
+          alt={artist.name}
+          loading="lazy"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-secondary to-secondary/50">
+          <span className="text-foreground/60 font-bold text-xl">
+            {(typeof artist?.name === 'string' && artist.name.length > 0 ? artist.name : '??').slice(0, 2).toUpperCase()}
+          </span>
+        </div>
+      )}
+      {/* Gradient scrim for legible overlaid text */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+      {isLoading && (
+        <div className="absolute inset-0 z-10 bg-black/50 flex items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-white" />
+        </div>
+      )}
+      <div className="absolute inset-x-0 bottom-0 p-2.5">
+        <h3 className="text-white font-semibold text-sm leading-tight line-clamp-2">
+          {artist.name}
+        </h3>
+        <p className="text-white/70 text-[11px] mt-0.5">
+          {artist.upcomingEvents || artist.upcomingShowsCount || 0} shows
+        </p>
+      </div>
+    </motion.button>
+  );
+}
+
+// Skeleton matching the mobile shelf card dimensions (prevents layout jump)
+function ArtistShelfSkeleton() {
+  const shimmerClass = "bg-gradient-to-r from-muted via-muted/60 to-muted animate-shimmer bg-[length:200%_100%]";
+  return (
+    <div className="flex gap-3 overflow-x-hidden -mx-4 px-4">
+      {[...Array(4)].map((_, i) => (
+        <div
+          key={i}
+          className={`shrink-0 w-[40vw] max-w-[170px] aspect-[4/5] rounded-xl border border-border ${shimmerClass}`}
+        />
+      ))}
+    </div>
   );
 }
 

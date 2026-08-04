@@ -127,6 +127,18 @@ const JOBS: Array<JobDef> = [
     lockName: "cron:retry-empty-setlists",
     lockStaleMs: 2 * HOUR,
   },
+  {
+    // Drains artists that never had a setlist.fm history import (batch of 10 per run).
+    // ~1.1k artists → backlog clears in ~2-3 days, then it's a cheap no-op scan.
+    name: "setlistfm-history-backfill",
+    kind: "action",
+    ref: internalRef.setlistfmHistory.backfillArtistHistories,
+    defaultIntervalMs: 30 * MINUTE,
+    minIntervalMs: 15 * MINUTE,
+    maxIntervalMs: 24 * HOUR,
+    lockName: "cron:setlistfm-history-backfill",
+    lockStaleMs: 30 * MINUTE,
+  },
 ];
 
 function clampIntervalMs(value: number, min: number, max: number): number {

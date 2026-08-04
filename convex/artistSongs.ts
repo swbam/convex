@@ -11,8 +11,9 @@ export const create = internalMutation({
     // Check if relationship already exists
     const existing = await ctx.db
       .query("artistSongs")
-      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
-      .filter((q) => q.eq(q.field("songId"), args.songId))
+      .withIndex("by_artist_and_song", (q) =>
+        q.eq("artistId", args.artistId).eq("songId", args.songId),
+      )
       .first();
 
     if (existing) {
@@ -35,8 +36,9 @@ export const getByArtistAndSong = internalQuery({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("artistSongs")
-      .withIndex("by_artist", (q) => q.eq("artistId", args.artistId))
-      .filter((q) => q.eq(q.field("songId"), args.songId))
+      .withIndex("by_artist_and_song", (q) =>
+        q.eq("artistId", args.artistId).eq("songId", args.songId),
+      )
       .first();
   },
 });

@@ -34,16 +34,35 @@ async function fetchWithRetry(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let lastError: any;
   while (attempt < maxAttempts) {
+    attempt += 1;
     try {
-      return await fetchWithTimeout(url, init);
+      const response = await fetchWithTimeout(url, init);
+      const retryableStatus =
+        response.status === 429 ||
+        response.status === 500 ||
+        response.status === 502 ||
+        response.status === 503 ||
+        response.status === 504;
+
+      if (!retryableStatus || attempt >= maxAttempts) {
+        return response;
+      }
+
+      const retryAfterSeconds = Number(response.headers.get("retry-after"));
+      const backoffMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+        ? Math.min(retryAfterSeconds * 1000, 30_000)
+        : Math.min(500 * 2 ** (attempt - 1), 5_000);
+      console.warn(
+        `Spotify returned ${response.status}; retrying (${attempt}/${maxAttempts})`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
     } catch (error) {
       lastError = error;
-      attempt += 1;
       if (attempt >= maxAttempts) {
-        console.error(`Spotify fetch failed after ${attempt} attempts for ${url}:`, error);
+        console.error(`Spotify fetch failed after ${attempt} attempts`, error);
         throw error;
       }
-      const backoffMs = 500 * attempt;
+      const backoffMs = Math.min(500 * 2 ** (attempt - 1), 5_000);
       await new Promise((resolve) => setTimeout(resolve, backoffMs));
     }
   }
@@ -66,8 +85,9 @@ async function fetchAllSpotifyPages<T>(initialUrl: string, accessToken: string):
     );
 
     if (!response.ok) {
-      console.log(`Spotify API error: ${response.status} ${response.statusText}`);
-      break;
+      throw new Error(
+        `Spotify pagination failed (${response.status} ${response.statusText})`,
+      );
     }
 
     const data: any = await response.json();
@@ -152,6 +172,66 @@ async function getSpotifyAppToken(
   return token;
 }
 
+/**
+ * Resolve the canonical Spotify artist without allowing a broad name search
+ * to silently switch an existing Convex artist to a different Spotify entity.
+ * Stored Spotify IDs are authoritative. Name search is only a bootstrap
+ * fallback, and prefers an exact normalized name match among the first results.
+ */
+async function resolveSpotifyArtist(
+  accessToken: string,
+  artistName: string,
+  spotifyId?: string,
+): Promise<any | null> {
+  if (spotifyId) {
+    const artistResponse = await fetchWithRetry(
+      `https://api.spotify.com/v1/artists/${encodeURIComponent(spotifyId)}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+
+    if (artistResponse.ok) {
+      return await artistResponse.json();
+    }
+
+    // A removed/merged Spotify artist can legitimately 404. Other failures
+    // are transient or authorization related, so fail the sync instead of
+    // risking catalog corruption by selecting a similarly named artist.
+    if (artistResponse.status !== 404) {
+      throw new Error(
+        `Spotify artist lookup failed (${artistResponse.status} ${artistResponse.statusText})`,
+      );
+    }
+  }
+
+  const params = new URLSearchParams({
+    q: `artist:${artistName}`,
+    type: "artist",
+    limit: "5",
+  });
+  const searchResponse = await fetchWithRetry(
+    `https://api.spotify.com/v1/search?${params.toString()}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+
+  if (!searchResponse.ok) {
+    throw new Error(
+      `Spotify artist search failed (${searchResponse.status} ${searchResponse.statusText})`,
+    );
+  }
+
+  const searchData: any = await searchResponse.json();
+  const artists: any[] = searchData.artists?.items ?? [];
+  const normalizedName = artistName.trim().toLocaleLowerCase();
+  return (
+    artists.find(
+      (candidate) =>
+        String(candidate?.name ?? "").trim().toLocaleLowerCase() === normalizedName,
+    ) ??
+    artists[0] ??
+    null
+  );
+}
+
 // Public action to trigger Spotify data enrichment
 export const enrichArtistData = action({
   args: {
@@ -192,27 +272,19 @@ export const enrichArtistBasics = internalAction({
         return null;
       }
 
-      // Search for artist (lightweight call)
-      const searchResponse = await fetchWithRetry(
-        `https://api.spotify.com/v1/search?q=${encodeURIComponent(args.artistName)}&type=artist&limit=1`,
-        {
-          headers: {
-            "Authorization": `Bearer ${accessToken}`,
-          },
-        }
+      const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, {
+        id: args.artistId,
+      });
+      const spotifyArtist = await resolveSpotifyArtist(
+        accessToken,
+        args.artistName,
+        artist?.spotifyId,
       );
 
-      if (!searchResponse.ok) return null;
-
-      const searchData = await searchResponse.json();
-      const artists = searchData.artists?.items || [];
-
-      if (artists.length === 0) {
+      if (!spotifyArtist) {
         console.log(`No Spotify artist found for basics: ${args.artistName}`);
         return null;
       }
-
-      const spotifyArtist = artists[0];
 
       // Update artist with JUST the basics (not full catalog)
       await ctx.runMutation(internalRef.artists.updateSpotifyData, {
@@ -270,28 +342,19 @@ export const importArtistTopTracks = internalAction({
         return { imported: 0, reason: "spotify_token_failed" };
       }
 
-      // Search for artist
-      const searchResponse = await fetchWithRetry(
-        `https://api.spotify.com/v1/search?q=${encodeURIComponent(args.artistName)}&type=artist&limit=1`,
-        {
-          headers: { "Authorization": `Bearer ${accessToken}` },
-        }
+      const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, {
+        id: args.artistId,
+      });
+      const spotifyArtist = await resolveSpotifyArtist(
+        accessToken,
+        args.artistName,
+        artist?.spotifyId,
       );
 
-      if (!searchResponse.ok) {
-        console.error(`❌ Spotify search failed for top tracks: ${args.artistName} (${searchResponse.status} ${searchResponse.statusText})`);
-        return { imported: 0, reason: "spotify_search_failed" };
-      }
-
-      const searchData: any = await searchResponse.json();
-      const artists = searchData.artists?.items || [];
-
-      if (artists.length === 0) {
+      if (!spotifyArtist) {
         console.log(`⚠️ No Spotify artist found for top tracks: ${args.artistName}`);
         return { imported: 0, reason: "spotify_artist_not_found" };
       }
-
-      const spotifyArtist = artists[0];
 
       // Update artist basics (id + images + popularity) so the UI can show Spotify media quickly.
       try {
@@ -449,29 +512,13 @@ export const syncArtistCatalog = internalAction({
         throw new Error('Failed to get Spotify access token');
       }
 
-      // Search for artist
-      const searchResponse = await fetchWithRetry(
-        `https://api.spotify.com/v1/search?q=${encodeURIComponent(args.artistName)}&type=artist&limit=1`,
-        {
-          headers: {
-            "Authorization": `Bearer ${accessToken}`,
-          },
-        }
+      const spotifyArtist = await resolveSpotifyArtist(
+        accessToken,
+        args.artistName,
+        artist.spotifyId,
       );
 
-      if (!searchResponse.ok) {
-        console.error(`❌ Spotify search failed for ${args.artistName}: ${searchResponse.status} ${searchResponse.statusText}`);
-        await ctx.runMutation(internalRef.artists.updateSyncStatus, {
-          artistId: args.artistId,
-          catalogSyncStatus: "failed",
-        });
-        return null;
-      }
-
-      const searchData = await searchResponse.json();
-      const artists = searchData.artists?.items || [];
-
-      if (artists.length === 0) {
+      if (!spotifyArtist) {
         console.log(`⚠️ No Spotify artist found for: ${args.artistName}`);
         await ctx.runMutation(internalRef.artists.updateSyncStatus, {
           artistId: args.artistId,
@@ -479,8 +526,6 @@ export const syncArtistCatalog = internalAction({
         });
         return null;
       }
-
-      const spotifyArtist = artists[0];
 
       // Update artist with Spotify data - THIS IS CRITICAL FOR DATA INTEGRITY
       await ctx.runMutation(internalRef.artists.updateSpotifyData, {

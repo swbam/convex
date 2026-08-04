@@ -17,8 +17,11 @@ export const getUserLeaderboard = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 50;
     
-    // Get all users with their voting stats
-    const users = await ctx.db.query("users").collect();
+    // Get users with their voting stats.
+    // Bounded read: capped so a growing users table can't blow Convex's read
+    // limits. Leaderboard is computed over the first 2000 users (currently the
+    // whole table); behavior is identical for those users.
+    const users = await ctx.db.query("users").take(2000);
     const userStats = await Promise.all(
       users.map(async (user) => {
         // Get user's votes
