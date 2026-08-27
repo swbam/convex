@@ -13,6 +13,7 @@ import { BorderBeam } from "./ui/border-beam";
 import { FaSpotify } from "react-icons/fa";
 import { formatLocation } from "../lib/utils";
 import { toast } from "sonner";
+import { capture } from "../lib/analytics";
 // Removed EmblaCarousel - using simple CSS-based horizontal scroll for reliability
 
 interface PublicDashboardProps {
@@ -543,7 +544,16 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                   <motion.button
                     key={category.label}
                     type="button"
-                    onClick={() => setArtistCategory(category.label)}
+                    onClick={() => {
+                      capture("discovery_filter_changed", {
+                        context: "homepage",
+                        filter_name: "artist_category",
+                        previous_value: artistCategory,
+                        filter_value: category.label,
+                        result_count: category.count,
+                      });
+                      setArtistCategory(category.label);
+                    }}
                     className={`relative flex h-9 shrink-0 snap-start items-center gap-1.5 overflow-hidden rounded-full border px-3 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${
                       active
                         ? "border-foreground/20 text-background"
@@ -736,7 +746,18 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                     <motion.button
                       key={option.value}
                       type="button"
-                      onClick={() => setShowOrder(option.value)}
+                      onClick={() => {
+                        capture("discovery_filter_changed", {
+                          context: "homepage",
+                          filter_name: "show_order",
+                          previous_value: showOrder,
+                          filter_value: option.value,
+                          result_count: Array.isArray(visibleTrendingShows)
+                            ? visibleTrendingShows.length
+                            : 0,
+                        });
+                        setShowOrder(option.value);
+                      }}
                       className={`relative flex h-8 items-center gap-1.5 overflow-hidden rounded-lg px-3 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${
                         active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                       }`}

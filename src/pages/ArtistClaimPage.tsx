@@ -23,6 +23,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { capture, captureException } from "../lib/analytics";
 
 type ClaimStep = "loading" | "email" | "verify" | "details" | "review" | "submitted" | "auto_approved";
 
@@ -92,6 +93,12 @@ export function ArtistClaimPage() {
       try {
         const result = await startClaim({ artistId });
         if (result.success && result.claimId) {
+          capture("artist_claim_started", {
+            artist_id: artistId,
+            claim_id: result.claimId,
+            claim_status: result.status || "draft",
+            resumed: result.status === "verifying",
+          });
           setClaimId(result.claimId);
           // Resume at correct step based on status
           if (result.status === "verifying") {
@@ -112,6 +119,7 @@ export function ArtistClaimPage() {
           navigate("/for-artists");
         }
       } catch (error: any) {
+        captureException(error, { operation: "artist_claim_start", artist_id: artistId });
         toast.error(error.message || "Failed to start claim");
         navigate("/for-artists");
       }
@@ -140,12 +148,17 @@ export function ArtistClaimPage() {
     try {
       const result = await requestVerification({ claimId, email });
       if (result.success) {
+        capture("artist_claim_email_requested", {
+          artist_id: artistId,
+          claim_id: claimId,
+        });
         toast.success("Verification code sent!");
         setStep("verify");
       } else {
         toast.error(result.message || "Failed to send code");
       }
     } catch (error: any) {
+      captureException(error, { operation: "artist_claim_email_request", artist_id: artistId, claim_id: claimId });
       toast.error(error.message || "Failed to send code");
     }
     setLoading(false);
@@ -157,12 +170,17 @@ export function ArtistClaimPage() {
     try {
       const result = await verifyCode({ claimId, code });
       if (result.success) {
+        capture("artist_claim_email_verified", {
+          artist_id: artistId,
+          claim_id: claimId,
+        });
         toast.success("Email verified!");
         setStep("details");
       } else {
         toast.error(result.message || "Invalid code");
       }
     } catch (error: any) {
+      captureException(error, { operation: "artist_claim_email_verify", artist_id: artistId, claim_id: claimId });
       toast.error(error.message || "Verification failed");
     }
     setLoading(false);
@@ -182,11 +200,21 @@ export function ArtistClaimPage() {
         additionalContext: context || undefined,
       });
       if (result.success) {
+        capture("artist_claim_details_saved", {
+          artist_id: artistId,
+          claim_id: claimId,
+          official_role: role,
+          has_organization: Boolean(organization),
+          has_website: Boolean(website),
+          social_link_count: links.length,
+          has_additional_context: Boolean(context),
+        });
         setStep("review");
       } else {
         toast.error(result.message || "Failed to save");
       }
     } catch (error: any) {
+      captureException(error, { operation: "artist_claim_details_save", artist_id: artistId, claim_id: claimId });
       toast.error(error.message || "Failed to save");
     }
     setLoading(false);
@@ -198,12 +226,19 @@ export function ArtistClaimPage() {
     try {
       const result = await submitClaim({ claimId });
       if (result.success) {
+        capture("artist_claim_submitted", {
+          artist_id: artistId,
+          claim_id: claimId,
+          official_role: role,
+          verification_state: verificationStatus?.email?.verified ? "email_verified" : "unverified",
+        });
         toast.success("Claim submitted for review!");
         setStep("submitted");
       } else {
         toast.error(result.message || "Failed to submit");
       }
     } catch (error: any) {
+      captureException(error, { operation: "artist_claim_submit", artist_id: artistId, claim_id: claimId });
       toast.error(error.message || "Failed to submit");
     }
     setLoading(false);
@@ -215,6 +250,13 @@ export function ArtistClaimPage() {
     setVerifyingDomain(true);
     try {
       const result = await checkDomainMatch({ claimId });
+      capture("artist_claim_verification_attempted", {
+        artist_id: artistId,
+        claim_id: claimId,
+        verification_method: "domain_match",
+        matched: Boolean(result.matched),
+        auto_approved: Boolean(result.autoApproved),
+      });
       if (result.autoApproved) {
         toast.success("Verified! Access granted.", { description: result.message });
         setStep("auto_approved");
@@ -224,6 +266,7 @@ export function ArtistClaimPage() {
         toast.info(result.message);
       }
     } catch (error: any) {
+      captureException(error, { operation: "artist_claim_domain_verify", artist_id: artistId, claim_id: claimId });
       toast.error(error.message || "Verification failed");
     }
     setVerifyingDomain(false);
@@ -234,6 +277,13 @@ export function ArtistClaimPage() {
     setVerifyingWebsite(true);
     try {
       const result = await verifyWebsite({ claimId });
+      capture("artist_claim_verification_attempted", {
+        artist_id: artistId,
+        claim_id: claimId,
+        verification_method: "website_code",
+        matched: Boolean(result.verified),
+        auto_approved: Boolean(result.autoApproved),
+      });
       if (result.autoApproved) {
         toast.success("Verified! Access granted.", { description: result.message });
         setStep("auto_approved");
@@ -243,6 +293,7 @@ export function ArtistClaimPage() {
         toast.error(result.message);
       }
     } catch (error: any) {
+      captureException(error, { operation: "artist_claim_website_verify", artist_id: artistId, claim_id: claimId });
       toast.error(error.message || "Verification failed");
     }
     setVerifyingWebsite(false);

@@ -6,6 +6,7 @@ import { api } from '../../convex/_generated/api';
 import { MagicCard } from '../components/ui/magic-card';
 import { Music, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { capture, captureException, consumeOAuthIntent } from '../lib/analytics';
 
 /**
  * SSO Callback Page
@@ -43,6 +44,21 @@ export function SSOCallback() {
 
         // Ensure Clerk has the latest session data before inspecting accounts
         await clerk.load();
+        const oauthIntent = consumeOAuthIntent();
+        if (oauthIntent?.auth_mode !== 'link') {
+          capture('auth_completed', {
+            auth_method: oauthIntent?.auth_method || 'oauth',
+            auth_mode: oauthIntent?.auth_mode || 'sign_in',
+            source: oauthIntent?.source || 'oauth_callback',
+            return_to: returnTo,
+          });
+          if (oauthIntent?.auth_mode === 'sign_up') {
+            capture('account_created', {
+              auth_method: oauthIntent.auth_method,
+              verification_required: false,
+            });
+          }
+        }
         
         // Check if this was a Spotify OAuth flow
         spotifyImportTimeout.current = window.setTimeout(async () => {
@@ -60,6 +76,10 @@ export function SSOCallback() {
                 const accessToken = await latestUser.getToken({ template: 'spotify' });
                 
                 if (!accessToken) {
+                  capture('spotify_connect_failed', {
+                    source: oauthIntent?.source || 'spotify_callback',
+                    error_type: 'token_unavailable',
+                  });
                   toast.warning('Spotify connected but token not available', {
                     description: 'You can manually sync from your profile later.',
                   });
@@ -109,30 +129,48 @@ export function SSOCallback() {
                   });
                   
                   if (result.imported > 0 || result.correlated > 0) {
+                    capture('spotify_connect_completed', {
+                      imported_artist_count: result.imported,
+                      correlated_artist_count: result.correlated,
+                      return_to: returnTo,
+                    });
                     toast.success('Spotify artists imported successfully!', {
                       description: `Imported ${result.imported} new artists, found ${result.correlated} existing artists.`,
                       duration: 5000,
                     });
                   } else {
+                    capture('spotify_connect_completed', {
+                      imported_artist_count: 0,
+                      correlated_artist_count: 0,
+                      return_to: returnTo,
+                    });
                     toast.info('Spotify connected', {
                       description: 'No new artists to import at this time.',
                     });
                   }
-                } catch {
+                } catch (error) {
+                  capture('spotify_connect_failed', { source: 'spotify_import', error_type: 'import_error' });
+                  captureException(error, { operation: 'spotify_artist_import' });
                   toast.error('Failed to import Spotify artists', {
                     description: 'You can manually sync later from your profile.',
                   });
                 }
               }
             }
-          } catch {
-            // Error checking Spotify account, continue anyway
+          } catch (error) {
+            capture('spotify_connect_failed', {
+              source: oauthIntent?.source || 'spotify_callback',
+              error_type: 'account_inspection_error',
+            });
+            captureException(error, { operation: 'spotify_account_inspection' });
           }
           
           navigate(returnTo);
         }, 1000);
         
       } catch (err: any) {
+        capture('auth_failed', { auth_method: 'oauth', auth_mode: 'callback', error_type: err?.code || 'callback_error' });
+        captureException(err, { operation: 'oauth_callback' });
         setError(err.message || 'Authentication failed');
         
         setTimeout(() => {

@@ -14,6 +14,7 @@ import type * as admin_errorMonitoring from "../admin/errorMonitoring.js";
 import type * as admin_sentryForward from "../admin/sentryForward.js";
 import type * as adminAnalytics from "../adminAnalytics.js";
 import type * as adminHelpers from "../adminHelpers.js";
+import type * as analytics from "../analytics.js";
 import type * as artistAccess from "../artistAccess.js";
 import type * as artistAutomation from "../artistAutomation.js";
 import type * as artistClaims from "../artistClaims.js";
@@ -77,6 +78,7 @@ declare const fullApi: ApiFromModules<{
   "admin/sentryForward": typeof admin_sentryForward;
   adminAnalytics: typeof adminAnalytics;
   adminHelpers: typeof adminHelpers;
+  analytics: typeof analytics;
   artistAccess: typeof artistAccess;
   artistAutomation: typeof artistAutomation;
   artistClaims: typeof artistClaims;

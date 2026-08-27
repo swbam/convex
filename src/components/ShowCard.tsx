@@ -4,6 +4,8 @@ import { Id } from "../../convex/_generated/dataModel";
 import { Calendar, MapPin, ChevronRight, Ticket } from "lucide-react";
 import { formatLocation, formatShowTime } from "../lib/utils";
 import { cn } from "../lib/utils";
+import { capture } from "../lib/analytics";
+import { buildTicketmasterAffiliateUrl } from "../utils/ticketmaster";
 
 interface ShowCardProps {
   show: any;
@@ -40,7 +42,16 @@ function ShowCardComponent({
   const handleTicketClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (show.ticketUrl) {
-      window.open(show.ticketUrl, '_blank', 'noopener,noreferrer');
+      capture("ticket_link_clicked", {
+        show_id: show._id || show.showId,
+        artist_id: show.artistId || show.artist?._id,
+        venue_id: show.venueId || show.venue?._id,
+        show_date: show.date,
+        placement: "show_card",
+        provider: "ticketmaster",
+        affiliate: true,
+      });
+      window.open(buildTicketmasterAffiliateUrl(show.ticketUrl), '_blank', 'noopener,noreferrer');
     }
   };
 

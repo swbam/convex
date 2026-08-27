@@ -1,10 +1,11 @@
 import React from 'react';
-import { createBrowserRouter, Navigate, useRouteError, Outlet } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useRouteError } from 'react-router-dom';
 import { App } from './App';
 import { ArtistNotFound } from './components/ArtistNotFound';
 import { ShowNotFound } from './components/ShowNotFound'; // Assume similar for shows
 import { ProtectedLayout } from './components/ProtectedLayout';
 import { SEOHead } from './components/SEOHead';
+import { AnalyticsLifecycle } from './components/AnalyticsLifecycle';
 
 // Keep the fan-facing shell lean. Auth, studio, blog/Sanity, and legal pages
 // are loaded only when their route is visited.
@@ -32,6 +33,9 @@ function Error404({ resetErrorBoundary }: { resetErrorBoundary: () => void }) {
 }
 
 export const router = createBrowserRouter([
+  {
+    element: <AnalyticsLifecycle />,
+    children: [
   {
     path: '/',
     element: <App />,
@@ -172,5 +176,7 @@ export const router = createBrowserRouter([
   {
     path: '*',
     element: <Navigate to="/" replace />,
+  },
+    ],
   },
 ]);

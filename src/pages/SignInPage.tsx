@@ -9,6 +9,7 @@ import { MagicCard } from '../components/ui/magic-card';
 import { BorderBeam } from '../components/ui/border-beam';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, Music, Sparkles, Loader2 } from 'lucide-react';
 import { FaGoogle } from 'react-icons/fa';
+import { capture, captureException, clearOAuthIntent, recordOAuthIntent } from '../lib/analytics';
 
 export function SignInPage() {
   const { user, isSignedIn, isLoaded: isUserLoaded } = useUser();
@@ -94,6 +95,8 @@ export function SignInPage() {
     }
     
     setIsSpotifyLoading(true);
+    recordOAuthIntent({ auth_method: 'spotify', auth_mode: 'sign_in', source: 'sign_in_page' });
+    capture('auth_started', { auth_method: 'spotify', auth_mode: 'sign_in', source: 'sign_in_page' });
     
     try {
       await signIn.authenticateWithRedirect({
@@ -102,6 +105,9 @@ export function SignInPage() {
         redirectUrlComplete: `${window.location.origin}/`,
       });
     } catch (error: any) {
+      clearOAuthIntent();
+      capture('auth_failed', { auth_method: 'spotify', auth_mode: 'sign_in', error_type: error?.code || 'oauth_error' });
+      captureException(error, { operation: 'spotify_sign_in' });
       const errorMessage = error?.errors?.[0]?.message || error?.message || 'Failed to sign in with Spotify';
       toast.error(errorMessage);
       setIsSpotifyLoading(false);
@@ -115,6 +121,8 @@ export function SignInPage() {
     }
     
     setIsGoogleLoading(true);
+    recordOAuthIntent({ auth_method: 'google', auth_mode: 'sign_in', source: 'sign_in_page' });
+    capture('auth_started', { auth_method: 'google', auth_mode: 'sign_in', source: 'sign_in_page' });
     
     try {
       await signIn.authenticateWithRedirect({
@@ -123,6 +131,9 @@ export function SignInPage() {
         redirectUrlComplete: `${window.location.origin}/`,
       });
     } catch (error: any) {
+      clearOAuthIntent();
+      capture('auth_failed', { auth_method: 'google', auth_mode: 'sign_in', error_type: error?.code || 'oauth_error' });
+      captureException(error, { operation: 'google_sign_in' });
       const errorMessage = error?.errors?.[0]?.message || error?.message || 'Failed to sign in with Google';
       toast.error(errorMessage);
       setIsGoogleLoading(false);
@@ -137,6 +148,7 @@ export function SignInPage() {
     }
 
     setIsSubmitting(true);
+    capture('auth_started', { auth_method: 'email_password', auth_mode: 'sign_in', source: 'sign_in_page' });
     
     try {
       const result = await signIn.create({
@@ -148,12 +160,15 @@ export function SignInPage() {
         if (result.createdSessionId) {
           await setActive({ session: result.createdSessionId });
         }
+        capture('auth_completed', { auth_method: 'email_password', auth_mode: 'sign_in' });
         toast.success("Welcome back!");
         navigate('/');
       } else {
         toast.error("Sign in incomplete. Please check your email for verification.");
       }
     } catch (error: any) {
+      capture('auth_failed', { auth_method: 'email_password', auth_mode: 'sign_in', error_type: error?.code || 'credential_error' });
+      captureException(error, { operation: 'email_password_sign_in' });
       if (error.errors?.[0]?.message) {
         toast.error(error.errors[0].message);
       } else if (error.message) {

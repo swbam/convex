@@ -8,6 +8,7 @@ import { MagicCard } from "../components/ui/magic-card";
 import { Button } from "../components/ui/button";
 import { Loader2, Music, ShieldCheck, Mic2, Users, Search, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { capture, captureException } from "../lib/analytics";
 
 function hasSpotifyConnected(clerkUser: any): boolean {
   const accounts = clerkUser?.externalAccounts ?? [];
@@ -137,6 +138,25 @@ export function ForArtistsPage() {
   const [syncingSpotify, setSyncingSpotify] = useState(false);
   const [adminSearch, setAdminSearch] = useState("");
   const [adminClaiming, setAdminClaiming] = useState(false);
+  const portalViewTracked = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!isLoaded || portalViewTracked.current) return;
+    if (
+      isSignedIn &&
+      (myArtists === undefined || myClaims === undefined || appUser === undefined)
+    ) return;
+    portalViewTracked.current = true;
+    capture("artist_portal_viewed", {
+      auth_state: isSignedIn ? "authenticated" : "anonymous",
+      spotify_connected: spotifyConnected,
+      managed_artist_count: myArtists?.length ?? 0,
+      claim_count: myClaims?.length ?? 0,
+      pending_claim_count:
+        myClaims?.filter((claim: any) => claim.status === "pending").length ?? 0,
+      account_role: appUser?.role,
+    });
+  }, [appUser, isLoaded, isSignedIn, myArtists, myClaims, spotifyConnected]);
 
   // Note: Removed auto-redirect to allow users to claim additional artists
 
@@ -236,7 +256,9 @@ export function ForArtistsPage() {
               Connect Spotify so you can claim your artist page (or accept team invites).
             </p>
             <Button
-              onClick={() => navigate("/spotify-connect?returnTo=/for-artists")}
+              onClick={() => {
+                navigate("/spotify-connect?returnTo=/for-artists");
+              }}
               className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white"
               size="lg"
             >
@@ -418,16 +440,31 @@ export function ForArtistsPage() {
                   onClick={async () => {
                     try {
                       setSyncingSpotify(true);
+                      capture("spotify_connect_started", {
+                        source: "artist_portal_manual_sync",
+                        account_state: "authenticated",
+                        mode: "refresh",
+                      });
                       const token = await user?.getToken({ template: "spotify" });
                       if (!token) {
                         toast.error("Spotify token not available", { description: "Try reconnecting Spotify." });
                         return;
                       }
                       const result = await completeSpotifyImport({ accessToken: token });
+                      capture("spotify_connect_completed", {
+                        source: "artist_portal_manual_sync",
+                        imported_artist_count: result.imported,
+                        correlated_artist_count: result.correlated,
+                      });
                       toast.success("Spotify synced", {
                         description: `Imported ${result.imported} new artists, matched ${result.correlated}.`,
                       });
                     } catch (e: any) {
+                      capture("spotify_connect_failed", {
+                        source: "artist_portal_manual_sync",
+                        error_type: e?.code || "sync_error",
+                      });
+                      captureException(e, { operation: "artist_portal_spotify_sync" });
                       toast.error("Spotify sync failed", { description: e?.message || "Unknown error" });
                     } finally {
                       setSyncingSpotify(false);

@@ -5,6 +5,7 @@ import { MagicCard } from '../components/ui/magic-card';
 import { Music, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
+import { capture, captureException, clearOAuthIntent, recordOAuthIntent } from '../lib/analytics';
 
 export function SpotifyConnectPage() {
   const { user, isLoaded: isUserLoaded } = useUser();
@@ -24,6 +25,17 @@ export function SpotifyConnectPage() {
 
   const handleSpotifyConnect = async () => {
     setIsLoading(true);
+    capture('spotify_connect_started', {
+      source: 'spotify_connect_page',
+      account_state: user ? 'authenticated' : 'anonymous',
+      mode: user ? 'link' : 'sign_in',
+      return_to: returnTo,
+    });
+    recordOAuthIntent({
+      auth_method: 'spotify',
+      auth_mode: user ? 'link' : 'sign_in',
+      source: 'spotify_connect_page',
+    });
     
     try {
       const redirectUrl = `${window.location.origin}/sso-callback?returnTo=${encodeURIComponent(returnTo)}`;
@@ -56,6 +68,12 @@ export function SpotifyConnectPage() {
         });
       }
     } catch (error: any) {
+      clearOAuthIntent();
+      capture('spotify_connect_failed', {
+        source: 'spotify_connect_page',
+        error_type: error?.code || 'oauth_error',
+      });
+      captureException(error, { operation: 'spotify_connect' });
       const errorMessage = error?.errors?.[0]?.message || error?.message || 'Failed to connect Spotify';
       toast.error(errorMessage);
       setIsLoading(false);

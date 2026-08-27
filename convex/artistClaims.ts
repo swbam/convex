@@ -581,6 +581,18 @@ export const checkDomainMatch = mutation({
         artistId: claim.artistId,
         reason: "domain_auto_approved",
         force: true,
+        analyticsDistinctId: user.authId,
+      });
+      await ctx.scheduler.runAfter(0, internalRef.analytics.capture, {
+        event: "artist_claim_approved",
+        distinctId: user.authId,
+        insertId: `artist_claim_approved:${args.claimId}:email_domain`,
+        properties: {
+          artist_id: claim.artistId,
+          claim_id: args.claimId,
+          verification_method: "email_domain",
+          approval_type: "automatic",
+        },
       });
 
       return {
@@ -828,6 +840,18 @@ export const completeWebsiteVerification = internalMutation({
       artistId: claim.artistId,
       reason: "website_auto_approved",
       force: true,
+      analyticsDistinctId: user.authId,
+    });
+    await ctx.scheduler.runAfter(0, internalRef.analytics.capture, {
+      event: "artist_claim_approved",
+      distinctId: user.authId,
+      insertId: `artist_claim_approved:${args.claimId}:website_code`,
+      properties: {
+        artist_id: claim.artistId,
+        claim_id: args.claimId,
+        verification_method: "website_code",
+        approval_type: "automatic",
+      },
     });
 
     return null;
@@ -1066,7 +1090,22 @@ export const approve = mutation({
       artistId: claim.artistId,
       reason: "manual_approval",
       force: true,
+      ...(user?.authId ? { analyticsDistinctId: user.authId } : {}),
     });
+    if (user) {
+      await ctx.scheduler.runAfter(0, internalRef.analytics.capture, {
+        event: "artist_claim_approved",
+        distinctId: user.authId,
+        insertId: `artist_claim_approved:${args.claimId}:manual_review`,
+        properties: {
+          artist_id: claim.artistId,
+          claim_id: args.claimId,
+          verification_method: "manual_review",
+          approval_type: "manual",
+          approved_role: memberRole,
+        },
+      });
+    }
 
     return { success: true };
   },

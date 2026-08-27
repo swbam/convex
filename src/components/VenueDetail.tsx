@@ -8,6 +8,7 @@ import { MagicCard } from "./ui/magic-card";
 import { BorderBeam } from "./ui/border-beam";
 import { motion } from "framer-motion";
 import { formatLocation } from "../lib/utils";
+import { capture } from "../lib/analytics";
 
 interface VenueDetailProps {
   venueId: Id<"venues">;
@@ -18,6 +19,24 @@ interface VenueDetailProps {
 export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) {
   const venue = useQuery(api.venues.getById, { id: venueId });
   const venueShows = useQuery(api.shows.getByVenue, venue ? { venueId } : "skip");
+  const trackedVenueId = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (!venue || venueShows === undefined || trackedVenueId.current === venue._id) {
+      return;
+    }
+    trackedVenueId.current = venue._id;
+    capture("venue_viewed", {
+      venue_id: venue._id,
+      venue_name: venue.name,
+      venue_city: venue.city,
+      venue_state: venue.state,
+      venue_country: venue.country,
+      venue_capacity: venue.capacity,
+      upcoming_show_count: venueShows.filter((show) => show.status === "upcoming").length,
+      completed_show_count: venueShows.filter((show) => show.status === "completed").length,
+    });
+  }, [venue, venueShows]);
 
   if (!venue) {
     return (

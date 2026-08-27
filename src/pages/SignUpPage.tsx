@@ -6,6 +6,7 @@ import { BorderBeam } from '../components/ui/border-beam';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, Music, Sparkles, User, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { FaSpotify, FaGoogle } from 'react-icons/fa';
+import { capture, captureException, clearOAuthIntent, recordOAuthIntent } from '../lib/analytics';
 
 export function SignUpPage() {
   const { signUp, isLoaded } = useSignUp();
@@ -88,6 +89,8 @@ export function SignUpPage() {
     }
     
     setIsSpotifyLoading(true);
+    recordOAuthIntent({ auth_method: 'spotify', auth_mode: 'sign_up', source: 'sign_up_page' });
+    capture('auth_started', { auth_method: 'spotify', auth_mode: 'sign_up', source: 'sign_up_page' });
     
     try {
       await signUp.authenticateWithRedirect({
@@ -96,6 +99,9 @@ export function SignUpPage() {
         redirectUrlComplete: `${window.location.origin}/activity`,
       });
     } catch (error: any) {
+      clearOAuthIntent();
+      capture('auth_failed', { auth_method: 'spotify', auth_mode: 'sign_up', error_type: error?.code || 'oauth_error' });
+      captureException(error, { operation: 'spotify_sign_up' });
       const errorMessage = error?.errors?.[0]?.message || error?.message || 'Failed to sign up with Spotify';
       toast.error(errorMessage);
       setIsSpotifyLoading(false);
@@ -109,6 +115,8 @@ export function SignUpPage() {
     }
     
     setIsGoogleLoading(true);
+    recordOAuthIntent({ auth_method: 'google', auth_mode: 'sign_up', source: 'sign_up_page' });
+    capture('auth_started', { auth_method: 'google', auth_mode: 'sign_up', source: 'sign_up_page' });
     
     try {
       await signUp.authenticateWithRedirect({
@@ -117,6 +125,9 @@ export function SignUpPage() {
         redirectUrlComplete: `${window.location.origin}/`,
       });
     } catch (error: any) {
+      clearOAuthIntent();
+      capture('auth_failed', { auth_method: 'google', auth_mode: 'sign_up', error_type: error?.code || 'oauth_error' });
+      captureException(error, { operation: 'google_sign_up' });
       const errorMessage = error?.errors?.[0]?.message || error?.message || 'Failed to sign up with Google';
       toast.error(errorMessage);
       setIsGoogleLoading(false);
@@ -131,6 +142,7 @@ export function SignUpPage() {
     }
 
     setIsSubmitting(true);
+    capture('auth_started', { auth_method: 'email_password', auth_mode: 'sign_up', source: 'sign_up_page' });
     
     try {
       const result = await signUp.create({
@@ -142,6 +154,8 @@ export function SignUpPage() {
         if (result.createdSessionId) {
           await setActive({ session: result.createdSessionId });
         }
+        capture('account_created', { auth_method: 'email_password', verification_required: false });
+        capture('auth_completed', { auth_method: 'email_password', auth_mode: 'sign_up' });
         toast.success("Account created successfully!");
         navigate('/');
       } else {
@@ -150,6 +164,8 @@ export function SignUpPage() {
         toast.success("Please check your email for verification code.");
       }
     } catch (error: any) {
+      capture('auth_failed', { auth_method: 'email_password', auth_mode: 'sign_up', error_type: error?.code || 'account_creation_error' });
+      captureException(error, { operation: 'email_password_sign_up' });
       if (error.errors?.[0]?.message) {
         toast.error(error.errors[0].message);
       } else if (error.message) {
@@ -181,12 +197,16 @@ export function SignUpPage() {
         if (result.createdSessionId) {
           await setActive({ session: result.createdSessionId });
         }
+        capture('account_created', { auth_method: 'email_password', verification_required: true });
+        capture('auth_completed', { auth_method: 'email_password', auth_mode: 'sign_up' });
         toast.success("Email verified! Welcome to setlists.live!");
         navigate('/');
       } else {
         toast.error("Invalid verification code. Please try again.");
       }
     } catch (error: any) {
+      capture('auth_failed', { auth_method: 'email_code', auth_mode: 'verification', error_type: error?.code || 'verification_error' });
+      captureException(error, { operation: 'email_verification' });
       if (error.errors?.[0]?.message) {
         toast.error(error.errors[0].message);
       } else if (error.message) {

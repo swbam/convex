@@ -661,6 +661,7 @@ export const updateWithActualSetlist = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const show = await ctx.db.get(args.showId);
     const setlistsForShow = await ctx.db
       .query("setlists")
       .withIndex("by_show", (q) => q.eq("showId", args.showId))
@@ -702,6 +703,9 @@ export const updateWithActualSetlist = internalMutation({
       const pct = Math.round((correctPredictions / predictedTitles.length) * 100);
       return Number.isFinite(pct) ? pct : 0;
     };
+    const predictionAccuracy = predictionSetlist
+      ? calculateAccuracy(predictionSetlist.songs || [])
+      : undefined;
 
     if (predictionSetlist) {
       await ctx.db.patch(predictionSetlist._id, {
@@ -709,7 +713,7 @@ export const updateWithActualSetlist = internalMutation({
         setlistfmId: args.setlistfmId,
         setlistfmData: args.setlistfmData,
         lastUpdated: Date.now(),
-        accuracy: calculateAccuracy(predictionSetlist.songs || []),
+        accuracy: predictionAccuracy,
         comparedAt: Date.now(),
       });
     }
@@ -745,6 +749,22 @@ export const updateWithActualSetlist = internalMutation({
       status: "completed",
       setlistfmId: args.setlistfmId,
       lastSynced: Date.now(),
+    });
+
+    await ctx.scheduler.runAfter(0, internalRef.analytics.capture, {
+      event: "official_setlist_imported",
+      distinctId: show ? `artist:${show.artistId}` : `show:${args.showId}`,
+      insertId: `official_setlist_imported:${args.showId}:${args.setlistfmId}`,
+      properties: {
+        show_id: args.showId,
+        artist_id: show?.artistId,
+        setlistfm_id: args.setlistfmId,
+        actual_song_count: args.actualSetlist.length,
+        had_prediction: Boolean(predictionSetlist),
+        prediction_song_count: predictionSetlist?.songs?.length ?? 0,
+        prediction_accuracy: predictionAccuracy,
+        created_official_setlist: !officialSetlist,
+      },
     });
 
     return null;

@@ -10,7 +10,7 @@ export function PrivacyPage() {
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">Privacy Policy</h1>
           <p className="text-muted-foreground">
-            Last updated: {new Date().toLocaleDateString()}
+            Last updated: August 27, 2026
           </p>
         </div>
 
@@ -53,6 +53,7 @@ export function PrivacyPage() {
               <li>IP address and browser information</li>
               <li>Device type and operating system</li>
               <li>Cookies and similar tracking technologies</li>
+              <li>Product interactions, page views, performance metrics, errors, and privacy-masked session replays</li>
             </ul>
           </section>
 
@@ -78,6 +79,7 @@ export function PrivacyPage() {
               <li><strong>Spotify:</strong> Artist data and optional account integration</li>
               <li><strong>Ticketmaster:</strong> Concert and venue information</li>
               <li><strong>Setlist.fm:</strong> Official setlist data</li>
+              <li><strong>PostHog:</strong> Product analytics, performance monitoring, error tracking, and privacy-masked session replay</li>
             </ul>
 
             <h3 className="text-xl font-semibold mb-3 mt-6">We Do NOT:</h3>
@@ -134,10 +136,11 @@ export function PrivacyPage() {
               <li>Maintain your login session</li>
               <li>Remember your preferences</li>
               <li>Analyze site usage and performance</li>
+              <li>Understand conversion funnels and diagnose user-experience problems</li>
               <li>Provide personalized content</li>
             </ul>
             <p className="text-muted-foreground mt-4">
-              You can control cookies through your browser settings, but some features may not work properly if cookies are disabled.
+              PostHog masks form inputs in session replays, respects browser Do Not Track settings, and does not receive passwords, verification codes, invitation tokens, or authorization credentials from our application events. You can also control cookies through your browser settings, but some features may not work properly if cookies are disabled.
             </p>
           </section>
 

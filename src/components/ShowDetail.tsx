@@ -33,6 +33,7 @@ import { motion } from "framer-motion";
 import { SongCombobox } from "./SongCombobox";
 import { formatLocation } from "../lib/utils";
 import { DetailPageSkeleton } from "./LoadingSkeleton";
+import { capture, captureException } from "../lib/analytics";
 
 interface ShowDetailProps {
   showId: Id<"shows">;
@@ -131,6 +132,8 @@ export function ShowDetail({
   const hasAdded = addActionCount >= ANON_FREE_ADDS;
 
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const trackedShowId = React.useRef<string | null>(null);
+  const trackedOfficialSetlistId = React.useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -138,6 +141,24 @@ export function ShowDetail({
       localStorage.setItem(addedKey, addActionCount.toString());
     }
   }, [voteActionCount, addActionCount, votedKey, addedKey]);
+
+  useEffect(() => {
+    if (!show || user === undefined || trackedShowId.current === show._id) return;
+    trackedShowId.current = show._id;
+    capture("show_viewed", {
+      show_id: show._id,
+      show_slug: show.slug,
+      artist_id: show.artistId,
+      artist_name: show.artist?.name,
+      venue_id: show.venueId,
+      venue_name: show.venue?.name,
+      venue_city: show.venue?.city,
+      show_date: show.date,
+      show_status: show.status,
+      has_ticket_link: Boolean(show.ticketUrl),
+      auth_state: user ? "authenticated" : "anonymous",
+    });
+  }, [show, user]);
 
 
   const predictionSetlist = useMemo(() => {
@@ -198,6 +219,19 @@ export function ShowDetail({
 
   const actualSetlistSongs = actualSetlistRecord?.actualSetlist ?? [];
   const hasActualSetlist = actualSetlistSongs.length > 0;
+
+  useEffect(() => {
+    if (!actualSetlistRecord || !hasActualSetlist) return;
+    if (trackedOfficialSetlistId.current === actualSetlistRecord._id) return;
+    trackedOfficialSetlistId.current = actualSetlistRecord._id;
+    capture("official_setlist_viewed", {
+      show_id: showId,
+      artist_id: show?.artistId,
+      setlist_id: actualSetlistRecord._id,
+      song_count: actualSetlistSongs.length,
+      source: actualSetlistRecord.source || "setlistfm",
+    });
+  }, [actualSetlistRecord, actualSetlistSongs.length, hasActualSetlist, show?.artistId, showId]);
 
   const predictedSongTitleSet = useMemo(() => {
     if (!predictionSetlist?.songs) {
@@ -302,6 +336,13 @@ export function ShowDetail({
 
   const handleVoteAction = () => {
     if (voteActionCount >= ANON_FREE_VOTES) {
+      capture("anonymous_limit_reached", {
+        action_type: "song_vote",
+        show_id: showId,
+        artist_id: show?.artistId,
+        actions_used: voteActionCount,
+        free_limit: ANON_FREE_VOTES,
+      });
       setShowAuthModal(true);
       return false;
     }
@@ -318,6 +359,13 @@ export function ShowDetail({
 
   const handleAddAction = () => {
     if (addActionCount >= ANON_FREE_ADDS) {
+      capture("anonymous_limit_reached", {
+        action_type: "song_add",
+        show_id: showId,
+        artist_id: show?.artistId,
+        actions_used: addActionCount,
+        free_limit: ANON_FREE_ADDS,
+      });
       setShowAuthModal(true);
       return false;
     }
@@ -343,6 +391,13 @@ export function ShowDetail({
       });
 
       if (!result.added) {
+        capture("song_add_rejected", {
+          show_id: showId,
+          artist_id: show?.artistId,
+          song_id: selectedSong._id,
+          reason: "already_added",
+          auth_state: user ? "authenticated" : "anonymous",
+        });
         toast.info(`"${songTitle}" is already in the setlist`);
         return;
       }
@@ -351,8 +406,26 @@ export function ShowDetail({
       // longer silently consumes one of the visitor's two upvotes.
       if (!user) setAddActionCount((count) => count + 1);
 
+      capture("song_added", {
+        show_id: showId,
+        artist_id: show?.artistId,
+        setlist_id: result.setlistId,
+        song_id: selectedSong._id,
+        song_title: selectedSong.title,
+        auth_state: user ? "authenticated" : "anonymous",
+        anonymous_adds_used: user ? undefined : addActionCount + 1,
+        anonymous_adds_remaining: user
+          ? undefined
+          : Math.max(0, ANON_FREE_ADDS - addActionCount - 1),
+      });
+
       toast.success(`Added "${songTitle}" to the setlist`);
     } catch (error) {
+      captureException(error, {
+        operation: "song_add",
+        show_id: showId,
+        artist_id: show?.artistId,
+      });
       const message = error instanceof Error ? error.message.toLowerCase() : "";
       if (!user && message.includes("anonymous users can only add")) {
         setShowAuthModal(true);
@@ -379,6 +452,11 @@ export function ShowDetail({
   const effectiveAvatar = avatarImage || heroImage || fallbackImage;
 
   const handleRetryImport = () => {
+    capture("setlist_import_retry_requested", {
+      show_id: showId,
+      artist_id: show.artistId,
+      prior_import_status: show.importStatus,
+    });
     void triggerSetlistSync({
       showId,
       artistName: show.artist?.name || "",
@@ -488,12 +566,21 @@ export function ShowDetail({
                   {isUpcoming && show?.ticketUrl && (
                     <div className="flex items-center gap-2 mt-3 sm:mt-4">
                       <button
-                        onClick={() =>
+                        onClick={() => {
+                          capture("ticket_link_clicked", {
+                            show_id: show._id,
+                            artist_id: show.artistId,
+                            venue_id: show.venueId,
+                            show_date: show.date,
+                            placement: "show_hero",
+                            provider: "ticketmaster",
+                            affiliate: true,
+                          });
                           window.open(
                             buildTicketmasterAffiliateUrl(show.ticketUrl || ""),
                             "_blank"
-                          )
-                        }
+                          );
+                        }}
                         className="inline-flex items-center px-4 py-2 sm:px-5 sm:py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg text-sm sm:text-base transition-all shadow-lg hover:shadow-xl"
                       >
                         <Ticket className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
@@ -622,6 +709,18 @@ export function ShowDetail({
                             : `Search ${songs.length} songs • ${ANON_FREE_ADDS - addActionCount} free adds`
                       }
                       items={songComboboxItems}
+                      onOpenChange={(open) => {
+                        if (!open) return;
+                        capture("song_picker_opened", {
+                          show_id: showId,
+                          artist_id: show.artistId,
+                          catalog_size: songComboboxItems.length,
+                          auth_state: user ? "authenticated" : "anonymous",
+                          anonymous_adds_remaining: user
+                            ? undefined
+                            : Math.max(0, ANON_FREE_ADDS - addActionCount),
+                        });
+                      }}
                       onSelect={(title) => {
                         void handleAddSongToSharedSetlist(title);
                       }}
@@ -817,6 +916,9 @@ export function ShowDetail({
                               isUpcoming={isUpcoming}
                               preloadedVoteCount={voteData?.upvotes ?? 0}
                               preloadedUserVoted={voteData?.userVoted ?? false}
+                              showId={showId}
+                              artistId={show.artistId}
+                              anonymousVotesUsed={voteActionCount}
                             />
                           );
                         })}
@@ -1027,6 +1129,12 @@ export function ShowDetail({
             </Button>
             <Button
               onClick={() => {
+                capture("auth_started", {
+                  source: "anonymous_limit_modal",
+                  intent: "continue_voting",
+                  show_id: showId,
+                  artist_id: show.artistId,
+                });
                 setShowAuthModal(false);
                 onSignInRequired();
               }}
@@ -1076,6 +1184,9 @@ function FanRequestSongRow({
   isUpcoming,
   preloadedVoteCount,
   preloadedUserVoted,
+  showId,
+  artistId,
+  anonymousVotesUsed,
 }: {
   songTitle: string;
   index: number;
@@ -1090,6 +1201,9 @@ function FanRequestSongRow({
   isUpcoming: boolean;
   preloadedVoteCount?: number;
   preloadedUserVoted?: boolean;
+  showId: Id<"shows">;
+  artistId: Id<"artists">;
+  anonymousVotesUsed: number;
 }) {
   const normalizedTitle = songTitle.toLowerCase().trim();
   const wasPlayed = actualSongTitleSet.has(normalizedTitle);
@@ -1151,7 +1265,25 @@ function FanRequestSongRow({
       if (!user && result?.action) {
         recordVoteAction(result.action as "added" | "removed");
       }
+      capture("song_vote_changed", {
+        show_id: showId,
+        artist_id: artistId,
+        setlist_id: predictionSetlistId,
+        song_title: songTitle,
+        action: result?.action || (nextVoted ? "added" : "removed"),
+        auth_state: user ? "authenticated" : "anonymous",
+        vote_count_after: Math.max(0, voteCount + (nextVoted ? 1 : -1)),
+        anonymous_votes_used: user
+          ? undefined
+          : Math.max(0, anonymousVotesUsed + (nextVoted ? 1 : -1)),
+      });
     } catch (error) {
+      captureException(error, {
+        operation: "song_vote",
+        show_id: showId,
+        artist_id: artistId,
+        setlist_id: predictionSetlistId,
+      });
       setOptimistic(null);
       const message = error instanceof Error ? error.message.toLowerCase() : "";
       if (!user && message.includes("anonymous users can only vote")) {

@@ -22,6 +22,7 @@ import {
   BarChart3,
   Trophy,
 } from "lucide-react";
+import { capture } from "../lib/analytics";
 
 type ViewMode = "demand" | "report";
 
@@ -51,6 +52,29 @@ export function ForArtistsShowDemandPage() {
 
   const isCompleted = data?.show?.status === "completed";
   const hasReport = postShowReport?.status === "complete";
+  const trackedDemandShow = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (
+      !showId ||
+      !data ||
+      (isCompleted && postShowReport === undefined) ||
+      trackedDemandShow.current === showId
+    ) return;
+    trackedDemandShow.current = showId;
+    capture("artist_show_demand_viewed", {
+      artist_id: artistId,
+      show_id: showId,
+      show_status: data.show?.status,
+      show_date: data.show?.date,
+      venue_id: data.show?.venue?._id,
+      song_count: Array.isArray(data.songs) ? data.songs.length : 0,
+      total_votes: Array.isArray(data.songs)
+        ? data.songs.reduce((sum: number, song: any) => sum + (song.upvotes ?? 0), 0)
+        : 0,
+      has_post_show_report: hasReport,
+    });
+  }, [artistId, data, hasReport, isCompleted, postShowReport, showId]);
 
   // Export functionality
   const handleExport = () => {

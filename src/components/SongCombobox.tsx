@@ -21,11 +21,13 @@ export function SongCombobox({
   placeholder = "Add a song...",
   onSelect,
   disabled,
+  onOpenChange,
 }: {
   items: Item[];
   placeholder?: string;
   onSelect: (title: string) => void;
   disabled?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -43,6 +45,10 @@ export function SongCombobox({
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
+
+  React.useEffect(() => {
+    onOpenChange?.(open);
+  }, [open, onOpenChange]);
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();

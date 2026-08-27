@@ -26,6 +26,7 @@ import {
   History,
   Repeat,
 } from "lucide-react";
+import { capture } from "../lib/analytics";
 
 type DashboardTab = "overview" | "tour" | "completed" | "history";
 
@@ -88,6 +89,41 @@ export function ForArtistsDashboardPage() {
   const myArtists = useQuery((api as any).artistAccess.getMyArtists, {});
   const myRole = myArtists?.find((a: any) => a.artist._id === artistId)?.role;
   const isOwner = myRole === "owner";
+  const trackedDashboardArtist = React.useRef<string | null>(null);
+  const hasTrackedInitialTab = React.useRef(false);
+
+  React.useEffect(() => {
+    if (
+      !artistId ||
+      !data ||
+      tourOverview === undefined ||
+      myArtists === undefined ||
+      trackedDashboardArtist.current === artistId
+    ) return;
+    trackedDashboardArtist.current = artistId;
+    capture("artist_dashboard_viewed", {
+      artist_id: artistId,
+      artist_name: data.artist?.name,
+      member_role: myRole,
+      upcoming_show_count: Array.isArray(data.shows) ? data.shows.length : 0,
+      total_votes: tourOverview?.stats?.totalVotes ?? 0,
+      completed_show_count: tourOverview?.stats?.completedShows ?? 0,
+    });
+  }, [artistId, data, myRole, tourOverview?.stats]);
+
+  React.useEffect(() => {
+    if (!artistId) return;
+    if (!hasTrackedInitialTab.current) {
+      hasTrackedInitialTab.current = true;
+      return;
+    }
+    capture("discovery_filter_changed", {
+      context: "artist_dashboard",
+      artist_id: artistId,
+      filter_name: "dashboard_tab",
+      filter_value: activeTab,
+    });
+  }, [activeTab, artistId]);
 
   // Export top songs as CSV
   const handleExportTopSongs = () => {

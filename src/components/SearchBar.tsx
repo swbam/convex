@@ -5,6 +5,7 @@ import { Id } from '../../convex/_generated/dataModel'
 import { toast } from 'sonner'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Music2, Search as SearchIcon, X } from 'lucide-react'
+import { capture, captureException } from '../lib/analytics'
 
 type SortBy = 'relevance' | 'popularity' | 'recent' | 'alphabetical'
 
@@ -72,7 +73,8 @@ export function SearchBar({
 
   // State for Ticketmaster search results
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
-  const [_isSearching, setIsSearching] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
+  const lastTrackedQuery = useRef('')
   
   // Ticketmaster search action
   const searchTicketmasterArtists = useAction(api.ticketmaster.searchArtists)
@@ -138,6 +140,23 @@ export function SearchBar({
     void searchArtists()
   }, [debouncedQuery, searchType, searchTicketmasterArtists, localArtistResults])
 
+  useEffect(() => {
+    if (isSearching || debouncedQuery.length < 2) return;
+    const normalized = debouncedQuery.trim().toLowerCase();
+    if (!normalized || lastTrackedQuery.current === normalized) return;
+    const timer = window.setTimeout(() => {
+      lastTrackedQuery.current = normalized;
+      capture('search_performed', {
+        context: 'global_search',
+        search_type: searchType,
+        query_length: normalized.length,
+        result_count: searchResults.length,
+        has_results: searchResults.length > 0,
+      });
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [debouncedQuery, isSearching, searchResults.length, searchType]);
+
   // Sort results
   const sortedResults = [...searchResults].sort((a, b) => {
     switch (sortBy) {
@@ -154,6 +173,17 @@ export function SearchBar({
   })
 
   const handleResultClick = async (result: SearchResult) => {
+    const resultPosition = sortedResults.findIndex((item) => item.id === result.id);
+    capture('search_result_selected', {
+      context: 'global_search',
+      search_type: searchType,
+      query_length: debouncedQuery.trim().length,
+      result_count: sortedResults.length,
+      result_position: resultPosition >= 0 ? resultPosition + 1 : undefined,
+      result_type: result.type,
+      result_id: result.id,
+      result_source: result.slug ? 'convex' : 'ticketmaster',
+    });
     // If this is a Ticketmaster result (no slug), kick off sync and navigate by ID
     if (result.type === 'artist' && !result.slug) {
       try {
@@ -181,6 +211,11 @@ export function SearchBar({
         setIsOpen(false);
         setQuery('');
       } catch (error) {
+        captureException(error, {
+          operation: 'search_result_import',
+          result_type: result.type,
+          result_id: result.id,
+        });
         const message = error instanceof Error ? error.message : 'Failed to import data';
         toast.error(message);
       }

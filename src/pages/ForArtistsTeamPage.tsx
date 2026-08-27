@@ -9,6 +9,7 @@ import { MagicCard } from "../components/ui/magic-card";
 import { Button } from "../components/ui/button";
 import { Loader2, ArrowLeft, Users, Mail, Trash2, Shield, Copy, CheckCircle, Clock, Link2 } from "lucide-react";
 import { toast } from "sonner";
+import { capture, captureException } from "../lib/analytics";
 
 type Role = "owner" | "manager" | "viewer";
 
@@ -41,6 +42,24 @@ export function ForArtistsTeamPage() {
   const [submitting, setSubmitting] = useState(false);
   const [lastInviteUrl, setLastInviteUrl] = useState<string | null>(null);
   const [copiedInvite, setCopiedInvite] = useState<string | null>(null);
+  const trackedTeamArtist = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (
+      !artistId ||
+      team === undefined ||
+      pendingInvites === undefined ||
+      myArtists === undefined ||
+      trackedTeamArtist.current === artistId
+    ) return;
+    trackedTeamArtist.current = artistId;
+    capture("artist_team_viewed", {
+      artist_id: artistId,
+      member_role: myRole,
+      team_member_count: team?.length ?? 0,
+      pending_invite_count: pendingInvites?.length ?? 0,
+    });
+  }, [artistId, myRole, pendingInvites?.length, team]);
 
   if (!artistId) {
     return (
@@ -132,6 +151,10 @@ export function ForArtistsTeamPage() {
                             role,
                           });
                           if (res?.success) {
+                            capture("artist_team_invite_created", {
+                              artist_id: artistId,
+                              invited_role: role,
+                            });
                             toast.success("Invite created!", { description: "Share the link with your team member." });
                             setEmail("");
                             if (res.inviteUrl) {
@@ -141,6 +164,7 @@ export function ForArtistsTeamPage() {
                             toast.error("Invite failed", { description: res?.message || "Unknown error" });
                           }
                         } catch (e: any) {
+                          captureException(e, { operation: "artist_team_invite_create", artist_id: artistId });
                           toast.error("Invite failed", { description: e?.message || "Unknown error" });
                         } finally {
                           setSubmitting(false);
@@ -241,11 +265,17 @@ export function ForArtistsTeamPage() {
                                   inviteId: invite._id,
                                 });
                                 if (res?.success) {
+                                  capture("artist_team_invite_revoked", {
+                                    artist_id: artistId,
+                                    invite_id: invite._id,
+                                    invited_role: invite.role,
+                                  });
                                   toast.success("Invite revoked");
                                 } else {
                                   toast.error("Failed", { description: res?.message });
                                 }
                               } catch (e: any) {
+                                captureException(e, { operation: "artist_team_invite_revoke", artist_id: artistId });
                                 toast.error("Failed", { description: e?.message });
                               }
                             }}
@@ -297,9 +327,16 @@ export function ForArtistsTeamPage() {
                                   if (!res?.success) {
                                     toast.error("Role update failed", { description: res?.message || "Unknown error" });
                                   } else {
+                                    capture("artist_team_role_changed", {
+                                      artist_id: artistId,
+                                      member_id: m._id,
+                                      previous_role: m.role,
+                                      new_role: nextRole,
+                                    });
                                     toast.success("Role updated");
                                   }
                                 } catch (err: any) {
+                                  captureException(err, { operation: "artist_team_role_change", artist_id: artistId });
                                   toast.error("Role update failed", { description: err?.message || "Unknown error" });
                                 }
                               }}
@@ -326,9 +363,15 @@ export function ForArtistsTeamPage() {
                                   if (!res?.success) {
                                     toast.error("Remove failed", { description: res?.message || "Unknown error" });
                                   } else {
+                                    capture("artist_team_member_removed", {
+                                      artist_id: artistId,
+                                      member_id: m._id,
+                                      member_role: m.role,
+                                    });
                                     toast.success("Removed");
                                   }
                                 } catch (err: any) {
+                                  captureException(err, { operation: "artist_team_member_remove", artist_id: artistId });
                                   toast.error("Remove failed", { description: err?.message || "Unknown error" });
                                 }
                               }}
@@ -352,4 +395,3 @@ export function ForArtistsTeamPage() {
     </ErrorBoundary>
   );
 }
-

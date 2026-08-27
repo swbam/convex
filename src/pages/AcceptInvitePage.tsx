@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import { capture, captureException } from "../lib/analytics";
 
 export function AcceptInvitePage() {
   const navigate = useNavigate();
@@ -35,12 +36,17 @@ export function AcceptInvitePage() {
     try {
       const result = await acceptInvite({ inviteToken: token });
       if (result.success) {
+        capture("artist_team_invite_accepted", {
+          artist_id: result.artistId,
+          invited_role: invite?.role,
+        });
         toast.success(result.message);
         navigate(`/for-artists/${result.artistId}`);
       } else {
         toast.error(result.message || "Failed to accept invite");
       }
     } catch (error: any) {
+      captureException(error, { operation: "artist_team_invite_accept", artist_id: invite?.artistId });
       toast.error(error.message || "Failed to accept invite");
     }
     setAccepting(false);

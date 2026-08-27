@@ -15,6 +15,7 @@ import { motion } from "framer-motion";
 import { useAction } from "convex/react";
 import { formatLocation, formatTimeCompact } from "../lib/utils";
 import { DetailPageSkeleton } from "./LoadingSkeleton";
+import { capture, captureException } from "../lib/analytics";
 
 interface ArtistDetailProps {
   artistId: Id<"artists">;
@@ -71,6 +72,30 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   const [anonymousActions, setAnonymousActions] = useState(0);
   const [addToSetlistModal, setAddToSetlistModal] = useState<{ isOpen: boolean; songTitle: string }>({ isOpen: false, songTitle: "" });
   const followArtist = useMutation(api.artists.followArtist);
+  const trackedArtistId = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (
+      !artist ||
+      shows === undefined ||
+      songs === undefined ||
+      catalogSongCount === undefined ||
+      user === undefined ||
+      trackedArtistId.current === artist._id
+    ) return;
+    trackedArtistId.current = artist._id;
+    capture("artist_viewed", {
+      artist_id: artist._id,
+      artist_slug: artist.slug,
+      artist_name: artist.name,
+      genre: artist.genres?.[0],
+      follower_count: artist.followers,
+      upcoming_show_count: shows?.filter((show) => show.status === "upcoming").length ?? 0,
+      recent_show_count: shows?.filter((show) => show.status === "completed").length ?? 0,
+      catalog_song_count: catalogSongCount ?? songs?.length ?? 0,
+      auth_state: user ? "authenticated" : "anonymous",
+    });
+  }, [artist, catalogSongCount, shows, songs?.length, user]);
 
   // Loading state
   const isLoading = !artist;
@@ -90,11 +115,24 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
     try {
       if (user) {
         const following = await followArtist({ artistId });
+        capture("artist_follow_changed", {
+          artist_id: artistId,
+          artist_name: artist?.name,
+          action: following ? "followed" : "unfollowed",
+          auth_state: "authenticated",
+        });
         toast.success(following ? `Following ${artist?.name}` : `Unfollowed ${artist?.name}`);
       } else {
+        capture("artist_follow_changed", {
+          artist_id: artistId,
+          artist_name: artist?.name,
+          action: "interest_added",
+          auth_state: "anonymous",
+        });
         toast.success(`Added ${artist?.name} to your interests`);
       }
     } catch (error) {
+      captureException(error, { operation: "artist_follow", artist_id: artistId });
       toast.error("Failed to follow artist");
     }
   };

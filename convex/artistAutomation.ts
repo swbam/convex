@@ -165,9 +165,11 @@ export const runManagedArtistWarmup = internalAction({
     artistId: v.id("artists"),
     reason: v.optional(v.string()),
     force: v.optional(v.boolean()),
+    analyticsDistinctId: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
+    const startedAt = Date.now();
     const lockName = `artist-warmup:${args.artistId}`;
     const lockAcquired = await ctx.runMutation(internalRef.maintenance.acquireLock, {
       name: lockName,
@@ -326,7 +328,7 @@ export const runManagedArtistWarmup = internalAction({
         lastDemandReconcileAt: demandReconciled ? now : undefined,
       });
 
-      return {
+      const result = {
         skipped: false,
         artistId: args.artistId,
         artistName: snapshot.artist.name,
@@ -337,6 +339,37 @@ export const runManagedArtistWarmup = internalAction({
         recentCompletedShows: snapshot.recentCompletedShows.length,
         scheduledCompletedImports,
       };
+      await ctx.scheduler.runAfter(0, internalRef.analytics.capture, {
+        event: "artist_warmup_completed",
+        distinctId: args.analyticsDistinctId || `artist:${args.artistId}`,
+        properties: {
+          artist_id: args.artistId,
+          reason: args.reason ?? "manual",
+          force: Boolean(args.force),
+          steps,
+          step_count: steps.length,
+          song_count: snapshot.songCount,
+          upcoming_show_count: snapshot.upcomingShows.length,
+          recent_completed_show_count: snapshot.recentCompletedShows.length,
+          scheduled_setlist_import_count: scheduledCompletedImports,
+          demand_reconciled: demandReconciled,
+          duration_ms: Date.now() - startedAt,
+        },
+      });
+      return result;
+    } catch (error) {
+      await ctx.scheduler.runAfter(0, internalRef.analytics.capture, {
+        event: "artist_warmup_failed",
+        distinctId: args.analyticsDistinctId || `artist:${args.artistId}`,
+        properties: {
+          artist_id: args.artistId,
+          reason: args.reason ?? "manual",
+          force: Boolean(args.force),
+          error_type: error instanceof Error ? error.name : "unknown_error",
+          duration_ms: Date.now() - startedAt,
+        },
+      });
+      throw error;
     } finally {
       await ctx.runMutation(internalRef.maintenance.releaseLock, { name: lockName });
     }
