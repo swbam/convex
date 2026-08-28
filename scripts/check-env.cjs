@@ -8,9 +8,12 @@ const isProductionLike =
   process.env.CHECK_ENV_STRICT === '1' ||
   process.env.CI === 'true';
 
-const requiredPairs = [
+const developmentRequiredPairs = [
   ['VITE_CLERK_PUBLISHABLE_KEY', 'CLERK_PUBLISHABLE_KEY'],
   ['VITE_CONVEX_URL', 'CONVEX_URL'],
+];
+
+const productionRequiredPairs = [
   ['VITE_POSTHOG_KEY', 'POSTHOG_PROJECT_TOKEN'],
 ];
 
@@ -30,19 +33,25 @@ const productionOnly = [
 ];
 
 const missing = [];
-for (const [primary, fallback] of requiredPairs) {
+for (const [primary, fallback] of developmentRequiredPairs) {
   if (!process.env[primary] && !process.env[fallback]) {
     missing.push(`${primary} or ${fallback}`);
   }
 }
 
-for (const envVar of backendRequired) {
-  if (!process.env[envVar]) {
-    missing.push(envVar);
-  }
-}
-
 if (isProductionLike) {
+  for (const [primary, fallback] of productionRequiredPairs) {
+    if (!process.env[primary] && !process.env[fallback]) {
+      missing.push(`${primary} or ${fallback}`);
+    }
+  }
+
+  for (const envVar of backendRequired) {
+    if (!process.env[envVar]) {
+      missing.push(envVar);
+    }
+  }
+
   for (const envVar of productionOnly) {
     if (!process.env[envVar]) {
       missing.push(envVar);
@@ -56,6 +65,9 @@ if (missing.length > 0) {
   process.exit(1);
 } else {
   const warnings = [];
+  if (!process.env.VITE_POSTHOG_KEY && !process.env.POSTHOG_PROJECT_TOKEN) {
+    warnings.push('PostHog is not configured; local analytics will be disabled');
+  }
   if (!process.env.SENTRY_DSN) {
     warnings.push('SENTRY_DSN is not set');
   }

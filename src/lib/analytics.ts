@@ -89,11 +89,22 @@ export function isSensitiveAnalyticsRoute(pathname: string) {
   return /^\/for-artists\/invite\/[^/]+/.test(pathname);
 }
 
-function sanitizeAnalyticsPath(pathname: string) {
+export function sanitizeAnalyticsPath(pathname: string) {
   if (isSensitiveAnalyticsRoute(pathname)) {
     return "/for-artists/invite/:token";
   }
   return pathname;
+}
+
+export function shouldCaptureAnalyticsPath(pathname: string) {
+  return !isSensitiveAnalyticsRoute(pathname);
+}
+
+function isCurrentAnalyticsRouteSensitive() {
+  return (
+    typeof window !== "undefined" &&
+    isSensitiveAnalyticsRoute(window.location.pathname)
+  );
 }
 
 function sanitizeAnalyticsUrl(value: unknown) {
@@ -151,7 +162,13 @@ export function consumeOAuthIntent(): OAuthIntent | null {
 }
 
 function enqueue(operation: PendingOperation) {
-  if (!isAnalyticsConfigured || typeof window === "undefined") return;
+  if (
+    !isAnalyticsConfigured ||
+    typeof window === "undefined" ||
+    isCurrentAnalyticsRouteSensitive()
+  ) {
+    return;
+  }
 
   if (client) {
     operation(client);
@@ -166,7 +183,13 @@ function enqueue(operation: PendingOperation) {
 }
 
 export async function initializeAnalytics(): Promise<PostHog | null> {
-  if (!isAnalyticsConfigured || typeof window === "undefined") return null;
+  if (
+    !isAnalyticsConfigured ||
+    typeof window === "undefined" ||
+    isCurrentAnalyticsRouteSensitive()
+  ) {
+    return null;
+  }
   if (client) return client;
   if (initialization) return initialization;
 
@@ -217,10 +240,13 @@ export async function initializeAnalytics(): Promise<PostHog | null> {
           "authorization",
         ],
         before_send: (event) => {
-          if (!event) return null;
+          // Invite URLs contain bearer-like claim tokens. Suppress every event
+          // while one is visible, including SDK-generated performance events.
+          if (!event || isCurrentAnalyticsRouteSensitive()) return null;
           const properties = { ...event.properties };
           for (const key of [
             "$current_url",
+            "$initial_current_url",
             "$referrer",
             "$initial_referrer",
           ]) {
@@ -228,10 +254,17 @@ export async function initializeAnalytics(): Promise<PostHog | null> {
               properties[key] = sanitizeAnalyticsUrl(properties[key]);
             }
           }
-          if ("page_path" in properties) {
-            properties.page_path = sanitizeAnalyticsPath(
-              String(properties.page_path),
-            );
+          for (const key of [
+            "page_path",
+            "$pathname",
+            "$initial_pathname",
+            "$prev_pageview_pathname",
+          ]) {
+            if (key in properties) {
+              properties[key] = sanitizeAnalyticsPath(
+                String(properties[key]),
+              );
+            }
           }
           return { ...event, properties };
         },
@@ -250,7 +283,9 @@ export async function initializeAnalytics(): Promise<PostHog | null> {
       }
       const queued = pendingOperations;
       pendingOperations = [];
-      queued.forEach((operation) => operation(initialized));
+      if (!isCurrentAnalyticsRouteSensitive()) {
+        queued.forEach((operation) => operation(initialized));
+      }
       return initialized;
     })
     .catch((error) => {

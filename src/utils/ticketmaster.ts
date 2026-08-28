@@ -16,6 +16,58 @@ const AFFILIATE_CONFIG = {
   ircid: '4272',                 // Impact Radius Campaign ID
 };
 
+const TICKETMASTER_HOME = 'https://www.ticketmaster.com/';
+const TICKETMASTER_DOMAIN_SUFFIXES = [
+  'at',
+  'be',
+  'ca',
+  'ch',
+  'co.nz',
+  'co.uk',
+  'co.za',
+  'com',
+  'com.au',
+  'com.br',
+  'com.mx',
+  'cz',
+  'de',
+  'dk',
+  'es',
+  'fi',
+  'fr',
+  'ie',
+  'it',
+  'nl',
+  'no',
+  'pl',
+  'se',
+  'sg',
+];
+
+function isTrustedTicketmasterUrl(url: URL): boolean {
+  if (url.protocol !== 'https:') return false;
+  const hostname = url.hostname.toLowerCase();
+  return TICKETMASTER_DOMAIN_SUFFIXES.some(
+    (suffix) =>
+      hostname === `ticketmaster.${suffix}` ||
+      hostname.endsWith(`.ticketmaster.${suffix}`)
+  );
+}
+
+function addAffiliateParameters(url: URL): URL {
+  url.searchParams.set('irgwc', '1');
+  url.searchParams.set('clickid', generateClickId());
+  url.searchParams.set('camefrom', AFFILIATE_CONFIG.camefrom);
+  url.searchParams.set('impradid', AFFILIATE_CONFIG.impradid);
+  url.searchParams.set('REFERRAL_ID', AFFILIATE_CONFIG.REFERRAL_ID);
+  url.searchParams.set('wt.mc_id', AFFILIATE_CONFIG.wtMcId);
+  url.searchParams.set('utm_source', AFFILIATE_CONFIG.utmSource);
+  url.searchParams.set('impradname', AFFILIATE_CONFIG.impradname);
+  url.searchParams.set('utm_medium', AFFILIATE_CONFIG.utmMedium);
+  url.searchParams.set('ircid', AFFILIATE_CONFIG.ircid);
+  return url;
+}
+
 /**
  * Generate a unique click ID for tracking
  * Format similar to Impact Radius: UCkVKfRd9xycR4LzAlwNlWiaUkp3wT2PISiJ280
@@ -36,26 +88,20 @@ function generateClickId(): string {
  * @returns URL with affiliate tracking parameters for commission
  */
 export function buildTicketmasterAffiliateUrl(ticketUrl?: string): string {
-  if (!ticketUrl) {
-    return `https://www.ticketmaster.com/?irgwc=1&clickid=${generateClickId()}&camefrom=${AFFILIATE_CONFIG.camefrom}&impradid=${AFFILIATE_CONFIG.impradid}&REFERRAL_ID=${AFFILIATE_CONFIG.REFERRAL_ID}&wt.mc_id=${AFFILIATE_CONFIG.wtMcId}&utm_source=${AFFILIATE_CONFIG.utmSource}&impradname=${AFFILIATE_CONFIG.impradname}&utm_medium=${AFFILIATE_CONFIG.utmMedium}&ircid=${AFFILIATE_CONFIG.ircid}`;
+  let url = new URL(TICKETMASTER_HOME);
+
+  if (ticketUrl) {
+    try {
+      const candidate = new URL(ticketUrl);
+      if (isTrustedTicketmasterUrl(candidate)) {
+        url = candidate;
+      }
+    } catch {
+      // Keep the safe Ticketmaster fallback for malformed provider data.
+    }
   }
-  
-  // Parse existing URL
-  const url = new URL(ticketUrl);
-  
-  // Add affiliate tracking parameters
-  url.searchParams.set('irgwc', '1');
-  url.searchParams.set('clickid', generateClickId());
-  url.searchParams.set('camefrom', AFFILIATE_CONFIG.camefrom);
-  url.searchParams.set('impradid', AFFILIATE_CONFIG.impradid);
-  url.searchParams.set('REFERRAL_ID', AFFILIATE_CONFIG.REFERRAL_ID);
-  url.searchParams.set('wt.mc_id', AFFILIATE_CONFIG.wtMcId);
-  url.searchParams.set('utm_source', AFFILIATE_CONFIG.utmSource);
-  url.searchParams.set('impradname', AFFILIATE_CONFIG.impradname);
-  url.searchParams.set('utm_medium', AFFILIATE_CONFIG.utmMedium);
-  url.searchParams.set('ircid', AFFILIATE_CONFIG.ircid);
-  
-  return url.toString();
+
+  return addAffiliateParameters(url).toString();
 }
 
 /**

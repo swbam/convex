@@ -32,6 +32,7 @@ export function SongCombobox({
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [mobileSearchOpen, setMobileSearchOpen] = React.useState(false);
+  const onOpenChangeRef = React.useRef(onOpenChange);
   const shouldReduceMotion = useReducedMotion();
   const [isMobile, setIsMobile] = React.useState(() =>
     typeof window !== "undefined"
@@ -47,8 +48,12 @@ export function SongCombobox({
   }, []);
 
   React.useEffect(() => {
-    onOpenChange?.(open);
-  }, [open, onOpenChange]);
+    onOpenChangeRef.current = onOpenChange;
+  }, [onOpenChange]);
+
+  React.useEffect(() => {
+    onOpenChangeRef.current?.(open);
+  }, [open]);
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();

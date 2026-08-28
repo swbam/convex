@@ -3,6 +3,8 @@ import {
   consumeOAuthIntent,
   isSensitiveAnalyticsRoute,
   recordOAuthIntent,
+  sanitizeAnalyticsPath,
+  shouldCaptureAnalyticsPath,
 } from "./analytics";
 
 describe("analytics privacy and attribution helpers", () => {
@@ -13,6 +15,13 @@ describe("analytics privacy and attribution helpers", () => {
   it("recognizes invite-token routes as sensitive", () => {
     expect(isSensitiveAnalyticsRoute("/for-artists/invite/secret-token")).toBe(true);
     expect(isSensitiveAnalyticsRoute("/for-artists/artist-id/team")).toBe(false);
+    expect(
+      sanitizeAnalyticsPath("/for-artists/invite/secret-token"),
+    ).toBe("/for-artists/invite/:token");
+    expect(
+      shouldCaptureAnalyticsPath("/for-artists/invite/secret-token"),
+    ).toBe(false);
+    expect(shouldCaptureAnalyticsPath("/shows/show-id")).toBe(true);
   });
 
   it("preserves OAuth attribution for one callback only", () => {

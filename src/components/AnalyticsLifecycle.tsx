@@ -57,7 +57,9 @@ export function AnalyticsLifecycle() {
   const location = useLocation();
   const authUser = useQuery(api.auth.loggedInUser);
   const identifiedUserId = useRef<string | null>(null);
-  const lastTrackedPath = useRef<string | null>(null);
+  const identifiedUserFingerprint = useRef<string | null>(null);
+  const lastTrackedNavigation = useRef<string | null>(null);
+  const navigationKey = `${location.key}:${location.pathname}`;
   const authState =
     authUser === undefined
       ? "loading"
@@ -66,19 +68,25 @@ export function AnalyticsLifecycle() {
         : "anonymous";
 
   useEffect(() => {
-    if (authState === "loading" || lastTrackedPath.current === location.pathname) {
+    if (
+      isSensitiveAnalyticsRoute(location.pathname) ||
+      lastTrackedNavigation.current === navigationKey
+    ) {
       return;
     }
-    lastTrackedPath.current = location.pathname;
     // Let route components finish their synchronous title update first.
     const timer = window.setTimeout(() => {
+      if (lastTrackedNavigation.current === navigationKey) return;
       capturePageView({
         ...classifyRoute(location.pathname),
         auth_state: authState,
       });
+      // Mark this navigation only after the event has actually been queued. If the
+      // effect is canceled while auth resolves, the replacement can still fire.
+      lastTrackedNavigation.current = navigationKey;
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [authState, location.pathname]);
+  }, [authState, location.pathname, navigationKey]);
 
   useEffect(() => {
     setSessionRecordingEnabled(
@@ -91,19 +99,35 @@ export function AnalyticsLifecycle() {
 
     if (authUser) {
       const identityId = String(authUser.identity.subject);
-      identifiedUserId.current = identityId;
-      identifyUser(identityId, {
+      const identityProperties = {
         app_user_id: authUser.appUser?._id,
         account_role: authUser.appUser?.role || "user",
         has_spotify_connection: Boolean(authUser.appUser?.spotifyId),
         account_setup_complete: !authUser.needsSetup,
+      };
+      const fingerprint = JSON.stringify({
+        identityId,
+        ...identityProperties,
       });
+
+      if (identifiedUserFingerprint.current === fingerprint) return;
+      if (
+        identifiedUserId.current &&
+        identifiedUserId.current !== identityId
+      ) {
+        resetAnalyticsIdentity();
+      }
+
+      identifiedUserId.current = identityId;
+      identifiedUserFingerprint.current = fingerprint;
+      identifyUser(identityId, identityProperties);
       return;
     }
 
     if (identifiedUserId.current) {
       resetAnalyticsIdentity();
       identifiedUserId.current = null;
+      identifiedUserFingerprint.current = null;
     }
   }, [authUser]);
 

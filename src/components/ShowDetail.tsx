@@ -578,7 +578,8 @@ export function ShowDetail({
                           });
                           window.open(
                             buildTicketmasterAffiliateUrl(show.ticketUrl || ""),
-                            "_blank"
+                            "_blank",
+                            "noopener,noreferrer"
                           );
                         }}
                         className="inline-flex items-center px-4 py-2 sm:px-5 sm:py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg text-sm sm:text-base transition-all shadow-lg hover:shadow-xl"
