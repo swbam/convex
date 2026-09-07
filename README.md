@@ -9,6 +9,10 @@ The platform features a sophisticated multi-phase data synchronization system th
 4. **Fetches actual setlists** from Setlist.fm after concerts complete
 5. **Compares predictions** to actual performances, tracking user accuracy
 
+Current operating documentation lives in [docs/README.md](./docs/README.md).
+Feature work is not complete until its user flows, permissions, operations,
+analytics, and release checks are documented there.
+
 ---
 
 ## Table of Contents
@@ -489,4 +493,3 @@ Before launch, verify:
 
 **Owner**: sethbamb@gmail.com (admin user)
 **Production URL**: https://setlists.live
-

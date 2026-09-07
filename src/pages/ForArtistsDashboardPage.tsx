@@ -27,6 +27,7 @@ import {
   Repeat,
 } from "lucide-react";
 import { capture } from "../lib/analytics";
+import { ShowShareButton } from "../components/ShowShareButton";
 
 type DashboardTab = "overview" | "tour" | "completed" | "history";
 
@@ -335,33 +336,44 @@ export function ForArtistsDashboardPage() {
                     {Array.isArray(data.shows) && data.shows.length ? (
                       <div className="space-y-2">
                         {data.shows.map((s: any) => (
-                          <button
+                          <div
                             key={s._id}
-                            className="w-full flex items-center justify-between gap-3 rounded-xl border border-border bg-card/40 p-4 hover:bg-card/60 hover:border-primary/30 transition-colors text-left group"
-                            onClick={() =>
-                              navigate(`/for-artists/${artistId}/shows/${s._id}`)
-                            }
+                            className="flex w-full items-stretch overflow-hidden rounded-xl border border-border bg-card/40 transition-colors hover:border-primary/30 hover:bg-card/60"
                           >
-                            <div className="min-w-0 flex-1">
-                              <div className="font-semibold truncate">
-                                {s.venue?.name ?? "Venue"}
+                            <button
+                              className="group flex min-w-0 flex-1 items-center justify-between gap-3 p-4 text-left"
+                              onClick={() => navigate(`/for-artists/${artistId}/shows/${s._id}`)}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="font-semibold truncate">
+                                  {s.venue?.name ?? "Venue"}
+                                </div>
+                                <div className="text-sm text-muted-foreground truncate">
+                                  {s.venue?.city}
+                                  {s.venue?.state ? `, ${s.venue.state}` : ""}
+                                </div>
                               </div>
-                              <div className="text-sm text-muted-foreground truncate">
-                                {s.venue?.city}
-                                {s.venue?.state ? `, ${s.venue.state}` : ""}
+                              <div className="text-right flex-shrink-0">
+                                <div className="text-sm font-medium">{s.date}</div>
+                                <div className="text-xs text-muted-foreground flex items-center gap-2 justify-end">
+                                  <span className="flex items-center gap-1">
+                                    <TrendingUp className="h-3 w-3" />
+                                    {s.voteCount ?? 0} votes
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <div className="text-sm font-medium">{s.date}</div>
-                              <div className="text-xs text-muted-foreground flex items-center gap-2 justify-end">
-                                <span className="flex items-center gap-1">
-                                  <TrendingUp className="h-3 w-3" />
-                                  {s.voteCount ?? 0} votes
-                                </span>
-                              </div>
-                            </div>
-                            <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
-                          </button>
+                              <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+                            </button>
+                            <ShowShareButton
+                              showId={s._id}
+                              slug={s.slug}
+                              artistName={data.artist?.name}
+                              venueName={s.venue?.name}
+                              date={s.date}
+                              label="Share"
+                              className="m-2 self-stretch border-border/70 px-3"
+                            />
+                          </div>
                         ))}
                       </div>
                     ) : (

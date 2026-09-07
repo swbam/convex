@@ -591,6 +591,7 @@ export const updateSyncStatus = internalMutation({
       v.literal("never"),
       v.literal("pending"),
       v.literal("syncing"),
+      v.literal("partial"),
       v.literal("completed"),
       v.literal("failed")
     )),

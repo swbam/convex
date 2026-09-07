@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
 import { useClerk, useSignUp, useUser } from '@clerk/clerk-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { MagicCard } from '../components/ui/magic-card';
 import { BorderBeam } from '../components/ui/border-beam';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, Music, Sparkles, User, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { FaSpotify, FaGoogle } from 'react-icons/fa';
 import { capture, captureException, clearOAuthIntent, recordOAuthIntent } from '../lib/analytics';
+import { safeReturnTo } from '../lib/navigation';
 
 export function SignUpPage() {
   const { signUp, isLoaded } = useSignUp();
   const { setActive } = useClerk();
   const { isSignedIn, isLoaded: isUserLoaded } = useUser();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = safeReturnTo(new URLSearchParams(location.search).get('returnTo'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -34,12 +37,12 @@ export function SignUpPage() {
     return () => clearTimeout(timeout);
   }, [isLoaded, signUp]);
 
-  // Redirect to dashboard if already signed in
+  // Continue an interrupted action (for example, accepting an artist invite).
   React.useEffect(() => {
     if (isUserLoaded && isSignedIn) {
-      navigate('/', { replace: true });
+      navigate(returnTo, { replace: true });
     }
-  }, [isUserLoaded, isSignedIn, navigate]);
+  }, [isUserLoaded, isSignedIn, navigate, returnTo]);
 
   // Show loading state while Clerk initializes with error handling
   if (!isLoaded || !signUp) {
@@ -95,8 +98,8 @@ export function SignUpPage() {
     try {
       await signUp.authenticateWithRedirect({
         strategy: 'oauth_spotify',
-        redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectUrlComplete: `${window.location.origin}/activity`,
+        redirectUrl: `${window.location.origin}/sso-callback?returnTo=${encodeURIComponent(returnTo)}`,
+        redirectUrlComplete: `${window.location.origin}${returnTo}`,
       });
     } catch (error: any) {
       clearOAuthIntent();
@@ -121,8 +124,8 @@ export function SignUpPage() {
     try {
       await signUp.authenticateWithRedirect({
         strategy: 'oauth_google',
-        redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectUrlComplete: `${window.location.origin}/`,
+        redirectUrl: `${window.location.origin}/sso-callback?returnTo=${encodeURIComponent(returnTo)}`,
+        redirectUrlComplete: `${window.location.origin}${returnTo}`,
       });
     } catch (error: any) {
       clearOAuthIntent();
@@ -157,7 +160,7 @@ export function SignUpPage() {
         capture('account_created', { auth_method: 'email_password', verification_required: false });
         capture('auth_completed', { auth_method: 'email_password', auth_mode: 'sign_up' });
         toast.success("Account created successfully!");
-        navigate('/');
+        navigate(returnTo);
       } else {
         await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
         setVerificationStep(true);
@@ -200,7 +203,7 @@ export function SignUpPage() {
         capture('account_created', { auth_method: 'email_password', verification_required: true });
         capture('auth_completed', { auth_method: 'email_password', auth_mode: 'sign_up' });
         toast.success("Email verified! Welcome to setlists.live!");
-        navigate('/');
+        navigate(returnTo);
       } else {
         toast.error("Invalid verification code. Please try again.");
       }

@@ -4,17 +4,20 @@ import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Music as Spotify } from "lucide-react";
 import { toast } from "sonner";
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { MagicCard } from '../components/ui/magic-card';
 import { BorderBeam } from '../components/ui/border-beam';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, Music, Sparkles, Loader2 } from 'lucide-react';
 import { FaGoogle } from 'react-icons/fa';
 import { capture, captureException, clearOAuthIntent, recordOAuthIntent } from '../lib/analytics';
+import { safeReturnTo } from '../lib/navigation';
 
 export function SignInPage() {
   const { user, isSignedIn, isLoaded: isUserLoaded } = useUser();
   const { signIn, isLoaded, setActive } = useSignIn();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = safeReturnTo(new URLSearchParams(location.search).get('returnTo'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -36,12 +39,12 @@ export function SignInPage() {
     return () => clearTimeout(timeout);
   }, [isLoaded, signIn]);
 
-  // Redirect to dashboard if already signed in
+  // Continue an interrupted action (for example, accepting an artist invite).
   useEffect(() => {
     if (isUserLoaded && isSignedIn) {
-      navigate('/', { replace: true });
+      navigate(returnTo, { replace: true });
     }
-  }, [isUserLoaded, isSignedIn, navigate]);
+  }, [isUserLoaded, isSignedIn, navigate, returnTo]);
 
   if (isImporting) {
     return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /> Importing Spotify...</div>;
@@ -101,8 +104,8 @@ export function SignInPage() {
     try {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_spotify',
-        redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectUrlComplete: `${window.location.origin}/`,
+        redirectUrl: `${window.location.origin}/sso-callback?returnTo=${encodeURIComponent(returnTo)}`,
+        redirectUrlComplete: `${window.location.origin}${returnTo}`,
       });
     } catch (error: any) {
       clearOAuthIntent();
@@ -127,8 +130,8 @@ export function SignInPage() {
     try {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',
-        redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectUrlComplete: `${window.location.origin}/`,
+        redirectUrl: `${window.location.origin}/sso-callback?returnTo=${encodeURIComponent(returnTo)}`,
+        redirectUrlComplete: `${window.location.origin}${returnTo}`,
       });
     } catch (error: any) {
       clearOAuthIntent();
@@ -162,7 +165,7 @@ export function SignInPage() {
         }
         capture('auth_completed', { auth_method: 'email_password', auth_mode: 'sign_in' });
         toast.success("Welcome back!");
-        navigate('/');
+        navigate(returnTo);
       } else {
         toast.error("Sign in incomplete. Please check your email for verification.");
       }
@@ -326,7 +329,7 @@ export function SignInPage() {
               <p className="text-muted-foreground">
                 Don't have an account?{' '}
                 <button
-                  onClick={() => navigate('/signup')}
+                  onClick={() => navigate(`/signup?returnTo=${encodeURIComponent(returnTo)}`)}
                   className="text-primary hover:text-primary/80 font-medium transition-colors"
                 >
                   Sign up here

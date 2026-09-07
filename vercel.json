@@ -5,11 +5,32 @@
       "destination": "https://exuberant-weasel-22.convex.site/sitemap.xml"
     },
     {
+      "source": "/artists/:key",
+      "destination": "https://exuberant-weasel-22.convex.site/seo/artists/:key"
+    },
+    {
+      "source": "/shows/:key",
+      "destination": "https://exuberant-weasel-22.convex.site/seo/shows/:key"
+    },
+    {
+      "source": "/venues/:key",
+      "destination": "https://exuberant-weasel-22.convex.site/seo/venues/:key"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
   "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+      ]
+    },
     {
       "source": "/assets/(.*)",
       "headers": [

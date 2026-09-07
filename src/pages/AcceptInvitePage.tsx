@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
-import { useMutation, useQuery } from "convex/react";
+import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { AppLayout } from "../components/AppLayout";
 import { MagicCard } from "../components/ui/magic-card";
@@ -20,21 +20,36 @@ import { capture, captureException } from "../lib/analytics";
 export function AcceptInvitePage() {
   const navigate = useNavigate();
   const { token } = useParams();
-  const { isLoaded, isSignedIn, user } = useUser();
+  const { isLoaded, isSignedIn } = useUser();
   const [accepting, setAccepting] = useState(false);
 
-  const invite = useQuery(
-    (api as any).artistAccess.getInviteByToken,
-    token ? { inviteToken: token } : "skip"
-  );
+  const getInvitePreview = useAction((api as any).artistInvites.getInvitePreview);
+  const acceptInvite = useAction((api as any).artistInvites.acceptInvite);
+  const [invite, setInvite] = useState<any | null | undefined>(undefined);
 
-  const acceptInvite = useMutation((api as any).artistAccess.acceptInvite);
+  useEffect(() => {
+    let active = true;
+    if (!token) {
+      setInvite(null);
+      return;
+    }
+    void getInvitePreview({ token })
+      .then((result) => {
+        if (active) setInvite(result);
+      })
+      .catch(() => {
+        if (active) setInvite(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [getInvitePreview, token]);
 
   const handleAccept = async () => {
     if (!token) return;
     setAccepting(true);
     try {
-      const result = await acceptInvite({ inviteToken: token });
+      const result = await acceptInvite({ token });
       if (result.success) {
         capture("artist_team_invite_accepted", {
           artist_id: result.artistId,
@@ -180,7 +195,7 @@ export function AcceptInvitePage() {
               Role: <span className="font-medium capitalize">{invite.role}</span>
             </p>
             <Button
-              onClick={() => navigate("/signin")}
+              onClick={() => navigate(`/signin?returnTo=${encodeURIComponent(`/for-artists/invite/${token}`)}`)}
               className="w-full"
               size="lg"
             >

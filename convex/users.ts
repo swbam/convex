@@ -217,7 +217,7 @@ export const upsertFromClerk = internalMutation({
       spotifyAccount?.providerAccountId ||
       unsafe_metadata?.spotifyId ||
       public_metadata?.spotifyId;
-    const desiredRole = (public_metadata?.role || unsafe_metadata?.role) === "admin" ? "admin" : "user";
+    const desiredRole = public_metadata?.role === "admin" ? "admin" : "user";
 
     // Check existing
     const matches = await ctx.db
@@ -293,7 +293,7 @@ export const updateFromClerk = internalMutation({
       spotifyAccount?.providerAccountId ||
       unsafe_metadata?.spotifyId ||
       public_metadata?.spotifyId;
-    const desiredRole = (public_metadata?.role || unsafe_metadata?.role) === "admin" ? "admin" : "user";
+    const desiredRole = public_metadata?.role === "admin" ? "admin" : "user";
 
     const user = await ctx.db
       .query("users")
@@ -426,4 +426,3 @@ export const syncCurrentUser = mutation({
     return userId;
   },
 });
-

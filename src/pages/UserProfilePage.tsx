@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { UserProfile, SignedIn, SignedOut, RedirectToSignIn, useUser } from '@clerk/clerk-react';
-import { useNavigate } from 'react-router-dom';
+import { useClerk, UserProfile, SignedIn, SignedOut, RedirectToSignIn, useUser } from '@clerk/clerk-react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
@@ -14,6 +14,7 @@ import { ArtistCard } from '../components/ArtistCard';
 import { AppLayout } from '../components/AppLayout';
 
 export function UserProfilePage() {
+  const { openUserProfile } = useClerk();
   const navigate = useNavigate();
   const { user, isSignedIn, isLoaded } = useUser();
   const appUser = useQuery(api.auth.loggedInUser);
@@ -49,7 +50,7 @@ export function UserProfilePage() {
   if (!isSignedIn) {
     return (
       <AppLayout>
-        <RedirectToSignIn signInUrl="/signin" />
+        <Navigate to="/signin?returnTo=%2Fprofile" replace />
       </AppLayout>
     );
   }
@@ -173,7 +174,6 @@ export function UserProfilePage() {
                     <div className="clerk-profile-container">
                       <UserProfile 
                         appearance={{
-                          baseTheme: 'dark',
                           variables: {
                             colorPrimary: '#6366f1',
                             colorText: '#ffffff',
@@ -204,7 +204,7 @@ export function UserProfilePage() {
                   <div>
                     <h3 className="text-lg font-semibold text-foreground mb-4">Security Settings</h3>
                     <div className="clerk-profile-container">
-                      <UserProfile.Page path="security" />
+                      <Button variant="outline" onClick={() => { void openUserProfile(); }}>Open account security settings</Button>
                     </div>
                   </div>
                 </TabsContent>

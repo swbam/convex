@@ -101,7 +101,8 @@ async function fetchAllSpotifyPages<T>(initialUrl: string, accessToken: string):
   return allItems;
 }
 
-async function batchFetchAlbumTracks(albumIds: string[], accessToken: string): Promise<Map<string, any[]>> {
+async function batchFetchAlbumTracks(albumIds: string[], accessToken: string) {
+  const failedAlbumIds: string[] = [];
   const tracksByAlbum = new Map<string, any[]>();
 
   // Process in batches of 10 albums to be respectful of API limits
@@ -117,6 +118,7 @@ async function batchFetchAlbumTracks(albumIds: string[], accessToken: string): P
         return { albumId, tracks };
       } catch (error) {
         console.log(`Failed to fetch tracks for album ${albumId}:`, error);
+        failedAlbumIds.push(albumId);
         return { albumId, tracks: [] };
       }
     });
@@ -132,7 +134,7 @@ async function batchFetchAlbumTracks(albumIds: string[], accessToken: string): P
     }
   }
 
-  return tracksByAlbum;
+  return { tracksByAlbum, failedAlbumIds };
 }
 
 // Cache the Spotify client-credentials "app token" across action invocations
@@ -461,47 +463,13 @@ export const syncArtistCatalog = internalAction({
       return null;
     }
 
-    const now = Date.now();
-    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
-    const SEVENTY_TWO_HOURS = 72 * 60 * 60 * 1000;
-    const MAX_CONSECUTIVE_FAILURES = 3;
-
-    // CIRCUIT BREAKER: Check if artist is in backoff period due to repeated failures
-    if (artist.catalogSyncBackoffUntil && now < artist.catalogSyncBackoffUntil) {
-      const hoursRemaining = Math.round((artist.catalogSyncBackoffUntil - now) / 1000 / 60 / 60);
-      console.log(`🚫 Circuit breaker active for ${args.artistName} - ${artist.catalogSyncFailureCount || 0} consecutive failures. Backoff for ${hoursRemaining} more hours.`);
-      return null;
-    }
-
-    // CRITICAL: Check catalogSyncStatus to prevent race conditions
-    // Only skip if actively syncing (prevents duplicate concurrent syncs)
-    // NOTE: "pending" should NOT block sync - it just means sync was requested but never completed
-    if (artist.catalogSyncStatus === "syncing") {
-      console.log(`⏭️ Skipping catalog sync for ${args.artistName} - sync already in progress`);
-      return null;
-    }
-
-    // CRITICAL: Check catalogSyncAttemptedAt (NOT lastSynced) to prevent duplicate syncs
-    // The lastSynced field is for general artist metadata, not catalog sync specifically.
-    // Using lastSynced here would incorrectly skip catalog sync for newly created artists.
-    // EXCEPTION: If catalog sync failed or is pending, allow retry after 1 hour instead of 24 hours
-    const RETRY_DELAY_FOR_INCOMPLETE = 60 * 60 * 1000; // 1 hour
-    const isIncomplete = artist.catalogSyncStatus === "failed" || artist.catalogSyncStatus === "pending" || artist.catalogSyncStatus === "never";
-    const dedupeWindow = isIncomplete ? RETRY_DELAY_FOR_INCOMPLETE : TWENTY_FOUR_HOURS;
-    const recentlyAttempted = artist.catalogSyncAttemptedAt && (now - artist.catalogSyncAttemptedAt) < dedupeWindow;
-
-    if (recentlyAttempted) {
-      const minutesAgo = Math.round((now - (artist.catalogSyncAttemptedAt || 0)) / 1000 / 60);
-      console.log(`⏭️ Skipping catalog sync for ${args.artistName} - attempted ${minutesAgo} minutes ago (status: ${artist.catalogSyncStatus})`);
-      return null;
-    }
-
-    // Mark sync as in progress BEFORE starting
-    await ctx.runMutation(internalRef.artists.updateSyncStatus, {
-      artistId: args.artistId,
-      catalogSyncAttemptedAt: now,
-      catalogSyncStatus: "syncing",
-    });
+    const attemptedAt = await ctx.runMutation(internalRef.catalogSync.begin, { artistId: args.artistId });
+    if (attemptedAt === null) return null;
+    const result: {
+      albumsExpected: number; albumsFailed: number; tracksExpected: number; tracksImported: number;
+      failedAlbumIds: string[]; failedTrackIds: string[]; error?: string;
+    } = { albumsExpected: 0, albumsFailed: 0, tracksExpected: 0, tracksImported: 0,
+      failedAlbumIds: [], failedTrackIds: [] };
 
     console.log(`🎵 Starting catalog sync for ${args.artistName} (Last attempt: ${artist.catalogSyncAttemptedAt ? new Date(artist.catalogSyncAttemptedAt).toISOString() : 'never'})`);
 
@@ -518,14 +486,7 @@ export const syncArtistCatalog = internalAction({
         artist.spotifyId,
       );
 
-      if (!spotifyArtist) {
-        console.log(`⚠️ No Spotify artist found for: ${args.artistName}`);
-        await ctx.runMutation(internalRef.artists.updateSyncStatus, {
-          artistId: args.artistId,
-          catalogSyncStatus: "failed",
-        });
-        return null;
-      }
+      if (!spotifyArtist) throw new Error("No matching Spotify artist found");
 
       // Update artist with Spotify data - THIS IS CRITICAL FOR DATA INTEGRITY
       await ctx.runMutation(internalRef.artists.updateSpotifyData, {
@@ -600,7 +561,10 @@ export const syncArtistCatalog = internalAction({
 
       // GENIUS BATCH PROCESSING: Fetch all tracks efficiently
       const albumIds = studioAlbums.map(album => album.id);
-      const tracksByAlbum = await batchFetchAlbumTracks(albumIds, accessToken);
+      result.albumsExpected = albumIds.length;
+      const { tracksByAlbum, failedAlbumIds } = await batchFetchAlbumTracks(albumIds, accessToken);
+      result.albumsFailed = failedAlbumIds.length;
+      result.failedAlbumIds = failedAlbumIds;
 
       // Collect all tracks with album information for duplicate detection
       const allTracks: any[] = [];
@@ -618,6 +582,7 @@ export const syncArtistCatalog = internalAction({
 
       // GENIUS DUPLICATE DETECTION: Filter original tracks only
       const originalTracks = await filterOriginalTracks(allTracks, args.artistId, ctx);
+      result.tracksExpected = originalTracks.length;
 
       console.log(`🎯 Filtered to ${originalTracks.length} original studio tracks (from ${allTracks.length} total, ${((originalTracks.length / allTracks.length) * 100).toFixed(1)}% kept)`);
 
@@ -648,12 +613,14 @@ export const syncArtistCatalog = internalAction({
           });
 
           songsImported++;
+          result.tracksImported = songsImported;
 
           // Progress logging every 50 songs
           if ((i + 1) % 50 === 0) {
             console.log(`📊 Progress: ${i + 1}/${originalTracks.length} songs processed (${songsImported} imported)`);
           }
         } catch (error) {
+          result.failedTrackIds.push(String(track.id));
           console.error(`❌ Failed to import song ${track.name}:`, error);
           // Track error for monitoring
           await ctx.runMutation(internalRef.errorTracking.logError, {
@@ -669,61 +636,15 @@ export const syncArtistCatalog = internalAction({
         }
       }
 
-      console.log(`✅ Catalog sync completed for ${args.artistName}: ${songsImported}/${originalTracks.length} songs imported successfully`);
-
-      // Mark catalog sync as completed
-      await ctx.runMutation(internalRef.artists.updateSyncStatus, {
-        artistId: args.artistId,
-        catalogSyncStatus: songsImported > 0 ? "completed" : "failed",
+      await ctx.runMutation(internalRef.catalogSync.finish, {
+        artistId: args.artistId, attemptedAt, result,
       });
-      if (songsImported > 0) {
-        await ctx.runMutation(internalRef.artists.recordAutomationSync, {
-          artistId: args.artistId,
-          lastCatalogSyncAt: Date.now(),
-        });
-      }
-
-      // CRITICAL FIX: Removed post-sync setlist generation to prevent infinite cascade
-      // The cron job 'refresh-auto-setlists' will handle setlist generation separately
-      // This prevents: catalog sync → auto-generate setlists → trigger more syncs → infinite loop
-      // 
-      // Previously this code auto-generated setlists for ALL artist shows after sync,
-      // which would trigger NEW catalog syncs if those shows also had no songs.
-      // This created exponential growth: 1 sync → 20 setlists → 20 syncs → 400 setlists...
-      //
-      // Setlist generation now happens ONLY via:
-      // 1. Cron: 'refresh-auto-setlists' (every 12h, batch of 20)
-      // 2. Manual: admin triggers via dashboard
-      console.log(`✅ Catalog sync complete for ${args.artistName}: ${songsImported} songs imported`);
-      console.log(`ℹ️  Setlist generation will be handled by cron job (refresh-auto-setlists)`)
-
-      // CIRCUIT BREAKER: Reset failure count on success
-      if (songsImported > 0) {
-        await ctx.runMutation(internalRef.artists.updateSyncStatus, {
-          artistId: args.artistId,
-          catalogSyncFailureCount: 0,
-          catalogSyncLastFailure: undefined,
-          catalogSyncBackoffUntil: undefined,
-        });
-      }
-
+      console.log(`Catalog import for ${args.artistName}: ${songsImported}/${originalTracks.length} tracks, ${result.albumsFailed} failed albums`);
+      // Existing scheduled prediction generation remains separate from catalog ingestion.
     } catch (error) {
-      console.error("Failed to sync Spotify catalog:", error);
-
-      // CIRCUIT BREAKER: Increment failure count and apply backoff
-      const currentFailures = (artist.catalogSyncFailureCount || 0) + 1;
-      const backoffHours = currentFailures >= 3 ? 72 : 0; // 72h backoff after 3 failures
-      const backoffUntil = backoffHours > 0 ? now + (backoffHours * 60 * 60 * 1000) : undefined;
-
-      console.error(`❌ Catalog sync failure ${currentFailures} for ${args.artistName}${backoffHours > 0 ? ` - applying ${backoffHours}h backoff` : ''}`);
-
-      // Mark as failed and update circuit breaker state
-      await ctx.runMutation(internalRef.artists.updateSyncStatus, {
-        artistId: args.artistId,
-        catalogSyncStatus: "failed",
-        catalogSyncFailureCount: currentFailures,
-        catalogSyncLastFailure: now,
-        catalogSyncBackoffUntil: backoffUntil,
+      result.error = error instanceof Error ? error.message : "Catalog import failed";
+      await ctx.runMutation(internalRef.catalogSync.finish, {
+        artistId: args.artistId, attemptedAt, result,
       });
 
       // Track critical catalog sync failure

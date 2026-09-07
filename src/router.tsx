@@ -120,13 +120,18 @@ export const router = createBrowserRouter([
   {
     path: '/artists/:artistSlug',
     element: <App />,
-    errorElement: <Error404 />,
+    errorElement: <Error404 resetErrorBoundary={() => window.location.reload()} />,
   },
   // Enhanced show route
   {
     path: '/shows/:showSlug',
     element: <App />,
     errorElement: <ShowNotFound />, // Or generic 404
+  },
+  {
+    path: '/venues/:venueSlug',
+    element: <App />,
+    errorElement: <ShowNotFound />,
   },
   {
     path: '/artists',

@@ -1,6 +1,6 @@
 import { mutation, query, internalAction, action, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "./admin";
+import { requireAdmin } from "./adminHelpers";
 import { internalRef } from "./adminHelpers";
 
 // Workaround for deep type instantiation with scheduler
@@ -30,17 +30,16 @@ async function requireClaimOwnership(ctx: any, claimId: any) {
 }
 
 function generateVerificationCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  const values = new Uint32Array(1);
+  crypto.getRandomValues(values);
+  return (100000 + (values[0] % 900000)).toString();
 }
 
-// Generate a unique website/social verification code like SETLISTS-A7X9K2B1
-function generateWebsiteVerificationCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude confusing chars like 0/O, 1/I
-  let code = '';
-  for (let i = 0; i < 8; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return `SETLISTS-${code}`;
+// This is a public proof marker rather than a secret. Deriving it from the
+// unguessable Convex claim id keeps mutations deterministic and the code stable.
+function generateWebsiteVerificationCode(claimId: string): string {
+  const compact = claimId.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  return `SETLISTS-${compact.slice(-12)}`;
 }
 
 // Extract domain from a URL
@@ -55,6 +54,44 @@ function extractDomain(url: string | undefined): string | null {
   } catch {
     return null;
   }
+}
+
+function normalizeOfficialWebsite(value: string | undefined): string | undefined {
+  if (!value?.trim()) return undefined;
+  try {
+    const parsed = new URL(/^https?:\/\//i.test(value.trim()) ? value.trim() : `https://${value.trim()}`);
+    if (parsed.protocol !== "https:" || parsed.username || parsed.password) return undefined;
+    parsed.hash = "";
+    parsed.search = "";
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>'"]/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;",
+  })[character] ?? character);
+}
+
+function canEditClaim(claim: any): boolean {
+  return claim.status === "draft" || claim.status === "verifying";
+}
+
+function hasVerifiedEmail(claim: any): boolean {
+  return claim.emailVerified === true && !!claim.emailVerifiedAt &&
+    !!claim.verificationEmail && !claim.verificationCode;
+}
+
+function publicClaim(claim: any) {
+  // An applicant must prove receipt of the email, never read its code via a query.
+  const { verificationCode: _code, ...safe } = claim;
+  return safe;
 }
 
 // Check if email domain matches website domain
@@ -79,7 +116,7 @@ function doDomainsMatch(emailDomain: string, websiteDomain: string): boolean {
 export const startClaim = mutation({
   args: {
     artistId: v.id("artists"),
-    // Allow bypassing Spotify eligibility check for users who have other proof
+    // Deprecated compatibility argument. Spotify never determines claim eligibility.
     bypassSpotifyCheck: v.optional(v.boolean()),
   },
   returns: v.object({
@@ -91,9 +128,6 @@ export const startClaim = mutation({
   handler: async (ctx, args) => {
     const user = await getCurrentAppUser(ctx);
     if (!user) return { success: false, message: "Must be logged in" };
-
-    // Check if user is admin - admins can claim any artist
-    const isAdmin = user.role === "admin";
 
     // Validate artist exists
     const artist = await ctx.db.get(args.artistId);
@@ -108,7 +142,7 @@ export const startClaim = mutation({
     const existingClaim = await ctx.db
       .query("artistClaims")
       .withIndex("by_user_artist", (q) => q.eq("userId", user._id).eq("artistId", args.artistId))
-      .first();
+      .order("desc").first();
 
     if (existingClaim) {
       if (existingClaim.status === "draft" || existingClaim.status === "verifying") {
@@ -119,25 +153,8 @@ export const startClaim = mutation({
       // If rejected, allow starting a new claim
     }
 
-    // Enforce claim eligibility: artist must be in user's Spotify imports (followed or top artists)
-    // BYPASS for admins - they can claim any artist for testing
-    // Also bypass if explicitly requested (for users with other proof like email domain verification)
-    const shouldBypass = isAdmin || args.bypassSpotifyCheck || !user.spotifyId;
-
-    if (!shouldBypass) {
-      const spotifyRelation = await ctx.db
-        .query("userSpotifyArtists")
-        .withIndex("by_user_artist", (q) => q.eq("userId", user._id).eq("artistId", args.artistId))
-        .first();
-
-      if (!spotifyRelation) {
-        return {
-          success: false,
-          status: "not_eligible",
-          message: "This artist isn't in your Spotify library. Follow or listen to them on Spotify, then re-sync your account."
-        };
-      }
-    }
+    // OAuth identifies a user, not an authorized artist representative.
+    // Every applicant can submit evidence; only an admin can grant claim access.
 
     const claimId = await ctx.db.insert("artistClaims", {
       userId: user._id,
@@ -196,7 +213,7 @@ export const adminQuickClaim = mutation({
     const existingClaim = await ctx.db
       .query("artistClaims")
       .withIndex("by_user_artist", (q) => q.eq("userId", user._id).eq("artistId", args.artistId))
-      .first();
+      .order("desc").first();
 
     if (existingClaim) {
       await ctx.db.patch(existingClaim._id, {
@@ -259,75 +276,28 @@ export const requestEmailVerification = action({
   handler: async (ctx, args) => {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(args.email)) return { success: false, message: "Invalid email" };
-
-    // Check auth and ownership + rate limits via mutation
-    const checkResult = await ctx.runMutation(internalRef.artistClaims.checkEmailRateLimit, {
-      claimId: args.claimId,
-    });
-
-    if (!checkResult.allowed) {
-      return { success: false, message: checkResult.message };
+    if (!emailRegex.test(args.email) || args.email.length > 320) {
+      return { success: false, message: "Invalid email" };
     }
 
     const code = generateVerificationCode();
+    const normalizedEmail = args.email.toLowerCase().trim();
+    // Reserve the attempt, invalidate old evidence, and store the code atomically
+    // before network I/O. Concurrent resends cannot overwrite a newer verification.
     await ctx.runMutation(internalRef.artistClaims.storeVerificationCode, {
-      claimId: args.claimId,
-      email: args.email.toLowerCase().trim(),
-      code,
+      claimId: args.claimId, email: normalizedEmail, code,
     });
-    await ctx.runAction(internalRef.artistClaims.sendVerificationEmail, {
-      email: args.email.toLowerCase().trim(),
-      code,
-      claimId: args.claimId,
+    const delivery = await ctx.runAction(internalRef.artistClaims.sendVerificationEmail, {
+      email: normalizedEmail, code, claimId: args.claimId,
     });
+    if (!delivery.sent) {
+      await ctx.runMutation(internalRef.artistClaims.clearFailedVerificationCode, {
+        claimId: args.claimId, code,
+      });
+      return { success: false, message: delivery.message || "Verification email could not be sent" };
+    }
+
     return { success: true, message: "Code sent" };
-  },
-});
-
-// Internal mutation to check rate limits and ownership before sending email
-export const checkEmailRateLimit = internalMutation({
-  args: { claimId: v.id("artistClaims") },
-  returns: v.object({ allowed: v.boolean(), message: v.optional(v.string()) }),
-  handler: async (ctx, args) => {
-    // Auth check
-    const user = await getCurrentAppUser(ctx);
-    if (!user) return { allowed: false, message: "Must be logged in" };
-
-    // Claim ownership check
-    const claim = await ctx.db.get(args.claimId);
-    if (!claim) return { allowed: false, message: "Claim not found" };
-    if (claim.userId !== user._id) return { allowed: false, message: "Not authorized" };
-
-    // Artist exists check
-    const artist = await ctx.db.get(claim.artistId);
-    if (!artist) return { allowed: false, message: "Artist not found" };
-
-    // Rate limit: cooldown between sends
-    const lastSent = claim.verificationCodeSentAt ?? 0;
-    if (Date.now() - lastSent < EMAIL_COOLDOWN_MS) {
-      const waitSecs = Math.ceil((EMAIL_COOLDOWN_MS - (Date.now() - lastSent)) / 1000);
-      return { allowed: false, message: `Please wait ${waitSecs}s before resending` };
-    }
-
-    // Rate limit: max sends per hour
-    const emailSendCount = claim.emailSendCount ?? 0;
-    const emailSendWindowStart = claim.emailSendWindowStart ?? 0;
-    const oneHourAgo = Date.now() - 60 * 60 * 1000;
-
-    if (emailSendWindowStart > oneHourAgo) {
-      // Within the same hour window
-      if (emailSendCount >= MAX_EMAIL_SENDS_PER_HOUR) {
-        return { allowed: false, message: "Too many emails sent. Try again later." };
-      }
-      // Increment count
-      await ctx.db.patch(args.claimId, { emailSendCount: emailSendCount + 1 });
-    } else {
-      // Reset window
-      await ctx.db.patch(args.claimId, { emailSendCount: 1, emailSendWindowStart: Date.now() });
-    }
-
-    return { allowed: true };
   },
 });
 
@@ -335,26 +305,58 @@ export const storeVerificationCode = internalMutation({
   args: { claimId: v.id("artistClaims"), email: v.string(), code: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const { claim } = await requireClaimOwnership(ctx, args.claimId);
+    if (!canEditClaim(claim)) throw new Error("Cannot change a submitted claim");
+    const now = Date.now();
+    if (now - (claim.verificationCodeSentAt ?? 0) < EMAIL_COOLDOWN_MS) {
+      throw new Error("Please wait one minute before requesting another code");
+    }
+    const sameWindow = now - (claim.emailSendWindowStart ?? 0) < 60 * 60 * 1000;
+    const sends = sameWindow ? claim.emailSendCount ?? 0 : 0;
+    if (sends >= MAX_EMAIL_SENDS_PER_HOUR) throw new Error("Too many emails sent. Try again later.");
     await ctx.db.patch(args.claimId, {
       verificationEmail: args.email,
       verificationCode: args.code,
-      verificationCodeSentAt: Date.now(),
+      verificationCodeSentAt: now,
       verificationCodeAttempts: 0,
+      emailSendCount: sends + 1,
+      emailSendWindowStart: sameWindow ? claim.emailSendWindowStart : now,
+      emailVerified: false,
+      emailVerifiedAt: undefined,
+      domainVerificationStatus: undefined,
+      domainVerificationDetails: undefined,
+      trustedDomainMatched: false,
+      verificationMethod: undefined,
+      verificationProof: undefined,
+      verifiedAt: undefined,
+      websiteVerificationStatus: undefined,
+      verificationRevision: (claim.verificationRevision ?? 0) + 1,
       status: "verifying",
     });
     return null;
   },
 });
 
-export const sendVerificationEmail = internalAction({
-  args: { email: v.string(), code: v.string(), claimId: v.id("artistClaims") },
+export const clearFailedVerificationCode = internalMutation({
+  args: { claimId: v.id("artistClaims"), code: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const claim = await ctx.db.get(args.claimId);
+    if (claim && canEditClaim(claim) && claim.verificationCode === args.code) {
+      await ctx.db.patch(args.claimId, { verificationCode: undefined });
+    }
+    return null;
+  },
+});
+
+export const sendVerificationEmail = internalAction({
+  args: { email: v.string(), code: v.string(), claimId: v.id("artistClaims") },
+  returns: v.object({ sent: v.boolean(), message: v.optional(v.string()) }),
+  handler: async (ctx, args) => {
     const resendApiKey = process.env.RESEND_API_KEY;
-    console.log("📧 Verification code " + args.code + " for " + args.email);
-    if (!resendApiKey) { console.log("⚠️ RESEND_API_KEY not set"); return null; }
+    if (!resendApiKey) return { sent: false, message: "Email delivery is not configured" };
     try {
-      await fetch("https://api.resend.com/emails", {
+      const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Authorization": "Bearer " + resendApiKey, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -364,9 +366,18 @@ export const sendVerificationEmail = internalAction({
           html: "<div style='font-family:sans-serif;max-width:400px;margin:0 auto;padding:40px 20px;'><h1 style='font-size:24px;margin-bottom:24px;'>Verify your email</h1><p style='color:#666;margin-bottom:32px;'>Enter this code:</p><div style='background:#f4f4f5;border-radius:12px;padding:24px;text-align:center;'><span style='font-size:36px;font-weight:700;letter-spacing:8px;'>" + args.code + "</span></div><p style='color:#999;font-size:12px;margin-top:32px;'>Expires in 15 minutes.</p></div>",
         }),
       });
-      console.log("✅ Sent");
-    } catch (e) { console.error("❌ Error:", e); }
-    return null;
+      if (!response.ok) {
+        console.error("Verification email rejected", { status: response.status, claimId: args.claimId });
+        return { sent: false, message: "Email provider rejected the request" };
+      }
+      return { sent: true };
+    } catch (error) {
+      console.error("Verification email failed", {
+        claimId: args.claimId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return { sent: false, message: "Email provider is temporarily unavailable" };
+    }
   },
 });
 
@@ -380,6 +391,10 @@ export const verifyEmailCode = mutation({
   handler: async (ctx, args) => {
     // Auth + ownership check
     const { claim } = await requireClaimOwnership(ctx, args.claimId);
+
+    if (!canEditClaim(claim) || !claim.verificationCode || !/^\d{6}$/.test(args.code.trim())) {
+      return { success: false, message: "Request a verification code first" };
+    }
 
     const attempts = (claim.verificationCodeAttempts ?? 0) + 1;
     if (attempts > MAX_VERIFICATION_ATTEMPTS) {
@@ -429,27 +444,64 @@ export const updateClaimDetails = mutation({
     const artist = await ctx.db.get(claim.artistId);
     if (!artist) return { success: false, message: "Artist not found" };
 
-    if (!claim.emailVerified) return { success: false, message: "Verify email first" };
+    if (!hasVerifiedEmail(claim)) return { success: false, message: "Verify email first" };
+
+    if ((args.organizationName?.length ?? 0) > 160) {
+      return { success: false, message: "Organization name is too long" };
+    }
+    if ((args.officialWebsite?.length ?? 0) > 500) {
+      return { success: false, message: "Official website URL is too long" };
+    }
+    if ((args.socialLinks?.length ?? 0) > 10 || args.socialLinks?.some((link) => link.length > 500)) {
+      return { success: false, message: "Add no more than 10 valid social links" };
+    }
+    if ((args.additionalContext?.length ?? 0) > 4_000) {
+      return { success: false, message: "Additional context must be under 4,000 characters" };
+    }
 
     // Don't allow updates to already-submitted claims
     if (claim.status === "pending" || claim.status === "approved" || claim.status === "rejected") {
       return { success: false, message: "Cannot update a submitted claim" };
     }
 
-    // Generate website verification code if website is provided
+    const officialWebsite = normalizeOfficialWebsite(args.officialWebsite);
+    if (args.officialWebsite && !officialWebsite) {
+      return { success: false, message: "Official website must be a valid HTTPS URL" };
+    }
+
+    const socialLinks = args.socialLinks?.map((link) => link.trim()).filter(Boolean);
+    if (socialLinks?.some((link) => {
+      try {
+        return new URL(link).protocol !== "https:";
+      } catch {
+        return true;
+      }
+    })) {
+      return { success: false, message: "Social links must be valid HTTPS URLs" };
+    }
+
+    // Generate a stable website proof marker if a website is provided.
     let websiteVerificationCode = claim.websiteVerificationCode;
-    if (args.officialWebsite && !websiteVerificationCode) {
-      websiteVerificationCode = generateWebsiteVerificationCode();
+    if (officialWebsite && !websiteVerificationCode) {
+      websiteVerificationCode = generateWebsiteVerificationCode(String(args.claimId));
     }
 
     await ctx.db.patch(args.claimId, {
       officialRole: args.officialRole,
       organizationName: args.organizationName,
-      officialWebsite: args.officialWebsite,
-      socialLinks: args.socialLinks,
+      officialWebsite,
+      socialLinks,
       additionalContext: args.additionalContext,
       websiteVerificationCode,
       websiteVerificationCodeGeneratedAt: websiteVerificationCode ? Date.now() : undefined,
+      websiteVerificationStatus: websiteVerificationCode ? "pending" : undefined,
+      verificationRevision: (claim.verificationRevision ?? 0) + 1,
+      domainVerificationStatus: undefined,
+      domainVerificationDetails: undefined,
+      trustedDomainMatched: false,
+      verificationMethod: undefined,
+      verificationProof: undefined,
+      verifiedAt: undefined,
     });
     return { success: true };
   },
@@ -504,113 +556,24 @@ export const getWebsiteVerificationCode = query({
  */
 export const checkDomainMatch = mutation({
   args: { claimId: v.id("artistClaims") },
-  returns: v.object({
-    matched: v.boolean(),
-    autoApproved: v.boolean(),
-    message: v.string(),
-  }),
+  returns: v.object({ matched: v.boolean(), autoApproved: v.boolean(), message: v.string() }),
   handler: async (ctx, args) => {
-    const { user, claim } = await requireClaimOwnership(ctx, args.claimId);
-
-    if (!claim.officialWebsite) {
-      await ctx.db.patch(args.claimId, {
-        domainVerificationStatus: "no_domain",
-      });
-      return { matched: false, autoApproved: false, message: "No website provided" };
-    }
-
-    if (!claim.verificationEmail) {
-      return { matched: false, autoApproved: false, message: "Verify your email first" };
-    }
-
+    const { claim } = await requireClaimOwnership(ctx, args.claimId);
+    if (!canEditClaim(claim)) throw new Error("Cannot change a submitted claim");
+    if (!hasVerifiedEmail(claim)) throw new Error("Verify your current email first");
     const websiteDomain = extractDomain(claim.officialWebsite);
-    const emailDomain = claim.verificationEmail.split('@')[1]?.toLowerCase();
-
-    if (!websiteDomain || !emailDomain) {
-      await ctx.db.patch(args.claimId, {
-        domainVerificationStatus: "no_domain",
-      });
-      return { matched: false, autoApproved: false, message: "Could not extract domains" };
-    }
-
-    const matched = doDomainsMatch(emailDomain, websiteDomain);
-
-    if (matched) {
-      // Auto-approve if domains match!
-      await ctx.db.patch(args.claimId, {
-        domainVerificationStatus: "matched",
-        domainVerificationDetails: `${emailDomain} matches ${websiteDomain}`,
-        status: "approved",
-        verificationMethod: "email_domain",
-        verifiedAt: Date.now(),
-        verificationProof: `Email ${claim.verificationEmail} matches website ${claim.officialWebsite}`,
-      });
-
-      // Create artist membership
-      const existingMember = await ctx.db
-        .query("artistMembers")
-        .withIndex("by_user_artist", (q) => q.eq("userId", user._id).eq("artistId", claim.artistId))
-        .first();
-
-      if (!existingMember) {
-        let memberRole: "owner" | "manager" | "viewer" = "owner";
-        if (claim.officialRole === "manager" || claim.officialRole === "agent") {
-          memberRole = "manager";
-        } else if (claim.officialRole !== "artist") {
-          memberRole = "viewer";
-        }
-
-        await ctx.db.insert("artistMembers", {
-          userId: user._id,
-          artistId: claim.artistId,
-          role: memberRole,
-          createdAt: Date.now(),
-        });
-      }
-      await ctx.runMutation(internalRef.artists.syncArtistPortalState, {
-        artistId: claim.artistId,
-      });
-
-      // Send approval email
-      const artist = await ctx.db.get(claim.artistId);
-      await ctx.scheduler.runAfter(0, internalRef.artistClaims.sendApprovalEmail, {
-        email: claim.verificationEmail,
-        artistName: (artist as any)?.name ?? "your artist",
-      });
-      await ctx.scheduler.runAfter(0, internalRef.artistAutomation.runManagedArtistWarmup, {
-        artistId: claim.artistId,
-        reason: "domain_auto_approved",
-        force: true,
-        analyticsDistinctId: user.authId,
-      });
-      await ctx.scheduler.runAfter(0, internalRef.analytics.capture, {
-        event: "artist_claim_approved",
-        distinctId: user.authId,
-        insertId: `artist_claim_approved:${args.claimId}:email_domain`,
-        properties: {
-          artist_id: claim.artistId,
-          claim_id: args.claimId,
-          verification_method: "email_domain",
-          approval_type: "automatic",
-        },
-      });
-
-      return {
-        matched: true,
-        autoApproved: true,
-        message: `Verified! Your email domain (${emailDomain}) matches the artist website (${websiteDomain}). Access granted!`
-      };
-    }
-
+    const emailDomain = claim.verificationEmail.split("@")[1]?.toLowerCase();
+    const matched = !!websiteDomain && !!emailDomain && doDomainsMatch(emailDomain, websiteDomain);
     await ctx.db.patch(args.claimId, {
-      domainVerificationStatus: "no_match",
-      domainVerificationDetails: `${emailDomain} does not match ${websiteDomain}`,
+      domainVerificationStatus: matched ? "matched" : websiteDomain ? "no_match" : "no_domain",
+      domainVerificationDetails: matched ? "Verified email matches submitted website" : "Domains do not match",
+      trustedDomainMatched: false,
     });
-
     return {
-      matched: false,
-      autoApproved: false,
-      message: `Email domain (${emailDomain}) doesn't match website domain (${websiteDomain}). Try website code verification or submit for manual review.`
+      matched, autoApproved: false,
+      message: matched
+        ? "Email and website domains match. This evidence supports your manual review; it does not grant access."
+        : "No domain match. You can still submit other evidence for manual review.",
     };
   },
 });
@@ -636,30 +599,33 @@ export const verifyWebsiteCode = action({
       return { verified: false, autoApproved: false, message: checkResult.message };
     }
 
-    const { websiteUrl, verificationCode } = checkResult;
+    const { websiteUrl, verificationCode, revision } = checkResult;
+    if (!websiteUrl || !verificationCode || revision === undefined) throw new Error("Verification is not ready");
 
     try {
-      // Fetch the website
-      const response = await fetch(websiteUrl, {
-        headers: {
-          'User-Agent': 'SetlistsVerificationBot/1.0 (+https://setlists.live)',
-        },
-        redirect: 'follow',
+      // The Node action pins a public DNS result, blocks private/reserved
+      // networks, limits redirects/size/time, and accepts HTTPS HTML only.
+      const response = await ctx.runAction(internalRef.artistWebsiteVerification.fetchPage, {
+        websiteUrl,
       });
 
-      if (!response.ok) {
+      if (!response.ok || !response.html) {
         await ctx.runMutation(internalRef.artistClaims.recordWebsiteVerificationAttempt, {
           claimId: args.claimId,
           success: false,
+          status: "error",
+          expectedRevision: revision,
         });
         return {
           verified: false,
           autoApproved: false,
-          message: `Could not access website (${response.status}). Make sure it's publicly accessible.`
+          message: response.status
+            ? `Could not access the website (${response.status}). Make sure it is publicly accessible.`
+            : response.error || "Could not safely access the website.",
         };
       }
 
-      const html = await response.text();
+      const html = response.html;
 
       // Check for the verification code in various places
       const codeFound =
@@ -670,22 +636,27 @@ export const verifyWebsiteCode = action({
         html.includes(verificationCode);
 
       if (codeFound) {
-        // Auto-approve!
-        await ctx.runMutation(internalRef.artistClaims.completeWebsiteVerification, {
+        const completion = await ctx.runMutation(internalRef.artistClaims.completeWebsiteVerification, {
           claimId: args.claimId,
-          proofUrl: websiteUrl,
+          proofUrl: response.finalUrl || websiteUrl,
+          expectedWebsite: websiteUrl,
+          expectedRevision: revision,
         });
 
         return {
-          verified: true,
-          autoApproved: true,
-          message: `Verified! Found ${verificationCode} on ${websiteUrl}. Access granted!`
+          verified: completion.verified,
+          autoApproved: false,
+          message: completion.verified
+            ? "Website control verified and added to your evidence. Submit the claim for review."
+            : "The claim changed while checking the website. Please verify again."
         };
       }
 
       await ctx.runMutation(internalRef.artistClaims.recordWebsiteVerificationAttempt, {
         claimId: args.claimId,
         success: false,
+        status: "not_found",
+        expectedRevision: revision,
       });
 
       return {
@@ -698,6 +669,8 @@ export const verifyWebsiteCode = action({
       await ctx.runMutation(internalRef.artistClaims.recordWebsiteVerificationAttempt, {
         claimId: args.claimId,
         success: false,
+        status: "error",
+        expectedRevision: revision,
       });
       return {
         verified: false,
@@ -716,6 +689,7 @@ export const checkWebsiteVerificationEligibility = internalMutation({
     message: v.string(),
     websiteUrl: v.optional(v.string()),
     verificationCode: v.optional(v.string()),
+    revision: v.optional(v.number()),
   }),
   handler: async (ctx, args) => {
     const user = await getCurrentAppUser(ctx);
@@ -725,8 +699,8 @@ export const checkWebsiteVerificationEligibility = internalMutation({
     if (!claim) return { eligible: false, message: "Claim not found" };
     if (claim.userId !== user._id) return { eligible: false, message: "Not authorized" };
 
-    if (claim.status === "approved") {
-      return { eligible: false, message: "Claim already approved" };
+    if (!canEditClaim(claim) || !hasVerifiedEmail(claim)) {
+      return { eligible: false, message: "Verify your email and use an editable claim" };
     }
 
     if (!claim.officialWebsite) {
@@ -756,105 +730,65 @@ export const checkWebsiteVerificationEligibility = internalMutation({
       websiteUrl = `https://${websiteUrl}`;
     }
 
+    // Reserve rate-limit capacity before the external request.
+    await ctx.db.patch(args.claimId, {
+      websiteVerificationAttempts: attempts + 1,
+      websiteVerificationLastAttempt: Date.now(),
+    });
     return {
       eligible: true,
       message: "Ready to verify",
       websiteUrl,
       verificationCode: claim.websiteVerificationCode,
+      revision: claim.verificationRevision ?? 0,
     };
   },
 });
 
 // Internal mutation to record verification attempt
 export const recordWebsiteVerificationAttempt = internalMutation({
-  args: { claimId: v.id("artistClaims"), success: v.boolean() },
+  args: {
+    claimId: v.id("artistClaims"),
+    success: v.boolean(),
+    expectedRevision: v.number(),
+    status: v.optional(v.union(v.literal("matched"), v.literal("not_found"), v.literal("error"))),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const claim = await ctx.db.get(args.claimId);
-    if (!claim) return null;
+    if (!claim || !canEditClaim(claim) || (claim.verificationRevision ?? 0) !== args.expectedRevision) return null;
 
     await ctx.db.patch(args.claimId, {
-      websiteVerificationAttempts: (claim.websiteVerificationAttempts ?? 0) + 1,
-      websiteVerificationLastAttempt: Date.now(),
+      websiteVerificationStatus: args.status ?? (args.success ? "matched" : "not_found"),
     });
 
     return null;
   },
 });
 
-// Internal mutation to complete website verification and grant access
+// Record evidence only. Approval is exclusively an admin decision.
 export const completeWebsiteVerification = internalMutation({
-  args: { claimId: v.id("artistClaims"), proofUrl: v.string() },
-  returns: v.null(),
+  args: {
+    claimId: v.id("artistClaims"), proofUrl: v.string(),
+    expectedWebsite: v.string(), expectedRevision: v.number(),
+  },
+  returns: v.object({ verified: v.boolean(), autoApproved: v.boolean() }),
   handler: async (ctx, args) => {
     const claim = await ctx.db.get(args.claimId);
-    if (!claim) return null;
-
-    const user = await ctx.db.get(claim.userId);
-    if (!user) return null;
-
-    // Approve the claim
+    if (!claim || !canEditClaim(claim) || !hasVerifiedEmail(claim) ||
+      (claim.verificationRevision ?? 0) !== args.expectedRevision ||
+      claim.officialWebsite !== args.expectedWebsite ||
+      extractDomain(args.proofUrl) !== extractDomain(claim.officialWebsite)) {
+      return { verified: false, autoApproved: false };
+    }
     await ctx.db.patch(args.claimId, {
-      status: "approved",
       verificationMethod: "website_code",
       verifiedAt: Date.now(),
       verificationProof: args.proofUrl,
-      websiteVerificationAttempts: (claim.websiteVerificationAttempts ?? 0) + 1,
-      websiteVerificationLastAttempt: Date.now(),
+      websiteVerificationStatus: "matched",
+      trustedDomainMatched: false,
     });
-
-    // Create artist membership
-    const existingMember = await ctx.db
-      .query("artistMembers")
-      .withIndex("by_user_artist", (q) => q.eq("userId", claim.userId).eq("artistId", claim.artistId))
-      .first();
-
-    if (!existingMember) {
-      let memberRole: "owner" | "manager" | "viewer" = "owner";
-      if (claim.officialRole === "manager" || claim.officialRole === "agent") {
-        memberRole = "manager";
-      } else if (claim.officialRole !== "artist") {
-        memberRole = "viewer";
-      }
-
-      await ctx.db.insert("artistMembers", {
-        userId: claim.userId,
-        artistId: claim.artistId,
-        role: memberRole,
-        createdAt: Date.now(),
-      });
-    }
-    await ctx.runMutation(internalRef.artists.syncArtistPortalState, {
-      artistId: claim.artistId,
-    });
-
-    // Send approval email
-    const artist = await ctx.db.get(claim.artistId);
-    if (claim.verificationEmail || user.email) {
-      await ctx.scheduler.runAfter(0, internalRef.artistClaims.sendApprovalEmail, {
-        email: claim.verificationEmail ?? user.email ?? "",
-        artistName: artist?.name ?? "your artist",
-      });
-    }
-    await ctx.scheduler.runAfter(0, internalRef.artistAutomation.runManagedArtistWarmup, {
-      artistId: claim.artistId,
-      reason: "website_auto_approved",
-      force: true,
-      analyticsDistinctId: user.authId,
-    });
-    await ctx.scheduler.runAfter(0, internalRef.analytics.capture, {
-      event: "artist_claim_approved",
-      distinctId: user.authId,
-      insertId: `artist_claim_approved:${args.claimId}:website_code`,
-      properties: {
-        artist_id: claim.artistId,
-        claim_id: args.claimId,
-        verification_method: "website_code",
-        approval_type: "automatic",
-      },
-    });
-
-    return null;
+    return { verified: true, autoApproved: false };
   },
 });
 
@@ -886,13 +820,22 @@ export const getVerificationStatus = query({
       }
     }
 
+    const trustedDomain = websiteDomain
+      ? await ctx.db
+          .query("artistTrustedDomains")
+          .withIndex("by_artist_domain", (q) =>
+            q.eq("artistId", claim.artistId).eq("domain", websiteDomain as string),
+          )
+          .first()
+      : null;
+
     return {
       claimId: claim._id,
       artistName: artist?.name,
       status: claim.status,
 
       // Email verification
-      emailVerified: claim.emailVerified ?? false,
+      emailVerified: hasVerifiedEmail(claim),
       verificationEmail: claim.verificationEmail,
 
       // Domain verification
@@ -900,6 +843,7 @@ export const getVerificationStatus = query({
         available: !!claim.verificationEmail && !!claim.officialWebsite,
         status: claim.domainVerificationStatus,
         wouldMatch: domainMatchPossible,
+        trustedForArtist: trustedDomain?.status === "active",
         emailDomain,
         websiteDomain,
       },
@@ -917,7 +861,7 @@ export const getVerificationStatus = query({
       verifiedAt: claim.verifiedAt,
 
       // What's needed to proceed
-      canSubmitForReview: claim.emailVerified && claim.officialRole && claim.status !== "pending" && claim.status !== "approved",
+      canSubmitForReview: hasVerifiedEmail(claim) && !!claim.officialRole && canEditClaim(claim),
     };
   },
 });
@@ -948,7 +892,7 @@ export const submitClaim = mutation({
       return { success: false, message: "This claim was rejected. Start a new claim." };
     }
 
-    if (!claim.emailVerified) return { success: false, message: "Verify email first" };
+    if (!hasVerifiedEmail(claim)) return { success: false, message: "Verify email first" };
     if (!claim.officialRole) return { success: false, message: "Select your role first" };
 
     await ctx.db.patch(args.claimId, { status: "pending", submittedAt: Date.now() });
@@ -980,28 +924,20 @@ export const create = mutation({
     const existingMember = await ctx.db.query("artistMembers").withIndex("by_user_artist", (q) => q.eq("userId", user._id).eq("artistId", args.artistId)).first();
     if (existingMember) return { status: "already_member", artistId: args.artistId };
 
-    const existingClaim = await ctx.db.query("artistClaims").withIndex("by_user_artist", (q) => q.eq("userId", user._id).eq("artistId", args.artistId)).first();
-    if (existingClaim) return { status: existingClaim.status, claimId: existingClaim._id };
-
-    const spotifyRel = user.spotifyId
-      ? await ctx.db.query("userSpotifyArtists").withIndex("by_user_artist", (q) => q.eq("userId", user._id).eq("artistId", args.artistId)).first()
-      : null;
+    const existingClaim = await ctx.db.query("artistClaims").withIndex("by_user_artist", (q) => q.eq("userId", user._id).eq("artistId", args.artistId)).order("desc").first();
+    if (existingClaim && existingClaim.status !== "rejected") return { status: existingClaim.status, claimId: existingClaim._id };
 
     const artist = await ctx.db.get(args.artistId);
+    if (!artist) throw new Error("Artist not found");
     const claimId = await ctx.db.insert("artistClaims", {
-      userId: user._id,
-      artistId: args.artistId,
-      status: "pending",
-      createdAt: Date.now(),
-      submittedAt: Date.now(),
-      spotifyUserId: user.spotifyId,
-      evidence: args.evidence,
-      verificationProof: spotifyRel ? "spotify_linked" : undefined,
+      userId: user._id, artistId: args.artistId, status: "draft",
+      createdAt: Date.now(), spotifyUserId: user.spotifyId,
+      evidence: args.evidence?.slice(0, 10).map((item) => ({
+        type: item.type.slice(0, 80), value: item.value.slice(0, 2000),
+      })),
     });
 
-    await ctx.scheduler.runAfter(0, internalRef.artistClaims.notifyOwnerOfClaim, { claimId, artistName: artist?.name ?? "Unknown", userEmail: user.email ?? "unknown", userName: user.name ?? user.username ?? "Unknown" });
-
-    return { status: "pending", claimId };
+    return { status: "draft", claimId };
   },
 });
 
@@ -1018,7 +954,7 @@ export const getClaim = query({
     const claim = await ctx.db.get(args.claimId);
     if (!claim || claim.userId !== user._id) return null;
     const artist = await ctx.db.get(claim.artistId);
-    return { ...claim, artist };
+    return { ...publicClaim(claim), artist };
   },
 });
 
@@ -1029,7 +965,7 @@ export const getMyClaims = query({
     const user = await getCurrentAppUser(ctx);
     if (!user) return [];
     const claims = await ctx.db.query("artistClaims").withIndex("by_user", (q) => q.eq("userId", user._id)).order("desc").take(100);
-    return Promise.all(claims.map(async (c: any) => ({ ...c, artist: await ctx.db.get(c.artistId) })));
+    return Promise.all(claims.map(async (c: any) => ({ ...publicClaim(c), artist: await ctx.db.get(c.artistId) })));
   },
 });
 
@@ -1039,7 +975,7 @@ export const listPending = query({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
     const pending = await ctx.db.query("artistClaims").withIndex("by_status", (q) => q.eq("status", "pending")).order("desc").take(args.limit ?? 50);
-    return Promise.all(pending.map(async (c: any) => ({ ...c, artist: await ctx.db.get(c.artistId), user: await ctx.db.get(c.userId) })));
+    return Promise.all(pending.map(async (c: any) => ({ ...publicClaim(c), artist: await ctx.db.get(c.artistId), user: await ctx.db.get(c.userId) })));
   },
 });
 
@@ -1057,7 +993,12 @@ export const getPendingCount = query({
 // ============================================================================
 
 export const approve = mutation({
-  args: { claimId: v.id("artistClaims"), role: v.optional(v.union(v.literal("owner"), v.literal("manager"), v.literal("viewer"))), note: v.optional(v.string()) },
+  args: {
+    claimId: v.id("artistClaims"),
+    role: v.optional(v.union(v.literal("owner"), v.literal("manager"), v.literal("viewer"))),
+    note: v.optional(v.string()),
+    trustWebsiteDomain: v.optional(v.boolean()),
+  },
   returns: v.any(),
   handler: async (ctx, args) => {
     const adminUserId = await requireAdmin(ctx);
@@ -1065,12 +1006,14 @@ export const approve = mutation({
     if (!claim) throw new Error("Not found");
     if (claim.status !== "pending") return { success: true, status: claim.status };
 
-    let memberRole: "owner" | "manager" | "viewer" = args.role ?? "owner";
-    if (!args.role && claim.officialRole) {
-      if (claim.officialRole === "artist") memberRole = "owner";
-      else if (claim.officialRole === "manager" || claim.officialRole === "agent") memberRole = "manager";
-      else memberRole = "viewer";
+    if (!args.role) throw new Error("Select an access role explicitly");
+    if (!hasVerifiedEmail(claim) || !claim.officialRole) {
+      throw new Error("The applicant must verify their email and complete their claim details");
     }
+    if (!await ctx.db.get(claim.artistId) || !await ctx.db.get(claim.userId)) {
+      throw new Error("Artist or applicant no longer exists");
+    }
+    const memberRole = args.role;
 
     const existing = await ctx.db.query("artistMembers").withIndex("by_user_artist", (q) => q.eq("userId", claim.userId).eq("artistId", claim.artistId)).first();
     if (existing) await ctx.db.patch(existing._id, { role: memberRole });
@@ -1079,7 +1022,43 @@ export const approve = mutation({
       artistId: claim.artistId,
     });
 
-    await ctx.db.patch(args.claimId, { status: "approved", reviewedAt: Date.now(), reviewedBy: adminUserId, reviewNote: args.note });
+    let trustedDomainMatched = claim.trustedDomainMatched ?? false;
+    if (args.trustWebsiteDomain && claim.officialWebsite) {
+      const domain = extractDomain(claim.officialWebsite);
+      if (!domain) throw new Error("The claim does not contain a valid website domain");
+      const existingDomain = await ctx.db
+        .query("artistTrustedDomains")
+        .withIndex("by_artist_domain", (q) =>
+          q.eq("artistId", claim.artistId).eq("domain", domain),
+        )
+        .first();
+      const trustedDomainData = {
+        websiteUrl: claim.officialWebsite,
+        status: "active" as const,
+        source: "manual_admin" as const,
+        verifiedAt: Date.now(),
+        verifiedBy: adminUserId,
+      };
+      if (existingDomain) await ctx.db.patch(existingDomain._id, trustedDomainData);
+      else {
+        await ctx.db.insert("artistTrustedDomains", {
+          artistId: claim.artistId,
+          domain,
+          ...trustedDomainData,
+        });
+      }
+      trustedDomainMatched = true;
+    }
+
+    await ctx.db.patch(args.claimId, {
+      status: "approved",
+      verificationMethod: "manual_review",
+      verifiedAt: Date.now(),
+      trustedDomainMatched,
+      reviewedAt: Date.now(),
+      reviewedBy: adminUserId,
+      reviewNote: args.note,
+    });
 
     const user = await ctx.db.get(claim.userId);
     const artist = await ctx.db.get(claim.artistId);
@@ -1141,22 +1120,22 @@ export const notifyOwnerOfClaim = internalAction({
   returns: v.null(),
   handler: async (ctx, args) => {
     const adminUrl = (process.env.SITE_URL || "https://setlists.live") + "/admin";
-    console.log("\n🎸 NEW CLAIM: " + args.artistName + " by " + args.userName + " <" + args.userEmail + "> " + (args.role || "") + "\nReview: " + adminUrl + "\n");
 
     const resendApiKey = process.env.RESEND_API_KEY;
     const ownerEmail = process.env.OWNER_NOTIFICATION_EMAIL;
     if (resendApiKey && ownerEmail) {
       try {
-        await fetch("https://api.resend.com/emails", {
+        const response = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { "Authorization": "Bearer " + resendApiKey, "Content-Type": "application/json" },
           body: JSON.stringify({
             from: "Claims <noreply@setlists.live>",
             to: ownerEmail,
-            subject: "🎸 New Claim: " + args.artistName,
-            html: "<h2>New Artist Claim</h2><p><strong>" + args.artistName + "</strong></p><p>" + args.userName + " &lt;" + args.userEmail + "&gt;</p><p>Role: " + (args.role || "N/A") + "</p><p>Org: " + (args.organizationName || "N/A") + "</p><p><a href='" + adminUrl + "' style='background:#7c3aed;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;'>Review →</a></p>",
+            subject: "New artist claim: " + args.artistName,
+            html: "<h2>New Artist Claim</h2><p><strong>" + escapeHtml(args.artistName) + "</strong></p><p>" + escapeHtml(args.userName) + " &lt;" + escapeHtml(args.userEmail) + "&gt;</p><p>Role: " + escapeHtml(args.role || "N/A") + "</p><p>Org: " + escapeHtml(args.organizationName || "N/A") + "</p><p><a href='" + escapeHtml(adminUrl) + "' style='background:#111827;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;'>Review claim</a></p>",
           }),
         });
+        if (!response.ok) console.error("Claim notification email rejected", { status: response.status, claimId: args.claimId });
       } catch (e) { console.error(e); }
     }
     return null;
@@ -1171,16 +1150,17 @@ export const sendApprovalEmail = internalAction({
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) { console.log("Would send approval to " + args.email); return null; }
     try {
-      await fetch("https://api.resend.com/emails", {
+      const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Authorization": "Bearer " + resendApiKey, "Content-Type": "application/json" },
         body: JSON.stringify({
           from: "Verification <noreply@setlists.live>",
           to: args.email,
-          subject: "✅ Approved: " + args.artistName,
-          html: "<h1>You're in! 🎉</h1><p>Your claim for <strong>" + args.artistName + "</strong> was approved.</p><p><a href='" + (process.env.SITE_URL || "https://setlists.live") + "/for-artists' style='background:#7c3aed;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;'>Open Dashboard →</a></p>",
+          subject: "Approved: " + args.artistName,
+          html: "<h1>Your artist access is ready</h1><p>Your claim for <strong>" + escapeHtml(args.artistName) + "</strong> was approved.</p><p><a href='" + escapeHtml(process.env.SITE_URL || "https://www.setlists.live") + "/for-artists' style='background:#111827;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;'>Open dashboard</a></p>",
         }),
       });
+      if (!response.ok) console.error("Approval email rejected", { status: response.status });
     } catch (e) { console.error(e); }
     return null;
   },
@@ -1194,16 +1174,17 @@ export const sendRejectionEmail = internalAction({
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) { console.log("Would send rejection to " + args.email); return null; }
     try {
-      await fetch("https://api.resend.com/emails", {
+      const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Authorization": "Bearer " + resendApiKey, "Content-Type": "application/json" },
         body: JSON.stringify({
           from: "Verification <noreply@setlists.live>",
           to: args.email,
           subject: "Update on " + args.artistName + " claim",
-          html: "<h1>Claim not approved</h1><p>We couldn't verify your claim for <strong>" + args.artistName + "</strong>.</p>" + (args.reason ? "<p><strong>Reason:</strong> " + args.reason + "</p>" : "") + "<p>Reply to this email with more info if you think this is an error.</p>",
+          html: "<h1>Claim not approved</h1><p>We couldn't verify your claim for <strong>" + escapeHtml(args.artistName) + "</strong>.</p>" + (args.reason ? "<p><strong>Reason:</strong> " + escapeHtml(args.reason) + "</p>" : "") + "<p>Reply to this email with more information if you think this is an error.</p>",
         }),
       });
+      if (!response.ok) console.error("Claim decision email rejected", { status: response.status });
     } catch (e) { console.error(e); }
     return null;
   },

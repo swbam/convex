@@ -6,6 +6,7 @@ import { Music, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
 import { capture, captureException, clearOAuthIntent, recordOAuthIntent } from '../lib/analytics';
+import { safeReturnTo } from '../lib/navigation';
 
 export function SpotifyConnectPage() {
   const { user, isLoaded: isUserLoaded } = useUser();
@@ -14,12 +15,14 @@ export function SpotifyConnectPage() {
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
 
-  const returnToParam = new URLSearchParams(location.search).get('returnTo');
-  const returnTo = returnToParam && returnToParam.startsWith('/') ? returnToParam : (user ? '/activity' : '/');
+  const returnTo = safeReturnTo(
+    new URLSearchParams(location.search).get('returnTo'),
+    user ? '/activity' : '/',
+  );
 
   // Check if Spotify is already connected
   const spotifyAccount = user?.externalAccounts?.find(
-    (account) => account.provider === 'spotify' || account.provider === 'oauth_spotify'
+    (account) => ['spotify', 'oauth_spotify'].includes(account.provider)
   );
   const isSpotifyConnected = !!spotifyAccount;
 

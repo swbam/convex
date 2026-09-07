@@ -14,7 +14,9 @@ import {
   AlertCircle,
   Loader2,
   Clock,
+  ChevronRight,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +36,7 @@ import { SongCombobox } from "./SongCombobox";
 import { formatLocation } from "../lib/utils";
 import { DetailPageSkeleton } from "./LoadingSkeleton";
 import { capture, captureException } from "../lib/analytics";
+import { ShowShareButton } from "./ShowShareButton";
 
 interface ShowDetailProps {
   showId: Id<"shows">;
@@ -562,9 +565,9 @@ export function ShowDetail({
                     </div>
                   </div>
 
-                  {/* Get Tickets - Premium button */}
-                  {isUpcoming && show?.ticketUrl && (
-                    <div className="flex items-center gap-2 mt-3 sm:mt-4">
+                  <div className="mt-3 flex flex-wrap items-center gap-2 sm:mt-4">
+                    {/* Get Tickets - Premium button */}
+                    {isUpcoming && show?.ticketUrl && (
                       <button
                         onClick={() => {
                           capture("ticket_link_clicked", {
@@ -587,8 +590,18 @@ export function ShowDetail({
                         <Ticket className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                         Get Tickets
                       </button>
-                    </div>
-                  )}
+                    )}
+                    <ShowShareButton
+                      showId={show._id}
+                      slug={show.slug}
+                      artistName={show.artist?.name}
+                      venueName={show.venue?.name}
+                      date={show.date}
+                      label={isUpcoming ? "Share voting link" : "Share setlist"}
+                      mode={isUpcoming ? "voting" : "setlist"}
+                      className="h-10 bg-background/45 backdrop-blur-sm sm:h-11"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1010,6 +1023,15 @@ export function ShowDetail({
                     <div className="text-sm text-muted-foreground">
                       {show?.venue?.address}
                     </div>
+                  )}
+                  {show?.venue?._id && (
+                    <Link
+                      to={`/venues/${(show.venue as any).slug || show.venue._id}`}
+                      className="inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm font-medium text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      View venue concerts
+                      <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                    </Link>
                   )}
                 </div>
               </div>

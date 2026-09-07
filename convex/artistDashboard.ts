@@ -34,7 +34,7 @@ export const getArtistHome = query({
 
     const upcoming = await ctx.db
       .query("shows")
-      .withIndex("by_artist_and_status", (q) => q.eq("artistId", args.artistId).eq("status", "upcoming"))
+      .withIndex("by_artist_status_and_date", (q) => q.eq("artistId", args.artistId).eq("status", "upcoming"))
       .order("asc")
       .take(100);
 

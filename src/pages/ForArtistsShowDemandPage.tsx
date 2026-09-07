@@ -23,6 +23,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { capture } from "../lib/analytics";
+import { ShowShareButton } from "../components/ShowShareButton";
 
 type ViewMode = "demand" | "report";
 
@@ -217,6 +218,18 @@ export function ForArtistsShowDemandPage() {
                         </a>
                       )}
                     </div>
+                    {data.show?._id && (
+                      <ShowShareButton
+                        showId={data.show._id}
+                        slug={data.show.slug}
+                        artistName={data.show.artist?.name}
+                        venueName={data.show.venue?.name}
+                        date={data.show.date}
+                        label={isCompleted ? "Share setlist" : "Share fan voting link"}
+                        mode={isCompleted ? "setlist" : "voting"}
+                        className="w-full sm:w-auto"
+                      />
+                    )}
                   </div>
                 </MagicCard>
 

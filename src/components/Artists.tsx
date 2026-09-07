@@ -11,7 +11,7 @@ import { GridSkeleton } from './LoadingSkeleton';
 import { SEOHead } from './SEOHead';
 
 interface ArtistsProps {
-  onArtistClick: (artistId: Id<'artists'>, slug?: string) => void;
+  onArtistClick: (artistId: Id<'artists'> | string, slug?: string) => void;
 }
 
 export function Artists({ onArtistClick }: ArtistsProps) {

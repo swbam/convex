@@ -1,3 +1,4 @@
+import { catalogResultValidator } from "./lib/catalogResult";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
@@ -55,10 +56,12 @@ const applicationTables = {
     lastDemandReconcileAt: v.optional(v.number()),
     // CRITICAL: Track catalog sync attempts to prevent infinite loops
     catalogSyncAttemptedAt: v.optional(v.number()),
+    catalogSyncResult: v.optional(catalogResultValidator),
     catalogSyncStatus: v.optional(v.union(
       v.literal("never"),
       v.literal("pending"),
       v.literal("syncing"),
+      v.literal("partial"),
       v.literal("completed"),
       v.literal("failed")
     )),
@@ -94,6 +97,7 @@ const applicationTables = {
     .index("by_artist_access_enabled", ["artistAccessEnabled"]),
 
   venues: defineTable({
+    slug: v.optional(v.string()),
     name: v.string(),
     city: v.string(),
     state: v.optional(v.string()),
@@ -104,7 +108,9 @@ const applicationTables = {
     lng: v.optional(v.number()),
     ticketmasterId: v.optional(v.string()),
     postalCode: v.optional(v.string()),
+    lastSynced: v.optional(v.number()),
   })
+    .index("by_slug", ["slug"])
     .index("by_location", ["city", "country"])
     .index("by_ticketmaster_id", ["ticketmasterId"])
     .index("by_name_city", ["name", "city"]),
@@ -147,6 +153,9 @@ const applicationTables = {
     venueId: v.id("venues"),
     date: v.string(),
     startTime: v.optional(v.string()),
+    startsAt: v.optional(v.number()),
+    endsAt: v.optional(v.number()),
+    timeZone: v.optional(v.string()),
     status: v.union(v.literal("upcoming"), v.literal("completed"), v.literal("cancelled")),
     ticketmasterId: v.optional(v.string()),
     setlistfmId: v.optional(v.string()),
@@ -166,6 +175,9 @@ const applicationTables = {
       v.literal("not_found"), // Setlist.fm doesn't have data for this show yet
       v.literal("failed")
     )),
+    importNextAttemptAt: v.optional(v.number()),
+    importLastAttemptAt: v.optional(v.number()),
+    importAttemptCount: v.optional(v.number()),
     // Festival-specific fields
     festivalId: v.optional(v.id("festivals")),
     stageName: v.optional(v.string()),      // "Main Stage"
@@ -189,6 +201,7 @@ const applicationTables = {
     .index("by_setlistfm_id", ["setlistfmId"]) // For setlist.fm history dedup
     .index("by_trending_rank", ["trendingRank"])
     .index("by_import_status", ["importStatus"]) // For import monitoring
+    .index("by_status_import_due", ["status", "importStatus", "importNextAttemptAt"])
     .index("by_festival", ["festivalId"]), // For festival pages
 
   songs: defineTable({
@@ -393,6 +406,7 @@ const applicationTables = {
     verificationCodeAttempts: v.optional(v.number()),
     emailVerified: v.optional(v.boolean()),
     emailVerifiedAt: v.optional(v.number()),
+    verificationRevision: v.optional(v.number()),
     // Rate limiting for email sends
     emailSendCount: v.optional(v.number()),
     emailSendWindowStart: v.optional(v.number()),
@@ -442,6 +456,15 @@ const applicationTables = {
       v.literal("no_domain")
     )),
     domainVerificationDetails: v.optional(v.string()), // e.g., "theband.com matched"
+    // A claimant-controlled URL is evidence, not an ownership attestation. This
+    // is true only when the domain was independently trusted by an admin.
+    trustedDomainMatched: v.optional(v.boolean()),
+    websiteVerificationStatus: v.optional(v.union(
+      v.literal("pending"),
+      v.literal("matched"),
+      v.literal("not_found"),
+      v.literal("error")
+    )),
 
     // Review tracking
     reviewedAt: v.optional(v.number()),
@@ -465,6 +488,22 @@ const applicationTables = {
     .index("by_user", ["userId"])
     .index("by_user_artist", ["userId", "artistId"]),
 
+  // Domains independently approved for an artist. Claim-supplied websites are
+  // never trusted until an admin deliberately creates one of these records.
+  artistTrustedDomains: defineTable({
+    artistId: v.id("artists"),
+    domain: v.string(),
+    websiteUrl: v.optional(v.string()),
+    status: v.union(v.literal("active"), v.literal("revoked")),
+    source: v.union(v.literal("manual_admin"), v.literal("legacy_verified")),
+    verifiedAt: v.number(),
+    verifiedBy: v.optional(v.id("users")),
+  })
+    .index("by_artist", ["artistId"])
+    .index("by_domain", ["domain"])
+    .index("by_artist_domain", ["artistId", "domain"])
+    .index("by_artist_status", ["artistId", "status"]),
+
   // Team invitations that don't require pre-existing user accounts
   artistInvites: defineTable({
     artistId: v.id("artists"),
@@ -476,18 +515,29 @@ const applicationTables = {
       v.literal("expired"),   // Invite expired
       v.literal("revoked")    // Owner revoked the invite
     ),
-    inviteToken: v.string(), // Unique token for acceptance URL
+    // New invitations store only a SHA-256 hash. inviteToken remains optional
+    // solely so already-issued links can be migrated/accepted safely.
+    inviteToken: v.optional(v.string()),
+    tokenHash: v.optional(v.string()),
     invitedBy: v.id("users"),
     createdAt: v.number(),
     expiresAt: v.number(), // Invites expire after 7 days
     acceptedAt: v.optional(v.number()),
     acceptedBy: v.optional(v.id("users")), // The user who accepted
+    sentAt: v.optional(v.number()),
+    deliveryStatus: v.optional(v.union(
+      v.literal("sent"),
+      v.literal("not_configured"),
+      v.literal("failed")
+    )),
   })
     .index("by_artist", ["artistId"])
     .index("by_email", ["email"])
     .index("by_token", ["inviteToken"])
+    .index("by_token_hash", ["tokenHash"])
     .index("by_status", ["status"])
-    .index("by_artist_email", ["artistId", "email"]),
+    .index("by_artist_email", ["artistId", "email"])
+    .index("by_artist_created_at", ["artistId", "createdAt"]),
 
   // Artist portal: aggregated per-show demand so dashboards don't scan songVotes
   showSongDemand: defineTable({

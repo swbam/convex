@@ -1,6 +1,7 @@
 import { createClient, type SanityClient } from '@sanity/client';
 import imageUrlBuilder from '@sanity/image-url';
-import type { SanityImageSource } from '@sanity/image-url/lib/types/types';
+import type { SanityImageSource, SanityImageObject } from '@sanity/image-url';
+import type { TypedObject } from '@portabletext/types';
 
 // Check if Sanity is configured
 const SANITY_PROJECT_ID = import.meta.env.VITE_SANITY_PROJECT_ID;
@@ -23,14 +24,21 @@ export const sanityClient: SanityClient | null = isSanityConfigured
 // Image URL builder (only if client exists)
 const builder = sanityClient ? imageUrlBuilder(sanityClient) : null;
 
-export function urlFor(source: SanityImageSource) {
+interface DisplayImageBuilder {
+  width(value: number): DisplayImageBuilder;
+  height(value: number): DisplayImageBuilder;
+  url(): string;
+}
+
+export function urlFor(source: SanityImageSource): DisplayImageBuilder {
   if (!builder) {
     // Return a placeholder image URL builder that returns empty string
-    return {
-      width: () => ({ height: () => ({ url: () => '' }) }),
-      height: () => ({ url: () => '' }),
+    const placeholder: DisplayImageBuilder = {
+      width: () => placeholder,
+      height: () => placeholder,
       url: () => '',
-    } as ReturnType<typeof imageUrlBuilder>['image'];
+    };
+    return placeholder;
   }
   return builder.image(source);
 }
@@ -40,7 +48,7 @@ export interface Author {
   _id: string;
   name: string;
   slug: { current: string };
-  image?: SanityImageSource;
+  image?: SanityImageObject;
   bio?: unknown[];
 }
 
@@ -56,11 +64,11 @@ export interface BlogPost {
   title: string;
   slug: { current: string };
   author?: Author;
-  mainImage?: SanityImageSource;
+  mainImage?: SanityImageObject;
   categories?: Category[];
   publishedAt: string;
   excerpt?: string;
-  body?: unknown[];
+  body?: TypedObject[];
   readingTime?: number;
   seoTitle?: string;
   seoDescription?: string;
@@ -195,4 +203,3 @@ export async function getAllCategories(): Promise<Category[]> {
     return [];
   }
 }
-

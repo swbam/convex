@@ -1,5 +1,10 @@
 # Artist Platform Architecture Plan
 
+> **Superseded:** This proposal's Spotify user-ID-to-artist-ID ownership match
+> is not valid and is not the implemented trust model. Use
+> [`docs/artist-claims-and-team-access.md`](../docs/artist-claims-and-team-access.md)
+> for current claim, verification, membership, and invitation behavior.
+
 ## Executive Summary
 
 Enable artists to access their fan demand dashboard by signing in with their official Spotify artist account. The system automatically matches Spotify artist IDs - no manual claims or verification needed. Band members can be invited by verified artists.

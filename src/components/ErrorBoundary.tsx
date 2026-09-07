@@ -40,10 +40,10 @@ function ErrorFallback({ error, resetError }: { error: Error; resetError: () => 
 }
 
 class BasicErrorBoundary extends React.Component<
-  { children: React.ReactNode },
+  { children: React.ReactNode; fallback?: React.ReactNode },
   { hasError: boolean; error?: Error }
 > {
-  constructor(props: { children: React.ReactNode }) {
+  constructor(props: { children: React.ReactNode; fallback?: React.ReactNode }) {
     super(props);
     this.state = { hasError: false };
   }
@@ -57,14 +57,14 @@ class BasicErrorBoundary extends React.Component<
   }
   render() {
     if (this.state.hasError) {
-      return <ErrorFallback error={this.state.error ?? new Error("Unknown error")} resetError={() => this.setState({ hasError: false, error: undefined })} />;
+      return this.props.fallback ?? <ErrorFallback error={this.state.error ?? new Error("Unknown error")} resetError={() => this.setState({ hasError: false, error: undefined })} />;
     }
     return this.props.children as React.ReactElement;
   }
 }
 
-const ErrorBoundary = ({ children }: { children: React.ReactNode }) => (
-  <BasicErrorBoundary>{children}</BasicErrorBoundary>
+const ErrorBoundary = ({ children, fallback }: { children: React.ReactNode; fallback?: React.ReactNode }) => (
+  <BasicErrorBoundary fallback={fallback}>{children}</BasicErrorBoundary>
 );
 
 export { ErrorBoundary };

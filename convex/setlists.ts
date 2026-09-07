@@ -1,8 +1,9 @@
+import { recordSetlistImport } from "./lib/setlistImportEvent";
 import { query, mutation, internalMutation, action } from "./_generated/server";
 import { internalRef } from "./adminHelpers";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const apiRef: any = require("./_generated/api").api;
+import { api as apiRef } from "./_generated/api";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { getAuthUserId } from "./auth";
@@ -745,26 +746,13 @@ export const updateWithActualSetlist = internalMutation({
       await incrementShowSetlistCount(ctx, args.showId);
     }
 
-    await ctx.db.patch(args.showId, {
-      status: "completed",
-      setlistfmId: args.setlistfmId,
-      lastSynced: Date.now(),
-    });
-
-    await ctx.scheduler.runAfter(0, internalRef.analytics.capture, {
-      event: "official_setlist_imported",
-      distinctId: show ? `artist:${show.artistId}` : `show:${args.showId}`,
-      insertId: `official_setlist_imported:${args.showId}:${args.setlistfmId}`,
-      properties: {
-        show_id: args.showId,
-        artist_id: show?.artistId,
-        setlistfm_id: args.setlistfmId,
-        actual_song_count: args.actualSetlist.length,
-        had_prediction: Boolean(predictionSetlist),
-        prediction_song_count: predictionSetlist?.songs?.length ?? 0,
-        prediction_accuracy: predictionAccuracy,
-        created_official_setlist: !officialSetlist,
-      },
+    await recordSetlistImport(ctx, {
+      showId: args.showId, setlistfmId: args.setlistfmId,
+      actualSongCount: args.actualSetlist.length,
+      previouslyImported: officialSetlist?.setlistfmId === args.setlistfmId &&
+        !!officialSetlist?.actualSetlist?.length,
+      source: "update_actual",
+      predictionAccuracy,
     });
 
     return null;
@@ -1090,7 +1078,7 @@ export const createFromApi = internalMutation({
       : (Array.isArray(args.data.songs) ? args.data.songs : []);
 
     if (songs.length === 0) {
-      console.warn(`⚠️ No songs found in setlist.fm data for show ${args.showId}`);
+      throw new Error("Cannot import an empty official setlist");
     } else {
       console.log(`✅ Extracted ${songs.length} songs from setlist.fm for show ${args.showId}`);
     }
@@ -1136,6 +1124,14 @@ export const createFromApi = internalMutation({
       });
       console.log(`✅ Updated prediction setlist ${predictionSetlist._id} with actual setlist (${songs.length} songs, ${accuracy}% accuracy)`);
     }
+
+    await recordSetlistImport(ctx, {
+      showId: args.showId, setlistfmId: args.data.id,
+      actualSongCount: actualSetlistData.length,
+      previouslyImported: officialSetlist?.setlistfmId === args.data.id &&
+        !!officialSetlist?.actualSetlist?.length,
+      source: "show_import", predictionAccuracy: predictionSetlist ? accuracy : undefined,
+    });
 
     // Update or create official setlist
     if (officialSetlist) {

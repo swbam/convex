@@ -52,53 +52,54 @@ type SectionId = (typeof NAV_ITEMS)[number]["id"];
    ════════════════════════════════════════ */
 const sectionMotion = {
   initial: { opacity: 0, y: 6 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } },
-  exit: { opacity: 0, y: -4, transition: { duration: 0.15, ease: "easeIn" } },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] as const } },
+  exit: { opacity: 0, y: -4, transition: { duration: 0.15, ease: "easeIn" as const } },
 };
 
 /* ════════════════════════════════════════
    Admin Dashboard — Shell
    ════════════════════════════════════════ */
 export default function AdminDashboard() {
-  const [activeSection, setActiveSection] = useState<SectionId>("stats");
+  const [activeSection, setActiveSection] = useState<SectionId>("artistClaims");
 
   /* ─── Queries ─── */
-  const stats = useQuery(api.admin.getAdminStats);
-  const users = useQuery(api.admin.getAllUsers);
-  const pendingClaims = useQuery(api.admin.getPendingArtistClaims);
-  const recentActivity = useQuery(api.admin.getRecentActivity);
-  const auditLogs = useQuery(api.admin.getAuditLogs);
-  const logged = useQuery(api.admin.getLoggedInUserInfo);
-  const analytics = useQuery(api.admin.getAdminAnalytics);
-  const health = useQuery(api.admin.getSystemHealth);
-  const activeSyncJobs = useQuery(api.admin.getActiveSyncJobs);
-  const cronSettings = useQuery(api.admin.getCronSettings);
-  const errorStats = useQuery(api.admin.getErrorStats);
-  const recentErrors = useQuery(api.admin.getRecentUnresolvedErrors);
+  // Claims must not depend on unrelated admin reports or expensive background queries.
+  const stats = useQuery(api.admin.getAdminStats, activeSection === "stats" ? {} : "skip");
+  const users = useQuery(api.admin.getAllUsers, activeSection === "users" ? {} : "skip");
+  const pendingClaims = useQuery(api.artistClaims.listPending, { limit: 50 });
+  const recentActivity = useQuery(api.admin.getRecentActivity, activeSection === "logs" ? { limit: 30 } : "skip");
+  const auditLogs = useQuery(api.admin.getRecentAuditLogs, activeSection === "logs" ? { limit: 30 } : "skip");
+  const logged = useQuery(api.auth.loggedInUser, activeSection === "stats" ? {} : "skip");
+  const analytics = null; // Product analytics live in PostHog, not a nonexistent Convex query.
+  const health = useQuery(api.admin.getSystemHealth, activeSection === "stats" ? {} : "skip");
+  const activeSyncJobs = useQuery(api.syncJobs.getActive, activeSection === "stats" || activeSection === "syncs" ? {} : "skip");
+  const cronSettings = useQuery(api.cronSettings.list, activeSection === "syncs" ? {} : "skip");
+  const errorStats = useQuery(api.admin.errorMonitoring.getErrorStats, activeSection === "stats" ? {} : "skip");
+  const recentErrors = useQuery(api.admin.errorMonitoring.getRecentErrors, activeSection === "stats" ? { limit: 20, onlyUnresolved: true } : "skip");
 
   /* ─── Mutations ─── */
   const updateRole = useMutation(api.admin.updateUserRole);
-  const approveClaim = useMutation(api.admin.approveArtistClaim);
-  const rejectClaim = useMutation(api.admin.rejectArtistClaim);
-  const updateCron = useMutation(api.admin.updateCronSetting);
-  const requestCronRunNow = useMutation(api.admin.requestCronRunNow);
-  const promoteByEmail = useMutation(api.admin.promoteToAdminByEmail);
+  const approveClaim = useMutation((api as any).artistClaims.approve);
+  const rejectClaim = useMutation((api as any).artistClaims.reject);
+  const updateCron = useMutation(api.cronSettings.update);
+  const requestCronRunNow = useMutation(api.cronSettings.requestRunNow);
+  const promoteByEmail = useMutation(api.admin.promoteUserByEmail);
 
   /* ─── Actions ─── */
-  const syncTrending = useAction(api.trending.syncAllTrending);
-  const syncArtists = useAction(api.trending.updateArtistTrendingRankings);
-  const syncShows = useAction(api.trending.updateShowTrendingRankings);
-  const syncSetlists = useAction(api.setlistImport.importAllSetlists);
-  const cleanupSongs = useAction(api.maintenance.cleanNonStudioSongs);
-  const backfillSetlists = useAction(api.maintenance.backfillInitialSetlists);
-  const resyncCatalogs = useAction(api.bulkCatalogSync.startBulkCatalogSync);
-  const importTrending = useAction(api.admin.importTrendingArtists);
-  const bootstrapFests = useAction(api.festivalBootstrap.bootstrapAllFestivals);
+  const syncTrending = useAction(api.admin.syncTrending);
+  const syncArtists = useAction(api.admin.syncTrendingArtists);
+  const syncShows = useAction(api.admin.syncTrendingShows);
+  const syncSetlists = useAction(api.admin.triggerSetlistSync);
+  const cleanupSongs = useAction(api.admin.cleanupNonStudioSongs);
+  const backfillSetlists = useAction(api.admin.ensureAutoSetlistsBulk);
+  const resyncCatalogs = useAction(api.admin.resyncArtistCatalogs);
+  const importTrending = useAction(api.admin.importTrendingFromTicketmaster);
+  const bootstrapFests = useAction(api.festivalBootstrap.runBootstrap);
   const updateFestImages = useAction(api.festivalBootstrap.updateFestivalImages);
-  const testSpotify = useAction(api.spotifyAuth.testSpotifyCredentials);
+  const testSpotify = useAction(api.admin.testSpotifyClientCredentials);
   const setClerkRoleByEmail = useAction(api.admin.setClerkRoleByEmail);
-  const recomputeEngagement = useAction(api.maintenance.recomputeEngagementCounts);
-  const forceCatalogSync = useAction(api.bulkCatalogSync.forceCatalogSync);
+  const recomputeEngagement = useAction(api.admin.recomputeEngagementCounts);
+  const forceCatalogSync = useAction(api.admin.forceArtistCatalogSync);
 
   /* ─── Local UI State ─── */
   const [userSearch, setUserSearch] = useState("");
@@ -140,10 +141,10 @@ export default function AdminDashboard() {
   const handleSyncShows = wrap(() => syncShows(), setShowSyncing, "Show rankings");
   const handleSyncSetlists = wrap(() => syncSetlists(), setSetlistSyncing, "Setlist import");
   const handleCleanupSongs = wrap(() => cleanupSongs(), setCleanupSyncing, "Song cleanup");
-  const handleBackfill = wrap(() => backfillSetlists(), setBackfillSyncing, "Setlist backfill");
-  const handleResyncCatalogs = wrap(() => resyncCatalogs(), setCatalogSyncing, "Catalog sync");
+  const handleBackfill = wrap(() => backfillSetlists({}), setBackfillSyncing, "Setlist backfill");
+  const handleResyncCatalogs = wrap(() => resyncCatalogs({}), setCatalogSyncing, "Catalog sync");
   const handleImportTrending = wrap(() => importTrending(), setImportSyncing, "Trending import");
-  const handleBootstrapFests = wrap(() => bootstrapFests(), setFestivalSyncing, "Festival bootstrap");
+  const handleBootstrapFests = wrap(() => bootstrapFests({}), setFestivalSyncing, "Festival bootstrap");
   const handleUpdateFestImages = wrap(() => updateFestImages(), setFestivalImageSyncing, "Festival images");
   const handleRecomputeEngagement = wrap(() => recomputeEngagement(), setEngagementRunning, "Engagement recompute");
 
@@ -181,9 +182,13 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleApproveClaim = async (claim: any) => {
+  const handleApproveClaim = async (claim: any, options: { role: "owner" | "manager" | "viewer"; trustWebsiteDomain?: boolean }) => {
     try {
-      await approveClaim({ claimId: claim._id });
+      await approveClaim({
+        claimId: claim._id,
+        role: options.role,
+        trustWebsiteDomain: options?.trustWebsiteDomain,
+      });
       toast.success("Claim approved");
     } catch (e: any) {
       toast.error(e?.message || "Approval failed");
@@ -192,7 +197,7 @@ export default function AdminDashboard() {
 
   const handleRejectClaim = async (claim: any) => {
     try {
-      await rejectClaim({ claimId: claim._id, reason: "Rejected by admin" });
+      await rejectClaim({ claimId: claim._id, note: "Rejected by admin" });
       toast.success("Claim rejected");
     } catch (e: any) {
       toast.error(e?.message || "Rejection failed");

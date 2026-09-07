@@ -11,7 +11,7 @@ import { GridSkeleton } from './LoadingSkeleton';
 import { SEOHead } from './SEOHead';
 
 interface ShowsProps {
-  onShowClick: (showId: Id<'shows'>, slug?: string) => void;
+  onShowClick: (showId: Id<'shows'> | string, slug?: string) => void;
 }
 
 export function Shows({ onShowClick }: ShowsProps) {

@@ -4,6 +4,7 @@ import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { internalRef } from "./adminHelpers";
+import { hasShowEnded, parseProviderTimestamp } from "./lib/showTiming";
 import { Id } from "./_generated/dataModel";
 
 
@@ -413,6 +414,7 @@ export const syncArtistCatalogWithTracking = internalAction({
         artistName: args.artistName,
       });
 
+      const catalogArtist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: args.artistId });
       // Get count of songs imported
       const songs = await ctx.runQuery(internalRef.songs.countByArtist, {
         artistId: args.artistId,
@@ -420,7 +422,7 @@ export const syncArtistCatalogWithTracking = internalAction({
 
       await ctx.runMutation(internalRef.artistSync.updateSyncStatus, {
         artistId: args.artistId,
-        catalogImported: true,
+        catalogImported: catalogArtist?.catalogSyncStatus === "completed",
         songCount: songs,
         phase: "enriching",
       });
@@ -675,6 +677,9 @@ export const syncArtistShows = internalAction({
           artistId: args.artistId,
           venueId,
           ticketmasterId: String(event.id || ''),
+          startsAt: parseProviderTimestamp(event.dates?.start?.dateTime),
+          endsAt: parseProviderTimestamp(event.dates?.end?.dateTime),
+          timeZone: event.dates?.timezone || venue?.timezone || undefined,
           date: (() => {
             const d = String(event.dates?.start?.localDate || '').trim();
             return d && /\d{4}-\d{2}-\d{2}/.test(d) ? d : new Date().toISOString().split('T')[0];
@@ -687,13 +692,13 @@ export const syncArtistShows = internalAction({
             return m ? `${m[1]}:${m[2]}` : undefined;
           })(),
           status: (() => {
-            const eventDate = new Date(event.dates?.start?.localDate || '');
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            eventDate.setHours(0, 0, 0, 0);
-
-            // If the event is in the past, mark as completed
-            if (eventDate < today) return "completed" as const;
+            if (event.dates?.status?.code === "cancelled") return "cancelled" as const;
+            if (hasShowEnded({
+              date: String(event.dates?.start?.localDate || ""),
+              startsAt: parseProviderTimestamp(event.dates?.start?.dateTime),
+              endsAt: parseProviderTimestamp(event.dates?.end?.dateTime),
+              timeZone: event.dates?.timezone || venue?.timezone,
+            })) return "completed" as const;
             return "upcoming" as const;
           })(),
           ticketUrl: event.url ? String(event.url) : undefined,

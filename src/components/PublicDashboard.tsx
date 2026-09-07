@@ -78,7 +78,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
   const hasSpotify = useMemo(() => {
     if (appUser?.appUser?.spotifyId) return true;
     if (user?.externalAccounts) {
-      return user.externalAccounts.some((account) => account.provider === 'oauth_spotify');
+      return user.externalAccounts.some((account) => ['spotify', 'oauth_spotify'].includes(account.provider));
     }
     return false;
   }, [appUser?.appUser?.spotifyId, user?.externalAccounts]);
@@ -247,7 +247,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
     hidden: { opacity: 0 },
     show: { 
       opacity: 1,
-      transition: { duration: shouldReduceMotion ? 0 : 0.3, ease: [0.16, 1, 0.3, 1] }
+      transition: { duration: shouldReduceMotion ? 0 : 0.3, ease: [0.16, 1, 0.3, 1] as const }
     }
   };
 
@@ -263,7 +263,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
     hidden: { opacity: 0 },
     show: { 
       opacity: 1,
-      transition: { duration: shouldReduceMotion ? 0 : 0.25, ease: [0.16, 1, 0.3, 1] }
+      transition: { duration: shouldReduceMotion ? 0 : 0.25, ease: [0.16, 1, 0.3, 1] as const }
     }
   };
 

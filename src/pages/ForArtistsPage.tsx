@@ -17,13 +17,14 @@ function hasSpotifyConnected(clerkUser: any): boolean {
   );
 }
 
-// Admin component to search and quick-claim any artist
-function AdminArtistSearch({ 
+function ArtistClaimSearch({
   onClaim, 
-  claiming 
+  claiming,
+  buttonLabel = "Claim",
 }: { 
   onClaim: (artistId: string, artistName: string) => Promise<void>;
   claiming: boolean;
+  buttonLabel?: string;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -47,7 +48,7 @@ function AdminArtistSearch({
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search any artist in the database..."
+          placeholder="Search artists by name..."
           className="w-full h-10 rounded-lg bg-background border border-primary/30 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground"
         />
       </div>
@@ -95,8 +96,8 @@ function AdminArtistSearch({
                     <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
                     <>
-                      <Zap className="h-3 w-3" />
-                      Claim
+                      <ShieldCheck className="h-3 w-3" />
+                      {buttonLabel}
                     </>
                   )}
                 </Button>
@@ -123,20 +124,14 @@ export function ForArtistsPage() {
     isSignedIn && spotifyConnected ? { limit: 50 } : "skip",
   );
 
-  const completeSpotifyImport = useAction(api.spotifyOAuth.completeSpotifyImport);
+  const completeSpotifyImport = useAction(api.spotifyOAuth.importLinkedSpotify);
   
   // Admin features
   const appUser = useQuery((api as any).users.getCurrentUser, isSignedIn ? {} : "skip");
   const isAdmin = appUser?.role === "admin";
   const adminQuickClaim = useMutation((api as any).artistClaims.adminQuickClaim);
-  const searchArtists = useQuery(
-    (api as any).artists.search,
-    isAdmin ? { query: "", limit: 0 } : "skip" // Empty query to check if function exists
-  );
-
   const [selectedArtistId, setSelectedArtistId] = useState<string>("");
   const [syncingSpotify, setSyncingSpotify] = useState(false);
-  const [adminSearch, setAdminSearch] = useState("");
   const [adminClaiming, setAdminClaiming] = useState(false);
   const portalViewTracked = React.useRef(false);
 
@@ -194,14 +189,14 @@ export function ForArtistsPage() {
             </div>
             <h2 className="text-2xl font-bold mb-2">Sign in</h2>
             <p className="text-muted-foreground mb-6">
-              Connect Spotify to claim your artist page and access demand analytics.
+              Sign in to claim an artist page or accept a team invitation. Spotify can be linked to enrich artist matching and catalog data.
             </p>
             <Button
               onClick={() => navigate("/signin")}
-              className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white"
+              className="w-full"
               size="lg"
             >
-              Sign in with Spotify
+              Sign in to continue
             </Button>
             <p className="text-xs text-muted-foreground mt-4">
               If you’re on a team, ask the artist owner to invite you by email.
@@ -242,36 +237,8 @@ export function ForArtistsPage() {
     );
   }
 
-  // Signed in but no Spotify connected
-  if (!spotifyConnected) {
-    return (
-      <AppLayout>
-        <div className="container mx-auto px-4 py-16">
-          <MagicCard className="p-8 max-w-md mx-auto text-center">
-            <div className="w-14 h-14 rounded-2xl bg-[#1DB954]/15 flex items-center justify-center mx-auto mb-4">
-              <Music className="h-7 w-7 text-[#1DB954]" />
-            </div>
-            <h1 className="text-2xl font-bold mb-2">Connect Spotify</h1>
-            <p className="text-muted-foreground mb-6">
-              Connect Spotify so you can claim your artist page (or accept team invites).
-            </p>
-            <Button
-              onClick={() => {
-                navigate("/spotify-connect?returnTo=/for-artists");
-              }}
-              className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white"
-              size="lg"
-            >
-              Connect Spotify
-            </Button>
-          </MagicCard>
-        </div>
-      </AppLayout>
-    );
-  }
-
   // Loading access data
-  if (myArtists === undefined) {
+  if (myArtists === undefined || myClaims === undefined) {
     return (
       <AppLayout>
         <div className="container mx-auto px-4 py-16 text-center">
@@ -345,34 +312,26 @@ export function ForArtistsPage() {
                 <div>
                   <div className="font-semibold">Claim another artist</div>
                   <div className="text-sm text-muted-foreground">
-                    Add access to more artists from your Spotify
+                    Search for the exact artist profile you represent
                   </div>
                 </div>
               </div>
               
-              <div className="flex flex-col sm:flex-row gap-3">
-                <select
-                  value={selectedArtistId}
-                  onChange={(e) => setSelectedArtistId(e.target.value)}
-                  className="flex-1 h-10 rounded-lg bg-secondary border border-border px-3 text-sm text-foreground"
-                >
-                  <option value="">Select an artist…</option>
-                  {(spotifyArtists || []).map((row: any) => (
-                    <option key={row.artist._id} value={row.artist._id}>
-                      {row.artist.name}
-                      {row.isTopArtist ? " (Top)" : row.isFollowed ? " (Followed)" : ""}
-                    </option>
-                  ))}
-                </select>
+              <ArtistClaimSearch
+                buttonLabel="Start claim"
+                claiming={false}
+                onClaim={async (id) => navigate(`/for-artists/claim/${id}`)}
+              />
+              {!spotifyConnected && (
                 <Button
-                  disabled={!selectedArtistId}
-                  onClick={() => {
-                    if (selectedArtistId) navigate(`/for-artists/claim/${selectedArtistId}`);
-                  }}
+                  variant="outline"
+                  className="mt-4 w-full gap-2"
+                  onClick={() => navigate("/spotify-connect?returnTo=/for-artists")}
                 >
-                  Claim →
+                  <Music className="h-4 w-4 text-[#1DB954]" />
+                  Link Spotify for better matching
                 </Button>
-              </div>
+              )}
             </MagicCard>
           </div>
         </div>
@@ -389,6 +348,29 @@ export function ForArtistsPage() {
     <AppLayout>
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-2xl mx-auto space-y-6">
+          {!spotifyConnected && (
+            <MagicCard className="p-5 border border-[#1DB954]/20 bg-[#1DB954]/[0.04]">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 rounded-xl bg-[#1DB954]/15 p-2.5">
+                    <Music className="h-5 w-5 text-[#1DB954]" />
+                  </div>
+                  <div>
+                    <div className="font-semibold">Link Spotify</div>
+                    <p className="text-sm text-muted-foreground">
+                      Recommended for artist matching and catalog enrichment. Official access is still verified separately.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  className="shrink-0 bg-[#1DB954] text-white hover:bg-[#1ed760]"
+                  onClick={() => navigate("/spotify-connect?returnTo=/for-artists")}
+                >
+                  Link Spotify
+                </Button>
+              </div>
+            </MagicCard>
+          )}
           <MagicCard className="p-8">
             <div className="flex items-start gap-4">
               <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -397,44 +379,52 @@ export function ForArtistsPage() {
               <div className="flex-1">
                 <h1 className="text-2xl font-bold mb-1">Claim your artist page</h1>
                 <p className="text-muted-foreground">
-                  Pick an artist from your Spotify profile. We’ll review your claim and then you’ll get access to the dashboard.
+                  Find the exact artist profile, verify your work email and official connection, then submit for review.
                 </p>
               </div>
             </div>
 
             <div className="mt-6 space-y-3">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <select
-                  value={selectedArtistId}
-                  onChange={(e) => setSelectedArtistId(e.target.value)}
-                  className="flex-1 h-10 rounded-lg bg-secondary border border-border px-3 text-sm text-foreground"
-                >
-                  <option value="">Select an artist…</option>
-                  {(spotifyArtists || []).map((row: any) => (
-                    <option key={row.artist._id} value={row.artist._id}>
-                      {row.artist.name}
-                      {row.isTopArtist ? " (Top)" : row.isFollowed ? " (Followed)" : ""}
-                    </option>
-                  ))}
-                </select>
+              {spotifyConnected && (spotifyArtists || []).length > 0 && (
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <select
+                    value={selectedArtistId}
+                    onChange={(e) => setSelectedArtistId(e.target.value)}
+                    className="h-11 flex-1 rounded-lg border border-border bg-secondary px-3 text-sm text-foreground"
+                  >
+                    <option value="">From your Spotify activity…</option>
+                    {(spotifyArtists || []).map((row: any) => (
+                      <option key={row.artist._id} value={row.artist._id}>
+                        {row.artist.name}
+                        {row.isTopArtist ? " (Top)" : row.isFollowed ? " (Followed)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    disabled={!selectedArtistId}
+                    onClick={() => selectedArtistId && navigate(`/for-artists/claim/${selectedArtistId}`)}
+                  >
+                    Start claim
+                  </Button>
+                </div>
+              )}
 
-                <Button
-                  disabled={!selectedArtistId}
-                  onClick={() => {
-                    if (!selectedArtistId) return;
-                    navigate(`/for-artists/claim/${selectedArtistId}`);
-                  }}
-                  className="sm:w-40"
-                >
-                  Claim →
-                </Button>
+              <div className="pt-2">
+                <div className="mb-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                  Search all artists
+                </div>
+                <ArtistClaimSearch
+                  buttonLabel="Start claim"
+                  claiming={false}
+                  onClaim={async (id) => navigate(`/for-artists/claim/${id}`)}
+                />
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
                 <p className="text-sm text-muted-foreground">
-                  Not seeing your artist? Re-sync your Spotify artists.
+                  Spotify helps matching, but it is not proof that you control an artist profile.
                 </p>
-                <Button
+                {spotifyConnected && <Button
                   variant="outline"
                   disabled={syncingSpotify}
                   onClick={async () => {
@@ -445,12 +435,8 @@ export function ForArtistsPage() {
                         account_state: "authenticated",
                         mode: "refresh",
                       });
-                      const token = await user?.getToken({ template: "spotify" });
-                      if (!token) {
-                        toast.error("Spotify token not available", { description: "Try reconnecting Spotify." });
-                        return;
-                      }
-                      const result = await completeSpotifyImport({ accessToken: token });
+                      const result = await completeSpotifyImport({});
+                      if (!result.success) throw new Error(result.message);
                       capture("spotify_connect_completed", {
                         source: "artist_portal_manual_sync",
                         imported_artist_count: result.imported,
@@ -479,16 +465,16 @@ export function ForArtistsPage() {
                   ) : (
                     "Sync Spotify"
                   )}
-                </Button>
+                </Button>}
               </div>
 
-              {spotifyArtists === undefined && (
+              {spotifyConnected && spotifyArtists === undefined && (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Loading your Spotify artists…
                 </div>
               )}
-              {Array.isArray(spotifyArtists) && spotifyArtists.length === 0 && (
+              {spotifyConnected && Array.isArray(spotifyArtists) && spotifyArtists.length === 0 && (
                 <p className="text-sm text-muted-foreground">
                   No Spotify artists imported yet. If you just connected Spotify, wait a moment and refresh—otherwise hit “Sync Spotify”.
                 </p>
@@ -505,7 +491,7 @@ export function ForArtistsPage() {
                 <p className="text-sm text-muted-foreground mb-3">
                   Bypass all verification and instantly access any artist's real data.
                 </p>
-                <AdminArtistSearch
+                <ArtistClaimSearch
                   onClaim={async (artistId: string, artistName: string) => {
                     setAdminClaiming(true);
                     try {

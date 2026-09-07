@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { AppLayout } from "../components/AppLayout";
 import { AuthGuard } from "../components/AuthGuard";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { MagicCard } from "../components/ui/magic-card";
 import { Button } from "../components/ui/button";
-import { Loader2, ArrowLeft, Users, Mail, Trash2, Shield, Copy, CheckCircle, Clock, Link2 } from "lucide-react";
+import { Loader2, ArrowLeft, Users, Mail, Trash2, Shield, Copy, CheckCircle, Clock, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { capture, captureException } from "../lib/analytics";
 
@@ -32,7 +32,7 @@ export function ForArtistsTeamPage() {
     artistId ? { artistId } : "skip",
   );
 
-  const createInvite = useMutation((api as any).artistAccess.createInvite);
+  const createInvite = useAction((api as any).artistInvites.createInvite);
   const revokeInvite = useMutation((api as any).artistAccess.revokeInvite);
   const removeTeamMember = useMutation((api as any).artistAccess.removeTeamMember);
   const updateTeamMemberRole = useMutation((api as any).artistAccess.updateTeamMemberRole);
@@ -41,7 +41,6 @@ export function ForArtistsTeamPage() {
   const [role, setRole] = useState<Exclude<Role, "owner">>("manager");
   const [submitting, setSubmitting] = useState(false);
   const [lastInviteUrl, setLastInviteUrl] = useState<string | null>(null);
-  const [copiedInvite, setCopiedInvite] = useState<string | null>(null);
   const trackedTeamArtist = React.useRef<string | null>(null);
 
   React.useEffect(() => {
@@ -155,7 +154,11 @@ export function ForArtistsTeamPage() {
                               artist_id: artistId,
                               invited_role: role,
                             });
-                            toast.success("Invite created!", { description: "Share the link with your team member." });
+                            toast.success(res.emailSent ? "Invitation emailed" : "Invitation created", {
+                              description: res.emailSent
+                                ? "They can accept from the secure link in their inbox."
+                                : "Email delivery is unavailable, so copy the secure link below.",
+                            });
                             setEmail("");
                             if (res.inviteUrl) {
                               setLastInviteUrl(res.inviteUrl);
@@ -189,7 +192,7 @@ export function ForArtistsTeamPage() {
                     <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
                       <div className="flex items-center gap-2 mb-2">
                         <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span className="text-sm font-medium text-green-600 dark:text-green-400">Invite link created!</span>
+                        <span className="text-sm font-medium text-green-600 dark:text-green-400">Secure invite link</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <code className="flex-1 text-xs bg-background px-2 py-1 rounded truncate">
@@ -239,19 +242,26 @@ export function ForArtistsTeamPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            title="Send a fresh invitation"
                             onClick={async () => {
-                              const url = `${window.location.origin}/for-artists/invite/${invite.inviteToken}`;
-                              await navigator.clipboard.writeText(url);
-                              setCopiedInvite(invite._id);
-                              toast.success("Link copied!");
-                              setTimeout(() => setCopiedInvite(null), 2000);
+                              try {
+                                const res = await createInvite({
+                                  artistId,
+                                  email: invite.email,
+                                  role: invite.role,
+                                });
+                                if (!res?.success) {
+                                  toast.error("Could not resend", { description: res?.message });
+                                  return;
+                                }
+                                if (res.inviteUrl) setLastInviteUrl(res.inviteUrl);
+                                toast.success(res.emailSent ? "Fresh invitation emailed" : "Fresh link created");
+                              } catch (error: any) {
+                                toast.error("Could not resend", { description: error?.message });
+                              }
                             }}
                           >
-                            {copiedInvite === invite._id ? (
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Link2 className="h-4 w-4" />
-                            )}
+                            <RefreshCw className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"

@@ -14,11 +14,10 @@ const crons = cronJobs();
 // DAILY JOBS (run once per day at specific times)
 // -----------------------------------------------
 
-// Setlist.fm import: Every 6 hours (setlists usually appear within hours of a show)
-// API budget: 4 runs/day x <=30 shows ~= <=240 calls/day, plus history backfill
-// (48 runs x 10 artists ~= 480 calls/day) ~= 720/day total — well under
-// setlist.fm's ~1440/day (~1 req/min sustained) allowance.
-crons.cron("check-completed-shows", "0 */6 * * *", internalRef.setlistfm.checkCompletedShows, {});
+// Drain bounded, leased batches every two hours. No overlapping pollers.
+// Each run admits at most 20 first attempts + 10 retries; provider backoff remains.
+// Actual API quotas depend on the project's provider agreement.
+crons.cron("check-completed-shows", "0 */2 * * *", internalRef.setlistfm.checkCompletedShows, {});
 
 // Daily cleanup: Run at 3:00 AM UTC
 crons.cron("daily-cleanup", "0 3 * * *", internalRef.maintenance.cleanupOrphanedRecords, {});
@@ -42,6 +41,10 @@ crons.cron("refresh-partial-lineups", "0 7 * * 0", internalRef.festivals.refresh
 // Cron Orchestrator: checks cronSettings and runs due jobs
 // This enables runtime interval edits + enable/disable + run-now via the admin dashboard.
 crons.interval("cron-orchestrator", { minutes: 10 }, internalRef.cronOrchestrator.tick, {});
+
+// One-time, self-retiring migration in practice: it processes a small indexed
+// batch each run and becomes a no-op once all legacy venues have canonical URLs.
+crons.interval("backfill-venue-slugs", { minutes: 30 }, internalRef.venues.backfillMissingSlugs, { limit: 250 });
 
 // REMOVED - These were redundant with check-completed-shows:
 // - setlistfm-scan (scanPendingImports) - duplicated work

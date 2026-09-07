@@ -2,6 +2,11 @@ old/
 node_modules/
 .env.local
 .env
+.env.*
+.mcp.json
+.cursor/
+.claude/
+.codex/
 *.log
 .DS_Store
 .vscode/

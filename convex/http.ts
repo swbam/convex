@@ -1,12 +1,115 @@
 import { httpAction } from "./_generated/server";
 import { httpRouter } from "convex/server";
 import { internalRef } from "./adminHelpers";
+import { buildSeoPage, renderNotFoundDocument, renderSeoDocument } from "./seoHtml";
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 
 
 const http = httpRouter();
+
+const PUBLIC_SITE_URL = "https://www.setlists.live";
+let cachedAppShell: { html: string; expiresAt: number } | null = null;
+
+async function getAppShell() {
+  if (cachedAppShell && cachedAppShell.expiresAt > Date.now()) return cachedAppShell.html;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
+  try {
+    const response = await fetch(`${PUBLIC_SITE_URL}/index.html?source=convex-seo`, {
+      signal: controller.signal,
+      headers: { Accept: "text/html" },
+    });
+    if (!response.ok) throw new Error(`App shell returned ${response.status}`);
+    const html = await response.text();
+    if (!html.includes('id="root"') || !html.includes("</head>")) {
+      throw new Error("App shell response was invalid");
+    }
+    cachedAppShell = { html, expiresAt: Date.now() + 5 * 60 * 1000 };
+    return html;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+const seoHeaders = {
+  "Content-Type": "text/html; charset=utf-8",
+  "Cache-Control": "public, max-age=0, must-revalidate",
+  "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
+  "Vercel-CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
+  "x-vercel-enable-rewrite-caching": "1",
+  "X-Content-Type-Options": "nosniff",
+};
+
+function registerSeoRoute(
+  pathPrefix: "/seo/artists/" | "/seo/shows/" | "/seo/venues/",
+  queryName: "getArtistPage" | "getShowPage" | "getVenuePage",
+) {
+  http.route({
+    pathPrefix,
+    method: "GET",
+    handler: httpAction(async (ctx, request) => {
+      const pathname = new URL(request.url).pathname;
+      let key: string;
+      try {
+        key = decodeURIComponent(pathname.slice(pathPrefix.length));
+      } catch {
+        key = "";
+      }
+      if (!key || key.includes("/") || key.length > 180) {
+        return new Response("Bad request", { status: 400 });
+      }
+
+      try {
+        const shell = await getAppShell();
+        const data = await ctx.runQuery(internalRef.publicSeo[queryName], { key });
+        if (!data) {
+          return new Response(renderNotFoundDocument(shell), {
+            status: 404,
+            headers: {
+              ...seoHeaders,
+              "CDN-Cache-Control": "public, max-age=60",
+              "X-Robots-Tag": "noindex, follow",
+            },
+          });
+        }
+        if (data.canonicalKey && data.canonicalKey !== key) {
+          const publicPrefix = pathPrefix.replace("/seo", "").slice(0, -1);
+          return Response.redirect(
+            `${PUBLIC_SITE_URL}${publicPrefix}/${encodeURIComponent(data.canonicalKey)}`,
+            308,
+          );
+        }
+        return new Response(renderSeoDocument(shell, buildSeoPage(data)), {
+          status: 200,
+          headers: {
+            ...seoHeaders,
+            "X-Robots-Tag": data.indexable ? "index, follow" : "noindex, follow",
+          },
+        });
+      } catch (error) {
+        console.error("Public SEO render failed", {
+          pathPrefix,
+          key,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+        return new Response("Page temporarily unavailable", {
+          status: 503,
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Retry-After": "30",
+            "X-Robots-Tag": "noindex, nofollow",
+          },
+        });
+      }
+    }),
+  });
+}
+
+registerSeoRoute("/seo/artists/", "getArtistPage");
+registerSeoRoute("/seo/shows/", "getShowPage");
+registerSeoRoute("/seo/venues/", "getVenuePage");
 
 // Health check endpoint
 http.route({
@@ -103,12 +206,15 @@ http.route({
     try {
       // Fetch indexable artists, shows, festivals, and blog posts.
       // Each query is bounded; total URL count stays well under 10k.
-      const [artists, shows, festivals, blogPosts] = await Promise.all([
+      const [artists, shows, venues, festivals, blogPosts] = await Promise.all([
         ctx.runQuery(internalRef.artists.getAllSlugs) as Promise<
           { slug: string; lastmod?: number }[]
         >,
         ctx.runQuery(internalRef.shows.getAllSlugs) as Promise<
           { slug: string; date: string; lastmod: number }[]
+        >,
+        ctx.runQuery(internalRef.venues.getAllSlugs) as Promise<
+          { slug: string; lastmod: number }[]
         >,
         ctx.runQuery(internalRef.festivals.getAllSlugs) as Promise<
           { slug: string; lastmod?: number }[]
@@ -168,6 +274,16 @@ http.route({
     }
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
+  </url>`;
+      }
+
+      for (const venue of venues || []) {
+        xml += `
+  <url>
+    <loc>${baseUrl}/venues/${venue.slug}</loc>
+    <lastmod>${toLastmod(venue.lastmod)}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
   </url>`;
       }
 

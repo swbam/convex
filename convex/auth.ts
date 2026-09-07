@@ -37,9 +37,8 @@ function extractRoleFromIdentity(identity: any): "user" | "admin" {
   const roleClaim = (identity && (identity as any).role) as string | undefined;
   const publicMetaRole =
     (identity && (identity as any).publicMetadata?.role) as string | undefined;
-  const unsafeMetaRole =
-    (identity && (identity as any).unsafeMetadata?.role) as string | undefined;
-  const role = roleClaim || publicMetaRole || unsafeMetaRole || "user";
+  // unsafeMetadata is user-editable and must never grant platform privileges.
+  const role = roleClaim || publicMetaRole || "user";
   return role === "admin" ? "admin" : "user";
 }
 

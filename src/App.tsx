@@ -13,6 +13,7 @@ import { Artists } from "./components/Artists";
 import { Shows } from "./components/Shows";
 import { Festivals } from "./components/Festivals";
 import { FestivalDetail } from "./components/FestivalDetail";
+import { VenueDetail } from "./components/VenueDetail";
 
 import { Trending } from "./components/Trending";
 
@@ -31,7 +32,7 @@ import { BackendErrorMonitor } from "./components/BackendErrorMonitor";
 import { MagicCard } from "./components/ui/magic-card";
 import { DocsPage } from "./pages/Docs";
 
-type View = "home" | "dashboard" | "artist" | "show" | "search" | "artists" | "shows" | "festivals" | "festival" | "activity" | "signin" | "trending" | "profile" | "following" | "predictions" | "admin" | "docs";
+type View = "home" | "dashboard" | "artist" | "show" | "venue" | "search" | "artists" | "shows" | "festivals" | "festival" | "activity" | "signin" | "trending" | "profile" | "following" | "predictions" | "admin" | "docs" | "test";
 
 function App() {
   const location = useLocation();
@@ -42,6 +43,7 @@ function App() {
   const [currentView, setCurrentView] = useState<View>("home");
   const [selectedArtistId, setSelectedArtistId] = useState<Id<"artists"> | null>(null);
   const [selectedShowId, setSelectedShowId] = useState<Id<"shows"> | null>(null);
+  const [selectedVenueId, setSelectedVenueId] = useState<Id<"venues"> | null>(null);
   // Note: User creation is now handled by AuthGuard component
   // This prevents duplicate creation attempts and race conditions
 
@@ -62,6 +64,8 @@ function App() {
     getSlugFromPath(location.pathname, '/shows/') : null;
   const festivalSlug = location.pathname.startsWith('/festivals/') ?
     getSlugFromPath(location.pathname, '/festivals/') : null;
+  const venueSlug = location.pathname.startsWith('/venues/') ?
+    getSlugFromPath(location.pathname, '/venues/') : null;
 
   // Queries to resolve slugs/ids and canonicalize to Convex IDs
   const artistBySlug = useQuery(api.artists.getBySlugOrId,
@@ -72,6 +76,10 @@ function App() {
   const showBySlugOrId = useQuery(
     api.shows.getBySlugOrId,
     showSlug ? { key: showSlug } : 'skip'
+  );
+  const venueBySlugOrId = useQuery(
+    api.venues.getBySlugOrId,
+    venueSlug ? { key: venueSlug } : 'skip'
   );
 
   // When artist not yet found after import, show loading state and rely on Convex reactivity, no forced reloads
@@ -127,6 +135,19 @@ function App() {
         setSelectedShowId(null);
         document.title = 'Show Not Found – setlists.live';
       }
+    } else if (path.startsWith('/venues/')) {
+      setCurrentView('venue');
+      if (venueBySlugOrId) {
+        setSelectedVenueId(venueBySlugOrId._id);
+        document.title = `${venueBySlugOrId.name} Concerts & Setlists – setlists.live`;
+        const currentKey = getSlugFromPath(path, '/venues/');
+        if (currentKey && venueBySlugOrId.slug && currentKey !== venueBySlugOrId.slug) {
+          void navigate(`/venues/${venueBySlugOrId.slug}`, { replace: true });
+        }
+      } else if (venueBySlugOrId === null) {
+        setSelectedVenueId(null);
+        document.title = 'Venue Not Found – setlists.live';
+      }
     } else if (path === '/search') {
       setCurrentView('search');
       document.title = 'Search – setlists.live';
@@ -158,16 +179,17 @@ function App() {
       setCurrentView('docs');
       document.title = 'API Docs – setlists.live';
     }
-  }, [location.pathname, artistBySlug, showBySlugOrId]);
+  }, [location.pathname, artistBySlug, showBySlugOrId, venueBySlugOrId]);
 
   const handleViewChange = (
     view: View,
-    id?: Id<"artists"> | Id<"shows"> | null,
+    id?: Id<"artists"> | Id<"shows"> | Id<"venues"> | null,
     slug?: string
   ) => {
     if (view === "artist") {
       setSelectedArtistId((id as Id<"artists">) ?? null);
       setSelectedShowId(null);
+      setSelectedVenueId(null);
       const urlParam = slug ?? (typeof id === "string" ? id : undefined);
       if (urlParam) {
         void navigate(`/artists/${urlParam}`);
@@ -178,10 +200,18 @@ function App() {
     if (view === "show") {
       setSelectedShowId((id as Id<"shows">) ?? null);
       setSelectedArtistId(null);
+      setSelectedVenueId(null);
       const urlParam = slug ?? (typeof id === "string" ? id : undefined);
       if (urlParam) {
         void navigate(`/shows/${urlParam}`);
       }
+      return;
+    }
+
+    if (view === "venue") {
+      setSelectedVenueId((id as Id<"venues">) ?? null);
+      const urlParam = slug ?? (typeof id === "string" ? id : undefined);
+      if (urlParam) void navigate(`/venues/${urlParam}`);
       return;
     }
 
@@ -192,6 +222,7 @@ function App() {
 
     setSelectedArtistId(null);
     setSelectedShowId(null);
+    setSelectedVenueId(null);
     void navigate(`/${view === 'home' ? '' : view}`);
   };
 
@@ -232,7 +263,7 @@ function App() {
       y: 0,
       transition: {
         duration: shouldReduceMotion ? 0 : 0.18,
-        ease: [0.25, 0.1, 0.25, 1]
+        ease: [0.25, 0.1, 0.25, 1] as const
       }
     },
     exit: {
@@ -246,6 +277,8 @@ function App() {
       ? `artist:${selectedArtistId ?? artistSlug ?? "loading"}`
       : currentView === "show"
         ? `show:${selectedShowId ?? showSlug ?? "loading"}`
+        : currentView === "venue"
+          ? `venue:${selectedVenueId ?? venueSlug ?? "loading"}`
         : currentView === "festival"
           ? `festival:${festivalSlug ?? "loading"}`
           : currentView;
@@ -371,6 +404,25 @@ function App() {
           <div className="text-center py-8">
             <p className="text-muted-foreground">No show selected</p>
           </div>
+        );
+      case "venue":
+        if (venueBySlugOrId === undefined) {
+          return <div className="py-16 text-center text-muted-foreground">Loading venue…</div>;
+        }
+        if (!selectedVenueId || venueBySlugOrId === null) {
+          return (
+            <div className="py-16 text-center">
+              <h2 className="text-2xl font-bold">Venue not found</h2>
+              <button className="mt-4 rounded-lg bg-primary px-4 py-2 text-primary-foreground" onClick={() => navigate('/')}>Back home</button>
+            </div>
+          );
+        }
+        return (
+          <VenueDetail
+            venueId={selectedVenueId}
+            onBack={() => navigate('/')}
+            onShowClick={handleShowClick}
+          />
         );
       case "search":
         return (

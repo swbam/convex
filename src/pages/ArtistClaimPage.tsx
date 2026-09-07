@@ -25,7 +25,7 @@ import {
 import { toast } from "sonner";
 import { capture, captureException } from "../lib/analytics";
 
-type ClaimStep = "loading" | "email" | "verify" | "details" | "review" | "submitted" | "auto_approved";
+type ClaimStep = "loading" | "email" | "verify" | "details" | "review" | "submitted";
 
 const ROLES = [
   { value: "artist", label: "I am the artist", description: "You are the actual performing artist" },
@@ -91,7 +91,9 @@ export function ArtistClaimPage() {
 
     const initClaim = async () => {
       try {
-        const result = await startClaim({ artistId });
+        // Spotify improves matching but is not an ownership attestation. The
+        // claim still requires verified evidence and review.
+        const result = await startClaim({ artistId, bypassSpotifyCheck: true });
         if (result.success && result.claimId) {
           capture("artist_claim_started", {
             artist_id: artistId,
@@ -230,7 +232,7 @@ export function ArtistClaimPage() {
           artist_id: artistId,
           claim_id: claimId,
           official_role: role,
-          verification_state: verificationStatus?.email?.verified ? "email_verified" : "unverified",
+          verification_state: verificationStatus?.emailVerified ? "email_verified" : "unverified",
         });
         toast.success("Claim submitted for review!");
         setStep("submitted");
@@ -257,10 +259,7 @@ export function ArtistClaimPage() {
         matched: Boolean(result.matched),
         auto_approved: Boolean(result.autoApproved),
       });
-      if (result.autoApproved) {
-        toast.success("Verified! Access granted.", { description: result.message });
-        setStep("auto_approved");
-      } else if (result.matched) {
+      if (result.matched) {
         toast.success(result.message);
       } else {
         toast.info(result.message);
@@ -284,10 +283,7 @@ export function ArtistClaimPage() {
         matched: Boolean(result.verified),
         auto_approved: Boolean(result.autoApproved),
       });
-      if (result.autoApproved) {
-        toast.success("Verified! Access granted.", { description: result.message });
-        setStep("auto_approved");
-      } else if (result.verified) {
+      if (result.verified) {
         toast.success(result.message);
       } else {
         toast.error(result.message);
@@ -622,7 +618,7 @@ export function ArtistClaimPage() {
         {/* Step: Review with Enhanced Verification */}
         {step === "review" && claim && (
           <div className="space-y-6">
-            {/* Quick verification options */}
+            {/* Official verification evidence */}
             {verificationStatus && (verificationStatus.domainVerification?.available || verificationStatus.websiteVerification?.available) && (
               <MagicCard className="p-6 border-2 border-primary/20 bg-primary/5">
                 <div className="flex items-center gap-3 mb-4">
@@ -630,9 +626,9 @@ export function ArtistClaimPage() {
                     <Zap className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold">Fast-track verification</h3>
+                    <h3 className="font-semibold">Official verification</h3>
                     <p className="text-sm text-muted-foreground">
-                      Get instant access without waiting for review
+                      Prove your connection to the official team. Every claim is reviewed before access is granted.
                     </p>
                   </div>
                 </div>
@@ -648,13 +644,13 @@ export function ArtistClaimPage() {
                             <span className="font-medium">Email domain match</span>
                             {verificationStatus.domainVerification?.wouldMatch && (
                               <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 text-xs font-medium">
-                                Likely match!
+                                {verificationStatus.domainVerification?.trustedForArtist ? "Reviewed domain" : "Domains align"}
                               </span>
                             )}
                           </div>
                           <p className="text-sm text-muted-foreground">
                             {verificationStatus.domainVerification?.wouldMatch ? (
-                              <>Your email ({verificationStatus.domainVerification.emailDomain}) matches the website domain!</>
+                              <>Your email domain matches the submitted website. {verificationStatus.domainVerification?.trustedForArtist ? "This domain was previously reviewed. Your claim still needs approval." : "This will strengthen the manual review."}</>
                             ) : (
                               <>Check if your email domain matches the website</>
                             )}
@@ -764,8 +760,8 @@ export function ArtistClaimPage() {
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold">Claim summary</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Or submit for manual review
+                    <p className="text-sm text-muted-foreground">
+                    Submit your evidence for review
                   </p>
                 </div>
               </div>
@@ -822,27 +818,6 @@ export function ArtistClaimPage() {
               </div>
             </MagicCard>
           </div>
-        )}
-
-        {/* Step: Auto-Approved */}
-        {step === "auto_approved" && (
-          <MagicCard className="p-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-6">
-              <Zap className="h-8 w-8 text-green-500" />
-            </div>
-            <h2 className="text-2xl font-bold mb-2">Verified!</h2>
-            <p className="text-muted-foreground mb-8">
-              Your claim was automatically verified. You now have access to the artist dashboard.
-            </p>
-            <Button 
-              onClick={() => navigate(`/for-artists/${artistId}`)} 
-              className="w-full" 
-              size="lg"
-            >
-              Open Dashboard
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-          </MagicCard>
         )}
 
         {/* Step: Submitted */}

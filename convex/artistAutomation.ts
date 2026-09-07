@@ -50,12 +50,12 @@ export const getManagedArtistSyncCandidates = internalQuery({
 
         const freshnessWindowMs = hasUrgentUpcomingShow ? HOUR : DAY;
         const lastRefreshAt = artist.lastAutonomousRefreshAt ?? 0;
-        const needsRefresh =
+        const needsRefresh = (!lastRefreshAt || now - lastRefreshAt >= Math.min(HOUR, freshnessWindowMs)) && (
           !lastRefreshAt ||
           now - lastRefreshAt >= freshnessWindowMs ||
           !artist.ticketmasterId ||
           !artist.spotifyId ||
-          artist.catalogSyncStatus !== "completed";
+          artist.catalogSyncStatus !== "completed");
 
         const urgencyScore =
           (hasUrgentUpcomingShow ? 1000 : 0) +
@@ -305,7 +305,11 @@ export const runManagedArtistWarmup = internalAction({
           continue;
         }
 
-        await ctx.scheduler.runAfter(i * 1_500, internalRef.setlistfm.syncActualSetlist, {
+        const reserved = await ctx.runMutation(internalRef.setlistfm.reserveCompletedShowImport, {
+          showId: show._id, initialize: true,
+        });
+        if (!reserved) continue;
+        await ctx.scheduler.runAfter(i * 2_000, internalRef.setlistfm.syncActualSetlist, {
           showId: show._id,
           artistName: snapshot.artist.name,
           venueCity: venue.city,
@@ -328,7 +332,16 @@ export const runManagedArtistWarmup = internalAction({
         lastDemandReconcileAt: demandReconciled ? now : undefined,
       });
 
+      const incompleteStages = [
+        ...(snapshot.artist.catalogSyncStatus !== "completed" ||
+            !snapshot.artist.lastCatalogSyncAt || now - snapshot.artist.lastCatalogSyncAt >= DAY
+          ? ["catalog"] : []),
+        ...(!snapshot.artist.lastShowSyncAt || now - snapshot.artist.lastShowSyncAt >= showFreshnessWindowMs
+          ? ["shows"] : []),
+      ];
       const result = {
+        status: incompleteStages.length > 0 ? "partial" : "completed",
+        incompleteStages,
         skipped: false,
         artistId: args.artistId,
         artistName: snapshot.artist.name,
@@ -340,13 +353,16 @@ export const runManagedArtistWarmup = internalAction({
         scheduledCompletedImports,
       };
       await ctx.scheduler.runAfter(0, internalRef.analytics.capture, {
-        event: "artist_warmup_completed",
+        event: incompleteStages.length > 0 ? "artist_warmup_partial" : "artist_warmup_completed",
         distinctId: args.analyticsDistinctId || `artist:${args.artistId}`,
         properties: {
           artist_id: args.artistId,
           reason: args.reason ?? "manual",
           force: Boolean(args.force),
           steps,
+          incomplete_stages: incompleteStages,
+          catalog_status: snapshot.artist.catalogSyncStatus ?? "never",
+          imports_pending: scheduledCompletedImports > 0,
           step_count: steps.length,
           song_count: snapshot.songCount,
           upcoming_show_count: snapshot.upcomingShows.length,

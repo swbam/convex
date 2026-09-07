@@ -6,6 +6,7 @@ import { cn } from "../../lib/utils";
 interface MagicCardProps {
   children?: React.ReactNode;
   className?: string;
+  style?: React.CSSProperties;
   /** Glow variant: 'default' | 'animated' | 'section' | 'sm' | 'none' */
   variant?: "default" | "animated" | "section" | "sm" | "none";
   /** Enable hover glow effect */
@@ -59,6 +60,7 @@ const paddingClasses = {
 export function MagicCard({
   children,
   className,
+  style,
   variant = "default",
   hoverGlow = true,
   edgeHighlight = false,
@@ -87,6 +89,7 @@ export function MagicCard({
         safeClassName
       )}
       onClick={onClick}
+      style={style}
     >
       <div className="relative z-10">{children}</div>
     </div>
@@ -100,6 +103,7 @@ export function MagicCard({
 export function GlowCard({
   children,
   className,
+  style,
   variant = "default",
   hoverGlow = true,
   padding = "md",
@@ -112,6 +116,7 @@ export function GlowCard({
       padding={padding}
       className={className}
       onClick={onClick}
+      style={style}
     >
       {children}
     </MagicCard>
@@ -129,6 +134,7 @@ export function GlowSection({
 }: {
   children?: React.ReactNode;
   className?: string;
+  style?: React.CSSProperties;
   edgeHighlight?: boolean;
   padding?: "none" | "sm" | "md" | "lg";
 }) {

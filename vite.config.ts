@@ -38,7 +38,9 @@ window.addEventListener('message', async (message) => {
   build: {
     outDir: 'dist',
     chunkSizeWarningLimit: 1000,
-    sourcemap: true, // Enable sourcemaps for Sentry
+    // Do not publish readable production source maps. Development keeps them
+    // for local debugging; production errors still include minified stacks.
+    sourcemap: mode === 'development',
     rollupOptions: {
       external: ['old/**/*'],
       input: {

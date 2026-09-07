@@ -6,6 +6,45 @@ import { api, internal } from "./_generated/api";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const apiRef = api as any;
 
+/** Retrieve the signed-in user's linked provider token on the server only.
+ * This links a Spotify listener account; it never proves artist ownership.
+ * Clerk manages this credential's refresh lifecycle. Do not invent a refresh
+ * token or overwrite separately stored Spotify credentials with guessed expiry.
+ */
+export const importLinkedSpotify = action({
+  args: {},
+  returns: v.object({ success: v.boolean(), message: v.string(), imported: v.number(), correlated: v.number() }),
+  handler: async (ctx): Promise<{ success: boolean; message: string; imported: number; correlated: number }> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const user = await ctx.runQuery(apiRef.auth.loggedInUser, {});
+    if (!user?.appUser) throw new Error("Finish setting up your account before syncing Spotify");
+    const secret = process.env.CLERK_SECRET_KEY;
+    if (!secret) throw new Error("Spotify account sync is not configured");
+
+    const credentials = await fetch(
+      `https://api.clerk.com/v1/users/${encodeURIComponent(identity.subject)}/oauth_access_tokens/oauth_spotify?paginated=true`,
+      { headers: { Authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(20000) },
+    );
+    if (!credentials.ok) throw new Error("Unable to access linked Spotify. Please reconnect and try again.");
+    const payload = await credentials.json();
+    const tokens: Array<{ token?: string }> = Array.isArray(payload) ? payload : payload?.data ?? [];
+    const token = tokens.find(item => typeof item.token === "string" && item.token.length > 0)?.token;
+    if (!token) throw new Error("Connect your Spotify account before syncing");
+    const profileResponse = await fetch("https://api.spotify.com/v1/me", {
+      headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20000),
+    });
+    if (!profileResponse.ok) throw new Error("Spotify connection expired or unavailable. Please reconnect.");
+    const profile = await profileResponse.json();
+    if (typeof profile.id !== "string" || !profile.id) throw new Error("Spotify account could not be identified");
+    const result = await ctx.runAction(apiRef.spotifyOAuth.completeSpotifyImport, { accessToken: token });
+    if (result.success) {
+      await ctx.runMutation(internal.spotifyAuthQueries.setUserSpotifyId, { userId: user.appUser._id, spotifyId: profile.id });
+    }
+    return result;
+  },
+});
+
 /**
  * Fetch user's Spotify data using OAuth access token
  * This action is called after successful Spotify OAuth login
@@ -33,6 +72,7 @@ export const fetchUserSpotifyData = action({
     })),
   }),
   handler: async (ctx, args) => {
+    if (!(await ctx.auth.getUserIdentity())) throw new Error("Not authenticated");
     console.log("🎵 Fetching Spotify data with OAuth token...");
     
     try {
@@ -47,7 +87,6 @@ export const fetchUserSpotifyData = action({
       );
 
       if (!followedResponse.ok) {
-        console.error("Failed to fetch followed artists:", await followedResponse.text());
         throw new Error(`Spotify API error: ${followedResponse.status}`);
       }
 
@@ -65,7 +104,6 @@ export const fetchUserSpotifyData = action({
       );
 
       if (!topResponse.ok) {
-        console.error("Failed to fetch top artists:", await topResponse.text());
         throw new Error(`Spotify API error: ${topResponse.status}`);
       }
 

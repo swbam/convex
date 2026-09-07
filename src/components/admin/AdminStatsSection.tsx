@@ -1,5 +1,5 @@
 import React from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion, type Variants } from "framer-motion";
 import {
     Users, Music, Calendar, TrendingUp, Activity, Mic, Database,
     BarChart3, Shield, CheckCircle, AlertCircle, RefreshCw, Loader2,
@@ -17,7 +17,7 @@ const stagger = {
     },
 };
 
-const fadeUp = {
+const fadeUp: Variants = {
     hidden: { opacity: 0, y: 10 },
     show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] } },
 };
@@ -138,7 +138,7 @@ export function AdminStatsSection({
 
                     {!analytics ? (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <Skeletons count={8} />
+                            <a className="text-sm underline text-muted-foreground" href="https://us.posthog.com/project/109917" target="_blank" rel="noopener noreferrer">View product analytics in PostHog</a>
                         </div>
                     ) : (
                         <div className="space-y-5">

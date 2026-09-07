@@ -20,6 +20,7 @@ export type AnalyticsEvent =
   | "artist_viewed"
   | "artist_follow_changed"
   | "show_viewed"
+  | "show_shared"
   | "venue_viewed"
   | "ticket_link_clicked"
   | "song_picker_opened"
@@ -259,6 +260,7 @@ export async function initializeAnalytics(): Promise<PostHog | null> {
             "$pathname",
             "$initial_pathname",
             "$prev_pageview_pathname",
+            "return_to",
           ]) {
             if (key in properties) {
               properties[key] = sanitizeAnalyticsPath(

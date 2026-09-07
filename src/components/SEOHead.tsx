@@ -88,10 +88,13 @@ export interface SEOHeadProps {
 export function SEOHead({ title, description, image, type, noindex, jsonLd }: SEOHeadProps = {}) {
   const location = useLocation();
   const params = useParams();
-  const { artistSlug, showSlug } = params;
+  const { artistSlug, showSlug, venueSlug } = params;
 
-  const artist = useQuery(api.artists.getBySlug, artistSlug ? { slug: artistSlug } : "skip");
-  const show = useQuery(api.shows.getBySlug, showSlug ? { slug: showSlug } : "skip");
+  const artist = useQuery(api.artists.getBySlugOrId, artistSlug ? { key: artistSlug } : "skip");
+  const show = useQuery(api.shows.getBySlugOrId, showSlug ? { key: showSlug } : "skip");
+  const venue = useQuery(api.venues.getBySlugOrId, venueSlug ? { key: venueSlug } : "skip");
+  const venueShows = useQuery(api.shows.getByVenue, venue ? { venueId: venue._id, limit: 10 } : "skip");
+  const showSetlists = useQuery(api.setlists.getByShow, show ? { showId: show._id } : "skip");
 
   // Stable string for effect deps (objects are re-created each render)
   const jsonLdString = jsonLd != null ? JSON.stringify(jsonLd) : null;
@@ -160,6 +163,23 @@ export function SEOHead({ title, description, image, type, noindex, jsonLd }: SE
         performer: { "@type": "MusicGroup", name: artistName },
         ...(show.ticketUrl ? { offers: { "@type": "Offer", url: show.ticketUrl } } : {}),
       };
+    } else if (venueSlug && venue) {
+      const location = [venue.city, venue.state || venue.country].filter(Boolean).join(", ");
+      computedTitle = `${venue.name} Concerts & Setlists${location ? ` – ${location}` : ""}`;
+      computedDescription = `Browse upcoming concerts and recent setlists at ${venue.name}${location ? ` in ${location}` : ""}. Open a show to vote for the songs you want to hear.`;
+      routeJsonLd = {
+        "@context": "https://schema.org",
+        "@type": "MusicVenue",
+        name: venue.name,
+        url: canonicalUrl,
+        address: {
+          "@type": "PostalAddress",
+          ...(venue.address ? { streetAddress: venue.address } : {}),
+          addressLocality: venue.city,
+          ...(venue.state ? { addressRegion: venue.state } : {}),
+          addressCountry: venue.country,
+        },
+      };
     }
 
     const finalTitle = title ?? computedTitle;
@@ -184,15 +204,26 @@ export function SEOHead({ title, description, image, type, noindex, jsonLd }: SE
     upsertMeta("name", "twitter:url", canonicalUrl);
 
     const isNoindexPath = NOINDEX_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-    upsertMeta("name", "robots", noindex || isNoindexPath ? "noindex, nofollow" : "index, follow");
+    const showIsThin = Boolean(
+      show && (
+        show.status === "cancelled" ||
+        (show.status === "completed" && !showSetlists?.some((setlist) => (setlist.actualSetlist?.length ?? 0) >= 3))
+      ),
+    );
+    const venueIsThin = Boolean(venue && venueShows && venueShows.length === 0);
+    upsertMeta("name", "robots", noindex || isNoindexPath || showIsThin || venueIsThin ? "noindex, follow" : "index, follow");
 
     upsertJsonLd(jsonLdString ?? (routeJsonLd ? JSON.stringify(routeJsonLd) : null));
   }, [
     location.pathname,
     artistSlug,
     showSlug,
+    venueSlug,
     artist,
     show,
+    venue,
+    venueShows,
+    showSetlists,
     title,
     description,
     image,

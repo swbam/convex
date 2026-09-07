@@ -1,3 +1,4 @@
+import { recordSetlistImport } from "./lib/setlistImportEvent";
 import { action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internalRef } from "./adminHelpers";
@@ -186,7 +187,7 @@ export const upsertHistoricalSetlist = internalMutation({
     const now = Date.now();
 
     const artist = await ctx.db.get(args.artistId);
-    if (!artist) {
+    if (!artist || args.songs.length === 0) {
       return { created: false };
     }
 
@@ -200,21 +201,24 @@ export const upsertHistoricalSetlist = internalMutation({
       .withIndex("by_setlistfm_id", (q) => q.eq("setlistfmId", args.setlistfmId))
       .first();
 
+    if (show && show.artistId !== args.artistId) throw new Error("Setlist artist mismatch");
+
     if (!show) {
       const sameDayShows = await ctx.db
         .query("shows")
         .withIndex("by_artist_and_date", (q) =>
           q.eq("artistId", args.artistId).eq("date", args.date),
         )
-        .take(5);
+        .take(25);
       const wantedCity = normalizeVenueKey(args.venueCity);
+      const matches = [];
       for (const candidate of sameDayShows) {
         const candidateVenue = await ctx.db.get(candidate.venueId);
-        if (candidateVenue && normalizeVenueKey(candidateVenue.city) === wantedCity) {
-          show = candidate;
-          break;
-        }
+        if (candidateVenue && normalizeVenueKey(candidateVenue.city) === wantedCity &&
+            venueNamesLooselyMatch(candidateVenue.name, args.venueName)) matches.push(candidate);
       }
+      if (matches.length > 1) return { created: false }; // ambiguous: do not overwrite either show
+      show = matches[0] ?? null;
     }
 
     let showId: Id<"shows">;
@@ -225,6 +229,7 @@ export const upsertHistoricalSetlist = internalMutation({
       if (show.setlistfmId !== args.setlistfmId) showPatch.setlistfmId = args.setlistfmId;
       if (show.status !== "completed") showPatch.status = "completed";
       if (show.importStatus !== "completed") showPatch.importStatus = "completed";
+      if (show.importNextAttemptAt !== undefined) showPatch.importNextAttemptAt = undefined;
       if (Object.keys(showPatch).length > 0) {
         showPatch.lastSynced = now;
         await ctx.db.patch(showId, showPatch);
@@ -346,6 +351,10 @@ export const upsertHistoricalSetlist = internalMutation({
       await ctx.db.patch(showId, { setlistCount: (showDoc?.setlistCount ?? 0) + 1 });
     }
 
+    await recordSetlistImport(ctx, {
+      showId, setlistfmId: args.setlistfmId, actualSongCount: args.songs.length,
+      previouslyImported: false, source: "artist_history",
+    });
     return { created: true };
   },
 });

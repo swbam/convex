@@ -103,7 +103,7 @@ export function UserDashboard({ onArtistClick, onShowClick }: UserDashboardProps
   const hasSpotify = React.useMemo(() => {
     if (appUser?.appUser?.spotifyId) return true;
     if (user?.externalAccounts) {
-      return user.externalAccounts.some((account) => account.provider === 'oauth_spotify');
+      return user.externalAccounts.some((account) => ['spotify', 'oauth_spotify'].includes(account.provider));
     }
     return false;
   }, [appUser?.appUser?.spotifyId, user?.externalAccounts]);

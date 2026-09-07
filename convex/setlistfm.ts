@@ -1,4 +1,6 @@
-import { action, internalAction, internalQuery, query } from "./_generated/server";
+import { selectSetlistMatch } from "./lib/setlistMatch";
+import { hasShowEnded } from "./lib/showTiming";
+import { action, internalAction, internalMutation, internalQuery, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internalRef, requireAdmin } from "./adminHelpers";
 import { Id } from "./_generated/dataModel";
@@ -57,6 +59,8 @@ export const syncActualSetlist = internalAction({
         return null;
       }
 
+      if (show.status === "cancelled" || !hasShowEnded(show)) return null;
+
       // API call to Setlist.fm
       const apiKey = process.env.SETLISTFM_API_KEY;
       if (!apiKey) {
@@ -64,7 +68,7 @@ export const syncActualSetlist = internalAction({
         throw new Error("SETLISTFM_API_KEY not configured");
       }
 
-      const baseDate = new Date(args.showDate);
+      const baseDate = new Date(`${show.date}T00:00:00Z`);
       if (Number.isNaN(baseDate.getTime())) {
         console.error(`❌ Invalid date format: ${args.showDate}`);
         throw new Error("Invalid date format");
@@ -109,7 +113,7 @@ export const syncActualSetlist = internalAction({
         });
       };
 
-      const offsets = [0, -1, 1];
+      const offsets = [0]; // Provider dates are concert-local dates; never guess adjacent nights.
       for (const offset of offsets) {
         const tryDate = new Date(baseDate);
         tryDate.setUTCDate(baseDate.getUTCDate() + offset);
@@ -141,7 +145,11 @@ export const syncActualSetlist = internalAction({
         }
 
         const data = await apiResponse.json();
-        const response = data.setlist?.[0] ? { setlist: data.setlist[0] } : null;
+        const match = selectSetlistMatch(Array.isArray(data.setlist) ? data.setlist : [], {
+          artistName: artist.name, artistMbid: artist.setlistfmMbid,
+          venueName: venue.name, city: venue.city, date: show.date,
+        });
+        const response = match ? { setlist: match } : null;
 
         if (response && response.setlist) {
           // Check if the setlist actually has songs before marking as completed
@@ -213,40 +221,45 @@ export const checkCompletedShows = internalAction({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    console.log("🔍 Checking for completed shows needing setlist import...");
-    const completedShows = await ctx.runQuery(internalRef.setlistfm.getCompletedShowsNeedingImport, {});
-    let setlistsSynced = 0;
-    for (const show of completedShows) {
-      try {
-        await ctx.runMutation(internalRef.shows.updateImportStatus, {
+    if (!process.env.SETLISTFM_API_KEY) return null;
+    const name = "completed-setlist-import";
+    const acquired = await ctx.runMutation(internalRef.maintenance.acquireLock, {
+      name, staleMs: 15 * 60 * 1000,
+    });
+    if (!acquired) return null;
+    const startedAt = Date.now();
+    try {
+      await ctx.runMutation(internalRef.setlistfm.prepareCompletedShowImports, {});
+      const shows = await ctx.runQuery(internalRef.setlistfm.getCompletedShowsNeedingImport, {});
+      for (const show of shows) {
+        // Leave headroom for a final provider request and release the lock.
+        if (Date.now() - startedAt > 4 * 60 * 1000) break;
+        const reserved = await ctx.runMutation(internalRef.setlistfm.reserveCompletedShowImport, {
           showId: show._id,
-          status: "importing",
         });
-
-        const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: show.artistId });
-        const venue = await ctx.runQuery(internalRef.venues.getByIdInternal, { id: show.venueId });
-
-        if (artist && venue) {
-          const setlistId = await ctx.runAction(internalRef.setlistfm.syncActualSetlist, {
-            showId: show._id,
-            artistName: artist.name,
-            venueCity: venue.city,
-            showDate: show.date,
+        if (!reserved) continue;
+        try {
+          const [artist, venue] = await Promise.all([
+            ctx.runQuery(internalRef.artists.getByIdInternal, { id: show.artistId }),
+            ctx.runQuery(internalRef.venues.getByIdInternal, { id: show.venueId }),
+          ]);
+          if (!artist || !venue) throw new Error("Missing show artist or venue");
+          await ctx.runAction(internalRef.setlistfm.syncActualSetlist, {
+            showId: show._id, artistName: artist.name,
+            venueCity: venue.city, showDate: show.date,
           });
-
-          if (setlistId) {
-            setlistsSynced++;
-          }
+        } catch (error) {
+          console.error(`Setlist import failed for ${show._id}`, error);
+          await ctx.runMutation(internalRef.shows.updateImportStatus, {
+            showId: show._id, status: "failed",
+          });
         }
-
-        // Rate limit
+        // Keep the existing provider spacing; this is not a provider-wide quota limiter.
         await new Promise(resolve => setTimeout(resolve, 2000));
-      } catch (error) {
-        console.error(`Error processing show ${show._id}:`, error);
       }
+    } finally {
+      await ctx.runMutation(internalRef.maintenance.releaseLock, { name });
     }
-
-    console.log(`✅ Check complete: ${setlistsSynced} setlists synced`);
     return null;
   },
 });
@@ -406,54 +419,83 @@ export const scanPendingImports = internalAction({
   },
 });
 
+// Bootstrap legacy records in bounded pages. New completions are queued by shows.ts.
+export const prepareCompletedShowImports = internalMutation({
+  args: { cursor: v.optional(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const windowStart = new Date(now - 14 * 86400000).toISOString().slice(0, 10);
+    const today = new Date(now).toISOString().slice(0, 10);
+    const result = await ctx.db.query("shows")
+      .withIndex("by_status_and_date", q =>
+        q.eq("status", "completed").gte("date", windowStart).lte("date", today))
+      .paginate({ numItems: 200, cursor: args.cursor ?? null });
+    for (const show of result.page) {
+      if (show.importStatus === "completed" || show.importNextAttemptAt !== undefined) continue;
+      const retry = show.importStatus === "not_found" || show.importStatus === "failed" ||
+        show.importStatus === "importing";
+      await ctx.db.patch(show._id, {
+        importStatus: show.importStatus ?? "pending",
+        importAttemptCount: show.importAttemptCount ?? (retry ? 1 : 0),
+        // lastSynced is used once for legacy migration, never for subsequent retries.
+        importNextAttemptAt: retry
+          ? Math.max(now, (show.importLastAttemptAt ?? show.lastSynced ?? 0) +
+              (show.importStatus === "not_found" ? 86400000 : 3600000))
+          : now,
+      });
+    }
+    if (!result.isDone) await ctx.scheduler.runAfter(0,
+      internalRef.setlistfm.prepareCompletedShowImports, { cursor: result.continueCursor });
+    return null;
+  },
+});
+
 export const getCompletedShowsNeedingImport = internalQuery({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx) => {
     const now = Date.now();
-    const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
-    const today = new Date(now).toISOString().slice(0, 10);
-    const windowStart = new Date(now - 14 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .slice(0, 10);
+    const groups = await Promise.all(
+      (["pending", "failed", "not_found", "importing"] as const).map(status =>
+        ctx.db.query("shows").withIndex("by_status_import_due", q =>
+          q.eq("status", "completed").eq("importStatus", status)
+            .gte("importNextAttemptAt", 0).lte("importNextAttemptAt", now))
+          .take(40))
+    );
+    const due = groups.flat().sort((a, b) =>
+      (a.importNextAttemptAt ?? 0) - (b.importNextAttemptAt ?? 0) ||
+      a.date.localeCompare(b.date) || a._id.localeCompare(b._id));
+    const firstAttempts = due.filter(s => (s.importAttemptCount ?? 0) === 0).slice(0, 20);
+    const retries = due.filter(s => (s.importAttemptCount ?? 0) > 0).slice(0, 10);
+    return [...firstAttempts, ...retries];
+  },
+});
 
-    // Scan a bounded 14-day date window instead of filtering the full
-    // completed-shows table: an index filter that finds few matches scans
-    // until the 4096-document read limit and kills the cron. Setlist.fm data
-    // lands 1-3 days after a show; beyond 14 days it almost never appears, so
-    // recent shows are also the only ones worth the daily API budget. Older
-    // backlog is handled by admin backfill actions.
-    const recent = await ctx.db
-      .query("shows")
-      .withIndex("by_status_and_date", (q) =>
-        q.eq("status", "completed").gte("date", windowStart).lte("date", today),
-      )
-      .order("desc")
-      .take(600);
-
-    // First-time imports, newest shows first (batch of 20; per-show 2s spacing
-    // in checkCompletedShows keeps us within setlist.fm rate limits).
-    const newShows = recent
-      .filter(
-        (s) =>
-          s.importStatus === undefined ||
-          s.importStatus === "pending" ||
-          s.importStatus === "failed"
-      )
-      .slice(0, 20);
-
-    // Retry "not_found" once per 24h while the show is inside the 14-day
-    // window, then stop — previously these retried forever and ancient shows
-    // starved the retry budget for fresh ones.
-    const retryShows = recent
-      .filter(
-        (s) =>
-          s.importStatus === "not_found" &&
-          (s.lastSynced ?? 0) < twentyFourHoursAgo
-      )
-      .slice(0, 10);
-
-    return [...newShows, ...retryShows];
+export const reserveCompletedShowImport = internalMutation({
+  args: { showId: v.id("shows"), initialize: v.optional(v.boolean()) },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const show = await ctx.db.get(args.showId);
+    const now = Date.now();
+    if (!show || show.status !== "completed" || show.importStatus === "completed" ||
+        (show.importNextAttemptAt === undefined && !args.initialize) ||
+        (show.importNextAttemptAt ?? 0) > now) return false;
+    const windowStart = new Date(now - 14 * 86400000).toISOString().slice(0, 10);
+    if (show.date < windowStart) {
+      await ctx.db.patch(show._id, { importNextAttemptAt: undefined });
+      return false;
+    }
+    if (!hasShowEnded(show, now)) {
+      await ctx.db.patch(show._id, { importNextAttemptAt: now + 3600000 });
+      return false;
+    }
+    await ctx.db.patch(show._id, {
+      importStatus: "importing", importLastAttemptAt: now,
+      importNextAttemptAt: now + 3600000, // recover a crashed action after its lease expires
+      importAttemptCount: (show.importAttemptCount ?? 0) + 1,
+    });
+    return true;
   },
 });
 

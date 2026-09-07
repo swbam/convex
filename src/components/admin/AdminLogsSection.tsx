@@ -1,5 +1,5 @@
 import React from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { Activity, Shield, TrendingUp, Music, UserCheck } from "lucide-react";
 
 const stagger = {
@@ -7,7 +7,7 @@ const stagger = {
     show: { opacity: 1, transition: { staggerChildren: 0.03 } },
 };
 
-const fadeUp = {
+const fadeUp: Variants = {
     hidden: { opacity: 0, y: 8 },
     show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] } },
 };

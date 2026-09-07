@@ -7,20 +7,21 @@ import { MagicCard } from '../components/ui/magic-card';
 import { Music, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { capture, captureException, consumeOAuthIntent } from '../lib/analytics';
+import { safeReturnTo } from '../lib/navigation';
 
 /**
  * SSO Callback Page
  * Handles OAuth redirects from Clerk (Spotify, Google, etc.)
  */
 export function SSOCallback() {
-  const { handleRedirectCallback, clerk } = useClerk();
+  const clerk = useClerk();
+  const { handleRedirectCallback } = clerk;
   const { user } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
   const [error, setError] = React.useState<string | null>(null);
   const [isImportingSpotify, setIsImportingSpotify] = React.useState(false);
-  const completeSpotifyImport = useAction(api.spotifyOAuth.completeSpotifyImport);
-  const storeSpotifyTokens = useAction(api.spotifyAuth.storeSpotifyTokens);
+  const completeSpotifyImport = useAction(api.spotifyOAuth.importLinkedSpotify);
   const spotifyImportTimeout = useRef<number | null>(null);
   const hasHandledCallback = useRef(false);
 
@@ -33,8 +34,7 @@ export function SSOCallback() {
 
     async function handleCallback() {
       try {
-        const returnToParam = new URLSearchParams(location.search).get('returnTo');
-        const returnTo = returnToParam && returnToParam.startsWith('/') ? returnToParam : '/';
+        const returnTo = safeReturnTo(new URLSearchParams(location.search).get('returnTo'));
 
         // Handle the OAuth callback
         await handleRedirectCallback({
@@ -42,8 +42,7 @@ export function SSOCallback() {
           afterSignUpUrl: returnTo,
         });
 
-        // Ensure Clerk has the latest session data before inspecting accounts
-        await clerk.load();
+        // useClerk already supplies the loaded client.
         const oauthIntent = consumeOAuthIntent();
         if (oauthIntent?.auth_mode !== 'link') {
           capture('auth_completed', {
@@ -67,66 +66,15 @@ export function SSOCallback() {
 
             if (latestUser?.externalAccounts) {
               const spotifyAccount = latestUser.externalAccounts.find(
-                (account) => account.provider === 'spotify' || account.provider === 'oauth_spotify'
+                (account) => ['spotify', 'oauth_spotify'].includes(account.provider)
               );
               
               if (spotifyAccount) {
                 setIsImportingSpotify(true);
                 
-                const accessToken = await latestUser.getToken({ template: 'spotify' });
-                
-                if (!accessToken) {
-                  capture('spotify_connect_failed', {
-                    source: oauthIntent?.source || 'spotify_callback',
-                    error_type: 'token_unavailable',
-                  });
-                  toast.warning('Spotify connected but token not available', {
-                    description: 'You can manually sync from your profile later.',
-                  });
-                  navigate(returnTo);
-                  return;
-                }
-
                 try {
-                  const spotifyExternal = spotifyAccount as unknown as Record<string, any>;
-                  const rawRefreshToken =
-                    spotifyExternal?.refresh_token ??
-                    spotifyExternal?.token?.refreshToken ??
-                    spotifyExternal?.token?.refresh_token ??
-                    null;
-                  const scope =
-                    spotifyExternal?.scope ?? spotifyExternal?.token?.scope ?? undefined;
-                  const tokenType =
-                    spotifyExternal?.token_type ??
-                    spotifyExternal?.token?.tokenType ??
-                    'Bearer';
-                  const expiresInValue =
-                    typeof spotifyExternal?.expires_in === 'number'
-                      ? spotifyExternal.expires_in
-                      : typeof spotifyExternal?.token?.expiresIn === 'number'
-                        ? spotifyExternal.token.expiresIn
-                        : 3600;
-                  const expiresAt = Date.now() + Math.max(expiresInValue, 300) * 1000;
-
-                  const providerId = spotifyAccount.providerUserId || (spotifyAccount as any).provider_user_id;
-                  if (providerId) {
-                    await storeSpotifyTokens({
-                      spotifyId: providerId,
-                      accessToken,
-                      refreshToken: rawRefreshToken ?? undefined,
-                      expiresAt,
-                      scope,
-                      tokenType,
-                    });
-                  }
-                } catch {
-                  // Token storage failed, continue anyway
-                }
-                
-                try {
-                  const result = await completeSpotifyImport({
-                    accessToken: accessToken,
-                  });
+                  const result = await completeSpotifyImport({});
+                  if (!result.success) throw new Error(result.message);
                   
                   if (result.imported > 0 || result.correlated > 0) {
                     capture('spotify_connect_completed', {
@@ -187,7 +135,7 @@ export function SSOCallback() {
         spotifyImportTimeout.current = null;
       }
     };
-  }, [handleRedirectCallback, clerk, user, navigate, location.search, completeSpotifyImport, storeSpotifyTokens]);
+  }, [handleRedirectCallback, clerk, user, navigate, location.search, completeSpotifyImport]);
 
   if (error) {
     return (
@@ -211,7 +159,7 @@ export function SSOCallback() {
           <Music className="h-8 w-8 text-[#1DB954]" />
         </div>
         <h2 className="text-2xl font-bold text-foreground mb-2">Completing Sign In...</h2>
-        <p className="text-muted-foreground mb-6">Setting up your account with Spotify</p>
+        <p className="text-muted-foreground mb-6">{isImportingSpotify ? 'Importing your Spotify artists' : 'Preparing your account'}</p>
         <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
         <p className="text-sm text-muted-foreground mt-4">This should only take a moment</p>
       </MagicCard>

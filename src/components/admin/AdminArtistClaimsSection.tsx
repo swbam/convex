@@ -1,5 +1,5 @@
 import React from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { UserCheck, Loader2 } from "lucide-react";
 import { Button } from "../ui/button";
 
@@ -8,14 +8,14 @@ const stagger = {
     show: { opacity: 1, transition: { staggerChildren: 0.06 } },
 };
 
-const fadeUp = {
+const fadeUp: Variants = {
     hidden: { opacity: 0, y: 8 },
     show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] } },
 };
 
 interface AdminArtistClaimsSectionProps {
     pendingClaims: any[] | undefined;
-    onApprove: (claim: any) => void;
+    onApprove: (claim: any, options: { role: "owner" | "manager" | "viewer"; trustWebsiteDomain?: boolean }) => void;
     onReject: (claim: any) => void;
 }
 
@@ -25,11 +25,23 @@ export function AdminArtistClaimsSection({
     onReject,
 }: AdminArtistClaimsSectionProps) {
     const shouldReduce = useReducedMotion();
+    const [trustedDomains, setTrustedDomains] = React.useState<Record<string, boolean>>({});
+    const [roles, setRoles] = React.useState<Record<string, "owner" | "manager" | "viewer">>({});
+
+    const safeHttpsUrl = (value: unknown) => {
+        if (typeof value !== "string") return null;
+        try {
+            const url = new URL(value);
+            return url.protocol === "https:" ? url.toString() : null;
+        } catch {
+            return null;
+        }
+    };
 
     return (
         <motion.div
             variants={stagger}
-            initial="hidden"
+            initial={shouldReduce ? false : "hidden"}
             animate="show"
             className="space-y-5"
         >
@@ -101,9 +113,9 @@ export function AdminArtistClaimsSection({
                                     )}
 
                                     {/* Links */}
-                                    {c.officialWebsite && (
+                                    {safeHttpsUrl(c.officialWebsite) && (
                                         <div className="text-xs">
-                                            <a href={c.officialWebsite} target="_blank" rel="noopener noreferrer" className="text-blue-400/80 hover:text-blue-400 hover:underline transition-colors">
+                                            <a href={safeHttpsUrl(c.officialWebsite)!} target="_blank" rel="noopener noreferrer" className="text-blue-400/80 hover:text-blue-400 hover:underline transition-colors">
                                                 {c.officialWebsite}
                                             </a>
                                         </div>
@@ -136,13 +148,48 @@ export function AdminArtistClaimsSection({
                                             ))}
                                         </div>
                                     )}
+
+                                    {safeHttpsUrl(c.officialWebsite) && (
+                                        <label className="mt-3 flex max-w-xl cursor-pointer items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.04] p-3 text-xs text-muted-foreground">
+                                            <input
+                                                type="checkbox"
+                                                className="mt-0.5"
+                                                checked={Boolean(trustedDomains[c._id])}
+                                                onChange={(event) => setTrustedDomains((current) => ({
+                                                    ...current,
+                                                    [c._id]: event.target.checked,
+                                                }))}
+                                            />
+                                            <span>
+                                                Record this domain as independently reviewed evidence. All claims still require manual approval.
+                                            </span>
+                                        </label>
+                                    )}
                                 </div>
 
                                 {/* Action buttons */}
-                                <div className="flex gap-2 flex-shrink-0">
+                                <div className="flex flex-wrap items-end gap-2 flex-shrink-0">
+                                    <label className="grid gap-1 text-xs text-muted-foreground">
+                                        Grant access as
+                                        <select
+                                            aria-label={`Access role for ${c.artist?.name ?? "artist"}`}
+                                            value={roles[c._id] ?? ""}
+                                            onChange={(event) => setRoles((current) => ({
+                                                ...current,
+                                                [c._id]: event.target.value as "owner" | "manager" | "viewer",
+                                            }))}
+                                            className="h-9 rounded-md border border-border bg-background px-2 text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                                        >
+                                            <option value="" disabled>Select role</option>
+                                            <option value="owner">Owner / account administrator</option>
+                                            <option value="manager">Manager</option>
+                                            <option value="viewer">Viewer</option>
+                                        </select>
+                                    </label>
                                     <Button
                                         size="sm"
-                                        onClick={() => onApprove(c)}
+                                        disabled={!roles[c._id] || !c.emailVerified || !c.officialRole}
+                                        onClick={() => onApprove(c, { role: roles[c._id], trustWebsiteDomain: Boolean(trustedDomains[c._id]) })}
                                         className="bg-emerald-600/90 hover:bg-emerald-600 text-white border-0 h-8"
                                     >
                                         Approve

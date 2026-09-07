@@ -71,7 +71,8 @@ API key must never be put in `VITE_*` variables or browser code.
 | `song_add_rejected` | A valid add attempt is rejected | `show_id`, `song_id`, `reason` |
 | `song_vote_changed` | A song vote is successfully added or removed | `show_id`, `setlist_id`, `action`, `vote_count_after`, `auth_state` |
 | `anonymous_limit_reached` | A visitor reaches a free add or vote limit | `action_type`, `show_id`, `actions_used`, `free_limit` |
-| `official_setlist_imported` | Convex writes a setlist.fm result | `show_id`, `artist_id`, `actual_song_count`, `prediction_accuracy` |
+| `show_shared` | A fan or artist shares a show voting or historical-setlist page | `show_id`, `method`, `share_context` |
+| `official_setlist_imported` | Convex first writes an actual setlist from a given source ID, through show import, history import, or actual-setlist update | `show_id`, `artist_id`, `actual_song_count`, `import_source`, optional `prediction_accuracy` |
 | `official_setlist_viewed` | A fan views a completed official setlist | `show_id`, `artist_id`, `song_count`, `source` |
 | `setlist_import_retry_requested` | A user asks Convex to retry an import | `show_id`, `artist_id`, `prior_import_status` |
 
@@ -98,8 +99,9 @@ API key must never be put in `VITE_*` variables or browser code.
 | `artist_claim_details_saved` | Professional details are saved | role and proof-presence booleans |
 | `artist_claim_verification_attempted` | Domain or website verification returns | method, `matched`, `auto_approved` |
 | `artist_claim_submitted` | Manual review submission succeeds | role and verification state |
-| `artist_claim_approved` | Convex grants membership | method, automatic/manual, role |
-| `artist_warmup_completed` | Autonomous claim/catalog/show warmup completes | steps, counts, duration, reason |
+| `artist_claim_approved` | Admin explicitly approves a verified claim and grants membership | manual method, selected role |
+| `artist_warmup_completed` | Warmup finishes with fresh shows and a completed, fresh catalog | steps, counts, duration, reason, `imports_pending` |
+| `artist_warmup_partial` | Warmup returns with incomplete catalog or show freshness | `incomplete_stages`, `catalog_status`, counts, duration, `imports_pending` |
 | `artist_warmup_failed` | Autonomous warmup fails | reason, error type, duration |
 | `artist_dashboard_viewed` | Dashboard data loads | role, show/vote/song summary counts |
 | `artist_show_demand_viewed` | A show demand report loads | show status, song count, vote total, report state |
@@ -140,9 +142,14 @@ conversions when operational volume matters.
 5. **Artist claim conversion**
    `artist_portal_viewed` → `artist_claim_started` →
    `artist_claim_email_verified` → `artist_claim_details_saved` →
-   `artist_claim_submitted` or `artist_claim_verification_attempted` →
-   `artist_claim_approved`. Split automatic and manual approval paths rather
-   than forcing them through identical steps.
+   `artist_claim_submitted` → `artist_claim_approved`. All approvals require
+   manual review. Track optional `artist_claim_verification_attempted` in a
+   separate evidence-collection funnel, not as automatic approval.
+
+   The production launch dashboard was aligned on September 6, 2026: the old
+   automatic-verification insight now measures evidence collection, the manual
+   funnel no longer requires the retired `automatic` property, and pipeline
+   outcomes include `artist_warmup_partial` separately from completed warmups.
 
 6. **Artist time-to-value**
    `artist_claim_approved` → `artist_warmup_completed` →
@@ -161,6 +168,11 @@ conversions when operational volume matters.
    `spotify_connect_started` → `spotify_connect_completed`, with
    `spotify_connect_failed` as a failure trend. Break down by source, mode,
    error type, and device class.
+
+9. **Show distribution loop**
+   `artist_show_demand_viewed` or `show_viewed` → `show_shared` → subsequent
+   `show_viewed` sessions carrying the shared-link acquisition source. Break
+   down the share event by native share versus copied link and by device class.
 
 ## Launch dashboard
 

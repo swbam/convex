@@ -1,4 +1,11 @@
-import { query, mutation, QueryCtx, MutationCtx } from "./_generated/server";
+import {
+  query,
+  mutation,
+  internalQuery,
+  internalMutation,
+  QueryCtx,
+  MutationCtx,
+} from "./_generated/server";
 import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
 import { internalRef } from "./adminHelpers";
@@ -425,121 +432,131 @@ export const leaveArtistTeam = mutation({
 });
 
 // ============================================================================
-// ENHANCED INVITE SYSTEM
+// SECURE INVITE STORAGE
+// Token generation, hashing, and email delivery live in artistInvites.ts. These
+// database functions never return or persist a new plaintext bearer token.
 // ============================================================================
 
-// Generate a secure invite token
-function generateInviteToken(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let token = '';
-  for (let i = 0; i < 32; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return token;
-}
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+const validEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const INVITE_COOLDOWN_MS = 60_000;
+const MAX_INVITES_PER_HOUR = 25;
 
-const INVITE_EXPIRY_DAYS = 7;
-
-/**
- * Create an invite for a user by email.
- * Works even if the user doesn't have an account yet.
- */
-export const createInvite = mutation({
+export const prepareInvite = internalMutation({
   args: {
     artistId: v.id("artists"),
     email: v.string(),
     role: v.union(v.literal("manager"), v.literal("viewer")),
+    tokenHash: v.string(),
+    now: v.number(),
+    expiresAt: v.number(),
   },
   returns: v.object({
     success: v.boolean(),
     message: v.optional(v.string()),
-    inviteToken: v.optional(v.string()),
-    inviteUrl: v.optional(v.string()),
+    inviteId: v.optional(v.id("artistInvites")),
+    artistName: v.optional(v.string()),
+    invitedByName: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
-    // Verify caller is owner
     const { user } = await requireArtistAccess(ctx, args.artistId, "owner");
-    
-    // Get artist for name
     const artist = await ctx.db.get(args.artistId);
     if (!artist) return { success: false, message: "Artist not found" };
 
-    // Normalize email
-    const email = args.email.toLowerCase().trim();
-    
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return { success: false, message: "Invalid email address" };
+    const email = normalizeEmail(args.email);
+    if (!validEmail(email) || email.length > 320) {
+      return { success: false, message: "Enter a valid email address" };
     }
 
-    // Check if already a member
     const existingUser = await ctx.db
       .query("users")
       .withIndex("by_email", (q) => q.eq("email", email))
       .first();
-    
     if (existingUser) {
       const existingMember = await ctx.db
         .query("artistMembers")
         .withIndex("by_user_artist", (q) =>
-          q.eq("userId", existingUser._id).eq("artistId", args.artistId)
+          q.eq("userId", existingUser._id).eq("artistId", args.artistId),
         )
         .first();
-      
       if (existingMember) {
-        return { success: false, message: "This user is already a team member" };
+        return { success: false, message: "This person already has team access" };
       }
     }
 
-    // Check for existing pending invite
     const existingInvite = await ctx.db
       .query("artistInvites")
       .withIndex("by_artist_email", (q) =>
-        q.eq("artistId", args.artistId).eq("email", email)
+        q.eq("artistId", args.artistId).eq("email", email),
       )
       .filter((q) => q.eq(q.field("status"), "pending"))
       .first();
-    
-    if (existingInvite) {
-      // Return existing invite if not expired
-      if (existingInvite.expiresAt > Date.now()) {
-        const baseUrl = process.env.SITE_URL || "https://setlists.live";
-        return {
-          success: true,
-          message: "Invite already exists",
-          inviteToken: existingInvite.inviteToken,
-          inviteUrl: `${baseUrl}/for-artists/invite/${existingInvite.inviteToken}`,
-        };
-      }
-      // Mark as expired
-      await ctx.db.patch(existingInvite._id, { status: "expired" });
+
+    if (existingInvite && args.now - existingInvite.createdAt < INVITE_COOLDOWN_MS) {
+      return { success: false, message: "Wait a minute before sending another invitation" };
     }
 
-    // Create new invite
-    const inviteToken = generateInviteToken();
-    const expiresAt = Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-    
-    await ctx.db.insert("artistInvites", {
-      artistId: args.artistId,
-      email,
-      role: args.role,
-      status: "pending",
-      inviteToken,
-      invitedBy: user._id,
-      createdAt: Date.now(),
-      expiresAt,
-    });
+    const recentInvites = await ctx.db
+      .query("artistInvites")
+      .withIndex("by_artist_created_at", (q) =>
+        q.eq("artistId", args.artistId).gte("createdAt", args.now - 60 * 60 * 1000),
+      )
+      .take(MAX_INVITES_PER_HOUR + 1);
+    if (recentInvites.length >= MAX_INVITES_PER_HOUR) {
+      return { success: false, message: "Hourly invitation limit reached. Try again later." };
+    }
 
-    const baseUrl = process.env.SITE_URL || "https://setlists.live";
-    const inviteUrl = `${baseUrl}/for-artists/invite/${inviteToken}`;
+    let inviteId: Id<"artistInvites">;
+    if (existingInvite) {
+      inviteId = existingInvite._id;
+      await ctx.db.patch(inviteId, {
+        role: args.role,
+        tokenHash: args.tokenHash,
+        inviteToken: undefined,
+        invitedBy: user._id,
+        createdAt: args.now,
+        expiresAt: args.expiresAt,
+        sentAt: undefined,
+        deliveryStatus: undefined,
+      });
+    } else {
+      inviteId = await ctx.db.insert("artistInvites", {
+        artistId: args.artistId,
+        email,
+        role: args.role,
+        status: "pending",
+        tokenHash: args.tokenHash,
+        invitedBy: user._id,
+        createdAt: args.now,
+        expiresAt: args.expiresAt,
+      });
+    }
 
     return {
       success: true,
-      message: `Invite sent to ${email}`,
-      inviteToken,
-      inviteUrl,
+      inviteId,
+      artistName: artist.name,
+      invitedByName: user.name || user.username || "An artist team owner",
     };
+  },
+});
+
+export const recordInviteDelivery = internalMutation({
+  args: {
+    inviteId: v.id("artistInvites"),
+    deliveryStatus: v.union(
+      v.literal("sent"),
+      v.literal("not_configured"),
+      v.literal("failed"),
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.inviteId, {
+      deliveryStatus: args.deliveryStatus,
+      sentAt: args.deliveryStatus === "sent" ? Date.now() : undefined,
+    });
+    return null;
   },
 });
 
@@ -553,15 +570,13 @@ export const getPendingInvites = query({
     const user = await getCurrentAppUser(ctx);
     if (!user) return [];
     
-    // Verify caller has at least manager access
     const membership = await ctx.db
       .query("artistMembers")
       .withIndex("by_user_artist", (q) =>
-        q.eq("userId", user._id).eq("artistId", args.artistId)
+        q.eq("userId", user._id).eq("artistId", args.artistId),
       )
       .first();
-    
-    if (!membership) return [];
+    if (membership?.role !== "owner") return [];
     
     const invites = await ctx.db
       .query("artistInvites")
@@ -579,10 +594,13 @@ export const getPendingInvites = query({
         continue;
       }
       
-      const invitedByUser = await ctx.db.get(invite.invitedBy);
       validInvites.push({
-        ...invite,
-        invitedByName: invitedByUser?.name || invitedByUser?.email || "Unknown",
+        _id: invite._id,
+        email: invite.email,
+        role: invite.role,
+        createdAt: invite.createdAt,
+        expiresAt: invite.expiresAt,
+        deliveryStatus: invite.deliveryStatus,
         daysRemaining: Math.ceil((invite.expiresAt - now) / (24 * 60 * 60 * 1000)),
       });
     }
@@ -651,13 +669,14 @@ export const getMyPendingInvites = query({
       if (invite.expiresAt < now) continue;
       
       const artist = await ctx.db.get(invite.artistId);
-      const invitedByUser = await ctx.db.get(invite.invitedBy);
-      
       validInvites.push({
-        ...invite,
+        _id: invite._id,
+        artistId: invite.artistId,
+        role: invite.role,
+        status: invite.status,
+        expiresAt: invite.expiresAt,
         artistName: artist?.name || "Unknown Artist",
         artistImage: artist?.images?.[0],
-        invitedByName: invitedByUser?.name || invitedByUser?.email || "Unknown",
       });
     }
     
@@ -665,11 +684,36 @@ export const getMyPendingInvites = query({
   },
 });
 
-/**
- * Accept an invite by token.
- */
-export const acceptInvite = mutation({
-  args: { inviteToken: v.string() },
+export const getInvitePreviewByHash = internalQuery({
+  args: { tokenHash: v.string() },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    let invite = await ctx.db
+      .query("artistInvites")
+      .withIndex("by_token_hash", (q) => q.eq("tokenHash", args.tokenHash))
+      .first();
+    if (!invite) return null;
+
+    const [artist, invitedByUser] = await Promise.all([
+      ctx.db.get(invite.artistId),
+      ctx.db.get(invite.invitedBy),
+    ]);
+    const isExpired = invite.expiresAt < Date.now();
+    return {
+      artistId: invite.artistId,
+      artistName: artist?.name || "Unknown Artist",
+      artistImage: artist?.images?.[0],
+      invitedByName: invitedByUser?.name || invitedByUser?.username || "An artist team owner",
+      role: invite.role,
+      status: isExpired && invite.status === "pending" ? "expired" : invite.status,
+      isExpired,
+      isValid: invite.status === "pending" && !isExpired,
+    };
+  },
+});
+
+export const acceptInviteByHash = internalMutation({
+  args: { tokenHash: v.string() },
   returns: v.object({
     success: v.boolean(),
     message: v.optional(v.string()),
@@ -682,12 +726,10 @@ export const acceptInvite = mutation({
       return { success: false, message: "Please sign in first" };
     }
     
-    // Find the invite
-    const invite = await ctx.db
+    let invite = await ctx.db
       .query("artistInvites")
-      .withIndex("by_token", (q) => q.eq("inviteToken", args.inviteToken))
+      .withIndex("by_token_hash", (q) => q.eq("tokenHash", args.tokenHash))
       .first();
-    
     if (!invite) {
       return { success: false, message: "Invalid invite link" };
     }
@@ -707,11 +749,12 @@ export const acceptInvite = mutation({
       return { success: false, message: "This invite has expired" };
     }
     
-    // Check email match (optional - allows any signed-in user to accept)
-    // For stricter security, uncomment this:
-    // if (user.email?.toLowerCase() !== invite.email) {
-    //   return { success: false, message: "This invite was sent to a different email address" };
-    // }
+    if (!user.email || normalizeEmail(user.email) !== invite.email) {
+      return {
+        success: false,
+        message: "Sign in with the same email address this invitation was sent to",
+      };
+    }
     
     const artist = await ctx.db.get(invite.artistId);
     if (!artist) {
@@ -730,6 +773,7 @@ export const acceptInvite = mutation({
       // Mark invite as accepted anyway
       await ctx.db.patch(invite._id, {
         status: "accepted",
+        inviteToken: undefined,
         acceptedAt: Date.now(),
         acceptedBy: user._id,
       });
@@ -756,6 +800,7 @@ export const acceptInvite = mutation({
     // Mark invite as accepted
     await ctx.db.patch(invite._id, {
       status: "accepted",
+      inviteToken: undefined,
       acceptedAt: Date.now(),
       acceptedBy: user._id,
     });
@@ -770,37 +815,6 @@ export const acceptInvite = mutation({
       message: `Welcome to ${artist.name}'s team!`,
       artistId: invite.artistId,
       artistName: artist.name,
-    };
-  },
-});
-
-/**
- * Get invite details by token (for the accept page).
- */
-export const getInviteByToken = query({
-  args: { inviteToken: v.string() },
-  returns: v.any(),
-  handler: async (ctx, args) => {
-    const invite = await ctx.db
-      .query("artistInvites")
-      .withIndex("by_token", (q) => q.eq("inviteToken", args.inviteToken))
-      .first();
-    
-    if (!invite) return null;
-    
-    const artist = await ctx.db.get(invite.artistId);
-    const invitedByUser = await ctx.db.get(invite.invitedBy);
-    
-    const isExpired = invite.expiresAt < Date.now();
-    const isValid = invite.status === "pending" && !isExpired;
-    
-    return {
-      ...invite,
-      artistName: artist?.name || "Unknown Artist",
-      artistImage: artist?.images?.[0],
-      invitedByName: invitedByUser?.name || invitedByUser?.email || "Someone",
-      isExpired,
-      isValid,
     };
   },
 });

@@ -9,6 +9,7 @@ import { BorderBeam } from "./ui/border-beam";
 import { motion } from "framer-motion";
 import { formatLocation } from "../lib/utils";
 import { capture } from "../lib/analytics";
+import { SEOHead } from "./SEOHead";
 
 interface VenueDetailProps {
   venueId: Id<"venues">;
@@ -54,6 +55,8 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
   const pastShows = venueShows?.filter(show => show.status === "completed") || [];
 
   return (
+    <>
+      <SEOHead />
     <motion.div 
       className="container mx-auto px-4 py-6 sm:py-8 space-y-6 sm:space-y-8"
       initial={{ opacity: 0, y: 20 }}
@@ -229,5 +232,6 @@ export function VenueDetail({ venueId, onBack, onShowClick }: VenueDetailProps) 
         </MagicCard>
       </div>
     </motion.div>
+    </>
   );
 }

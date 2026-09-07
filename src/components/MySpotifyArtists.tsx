@@ -19,10 +19,10 @@ export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
     limit: 50, 
     onlyWithShows: !showAll // Show only artists with upcoming shows unless "Show all" is toggled
   });
-  const syncShows = useAction(api.ticketmaster.searchAndSyncArtistShows);
+  const syncShows = useAction(api.ticketmaster.triggerFullArtistSync);
 
   // Sort: top artists first (by rank), then followed artists, then by show count
-  const sortedArtists = myArtists?.sort((a, b) => {
+  const sortedArtists = myArtists?.slice().sort((a, b) => {
     // Top artists always first, sorted by rank
     if (a.isTopArtist && !b.isTopArtist) return -1;
     if (!a.isTopArtist && b.isTopArtist) return 1;
@@ -37,7 +37,12 @@ export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
 
   const handleSyncShows = async (artistId: Id<"artists">, name: string) => {
     try {
-      await syncShows({ artistId, artistName: name });
+      const artist = myArtists?.find(item => item.artist._id === artistId)?.artist;
+      if (!artist?.ticketmasterId) {
+        toast.info("Show matching is still in progress. Check back shortly.");
+        return;
+      }
+      await syncShows({ ticketmasterId: artist.ticketmasterId, artistName: name });
       toast.success("Syncing shows...");
     } catch (e) {
       toast.error("Sync failed");

@@ -2,6 +2,7 @@ import { query, internalQuery, internalMutation, action } from "./_generated/ser
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { internalRef } from "./adminHelpers";
+import { hasShowEnded } from "./lib/showTiming";
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -716,10 +717,16 @@ export const createFromTicketmaster = internalMutation({
     ticketmasterId: v.string(),
     date: v.string(),
     startTime: v.optional(v.string()),
+    startsAt: v.optional(v.number()),
+    endsAt: v.optional(v.number()),
+    timeZone: v.optional(v.string()),
     status: v.union(v.literal("upcoming"), v.literal("completed"), v.literal("cancelled")),
     ticketUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Preserve cancellations; never complete from a UTC date boundary.
+    const status = args.status === "cancelled" ? "cancelled" :
+      hasShowEnded(args) ? "completed" : "upcoming";
     // Check for existing show by multiple criteria to avoid duplicates
     let existing = await ctx.db
       .query("shows")
@@ -742,9 +749,13 @@ export const createFromTicketmaster = internalMutation({
       };
       if (args.ticketmasterId && args.ticketmasterId !== existing.ticketmasterId) patch.ticketmasterId = args.ticketmasterId;
       if (args.ticketUrl !== existing.ticketUrl) patch.ticketUrl = args.ticketUrl;
-      if (args.status !== existing.status) patch.status = args.status;
+      if (status !== existing.status) patch.status = status;
       if (args.date !== existing.date) patch.date = args.date;
       if (args.startTime !== existing.startTime) patch.startTime = args.startTime;
+      // Provider schedule changes invalidate timestamps even if the new time is TBA.
+      if (args.startsAt !== existing.startsAt) patch.startsAt = args.startsAt;
+      if (args.endsAt !== existing.endsAt) patch.endsAt = args.endsAt;
+      if (args.timeZone !== existing.timeZone) patch.timeZone = args.timeZone;
       if (args.venueId !== existing.venueId) patch.venueId = args.venueId;
       if (Object.keys(patch).length > 1) {
         await ctx.db.patch(existing._id, patch);
@@ -791,7 +802,10 @@ export const createFromTicketmaster = internalMutation({
       venueId: args.venueId,
       date: args.date,
       startTime: args.startTime,
-      status: args.status,
+      status,
+      startsAt: args.startsAt,
+      endsAt: args.endsAt,
+      timeZone: args.timeZone,
       ticketmasterId: args.ticketmasterId,
       ticketUrl: args.ticketUrl,
       slug,
@@ -803,7 +817,7 @@ export const createFromTicketmaster = internalMutation({
       lastTrendingUpdate: Date.now(), // Initialize trending timestamp
       priceRange: undefined, // Will be set if available from Ticketmaster
       setlistfmId: undefined, // Will be set when setlist imported
-      importStatus: args.status === "completed" ? "pending" : undefined, // Auto-queue completed shows for import
+      importStatus: status === "completed" ? "pending" : undefined, // Auto-queue completed shows for import
     });
 
     console.log(`✅ Created show ${showId} with slug: ${slug}`);
@@ -961,9 +975,17 @@ export const updateImportStatus = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const show = await ctx.db.get(args.showId);
+    if (!show) return null;
+    // A late failure from a concurrent request cannot undo a successful actual import.
+    if (show.importStatus === "completed" && show.setlistfmId && args.status !== "completed") return null;
+    const now = Date.now();
     await ctx.db.patch(args.showId, {
       importStatus: args.status,
-      lastSynced: Date.now(), // Update sync timestamp
+      importLastAttemptAt: now,
+      importNextAttemptAt: args.status === "completed" ? undefined :
+        now + (args.status === "not_found" ? 24 : 1) * 60 * 60 * 1000,
+      lastSynced: now,
     });
     return null;
   },
@@ -1009,21 +1031,7 @@ export const markCompleted = internalMutation({
       throw new Error("Show not found");
     }
 
-    // Date validation: ensure date is valid ISO and in the past or today
-    const showDate = new Date(show.date);
-    if (isNaN(showDate.getTime())) {
-      throw new Error(`Invalid date format for show ${args.showId}: ${show.date}`);
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize to start of day
-    const showDay = new Date(showDate);
-    showDay.setHours(0, 0, 0, 0);
-
-    if (showDay > today) {
-      console.warn(`⚠️ Attempt to mark future show as completed: ${show.date} for ${args.showId}`);
-      // Optionally throw error or just log; for now, allow but warn
-    }
+    if (show.status === "cancelled" || !hasShowEnded(show)) return null;
 
     // If status is already completed, no-op
     if (show.status === "completed") {
@@ -1040,56 +1048,31 @@ export const markCompleted = internalMutation({
   },
 });
 
-// Auto-transition statuses for all shows based on current date
+// Bounded, resumable sweep. Runtime timezone never decides a show's local day.
 export const autoTransitionStatuses = internalMutation({
-  args: {},
+  args: { cursor: v.optional(v.string()) },
   returns: v.null(),
-  handler: async (ctx) => {
-    console.log("🔄 Auto-transitioning show statuses based on date...");
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayIso = today.toISOString().slice(0, 10);
-
-    // Get upcoming shows that might need transitioning
-    const upcomingShows = await ctx.db
-      .query("shows")
-      .withIndex("by_status_and_date", (q) =>
-        q.eq("status", "upcoming").lt("date", todayIso),
-      )
-      .collect();
-
-    let transitioned = 0;
-    let errors = 0;
-
-    for (const show of upcomingShows) {
-      try {
-        const showDate = new Date(show.date);
-        if (isNaN(showDate.getTime())) {
-          console.error(`Invalid date for show ${show._id}: ${show.date}`);
-          errors++;
-          continue;
-        }
-
-        const showDay = new Date(showDate);
-        showDay.setHours(0, 0, 0, 0);
-
-        if (showDay < today) {
-          // Transition to completed (or cancelled if needed, but assume completed)
-          await ctx.db.patch(show._id, {
-            status: "completed",
-            lastSynced: Date.now(),
-          });
-          transitioned++;
-          console.log(`✅ Auto-completed show ${show._id} (past date: ${show.date})`);
-        }
-      } catch (error) {
-        console.error(`Failed to transition show ${show._id}:`, error);
-        errors++;
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const horizon = new Date(now + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const batch = await ctx.db.query("shows")
+      .withIndex("by_status_and_date", (q) => q.eq("status", "upcoming").lte("date", horizon))
+      .paginate({ numItems: 200, cursor: args.cursor ?? null });
+    for (const show of batch.page) {
+      if (hasShowEnded(show, now)) {
+        await ctx.db.patch(show._id, {
+          status: "completed",
+          importStatus: show.importStatus ?? "pending",
+          importNextAttemptAt: show.importStatus === "completed" ? undefined : now,
+          lastSynced: now,
+        });
       }
     }
-
-    console.log(`Auto-transition complete: ${transitioned} shows transitioned, ${errors} errors`);
+    if (!batch.isDone) {
+      await ctx.scheduler.runAfter(0, internalRef.shows.autoTransitionStatuses, {
+        cursor: batch.continueCursor,
+      });
+    }
     return null;
   },
 });
@@ -1147,7 +1130,10 @@ export const getAllSlugs = internalQuery({
 
     const results: { slug: string; date: string; lastmod: number }[] = [];
     for (const s of [...upcoming, ...recent]) {
-      if (s.slug) {
+      const isIndexableCandidate =
+        s.status === "upcoming" ||
+        (s.status === "completed" && Boolean(s.setlistfmId));
+      if (s.slug && isIndexableCandidate) {
         results.push({
           slug: s.slug,
           date: s.date,
