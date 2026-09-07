@@ -1,9 +1,9 @@
 # Launch hardening — September 6, 2026
 
-Status: local implementation verified; production rollout authorized and in
-progress. Convex schema/functions deployed to `exuberant-weasel-22` on September
-6, 2026. The frontend release and live checks are recorded separately below.
-Passing local tests alone is not evidence of a successful production rollout.
+Status: deployed to production on September 6, 2026. Convex schema/functions,
+the Vercel frontend, and the PostHog launch dashboard changes are live. Release
+identifiers and the scope of live verification are recorded below. This is a
+deployment record, not a claim that every launch or security gate is resolved.
 
 ## Scope
 
@@ -190,6 +190,43 @@ Existing dashboards/insights were updated in place. No synthetic fan or artist
 conversion events were created; new events require real activity.
 
 ## Validation and release
+
+### Production deployment record
+
+- Backend: `https://exuberant-weasel-22.convex.cloud`; deployed schema/functions
+  and eight added indexes. Follow-up deployment comparison reported no config
+  changes. Existing orchestrated jobs remain enabled.
+- Frontend: `https://www.setlists.live` and `https://setlists.live`.
+- Final Vercel deployment: `dpl_8orJc6vTsAnP4qc2T8Nw6ya6BxSi`,
+  `https://convex-7wyhpdd5e-swbams-projects.vercel.app`, production / Ready.
+- Code commits on GitHub `main`: `07ba2b4` (launch hardening) and `919bea9`
+  (calendar-date display fix found during live verification).
+- PostHog: project `109917`, dashboard `2040675`; insights `EAzbjjQU`,
+  `srzYzrRO`, and `z2dn5p3t` updated in place and read back successfully.
+- No new environment keys. Local `.env*` and editor/MCP settings were excluded
+  from Vercel uploads and commits. Existing local configuration was preserved.
+
+Live checks verified homepage, artist, show, venue, and artist-portal rendering
+at 390px and 1440px viewport widths without uncaught browser exceptions or
+horizontal overflow. The September 18 Eagles show displays September 18 in
+Los Angeles and Auckland browser timezones after the final patch. These are
+Chromium viewport checks, not physical iPhone/Safari certification.
+
+Artist/show/venue initial HTML returns metadata and JSON-LD, and its JavaScript
+asset matches the current homepage bundle with a JavaScript content type.
+Unknown artist URLs return HTTP 404 with noindex; the sitemap returns HTTP 200.
+The optional Spotify/claim entry renders without login. Actual sign-in, email
+delivery, manual approval, and invitation acceptance still need controlled
+account smoke tests; no production claims or votes were fabricated.
+
+Recent Convex failure-log checks returned no failed app executions. The live
+PostHog SDK configuration/assets loaded successfully; browser automation did not
+establish new conversion-event ingestion. No synthetic funnel events were sent.
+
+Deployment used the authenticated Vercel CLI because no Vercel MCP was exposed
+in this session. The old CLI was rejected; Vercel 59.11.7 with a compressed
+upload completed successfully. Convex and PostHog MCPs verified their respective
+production state.
 
 Regression tests live in `src/lib/launchHardening.test.ts`, using the actual
 Convex schema, function handlers, authentication checks, scheduler records, and
