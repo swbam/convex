@@ -13,7 +13,7 @@ import { BorderBeam } from "./ui/border-beam";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { motion } from "framer-motion";
 import { useAction } from "convex/react";
-import { formatLocation, formatTimeCompact } from "../lib/utils";
+import { formatLocation, formatTimeCompact, parseShowCalendarDate } from "../lib/utils";
 import { DetailPageSkeleton } from "./LoadingSkeleton";
 import { capture, captureException } from "../lib/analytics";
 
@@ -524,7 +524,7 @@ function ArtistShowRow({
   past?: boolean;
   onClick: () => void;
 }) {
-  const date = new Date(show.date);
+  const date = parseShowCalendarDate(show.date);
   const month = date.toLocaleDateString('en-US', { month: 'short' });
   const day = date.getDate();
   const weekday = date.toLocaleDateString('en-US', { weekday: 'short' });

@@ -33,7 +33,7 @@ import { BorderBeam } from "./ui/border-beam";
 import { buildTicketmasterAffiliateUrl } from "../utils/ticketmaster";
 import { motion } from "framer-motion";
 import { SongCombobox } from "./SongCombobox";
-import { formatLocation } from "../lib/utils";
+import { formatLocation, parseShowCalendarDate } from "../lib/utils";
 import { DetailPageSkeleton } from "./LoadingSkeleton";
 import { capture, captureException } from "../lib/analytics";
 import { ShowShareButton } from "./ShowShareButton";
@@ -442,7 +442,7 @@ export function ShowDetail({
     return <DetailPageSkeleton />;
   }
 
-  const showDate = new Date(show.date);
+  const showDate = parseShowCalendarDate(show.date);
   const isUpcoming = show.status === "upcoming";
 
   // First-paint images straight from the show doc so the hero renders

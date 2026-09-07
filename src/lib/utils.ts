@@ -6,6 +6,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Display a venue-calendar date without shifting it into the viewer's previous
+ * day. Local noon is only a formatting anchor, never a concert start instant.
+ */
+export function parseShowCalendarDate(value: string): Date {
+  return new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00` : value);
+}
+
 export function useDebounce<T extends (...args: any[]) => any>(callback: T, delay: number) {
   const [debouncedCallback, setDebouncedCallback] = useState(callback);
 

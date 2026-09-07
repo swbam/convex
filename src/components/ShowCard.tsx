@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Id } from "../../convex/_generated/dataModel";
 import { Calendar, MapPin, ChevronRight, Ticket } from "lucide-react";
-import { formatLocation, formatShowTime } from "../lib/utils";
+import { formatLocation, formatShowTime, parseShowCalendarDate } from "../lib/utils";
 import { cn } from "../lib/utils";
 import { capture } from "../lib/analytics";
 import { buildTicketmasterAffiliateUrl } from "../utils/ticketmaster";
@@ -28,7 +28,7 @@ function ShowCardComponent({
   };
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = parseShowCalendarDate(dateStr);
     const month = date.toLocaleDateString('en-US', { month: 'short' });
     const day = date.getDate();
     const weekday = date.toLocaleDateString('en-US', { weekday: 'short' });

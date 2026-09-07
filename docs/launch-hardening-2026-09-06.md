@@ -93,6 +93,11 @@ Cancellations remain cancelled. Invalid dates do not become completed. The
 status sweep paginates in batches of 200 rather than scanning all overdue shows
 in one transaction. New imports no longer become completed at UTC midnight.
 
+The production browser smoke check also caught a date-only rendering bug:
+`new Date("2026-09-18")` appeared as September 17 in US browsers. Artist rows,
+show cards, and show headers now use a shared calendar-date formatting anchor.
+This changes display only, not stored show dates or actual start instants.
+
 The artist dashboard selects upcoming shows from `by_artist_status_and_date`
 before applying its 100-show limit, so the earliest shows cannot be excluded by
 creation order.
@@ -206,7 +211,8 @@ npm run build
 
 ### Verification outcome
 
-- All 47 automated tests pass, including 31 new hardening tests.
+- All 50 automated tests pass, including 31 backend hardening tests and three
+  additional calendar-date display regressions.
 - `npm run build:check` passes both Convex and explicit frontend/config checks.
 - The Vite production bundle builds successfully.
 - `git diff --check` passes.
