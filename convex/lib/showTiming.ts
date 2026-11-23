@@ -8,6 +8,22 @@ export interface ShowTiming {
   timeZone?: string;
 }
 
+/** Predictions close at the provider start, or at the start of the local show day when TBA. */
+export function hasVotingClosed(show: ShowTiming, now = Date.now()): boolean {
+  if (Number.isFinite(show.startsAt)) return now >= show.startsAt!;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(show.date)) return true;
+  if (show.timeZone) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: show.timeZone, year: "numeric", month: "2-digit", day: "2-digit",
+      }).formatToParts(new Date(now));
+      const get = (type: string) => parts.find(p => p.type === type)?.value ?? "";
+      return `${get("year")}-${get("month")}-${get("day")}` >= show.date;
+    } catch { /* Use a deterministic UTC date when no valid timezone is available. */ }
+  }
+  return new Date(now).toISOString().slice(0, 10) >= show.date;
+}
+
 /** Require an explicit offset; never parse a provider's local clock as UTC. */
 export function parseProviderTimestamp(value: unknown): number | undefined {
   if (typeof value !== "string" || !/(Z|[+-]\d{2}:\d{2})$/i.test(value)) return undefined;

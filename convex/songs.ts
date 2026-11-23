@@ -1,5 +1,7 @@
 import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { songKey } from "./lib/predictions";
+import { repertoireTitle } from "./lib/spotifyRepertoire";
 
 // Internal query to count songs for an artist
 export const countByArtist = internalQuery({
@@ -47,7 +49,9 @@ export const getByArtist = query({
     // Get the actual songs
     const songs = await Promise.all(
       artistSongs.map(async (artistSong) => {
-        return await ctx.db.get(artistSong.songId);
+        const song = await ctx.db.get(artistSong.songId);
+        const title = song && artistSong.source === "spotify_repertoire" ? repertoireTitle(song.title) : song?.title;
+        return song && title ? { ...song, title, repertoireSource: artistSong.source, album: song.album ?? (artistSong.source === "setlistfm" ? "Performed live · setlist.fm" : undefined) } : null;
       })
     );
 
@@ -56,7 +60,12 @@ export const getByArtist = query({
       .filter((s) => !s.isLive && !s.isRemix)
       .filter((s) => !/(commentary)/i.test(s.title || ''));
 
-    return studioSongs.sort((a, b) => (b?.popularity || 0) - (a?.popularity || 0));
+    const unique = new Map<string, any>();
+    for (const song of studioSongs.sort((a, b) => (b.popularity || 0) - (a.popularity || 0))) {
+      const key = songKey(song.title);
+      if (!unique.has(key)) unique.set(key, song);
+    }
+    return [...unique.values()];
   },
 });
 
@@ -212,7 +221,8 @@ export const deleteByArtist = internalMutation({
     // Delete songs and relationships
     for (const artistSong of artistSongs) {
       await ctx.db.delete(artistSong._id);
-      await ctx.db.delete(artistSong.songId);
+      const remaining = await ctx.db.query("artistSongs").withIndex("by_song", q => q.eq("songId", artistSong.songId)).first();
+      if (!remaining) await ctx.db.delete(artistSong.songId);
     }
     
     return null;

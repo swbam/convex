@@ -1,7 +1,35 @@
 import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
-import { internalRef } from "./adminHelpers";
-import { Id } from "./_generated/dataModel";
+import { paginationOptsValidator } from "convex/server";
+import { festivalView } from "./lib/festivalMedia";
+import { internalRef, requireAdmin } from "./adminHelpers";
+import { Id, Doc } from "./_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { festivalDay, normalizeFestivalText, isFestivalEvent, isFestivalListed } from "./lib/festivalIdentity";
+
+async function editionShows(ctx: QueryCtx, festival: Doc<"festivals">) {
+  const linked = await ctx.db.query("shows").withIndex("by_festival", q => q.eq("festivalId", festival._id)).collect();
+  const result = [];
+  for (const show of linked) {
+    if (show.date < festival.startDate || show.date > festival.endDate) continue;
+    const venue = await ctx.db.get(show.venueId);
+    const [city, state] = festival.location.split(",").map(normalizeFestivalText);
+    if (venue && city && city !== "tba" && (normalizeFestivalText(venue.city) !== city || (state && normalizeFestivalText(venue.state ?? "") !== state))) continue;
+    result.push(show);
+  }
+  return result;
+}
+
+async function editionArtistCount(ctx: QueryCtx, festival: Doc<"festivals">) {
+  const roster = await ctx.db.query("festivalLineupEntries").withIndex("by_festival", q => q.eq("festivalId", festival._id)).take(600);
+  const names = new Set(roster.map(e => e.nameKey));
+  for (const show of await editionShows(ctx, festival)) {
+    const artist = await ctx.db.get(show.artistId);
+    if (artist) names.add(normalizeFestivalText(artist.name));
+  }
+  return names.size;
+}
+
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -21,7 +49,7 @@ export const getBySlug = query({
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
       .unique();
 
-    if (!festival) return null;
+    if (!festival || !isFestivalListed(festival)) return null;
 
     // Get venue info if linked
     let venue = null;
@@ -29,74 +57,36 @@ export const getBySlug = query({
       venue = await ctx.db.get(festival.venueId);
     }
 
-    return { ...festival, venue };
+    return { ...festivalView(festival), venue };
   },
 });
 
-// Get all upcoming festivals
+// Date filtering happens before pagination. Ongoing editions remain upcoming.
+export const browse = query({
+  args: { period: v.union(v.literal("upcoming"), v.literal("past")), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const result = await ctx.db.query("festivals").withIndex("by_discovery_end", q => args.period === "past"
+      ? q.eq("discoveryState", "listed").lt("endDate", today)
+      : q.eq("discoveryState", "listed").gte("endDate", today))
+      .order(args.period === "past" ? "desc" : "asc")
+      .paginate({ ...args.paginationOpts, numItems: Math.max(1, Math.min(48, args.paginationOpts.numItems)) });
+    return { ...result, page: result.page.map(festivalView) };
+  },
+});
 export const getUpcoming = query({
-  args: {
-    limit: v.optional(v.number()),
-    year: v.optional(v.number()),
-  },
-  returns: v.array(v.any()),
+  args: { limit: v.optional(v.number()), year: v.optional(v.number()) }, returns: v.array(v.any()),
   handler: async (ctx, args) => {
-    const limit = args.limit || 20;
-    const currentYear = args.year || new Date().getFullYear();
-
-    // Get festivals for the specified year (status doesn't matter - dates determine if upcoming)
-    const festivals = await ctx.db
-      .query("festivals")
-      .withIndex("by_year", (q) => q.eq("year", currentYear))
-      .take(limit);
-
-    // Sort by start date
-    return festivals.sort((a, b) =>
-      new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-    );
+    let q = ctx.db.query("festivals").withIndex("by_discovery_end", q => q.eq("discoveryState", "listed").gte("endDate", new Date().toISOString().slice(0,10)));
+    if (args.year) q = q.filter(q => q.eq(q.field("year"), args.year));
+    return (await q.take(Math.max(1, Math.min(100, args.limit ?? 20)))).map(festivalView);
   },
 });
-
-// Get featured festivals for homepage (with images, sorted by artist count)
 export const getFeatured = query({
-  args: {
-    limit: v.optional(v.number()),
-  },
-  returns: v.array(v.any()),
-  handler: async (ctx, args) => {
-    const limit = args.limit || 12;
-    const today = new Date().toISOString().split("T")[0];
-    const currentYear = new Date().getFullYear();
-
-    // Get all festivals from current and next year
-    const festivalsThisYear = await ctx.db
-      .query("festivals")
-      .withIndex("by_year", (q) => q.eq("year", currentYear))
-      .collect();
-
-    const festivalsNextYear = await ctx.db
-      .query("festivals")
-      .withIndex("by_year", (q) => q.eq("year", currentYear + 1))
-      .collect();
-
-    const allFestivals = [...festivalsThisYear, ...festivalsNextYear];
-
-    // Filter to upcoming festivals (end date >= today) and those with images
-    const upcomingFestivals = allFestivals.filter(f =>
-      f.endDate >= today && f.imageUrl
-    );
-
-    // Sort by: artist count (desc), then by start date (asc)
-    upcomingFestivals.sort((a, b) => {
-      // Prioritize festivals with more artists
-      const artistDiff = (b.artistCount || 0) - (a.artistCount || 0);
-      if (artistDiff !== 0) return artistDiff;
-      // Then by start date (sooner first)
-      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
-    });
-
-    return upcomingFestivals.slice(0, limit);
-  },
+  args: { limit: v.optional(v.number()) }, returns: v.array(v.any()),
+  handler: async (ctx, args) => (await ctx.db.query("festivals").withIndex("by_discovery_end", q =>
+    q.eq("discoveryState", "listed").gte("endDate", new Date().toISOString().slice(0,10))).take(100))
+      .map(festivalView).filter(f => f.imageUrl).slice(0, Math.max(1, Math.min(24, args.limit ?? 12))),
 });
 
 // Get festival lineup (all artists performing)
@@ -104,11 +94,9 @@ export const getLineup = query({
   args: { festivalId: v.id("festivals") },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
-    // Get all shows for this festival
-    const shows = await ctx.db
-      .query("shows")
-      .withIndex("by_festival", (q) => q.eq("festivalId", args.festivalId))
-      .collect();
+    const festival = await ctx.db.get(args.festivalId);
+    if (!festival) return [];
+    const shows = await editionShows(ctx, festival);
 
     // Enrich with artist data
     const enrichedShows = await Promise.all(
@@ -151,13 +139,9 @@ export const getSchedule = query({
       .withIndex("by_slug", (q) => q.eq("slug", args.festivalSlug))
       .unique();
 
-    if (!festival) return null;
+    if (!festival || !isFestivalListed(festival)) return null;
 
-    // Get all shows for this festival
-    const shows = await ctx.db
-      .query("shows")
-      .withIndex("by_festival", (q) => q.eq("festivalId", festival._id))
-      .collect();
+    const shows = await editionShows(ctx, festival);
 
     // Enrich with artist data
     const enrichedShows = await Promise.all(
@@ -170,13 +154,13 @@ export const getSchedule = query({
           .withIndex("by_show", (q) => q.eq("showId", show._id))
           .collect();
 
-        const totalVotes = setlists.reduce((sum, s) => sum + (s.upvotes || 0), 0);
+        const totalVotes = show.voteCount ?? 0;
 
         return {
           showId: show._id,
           slug: show.slug,
-          dayNumber: show.dayNumber || 1,
-          stageName: show.stageName || "TBA",
+          dayNumber: show.festivalScheduleConfirmed === false || (!show.ticketmasterId && !show.setTime) ? 0 : festivalDay(festival.startDate, show.date),
+          stageName: show.stageName,
           setTime: show.setTime,
           setEndTime: show.setEndTime,
           artist: artist ? {
@@ -187,14 +171,28 @@ export const getSchedule = query({
             genres: artist.genres,
           } : null,
           voteCount: totalVotes,
-          hasSetlist: setlists.length > 0,
+          hasSetlist: setlists.some(s => s.isOfficial && !!s.actualSetlist?.length),
         };
       })
     );
 
+    const roster = await ctx.db.query("festivalLineupEntries").withIndex("by_festival", q => q.eq("festivalId", festival._id)).take(600);
+    const represented = new Set(enrichedShows.filter(s => s.artist).map(s => normalizeFestivalText(s.artist!.name)));
+    const rosterShows = [];
+    for (const entry of roster) {
+      if (represented.has(entry.nameKey)) continue;
+      const artist = entry.artistId ? await ctx.db.get(entry.artistId) : null;
+      rosterShows.push({ lineupEntryId: entry._id, showId: undefined, slug: undefined,
+        dayNumber: entry.dayNumber ?? 0, stageName: undefined, setTime: undefined, setEndTime: undefined,
+        artist: artist ? { _id: artist._id, name: artist.name, slug: artist.slug, images: artist.images, genres: artist.genres }
+          : { _id: undefined, name: entry.name, slug: undefined, images: undefined, genres: undefined },
+        voteCount: 0, hasSetlist: false });
+    }
+    const allEntries = [...enrichedShows, ...rosterShows];
+
     // Group by day
-    const dayMap = new Map<number, typeof enrichedShows>();
-    for (const show of enrichedShows) {
+    const dayMap = new Map<number, typeof allEntries>();
+    for (const show of allEntries) {
       const day = show.dayNumber;
       if (!dayMap.has(day)) {
         dayMap.set(day, []);
@@ -214,9 +212,9 @@ export const getSchedule = query({
       }));
 
     return {
-      festival,
+      festival: festivalView(festival),
       days,
-      totalArtists: enrichedShows.length,
+      totalArtists: new Set(allEntries.filter(s => s.artist).map(s => normalizeFestivalText(s.artist!.name))).size,
     };
   },
 });
@@ -267,6 +265,7 @@ export const create = mutation({
   },
   returns: v.id("festivals"),
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Check if slug already exists
     const existing = await ctx.db
       .query("festivals")
@@ -279,6 +278,7 @@ export const create = mutation({
 
     return await ctx.db.insert("festivals", {
       name: args.name,
+      discoveryState: "listed",
       slug: args.slug,
       year: args.year,
       startDate: args.startDate,
@@ -297,17 +297,16 @@ export const create = mutation({
 });
 
 // Add an artist to a festival (creates a show record)
-export const addArtist = mutation({
-  args: {
+const addArtistArgs = {
     festivalId: v.id("festivals"),
     artistId: v.id("artists"),
     dayNumber: v.optional(v.number()),
     stageName: v.optional(v.string()),
     setTime: v.optional(v.string()),
     setEndTime: v.optional(v.string()),
-  },
-  returns: v.id("shows"),
-  handler: async (ctx, args) => {
+  };
+async function addFestivalArtist(ctx: MutationCtx, args: { festivalId: Id<"festivals">; artistId: Id<"artists">; dayNumber?: number; stageName?: string; setTime?: string; setEndTime?: string }) {
+    if (args.dayNumber !== undefined && (!Number.isInteger(args.dayNumber) || args.dayNumber < 1)) throw new Error("Invalid festival day");
     const festival = await ctx.db.get(args.festivalId);
     if (!festival) {
       throw new Error("Festival not found");
@@ -348,16 +347,18 @@ export const addArtist = mutation({
       .first();
 
     if (existingShow) {
-      // Update existing show
-      await ctx.db.patch(existingShow._id, {
-        dayNumber: args.dayNumber,
-        stageName: args.stageName,
-        setTime: args.setTime,
-        setEndTime: args.setEndTime,
-      });
+      // A roster refresh must not erase a known performance schedule.
+      if (args.dayNumber !== undefined) {
+        if (showDate > festival.endDate) throw new Error("Day falls outside festival dates");
+        await ctx.db.patch(existingShow._id, { dayNumber: args.dayNumber, date: showDate, festivalScheduleConfirmed: true });
+      }
+      for (const field of ["stageName", "setTime", "setEndTime"] as const) {
+        if (args[field] !== undefined) await ctx.db.patch(existingShow._id, { [field]: args[field] });
+      }
       return existingShow._id;
     }
 
+    if (showDate > festival.endDate) throw new Error("Day falls outside festival dates");
     // Create new show for this artist at the festival
     const showId = await ctx.db.insert("shows", {
       slug,
@@ -365,12 +366,13 @@ export const addArtist = mutation({
       venueId,
       date: showDate,
       startTime: args.setTime,
-      status: "upcoming",
+      status: festival.endDate < new Date().toISOString().slice(0, 10) ? "completed" : "upcoming",
       festivalId: args.festivalId,
       stageName: args.stageName,
       setTime: args.setTime,
       setEndTime: args.setEndTime,
-      dayNumber: args.dayNumber || 1,
+      dayNumber: args.dayNumber,
+      festivalScheduleConfirmed: args.dayNumber !== undefined,
       isFestivalSet: true,
       setlistCount: 0,
       voteCount: 0,
@@ -381,8 +383,8 @@ export const addArtist = mutation({
 
     // Update festival artist count
     await ctx.db.patch(args.festivalId, {
-      artistCount: (festival.artistCount || 0) + 1,
-      status: "lineup", // At least one artist means lineup is available
+      artistCount: await editionArtistCount(ctx, festival),
+      status: festival.status === "announced" ? "lineup" : festival.status,
     });
 
     // Schedule auto-setlist generation for this festival show
@@ -393,7 +395,13 @@ export const addArtist = mutation({
     });
 
     return showId;
-  },
+}
+export const addArtist = mutation({
+  args: addArtistArgs, returns: v.id("shows"),
+  handler: async (ctx, args) => { await requireAdmin(ctx); return addFestivalArtist(ctx, args); },
+});
+export const addArtistInternal = internalMutation({
+  args: addArtistArgs, returns: v.id("shows"), handler: addFestivalArtist,
 });
 
 // ============================================================================
@@ -443,6 +451,7 @@ export const upsertFestival = internalMutation({
     // Create new
     return await ctx.db.insert("festivals", {
       name: args.name,
+      discoveryState: "listed",
       slug: args.slug,
       year: args.year,
       startDate: args.startDate,
@@ -488,70 +497,7 @@ export const addArtistByName = internalMutation({
       return null;
     }
 
-    // Get or create venue
-    let venueId = festival.venueId;
-    if (!venueId) {
-      const cityParts = festival.location.split(",");
-      venueId = await ctx.db.insert("venues", {
-        name: festival.name,
-        city: cityParts[0]?.trim() || festival.location,
-        state: cityParts[1]?.trim() || "",
-        country: "US",
-      });
-      await ctx.db.patch(args.festivalId, { venueId });
-    }
-
-    // Check if already added
-    const existing = await ctx.db
-      .query("shows")
-      .withIndex("by_festival", (q) => q.eq("festivalId", args.festivalId))
-      .filter((q) => q.eq(q.field("artistId"), artist._id))
-      .first();
-
-    if (existing) {
-      return existing._id;
-    }
-
-    // Calculate show date based on day number
-    const dayOffset = (args.dayNumber || 1) - 1;
-    const startDate = new Date(festival.startDate);
-    startDate.setDate(startDate.getDate() + dayOffset);
-    const showDate = startDate.toISOString().split("T")[0];
-
-    const slug = `${artist.slug}-${festival.slug}-${showDate}`;
-
-    // Create show
-    const showId = await ctx.db.insert("shows", {
-      slug,
-      artistId: artist._id,
-      venueId,
-      date: showDate,
-      status: "upcoming",
-      festivalId: args.festivalId,
-      dayNumber: args.dayNumber || 1,
-      isFestivalSet: true,
-      setlistCount: 0,
-      voteCount: 0,
-      trendingScore: 0,
-      trendingRank: 0,
-      lastSynced: Date.now(),
-    });
-
-    // Update artist count
-    await ctx.db.patch(args.festivalId, {
-      artistCount: (festival.artistCount || 0) + 1,
-      status: "lineup",
-    });
-
-    // Schedule auto-setlist generation for this festival show
-    // Uses scheduler to avoid blocking - will be picked up immediately if artist has songs
-    await ctx.scheduler.runAfter(1000, internalRef.setlists.autoGenerateSetlist, {
-      showId,
-      artistId: artist._id,
-    });
-
-    console.log(`✅ Added ${artist.name} to ${festival.name}`);
-    return showId;
+    return addFestivalArtist(ctx, { festivalId: args.festivalId, artistId: artist._id, dayNumber: args.dayNumber });
   },
 });
 
@@ -668,6 +614,10 @@ function generateFestivalSlug(name: string): string {
  */
 export const upsertFestivalFromEvent = internalMutation({
   args: {
+    imageUrl: v.optional(v.string()),
+    imageCardUrl: v.optional(v.string()),
+    imageAttribution: v.optional(v.string()),
+    classificationConfirmed: v.optional(v.boolean()),
     eventName: v.string(),           // Original Ticketmaster event name
     eventDate: v.string(),           // YYYY-MM-DD
     ticketmasterId: v.optional(v.string()), // TM event ID (for deduplication)
@@ -678,6 +628,7 @@ export const upsertFestivalFromEvent = internalMutation({
   },
   returns: v.union(v.id("festivals"), v.null()),
   handler: async (ctx, args) => {
+    if (!args.classificationConfirmed && !isFestivalEvent({ name: args.eventName })) return null;
     // Extract clean festival name
     const festivalName = extractFestivalName(args.eventName);
 
@@ -688,70 +639,32 @@ export const upsertFestivalFromEvent = internalMutation({
       return null;
     }
 
-    // Generate slug
-    const slug = generateFestivalSlug(festivalName);
-    if (!slug || slug.length < 3) {
-      console.log(`⚠️ Could not generate valid slug for: ${festivalName}`);
-      return null;
-    }
-
-    // Try to find existing festival by slug (most reliable)
-    let existing = await ctx.db
-      .query("festivals")
-      .withIndex("by_slug", (q) => q.eq("slug", slug))
-      .first();
-
-    // Also try by ticketmasterId if provided
-    if (!existing && args.ticketmasterId) {
-      existing = await ctx.db
-        .query("festivals")
-        .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.ticketmasterId))
-        .first();
-    }
-
+    const baseSlug = generateFestivalSlug(festivalName);
+    if (baseSlug.length < 3) return null;
+    const location = [args.venueCity, args.venueState].filter(Boolean).join(", ") || "TBA";
+    const editionCandidates = await ctx.db.query("festivals").withIndex("by_year", q => q.eq("year", year)).collect();
+    const existing = editionCandidates.find(f =>
+      normalizeFestivalText(f.name) === normalizeFestivalText(festivalName) &&
+      normalizeFestivalText(f.location) === normalizeFestivalText(location) &&
+      (!f.sourceVenueName || normalizeFestivalText(f.sourceVenueName) === normalizeFestivalText(args.venueName ?? "")) &&
+      Math.abs(festivalDay(f.startDate, args.eventDate) - 1) <= 13 &&
+      Math.abs(festivalDay(f.endDate, args.eventDate) - 1) <= 13
+    );
     if (existing) {
-      console.log(`✅ Found existing festival: ${existing.name} (${existing._id})`);
-
-      // Update ticketmasterId if not set
-      if (!existing.ticketmasterId && args.ticketmasterId) {
-        await ctx.db.patch(existing._id, {
-          ticketmasterId: args.ticketmasterId,
-          ticketUrl: args.ticketUrl || existing.ticketUrl,
-          lastSynced: Date.now(),
-        });
-      }
-
+      await ctx.db.patch(existing._id, {
+        ...(args.imageUrl ? { imageUrl: args.imageUrl, imageCardUrl: args.imageCardUrl, imageAttribution: args.imageAttribution, imageUpdatedAt: Date.now() } : {}),
+        startDate: args.eventDate < existing.startDate ? args.eventDate : existing.startDate,
+        endDate: args.eventDate > existing.endDate ? args.eventDate : existing.endDate,
+        ticketmasterId: existing.ticketmasterId ?? args.ticketmasterId,
+        ticketUrl: existing.ticketUrl ?? args.ticketUrl,
+        sourceVenueName: existing.sourceVenueName ?? args.venueName,
+      });
       return existing._id;
     }
-
-    // Build location string
-    const location = [args.venueCity, args.venueState].filter(Boolean).join(", ") || "TBA";
-
-    // Estimate festival dates (most US festivals are 3-day weekends)
-    const eventDate = new Date(args.eventDate);
-    const dayOfWeek = eventDate.getDay();
-
-    // Assume festival starts on Friday if event is on weekend
-    let startDate = args.eventDate;
-    let endDate = args.eventDate;
-
-    if (dayOfWeek === 0) { // Sunday - assume started Friday
-      const friday = new Date(eventDate);
-      friday.setDate(friday.getDate() - 2);
-      startDate = friday.toISOString().split("T")[0];
-      endDate = args.eventDate;
-    } else if (dayOfWeek === 6) { // Saturday - assume started Friday
-      const friday = new Date(eventDate);
-      friday.setDate(friday.getDate() - 1);
-      startDate = friday.toISOString().split("T")[0];
-      const sunday = new Date(eventDate);
-      sunday.setDate(sunday.getDate() + 1);
-      endDate = sunday.toISOString().split("T")[0];
-    } else if (dayOfWeek === 5) { // Friday - assume ends Sunday
-      const sunday = new Date(eventDate);
-      sunday.setDate(sunday.getDate() + 2);
-      endDate = sunday.toISOString().split("T")[0];
-    }
+    const slug = `${baseSlug}-${year}-${generateFestivalSlug(args.venueName || location)}-${args.eventDate}`;
+    // Only observed provider dates are known; never invent Friday-Sunday dates.
+    const startDate = args.eventDate;
+    const endDate = args.eventDate;
 
     // Determine initial status based on date
     const today = new Date().toISOString().split("T")[0];
@@ -765,11 +678,15 @@ export const upsertFestivalFromEvent = internalMutation({
     // Create new festival
     const festivalId = await ctx.db.insert("festivals", {
       name: festivalName,
+      discoveryState: "listed",
+      imageUrl: args.imageUrl, imageCardUrl: args.imageCardUrl, imageAttribution: args.imageAttribution,
+      imageUpdatedAt: args.imageUrl ? Date.now() : undefined,
       slug,
       year,
       startDate,
       endDate,
       location,
+      sourceVenueName: args.venueName,
       ticketmasterId: args.ticketmasterId,
       ticketUrl: args.ticketUrl,
       status,
@@ -797,22 +714,20 @@ export const linkShowToFestival = internalMutation({
     const show = await ctx.db.get(args.showId);
     if (!show) return null;
 
-    // Don't overwrite if already linked
     if (show.festivalId) return null;
-
-    await ctx.db.patch(args.showId, {
-      festivalId: args.festivalId,
-      isFestivalSet: true,
-    });
-
-    // Increment festival artist count
     const festival = await ctx.db.get(args.festivalId);
-    if (festival) {
-      await ctx.db.patch(args.festivalId, {
-        artistCount: (festival.artistCount || 0) + 1,
-        status: festival.status === "announced" ? "lineup" : festival.status,
-      });
-    }
+    if (!festival || show.date < festival.startDate || show.date > festival.endDate) return null;
+    const venue = await ctx.db.get(show.venueId);
+    const [city, state] = festival.location.split(",").map(normalizeFestivalText);
+    if (!venue || normalizeFestivalText(venue.city) !== city || (state && normalizeFestivalText(venue.state ?? "") !== state)) return null;
+    await ctx.db.patch(args.showId, {
+      festivalId: args.festivalId, isFestivalSet: true,
+      dayNumber: festivalDay(festival.startDate, show.date), festivalScheduleConfirmed: true,
+    });
+    await ctx.db.patch(festival._id, {
+      artistCount: await editionArtistCount(ctx, festival),
+      status: festival.status === "announced" ? "lineup" : festival.status,
+    });
 
     return null;
   },
@@ -943,7 +858,7 @@ export const getPartialLineupFestivals = internalQuery({
       // Must be upcoming
       if (f.startDate <= today) return false;
       // Must have partial lineup (< 20 artists) or no lineup at all
-      if ((f.artistCount || 0) >= 20) return false;
+      if (!isFestivalListed(f) || f.lineupStatus === "verified") return false;
       // Must not have been synced recently
       if (f.lastSynced && f.lastSynced > oneDayAgo) return false;
       return true;
@@ -973,7 +888,8 @@ export const refreshPartialLineups = internalMutation({
     // Get festivals with partial lineups
     const festivals = await ctx.db
       .query("festivals")
-      .collect();
+      .withIndex("by_discovery_end", q => q.eq("discoveryState", "listed").gte("endDate", new Date().toISOString().slice(0,10)))
+      .take(100);
 
     const today = new Date().toISOString().split("T")[0];
     const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000);
@@ -981,8 +897,8 @@ export const refreshPartialLineups = internalMutation({
     // Filter for partial lineups that need refresh
     const needsRefresh = festivals.filter(f => {
       if (f.startDate <= today) return false;
-      if ((f.artistCount || 0) >= 20) return false;
-      if (f.lastSynced && f.lastSynced > threeDaysAgo) return false;
+      if (!isFestivalListed(f) || f.lineupStatus === "verified") return false;
+      if (f.lineupCheckedAt && f.lineupCheckedAt > threeDaysAgo) return false;
       return true;
     });
 
@@ -995,7 +911,7 @@ export const refreshPartialLineups = internalMutation({
 
     for (const festival of toProcess) {
       // Mark as synced to prevent duplicate processing
-      await ctx.db.patch(festival._id, { lastSynced: Date.now() });
+      await ctx.db.patch(festival._id, { lineupCheckedAt: Date.now() });
 
       // Schedule the lineup import action
       // Note: We can't call actions from mutations directly, so we schedule them
@@ -1086,3 +1002,18 @@ export const cleanupInvalidFestivals = internalMutation({
   },
 });
 
+
+// Repair counters without deleting or reassigning legacy performances. Small
+// batches let operators inspect historical edition contamination separately.
+export const reconcileEditionCounts = internalMutation({
+  args: { cursor: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const page = await ctx.db.query("festivals").paginate({ cursor: args.cursor ?? null, numItems: 25 });
+    let updated = 0;
+    for (const festival of page.page) {
+      const count = await editionArtistCount(ctx, festival);
+      if (count !== festival.artistCount) { await ctx.db.patch(festival._id, { artistCount: count }); updated++; }
+    }
+    return { updated, cursor: page.continueCursor, done: page.isDone };
+  },
+});

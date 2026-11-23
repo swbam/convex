@@ -82,8 +82,8 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
       transition={{ duration: 0.12, ease: 'easeOut' }}
     >
       <span
-        className={`whitespace-nowrap font-bold tracking-[-0.045em] text-foreground ${
-          compact ? 'text-[1.2rem]' : 'text-[1.35rem]'
+        className={`brand-logo whitespace-nowrap font-bold tracking-[-0.045em] text-foreground ${
+          compact ? 'text-[1.32rem]' : 'text-[1.485rem]'
         }`}
       >
         setlists.live
@@ -107,7 +107,7 @@ function DesktopNavItem({
     <motion.button
       type="button"
       onClick={onClick}
-      className={`relative flex h-9 items-center rounded-[10px] px-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${
+      className={`relative flex h-9 items-center rounded-[5px] px-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${
         active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
       }`}
       whileHover={shouldReduceMotion ? undefined : { scale: 1.015 }}
@@ -118,7 +118,7 @@ function DesktopNavItem({
       {active && (
         <motion.span
           layoutId="desktop-navigation-active"
-          className="absolute inset-0 rounded-[10px] border border-border/80 bg-accent/80 shadow-sm"
+          className="absolute inset-0 rounded-[5px] border border-border/80 bg-accent/80 shadow-sm"
           transition={
             shouldReduceMotion
               ? { duration: 0 }
@@ -198,6 +198,8 @@ export function AppLayout({ children }: AppLayoutProps) {
     (type: string, id: string, slug?: string) => {
       if (type === 'artist') navigateTo(`/artists/${slug || id}`)
       if (type === 'show') navigateTo(`/shows/${slug || id}`)
+      if (type === 'venue') navigateTo(`/venues/${slug || id}`)
+      if (type === 'festival') navigateTo(`/festivals/${slug || id}`)
     },
     [navigateTo],
   )
@@ -239,7 +241,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <motion.button
               type="button"
               aria-label="Close menu"
-              className="fixed inset-0 z-[120] cursor-default bg-black/65 backdrop-blur-[3px] md:hidden"
+              className="fixed inset-0 z-[120] cursor-default bg-black/65 backdrop-blur-[3px] lg:hidden"
               initial={{ opacity: shouldReduceMotion ? 1 : 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: shouldReduceMotion ? 1 : 0 }}
@@ -250,7 +252,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               role="dialog"
               aria-modal="true"
               aria-label="Main menu"
-              className="fixed inset-y-0 right-0 z-[130] flex w-[88vw] max-w-[370px] flex-col overflow-hidden rounded-l-[28px] border-l border-border bg-background/95 shadow-2xl backdrop-blur-2xl md:hidden"
+              className="fixed inset-y-0 right-0 z-[130] flex w-[88vw] max-w-[370px] flex-col overflow-hidden rounded-l-[28px] border-l border-border bg-card shadow-2xl backdrop-blur-2xl lg:hidden"
               initial={{ x: shouldReduceMotion ? 0 : '100%' }}
               animate={{ x: 0 }}
               exit={{ x: shouldReduceMotion ? 0 : '100%' }}
@@ -275,7 +277,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               </div>
 
               <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-5">
-                <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+                <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Explore
                 </p>
                 <motion.nav
@@ -360,8 +362,8 @@ export function AppLayout({ children }: AppLayoutProps) {
           <motion.section
             role="dialog"
             aria-modal="true"
-            aria-label="Search artists"
-            className="fixed inset-0 z-[140] flex flex-col bg-background md:hidden"
+            aria-label="Search artists or songs"
+            className="fixed inset-0 z-[140] flex flex-col bg-background lg:hidden"
             initial={{ opacity: shouldReduceMotion ? 1 : 0, y: shouldReduceMotion ? 0 : -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: shouldReduceMotion ? 1 : 0, y: shouldReduceMotion ? 0 : -6 }}
@@ -388,7 +390,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <div className="flex-1 overflow-y-auto px-4 py-5">
               <SearchBar
                 autoFocus
-                placeholder="Search artists…"
+                placeholder="Search artists or songs…"
                 className="w-full"
                 onResultClick={handleSearchResult}
               />
@@ -398,7 +400,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: shouldReduceMotion ? 0 : 0.08, duration: 0.18 }}
               >
-                <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+                <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Browse instead
                 </p>
                 <div className="grid grid-cols-3 gap-2">
@@ -429,7 +431,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         )}
       </AnimatePresence>
 
-      <header className="fixed inset-x-0 top-0 z-[100] border-b border-border/70 bg-background/90 shadow-[0_1px_0_rgba(255,255,255,0.02)] backdrop-blur-2xl safe-area-top">
+      <header className="fixed inset-x-0 top-0 z-[100] border-b border-border bg-card/95 shadow-sm backdrop-blur-2xl safe-area-top">
         <div className="flex h-14 items-center px-3.5 sm:px-5 md:h-16 lg:px-7">
           <div className="mx-auto flex w-full max-w-page-full items-center gap-2.5 lg:gap-4">
             <motion.button
@@ -441,7 +443,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               <BrandMark compact />
             </motion.button>
 
-            <nav className="hidden items-center gap-0.5 md:flex" aria-label="Primary navigation">
+            <nav className="hidden items-center gap-0.5 lg:flex" aria-label="Primary navigation">
               {primaryNavigation.map((item) => (
                 <DesktopNavItem
                   key={item.href}
@@ -464,7 +466,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <motion.button
-                      className="flex h-9 items-center gap-1 rounded-[10px] px-3 text-sm font-medium text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                      className="flex h-9 items-center gap-1 rounded-[5px] px-3 text-sm font-medium text-muted-foreground hover:bg-accent/60 hover:text-foreground"
                       whileTap={shouldReduceMotion ? undefined : { scale: 0.97 }}
                     >
                       Explore
@@ -498,7 +500,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             </div>
 
             <div className="flex flex-shrink-0 items-center gap-1 md:gap-1.5">
-              <div className="hidden md:block">
+              <div className="hidden lg:block">
                 <ThemeToggle />
               </div>
 
@@ -506,7 +508,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <motion.button
-                      className="hidden h-9 items-center gap-2 rounded-[10px] border border-border/70 bg-secondary/30 px-2.5 text-sm font-medium hover:bg-secondary/60 md:flex"
+                      className="hidden h-9 items-center gap-2 rounded-[5px] border border-border/70 bg-secondary/30 px-2.5 text-sm font-medium hover:bg-secondary/60 lg:flex"
                       whileHover={shouldReduceMotion ? undefined : { scale: 1.01 }}
                       whileTap={shouldReduceMotion ? undefined : { scale: 0.97 }}
                     >
@@ -546,11 +548,11 @@ export function AppLayout({ children }: AppLayoutProps) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <div className="hidden items-center gap-1.5 md:flex">
+                <div className="hidden items-center gap-1.5 lg:flex">
                   <Button
                     variant="ghost"
                     onClick={() => navigateTo('/signin')}
-                    className="h-9 rounded-[10px] px-3 text-sm font-medium text-muted-foreground shadow-none hover:text-foreground"
+                    className="h-9 rounded-[5px] px-3 text-sm font-medium text-muted-foreground shadow-none hover:text-foreground"
                   >
                     Sign in
                   </Button>
@@ -560,7 +562,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                   >
                     <Button
                       onClick={() => navigateTo('/signup')}
-                      className="h-9 rounded-[10px] bg-foreground px-4 text-sm font-semibold text-background shadow-sm hover:bg-foreground/90"
+                      className="h-9 rounded-[5px] bg-foreground px-4 text-sm font-semibold text-background shadow-sm hover:bg-foreground/90"
                     >
                       Sign up
                     </Button>
@@ -571,18 +573,18 @@ export function AppLayout({ children }: AppLayoutProps) {
               <motion.button
                 type="button"
                 onClick={() => setMobileSearchOpen(true)}
-                className="flex h-11 w-11 items-center justify-center rounded-xl text-muted-foreground hover:bg-accent/60 hover:text-foreground md:hidden"
+                className="flex h-11 w-11 items-center justify-center rounded-xl text-muted-foreground hover:bg-accent/60 hover:text-foreground lg:hidden"
                 whileTap={shouldReduceMotion ? undefined : { scale: 0.92 }}
                 aria-label="Search"
               >
                 <Search className="h-5 w-5" />
               </motion.button>
-              <div className="md:hidden">
+              <div className="lg:hidden">
                 <MobileThemeToggle />
               </div>
               <motion.button
                 type="button"
-                className="flex h-11 w-11 items-center justify-center rounded-xl border border-border/70 bg-secondary/35 text-muted-foreground hover:text-foreground md:hidden"
+                className="flex h-11 w-11 items-center justify-center rounded-xl border border-border/70 bg-secondary/35 text-muted-foreground hover:text-foreground lg:hidden"
                 onClick={() => setMenuOpen(true)}
                 whileTap={shouldReduceMotion ? undefined : { scale: 0.92 }}
                 aria-label="Open menu"
@@ -595,11 +597,11 @@ export function AppLayout({ children }: AppLayoutProps) {
       </header>
 
       <div
-        className="flex w-full min-w-0 max-w-[100vw] flex-1 flex-col pt-14 md:pt-16"
+        className="flex w-full min-w-0 max-w-[100vw] flex-1 flex-col pt-[var(--app-nav-height)]"
         style={{ overflowX: 'clip' }}
       >
         <main
-          className="flex w-full min-w-0 flex-1 flex-col bg-transparent pb-24 md:pb-0"
+          className="app-main flex w-full min-w-0 flex-1 flex-col bg-transparent pb-24 md:pb-0"
           style={{ overflowX: 'clip' }}
         >
           <div className="relative w-full max-w-[100vw] min-w-0 flex-1">
@@ -611,7 +613,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                     ? 'wide'
                     : 'narrow'
               }
-              noPadding={location.pathname.startsWith('/shows') || location.pathname.startsWith('/artists')}
+              noPadding={/^\/(?:$|shows|artists|venues|trending|festivals|blog|about|privacy|terms|activity|dashboard|profile|for-artists|spotify-connect)/.test(location.pathname)}
             >
               <SyncProgress />
               {location.pathname === '/' ? (
@@ -627,7 +629,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             </PageContainer>
           </div>
 
-          <div className="hidden md:block">
+          <div className="hidden lg:block">
             <Footer />
           </div>
         </main>

@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { motion, useReducedMotion, type MotionStyle, type Transition } from "framer-motion";
 
 interface BorderBeamProps {
@@ -64,10 +65,11 @@ export const BorderBeam = ({
   borderWidth = 1,
 }: BorderBeamProps) => {
   const prefersReducedMotion = useReducedMotion();
+  const isMobile = useIsMobile();
 
   // Respect users who opt out of motion: skip the infinite rAF loop entirely,
   // which also saves battery on mobile devices.
-  if (prefersReducedMotion) {
+  if (prefersReducedMotion || isMobile) {
     return null;
   }
 

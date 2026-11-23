@@ -3,7 +3,6 @@ import { useQuery } from 'convex/react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../convex/_generated/api';
 import { MagicCard } from './ui/magic-card';
-import { BorderBeam } from './ui/border-beam';
 import { Button } from './ui/button';
 import { Activity, Clock, Music, Star, TrendingUp, Vote, ArrowLeft } from 'lucide-react';
 import { FadeIn } from './animations/FadeIn';
@@ -125,7 +124,6 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
           </div>
         </div>
       </div>
-      <BorderBeam size={150} duration={12} className="opacity-30" />
       </MagicCard>
       </FadeIn>
 
@@ -137,10 +135,9 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
             <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
               <Vote className="h-5 w-5 text-green-400" />
             </div>
-            <div className="text-3xl font-bold text-foreground mb-1">{activityStats?.totalVotes || 0}</div>
+            <div className="text-3xl font-bold text-foreground mb-1">{activityStats?.totalVotes || 0}{activityStats?.historyLimited ? "+" : ""}</div>
             <div className="text-sm text-muted-foreground">Total Votes</div>
           </div>
-          <BorderBeam size={80} duration={8} className="opacity-20" />
         </MagicCard>
 
         <MagicCard className="p-0 rounded-xl border-0 bg-background border-t border-b border-border">
@@ -151,7 +148,6 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
             <div className="text-3xl font-bold text-foreground mb-1">{activityStats?.totalSetlists || 0}</div>
             <div className="text-sm text-muted-foreground">Setlists Created</div>
           </div>
-          <BorderBeam size={80} duration={8} className="opacity-20" />
         </MagicCard>
 
         <MagicCard className="p-0 rounded-xl border-0 bg-background border-t border-b border-border">
@@ -159,10 +155,9 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
             <div className="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
               <TrendingUp className="h-5 w-5 text-purple-400" />
             </div>
-            <div className="text-3xl font-bold text-foreground mb-1">{activityStats?.accuracy || 0}%</div>
-            <div className="text-sm text-muted-foreground">Accuracy</div>
+            <div className="text-3xl font-bold text-foreground mb-1">{activityStats?.accuracy == null ? "—" : `${activityStats.accuracy}%`}</div>
+            <div className="text-sm text-muted-foreground">Accuracy{activityStats?.historyLimited ? " · recent 500 votes" : ""}</div>
           </div>
-          <BorderBeam size={80} duration={8} className="opacity-20" />
         </MagicCard>
 
         <MagicCard className="p-0 rounded-xl border-0 bg-background border-t border-b border-border">
@@ -173,7 +168,6 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
             <div className="text-3xl font-bold text-foreground mb-1">{activityStats?.streak || 0}</div>
             <div className="text-sm text-muted-foreground">Day Streak</div>
           </div>
-          <BorderBeam size={80} duration={8} className="opacity-20" />
         </MagicCard>
         </div>
       </FadeIn>
@@ -271,7 +265,6 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
             </div>
           )}
         </div>
-        <BorderBeam size={120} duration={10} className="opacity-20" />
       </MagicCard>
       </FadeIn>
 
@@ -316,7 +309,6 @@ export function ActivityPage({ onArtistClick, onShowClick }: ActivityPageProps) 
               )}
             </div>
           </div>
-          <BorderBeam size={120} duration={10} className="opacity-20" />
         </MagicCard>
       </FadeIn>
     </div>

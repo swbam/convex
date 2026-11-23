@@ -1,9 +1,12 @@
+import { SEOHead } from "./SEOHead";
 import { useEffect, useRef } from "react";
 import { useQuery } from "convex/react";
 import { Outlet, useLocation } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import {
   capturePageView,
+  recordCampaign,
+  setInternalAnalyticsUser,
   identifyUser,
   isSensitiveAnalyticsRoute,
   resetAnalyticsIdentity,
@@ -68,6 +71,8 @@ export function AnalyticsLifecycle() {
         : "anonymous";
 
   useEffect(() => {
+    recordCampaign(location.search, location.pathname);
+    setInternalAnalyticsUser(authUser?.appUser?.role === "admin");
     if (
       isSensitiveAnalyticsRoute(location.pathname) ||
       lastTrackedNavigation.current === navigationKey
@@ -86,7 +91,7 @@ export function AnalyticsLifecycle() {
       lastTrackedNavigation.current = navigationKey;
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [authState, location.pathname, navigationKey]);
+  }, [authState, authUser?.appUser?.role, location.pathname, location.search, navigationKey]);
 
   useEffect(() => {
     setSessionRecordingEnabled(
@@ -131,5 +136,5 @@ export function AnalyticsLifecycle() {
     }
   }, [authUser]);
 
-  return <Outlet />;
+  return <><SEOHead /><Outlet /></>;
 }

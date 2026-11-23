@@ -21,11 +21,12 @@ import {
 } from "./ui/sidebar";
 import {
   BarChart3, Users, UserCheck, RefreshCw, Activity,
-  Shield, ChevronLeft, Loader2,
+  Shield, ChevronLeft, Loader2, Palette,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import { Link } from "react-router-dom";
+import { AdminAccessGuard } from "./AdminAccessGuard";
 
 // Sub-components
 import { AdminStatsSection } from "./admin/AdminStatsSection";
@@ -33,6 +34,9 @@ import { AdminUsersSection } from "./admin/AdminUsersSection";
 import { AdminArtistClaimsSection } from "./admin/AdminArtistClaimsSection";
 import { AdminSyncSection } from "./admin/AdminSyncSection";
 import { AdminLogsSection } from "./admin/AdminLogsSection";
+const AdminLiveSetlistsSection = React.lazy(() => import("./admin/AdminLiveSetlistsSection"));
+const AdminFestivalsSection = React.lazy(() => import("./admin/AdminFestivalsSection"));
+const AdminAppearanceSection = React.lazy(() => import("./admin/AdminAppearanceSection"));
 
 /* ════════════════════════════════════════
    Navigation items
@@ -42,7 +46,10 @@ const NAV_ITEMS = [
   { id: "users", label: "Users", icon: Users },
   { id: "artistClaims", label: "Artist Claims", icon: UserCheck },
   { id: "syncs", label: "Sync & Tools", icon: RefreshCw },
+  { id: "liveSetlists", label: "Live Setlists", icon: Activity },
   { id: "logs", label: "Logs", icon: Activity },
+  { id: "festivals", label: "Festivals", icon: Palette },
+  { id: "appearance", label: "Appearance", icon: Palette },
 ] as const;
 
 type SectionId = (typeof NAV_ITEMS)[number]["id"];
@@ -60,6 +67,10 @@ const sectionMotion = {
    Admin Dashboard — Shell
    ════════════════════════════════════════ */
 export default function AdminDashboard() {
+  return <AdminAccessGuard><AdminDashboardContent /></AdminAccessGuard>;
+}
+
+function AdminDashboardContent() {
   const [activeSection, setActiveSection] = useState<SectionId>("artistClaims");
 
   /* ─── Queries ─── */
@@ -249,7 +260,7 @@ export default function AdminDashboard() {
         {/* ──── Sidebar ──── */}
         <Sidebar className="border-r border-white/[0.06]">
           <SidebarHeader className="px-4 py-5 border-b border-white/[0.06]">
-            <Link to="/" className="flex items-center gap-2 text-muted-foreground/50 hover:text-foreground/80 transition-colors mb-3 text-xs">
+            <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground/80 transition-colors mb-3 text-xs">
               <ChevronLeft className="h-3.5 w-3.5" />
               Back to app
             </Link>
@@ -259,14 +270,14 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <h1 className="text-sm font-semibold text-foreground tracking-tight">Admin</h1>
-                <p className="text-[10px] text-muted-foreground/40 font-mono">setlists.live</p>
+                <p className="text-[10px] text-muted-foreground font-mono">setlists.live</p>
               </div>
             </div>
           </SidebarHeader>
 
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/30 px-4">
+              <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground px-4">
                 Sections
               </SidebarGroupLabel>
               <SidebarGroupContent>
@@ -298,7 +309,7 @@ export default function AdminDashboard() {
               <SentryTestButton />
               <SentryCaptureTestButton />
             </div>
-            <p className="text-[10px] text-muted-foreground/20 mt-3 text-center font-mono">
+            <p className="text-[10px] text-muted-foreground mt-3 text-center font-mono">
               {logged?.appUser?.email ?? "admin"}
             </p>
           </SidebarFooter>
@@ -309,7 +320,7 @@ export default function AdminDashboard() {
           {/* Mobile trigger + breadcrumb */}
           <div className="sticky top-0 z-20 flex items-center gap-3 px-5 py-3 border-b border-white/[0.06] bg-background/80 backdrop-blur-xl">
             <SidebarTrigger />
-            <span className="text-xs text-muted-foreground/40 font-medium uppercase tracking-widest">
+            <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
               {NAV_ITEMS.find((n) => n.id === activeSection)?.label}
             </span>
           </div>
@@ -318,6 +329,12 @@ export default function AdminDashboard() {
           <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
             <AnimatePresence mode="wait">
               <motion.div key={activeSection} {...sectionMotion}>
+                {activeSection === "festivals" && <React.Suspense fallback={<p role="status">Loading festivals…</p>}><AdminFestivalsSection /></React.Suspense>}
+                {activeSection === "appearance" && (
+                  <React.Suspense fallback={<p role="status" className="py-8 text-sm text-muted-foreground">Loading appearance…</p>}>
+                    <AdminAppearanceSection />
+                  </React.Suspense>
+                )}
                 {activeSection === "stats" && (
                   <AdminStatsSection
                     stats={stats}
@@ -386,6 +403,8 @@ export default function AdminDashboard() {
                     onCronRunNow={handleCronRunNow}
                   />
                 )}
+
+                {activeSection === "liveSetlists" && <React.Suspense fallback={<p>Loading pilot…</p>}><AdminLiveSetlistsSection /></React.Suspense>}
 
                 {activeSection === "logs" && (
                   <AdminLogsSection

@@ -1,14 +1,15 @@
+import { PageHeader } from "../components/PageHeader";
 import { Link } from "react-router-dom";
 import { AppLayout } from "../components/AppLayout";
 
 export function TermsPage() {
   return (
     <AppLayout>
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="public-page max-w-4xl">
 
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Terms of Service</h1>
+          <PageHeader title="Terms of Service" />
           <p className="text-muted-foreground">
             Last updated: {new Date().toLocaleDateString()}
           </p>
@@ -18,17 +19,17 @@ export function TermsPage() {
         <div className="prose prose-invert max-w-none space-y-8">
           <section>
             <h2 className="text-2xl font-bold mb-4">Agreement to Terms</h2>
-            <p className="text-muted-foreground leading-relaxed">
-              By accessing or using SetlistVote ("the Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, please do not use the Service.
+            <p className="text-body leading-relaxed">
+              By accessing or using setlists.live ("the Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, please do not use the Service.
             </p>
           </section>
 
           <section>
             <h2 className="text-2xl font-bold mb-4">Description of Service</h2>
-            <p className="text-muted-foreground leading-relaxed mb-4">
-              SetlistVote is a platform that allows users to:
+            <p className="text-body leading-relaxed mb-4">
+              setlists.live is a platform that allows users to:
             </p>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground">
+            <ul className="list-disc list-inside space-y-2 text-body">
               <li>Predict and vote on concert setlists</li>
               <li>Follow artists and track upcoming shows</li>
               <li>View official setlists from past concerts</li>
@@ -41,7 +42,7 @@ export function TermsPage() {
             <h2 className="text-2xl font-bold mb-4">User Accounts</h2>
             
             <h3 className="text-xl font-semibold mb-3 mt-6">Account Creation</h3>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground">
+            <ul className="list-disc list-inside space-y-2 text-body">
               <li>You must be at least 13 years old to create an account</li>
               <li>You must provide accurate and complete information</li>
               <li>You are responsible for maintaining account security</li>
@@ -49,7 +50,7 @@ export function TermsPage() {
             </ul>
 
             <h3 className="text-xl font-semibold mb-3 mt-6">Account Termination</h3>
-            <p className="text-muted-foreground leading-relaxed">
+            <p className="text-body leading-relaxed">
               We reserve the right to suspend or terminate your account if you violate these Terms or engage in abusive behavior.
             </p>
           </section>
@@ -57,7 +58,7 @@ export function TermsPage() {
           <section>
             <h2 className="text-2xl font-bold mb-4">User Conduct</h2>
             <p className="text-muted-foreground mb-4">You agree NOT to:</p>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground">
+            <ul className="list-disc list-inside space-y-2 text-body">
               <li>Violate any laws or regulations</li>
               <li>Harass, abuse, or harm other users</li>
               <li>Post spam, malware, or malicious content</li>
@@ -73,7 +74,7 @@ export function TermsPage() {
             <h2 className="text-2xl font-bold mb-4">Content and Intellectual Property</h2>
             
             <h3 className="text-xl font-semibold mb-3 mt-6">Your Content</h3>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground">
+            <ul className="list-disc list-inside space-y-2 text-body">
               <li>You retain ownership of content you submit (setlist predictions, votes, etc.)</li>
               <li>You grant us a license to use, display, and distribute your content</li>
               <li>You are responsible for the content you post</li>
@@ -81,8 +82,8 @@ export function TermsPage() {
             </ul>
 
             <h3 className="text-xl font-semibold mb-3 mt-6">Our Content</h3>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-              <li>The Service, design, and features are owned by SetlistVote</li>
+            <ul className="list-disc list-inside space-y-2 text-body">
+              <li>The Service, design, and features are owned by setlists.live</li>
               <li>You may not copy, modify, or distribute our content</li>
               <li>Artist data is sourced from Spotify and Ticketmaster</li>
               <li>Setlist data is sourced from setlist.fm</li>
@@ -91,10 +92,10 @@ export function TermsPage() {
 
           <section>
             <h2 className="text-2xl font-bold mb-4">Third-Party Services</h2>
-            <p className="text-muted-foreground leading-relaxed mb-4">
+            <p className="text-body leading-relaxed mb-4">
               The Service integrates with third-party services:
             </p>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground">
+            <ul className="list-disc list-inside space-y-2 text-body">
               <li><strong>Clerk:</strong> Authentication and user management</li>
               <li><strong>Spotify:</strong> Artist data and optional account integration</li>
               <li><strong>Ticketmaster:</strong> Concert and venue information</li>
@@ -109,10 +110,10 @@ export function TermsPage() {
             <h2 className="text-2xl font-bold mb-4">Disclaimers and Limitations</h2>
             
             <h3 className="text-xl font-semibold mb-3 mt-6">Service "As Is"</h3>
-            <p className="text-muted-foreground leading-relaxed">
+            <p className="text-body leading-relaxed">
               The Service is provided "as is" without warranties of any kind. We do not guarantee:
             </p>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground mt-4">
+            <ul className="list-disc list-inside space-y-2 text-body mt-4">
               <li>Uninterrupted or error-free operation</li>
               <li>Accuracy of setlist predictions or data</li>
               <li>Availability of specific features</li>
@@ -120,14 +121,14 @@ export function TermsPage() {
             </ul>
 
             <h3 className="text-xl font-semibold mb-3 mt-6">Limitation of Liability</h3>
-            <p className="text-muted-foreground leading-relaxed">
-              To the maximum extent permitted by law, SetlistVote shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the Service.
+            <p className="text-body leading-relaxed">
+              To the maximum extent permitted by law, setlists.live shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the Service.
             </p>
           </section>
 
           <section>
             <h2 className="text-2xl font-bold mb-4">Privacy</h2>
-            <p className="text-muted-foreground leading-relaxed">
+            <p className="text-body leading-relaxed">
               Your use of the Service is also governed by our{" "}
               <Link to="/privacy" className="text-primary hover:underline">
                 Privacy Policy
@@ -138,15 +139,15 @@ export function TermsPage() {
 
           <section>
             <h2 className="text-2xl font-bold mb-4">Modifications to Service</h2>
-            <p className="text-muted-foreground leading-relaxed">
+            <p className="text-body leading-relaxed">
               We reserve the right to modify, suspend, or discontinue the Service at any time without notice. We may also update these Terms from time to time. Continued use of the Service after changes constitutes acceptance of the updated Terms.
             </p>
           </section>
 
           <section>
             <h2 className="text-2xl font-bold mb-4">Indemnification</h2>
-            <p className="text-muted-foreground leading-relaxed">
-              You agree to indemnify and hold harmless SetlistVote from any claims, damages, or expenses arising from your use of the Service or violation of these Terms.
+            <p className="text-body leading-relaxed">
+              You agree to indemnify and hold harmless setlists.live from any claims, damages, or expenses arising from your use of the Service or violation of these Terms.
             </p>
           </section>
 
@@ -154,26 +155,26 @@ export function TermsPage() {
             <h2 className="text-2xl font-bold mb-4">Dispute Resolution</h2>
             
             <h3 className="text-xl font-semibold mb-3 mt-6">Governing Law</h3>
-            <p className="text-muted-foreground leading-relaxed">
+            <p className="text-body leading-relaxed">
               These Terms are governed by the laws of the United States, without regard to conflict of law principles.
             </p>
 
             <h3 className="text-xl font-semibold mb-3 mt-6">Arbitration</h3>
-            <p className="text-muted-foreground leading-relaxed">
+            <p className="text-body leading-relaxed">
               Any disputes arising from these Terms or the Service shall be resolved through binding arbitration, except where prohibited by law.
             </p>
           </section>
 
           <section>
             <h2 className="text-2xl font-bold mb-4">Severability</h2>
-            <p className="text-muted-foreground leading-relaxed">
+            <p className="text-body leading-relaxed">
               If any provision of these Terms is found to be unenforceable, the remaining provisions shall remain in full force and effect.
             </p>
           </section>
 
           <section>
             <h2 className="text-2xl font-bold mb-4">Contact Information</h2>
-            <p className="text-muted-foreground leading-relaxed">
+            <p className="text-body leading-relaxed">
               If you have questions about these Terms, please contact us at:
             </p>
             <div className="mt-4 p-4 bg-secondary rounded-lg">
@@ -187,7 +188,7 @@ export function TermsPage() {
             <p className="text-muted-foreground mb-4">
               In addition to the User Conduct section above, you specifically agree not to:
             </p>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground">
+            <ul className="list-disc list-inside space-y-2 text-body">
               <li>Create multiple accounts to manipulate votes</li>
               <li>Use the Service for commercial purposes without permission</li>
               <li>Reverse engineer or attempt to extract source code</li>
@@ -199,10 +200,10 @@ export function TermsPage() {
 
           <section className="border-t border-border pt-8">
             <h2 className="text-2xl font-bold mb-4">Data Accuracy</h2>
-            <p className="text-muted-foreground leading-relaxed">
+            <p className="text-body leading-relaxed">
               While we strive to provide accurate information, we cannot guarantee the accuracy of:
             </p>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground mt-4">
+            <ul className="list-disc list-inside space-y-2 text-body mt-4">
               <li>Concert dates, times, and venues</li>
               <li>Setlist predictions and community votes</li>
               <li>Artist information and discographies</li>
@@ -215,10 +216,10 @@ export function TermsPage() {
 
           <section className="border-t border-border pt-8">
             <h2 className="text-2xl font-bold mb-4">Copyright and DMCA</h2>
-            <p className="text-muted-foreground leading-relaxed mb-4">
+            <p className="text-body leading-relaxed mb-4">
               We respect intellectual property rights. If you believe content on the Service infringes your copyright, please contact us with:
             </p>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground">
+            <ul className="list-disc list-inside space-y-2 text-body">
               <li>Description of the copyrighted work</li>
               <li>Location of the infringing content</li>
               <li>Your contact information</li>

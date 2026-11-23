@@ -1,3 +1,5 @@
+import { classifyAttraction } from "./lib/attractionIdentity";
+import { isEligiblePrediction } from "./lib/predictions";
 import { action, mutation, query, internalAction, internalMutation, internalQuery, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
@@ -880,9 +882,10 @@ export const refreshTrendingCache = action({
             venueState: show.venueState,
             venueCountry: show.venueCountry,
             date: show.date,
-            startTime: show.startTime,
+            startTime: show.startTime, startsAt: show.startsAt, endsAt: show.endsAt, timeZone: show.timeZone,
             artistImage: show.artistImage,
             ticketUrl: show.ticketUrl,
+            ticketInfo: show.ticketInfo,
             priceRange: show.priceRange,
             status: show.status || "upcoming",
             rank: Number.isFinite(show.popularityRank)
@@ -978,9 +981,10 @@ export const refreshTrendingCacheInternal = internalAction({
             venueState: show.venueState,
             venueCountry: show.venueCountry,
             date: show.date,
-            startTime: show.startTime,
+            startTime: show.startTime, startsAt: show.startsAt, endsAt: show.endsAt, timeZone: show.timeZone,
             artistImage: show.artistImage,
             ticketUrl: show.ticketUrl,
+            ticketInfo: show.ticketInfo,
             priceRange: show.priceRange,
             status: show.status || "upcoming",
             rank: Number.isFinite(show.popularityRank)
@@ -1041,6 +1045,10 @@ export const refreshTrendingCacheInternal = internalAction({
             });
 
             if (!existing) {
+              const decision = await ctx.runQuery(internalRef.artists.getAttractionImportDecision, {
+                ticketmasterId: artist.ticketmasterId, name: artist.name, genres: artist.genres,
+              });
+              if (decision) continue;
               const delayMs = scheduled * STAGGER_MS;
               console.log(`🗓️ Scheduling trending artist import: ${artist.name} (delay: ${delayMs}ms)`);
 
@@ -1076,7 +1084,7 @@ export const refreshTrendingCacheInternal = internalAction({
 });
 
 // Clean up non-US shows from trending cache and main shows table
-export const cleanupNonUSShows = action({
+export const cleanupNonUSShows = internalAction({
   args: {},
   returns: v.object({
     success: v.boolean(),
@@ -1293,7 +1301,7 @@ export const testTriggerSetlistSync = internalAction({
 });
 
 // Utilities: maintenance wrappers for CLI
-export const normalizeShowSlugs = action({
+export const normalizeShowSlugs = internalAction({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ processed: v.number(), updated: v.number() }),
   handler: async (ctx, args): Promise<{ processed: number; updated: number }> => {
@@ -1306,13 +1314,14 @@ export const ensureAutoSetlistsBulk = action({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ scheduled: v.number() }),
   handler: async (ctx, args): Promise<{ scheduled: number }> => {
+    await requireAdminForAction(ctx);
     const result = await ctx.runMutation(internalRef.setlists.refreshMissingAutoSetlists, { limit: args.limit });
     return result as { scheduled: number };
   },
 });
 
 // Backfill setlists for festival shows that are missing them
-export const backfillFestivalSetlists = action({
+export const backfillFestivalSetlists = internalAction({
   args: { limit: v.optional(v.number()) },
   returns: v.object({
     processed: v.number(),
@@ -1398,7 +1407,7 @@ export const getFestivalShowsWithoutSetlists = internalQuery({
 });
 
 // Add public action for manual sync:
-export const triggerSetlistSyncManual = action({
+export const triggerSetlistSyncManual = internalAction({
   args: {},
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx) => {
@@ -1851,7 +1860,7 @@ export const testImportTrendingFromTicketmaster = internalAction({
 });
 
 // Cleanup non-concert artists (children's music, orchestras, musicals, etc.)
-export const cleanupNonConcertArtists = action({
+export const cleanupNonConcertArtists = internalAction({
   args: {},
   returns: v.object({
     success: v.boolean(),
@@ -1866,20 +1875,11 @@ export const cleanupNonConcertArtists = action({
       const artists = await ctx.runQuery(internalRef.artists.getAllInternal, {});
       console.log(`📊 Found ${artists.length} total artists to check`);
 
-      const excludedGenres = [
-        'children\'s music', 'childrens music', 'kids', 'family',
-        'classical', 'orchestra', 'symphony', 'chamber', 'opera',
-        'musical', 'theatre', 'broadway', 'show tunes',
-        'spoken word', 'comedy', 'podcast',
-      ];
-
       let deletedCount = 0;
 
       for (const artist of artists) {
-        const genres = (artist.genres || []).map((g: string) => g.toLowerCase());
-        const hasExcludedGenre = genres.some((genre: string) =>
-          excludedGenres.some((excluded: string) => genre.includes(excluded))
-        );
+        const genres = artist.genres || [];
+        const hasExcludedGenre = classifyAttraction(artist.name, genres).decision === "excluded";
 
         if (hasExcludedGenre) {
           console.log(`🗑️ Deleting non-concert artist: ${artist.name} (genres: ${genres.join(', ')})`);
@@ -2134,7 +2134,7 @@ export const getRecentActivity = query({
 });
 
 // CRITICAL: Import trending shows from cache into main DB (atomic mutation)
-export const importCachedShows = mutation({
+export const importCachedShows = internalMutation({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ processed: v.number(), imported: v.number(), errors: v.number() }),
   handler: async (ctx, args) => {
@@ -2167,7 +2167,7 @@ export const importCachedShows = mutation({
         const ven = await ctx.db.get(venueId);
         if (!artist || !ven) continue;
         const slug = `${artist.slug}-${ven.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${ven.city.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${show.date}`.substring(0, 200);
-        const showId = await ctx.db.insert("shows", { slug, artistId, venueId, date: show.date, startTime: show.startTime, status: (show.status || '').includes('cancel') ? 'cancelled' as const : 'upcoming' as const, ticketmasterId: show.ticketmasterId, ticketUrl: show.ticketUrl, priceRange: show.priceRange, voteCount: 0, setlistCount: 0, trendingScore: 0, trendingRank: 0, lastSynced: Date.now(), lastTrendingUpdate: Date.now() });
+        const showId = await ctx.db.insert("shows", { slug, artistId, venueId, date: show.date, startTime: show.startTime, startsAt: show.startsAt, endsAt: show.endsAt, timeZone: show.timeZone, status: (show.status || '').includes('cancel') ? 'cancelled' as const : 'upcoming' as const, ticketmasterId: show.ticketmasterId, ticketUrl: show.ticketUrl, ticketInfo: show.ticketInfo, priceRange: show.priceRange, voteCount: 0, setlistCount: 0, trendingScore: 0, trendingRank: 0, lastSynced: Date.now(), lastTrendingUpdate: Date.now() });
         await ctx.db.patch(show._id, { showId, artistId });
         stats.imported++;
       } catch (e) {
@@ -2390,7 +2390,7 @@ export const deleteEmptyArtists = internalMutation({
  * Retry catalog sync for artists with shows but no songs
  * These artists should have songs but sync failed
  */
-export const retryFailedCatalogSyncs = action({
+export const retryFailedCatalogSyncs = internalAction({
   args: {
     limit: v.optional(v.number()),
   },
@@ -2490,7 +2490,7 @@ export const getArtistsNeedingCatalogRetry = internalQuery({
 });
 
 // Delete residency artists (those with 50+ shows - Vegas residencies, etc.)
-export const deleteResidencyArtists = action({
+export const deleteResidencyArtists = internalAction({
   args: { maxShows: v.optional(v.number()) },
   returns: v.object({
     success: v.boolean(),
@@ -2703,6 +2703,7 @@ export const backfillShowSongDemandInternal = internalMutation({
       // Aggregate votes by normalized song key
       const songDemandMap = new Map<string, { songTitle: string; upvotes: number; lastVoteAt: number }>();
 
+      const seenVotes = new Set<string>();
       for (const setlistId of setlistIds) {
         const votes = await ctx.db
           .query("songVotes")
@@ -2711,7 +2712,12 @@ export const backfillShowSongDemandInternal = internalMutation({
 
         for (const vote of votes) {
           totalVotesProcessed++;
+          const setlist = setlists.find(list => list._id === setlistId)!;
+          if (!isEligiblePrediction(vote, setlist, show)) continue;
           const songKey = normalizeSongKey(vote.songTitle);
+          const uniqueVote = `${vote.userId}:${songKey}`;
+          if (seenVotes.has(uniqueVote)) continue;
+          seenVotes.add(uniqueVote);
           const existing = songDemandMap.get(songKey);
 
           if (existing) {

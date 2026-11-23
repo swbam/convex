@@ -1,6 +1,7 @@
 import { action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
+import { matchesFestivalEvent } from "./lib/festivalIdentity";
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,10 +49,9 @@ export const findArtistByLowerNameInternal = internalQuery({
   args: { lowerName: v.string() },
   returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
-    return await ctx.db
-      .query("artists")
-      .withIndex("by_lower_name", (q) => q.eq("lowerName", args.lowerName))
-      .first();
+    const matches = await ctx.db.query("artists")
+      .withIndex("by_lower_name", q => q.eq("lowerName", args.lowerName)).take(2);
+    return matches.length === 1 ? matches[0] : null;
   },
 });
 
@@ -63,20 +63,28 @@ export const createFestivalLineupImportJobInternal = internalMutation({
   },
   returns: v.id("syncJobs"),
   handler: async (ctx, args) => {
+    const running = await ctx.db.query("syncJobs").withIndex("by_type_and_status", q =>
+      q.eq("type", "festival_lineup_import").eq("status", "running")).collect();
+    for (const job of running.filter(j => j.entityId === args.festivalId)) {
+      if ((job.startedAt ?? job._creationTime) > Date.now() - 30 * MINUTE) {
+        throw new Error("A lineup import is already running for this festival");
+      }
+      await ctx.db.patch(job._id, { status: "failed", completedAt: Date.now(), errorMessage: "Import timed out before completion" });
+    }
     const jobId = await ctx.db.insert("syncJobs", {
       type: "festival_lineup_import" as any,
       entityId: args.festivalId,
       priority: 8,
-      status: "running",
+      status: args.totalItems > 0 ? "running" : "failed",
       retryCount: 0,
       maxRetries: 0,
       startedAt: Date.now(),
-      completedAt: undefined,
-      errorMessage: undefined,
-      currentPhase: `starting (${args.source})`,
+      completedAt: args.totalItems > 0 ? undefined : Date.now(),
+      errorMessage: args.totalItems > 0 ? undefined : "No matching lineup found for this edition",
+      currentPhase: args.totalItems > 0 ? `starting (${args.source})` : "no matching source for this edition",
       totalSteps: 3,
       completedSteps: 0,
-      currentStep: "starting",
+      currentStep: args.totalItems > 0 ? "starting" : "awaiting lineup source",
       itemsProcessed: 0,
       totalItems: args.totalItems,
       progressPercentage: 0,
@@ -93,7 +101,12 @@ export const patchJobInternal = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.jobId, args.patch);
+    const job = await ctx.db.get(args.jobId);
+    if (!job || job.status !== "running") return null;
+    const patch = { ...args.patch };
+    if (Array.isArray(patch.failedItems)) patch.failedItems = [...new Set([...(job.failedItems ?? []), ...patch.failedItems])].slice(0, 100);
+    if (patch.status === "completed" && job.errorMessage) patch.status = "failed";
+    await ctx.db.patch(args.jobId, patch);
     return null;
   },
 });
@@ -136,33 +149,16 @@ async function runLineupImport(
   const festival: any = await ctx.runQuery(internalRef.festivals.getById, { festivalId: args.festivalId });
   if (!festival) throw new Error("Festival not found");
 
-  const prefer = args.preferSource;
-
-  const ticketmasterNames = prefer !== "wiki" ? await fetchLineupFromTicketmaster(festival) : [];
-  const wikiNames = prefer !== "ticketmaster" && festival.wikiUrl
-    ? await fetchLineupFromWikipedia(ctx, festival)
-    : [];
-
-  // Choose best source; fallback if TM is too thin.
-  let chosen: { source: string; names: string[] };
-  if (prefer === "ticketmaster") {
-    chosen = { source: "ticketmaster", names: ticketmasterNames };
-    if (chosen.names.length < 10 && wikiNames.length > 0) {
-      chosen = { source: "wiki", names: wikiNames };
-    }
-  } else if (prefer === "wiki") {
-    chosen = { source: "wiki", names: wikiNames };
-    if (chosen.names.length < 10 && ticketmasterNames.length > 0) {
-      chosen = { source: "ticketmaster", names: ticketmasterNames };
-    }
-  } else {
-    chosen = ticketmasterNames.length >= 10 ? { source: "ticketmaster", names: ticketmasterNames } : { source: "wiki", names: wikiNames };
-    if (chosen.names.length === 0 && ticketmasterNames.length > 0) {
-      chosen = { source: "ticketmaster", names: ticketmasterNames };
-    }
-  }
-
+  const saved: any[] = await ctx.runQuery(internalRef.festivalLineupImport.getRosterInternal, { festivalId: args.festivalId });
+  const ticketmasterNames = festival.lineupStatus === "verified" ? [] : await fetchLineupFromTicketmaster(festival);
+  const wikiNames = festival.lineupStatus === "verified" || !festival.wikiUrl ? [] : await fetchLineupFromWikipedia(ctx, festival);
+  const chosen = { source: festival.lineupStatus === "verified" ? festival.lineupSource || "official" : wikiNames.length ? "ticketmaster+wiki" : ticketmasterNames.length ? "ticketmaster" : festival.lineupSource || "saved roster",
+    names: [...saved.map(e => e.name), ...ticketmasterNames, ...wikiNames] };
   const deduped = dedupeNames(chosen.names);
+  if (deduped.length && festival.lineupStatus !== "verified") await ctx.runMutation(internalRef.festivalRoster.storeInternal, {
+    festivalId: festival._id, entries: deduped.map(name => ({ name })), source: chosen.source,
+    sourceUrl: wikiNames.length ? festival.wikiUrl : festival.lineupSourceUrl, year: festival.year,
+  });
   const batchSize = Math.max(1, Math.min(25, args.batchSize ?? 10));
 
   console.log(`🎪 Starting lineup import for ${festival.name}: ${deduped.length} artists from ${chosen.source}`);
@@ -176,8 +172,10 @@ async function runLineupImport(
     },
   );
 
-  // Kick off the first batch quickly.
-  void ctx.scheduler.runAfter(0, internalRef.festivalLineupImport.processFestivalLineupBatch, {
+  if (deduped.length === 0) return { jobId, total: 0, source: chosen.source };
+
+  // Await durable scheduling before reporting a running import.
+  await ctx.scheduler.runAfter(0, internalRef.festivalLineupImport.processFestivalLineupBatch, {
     jobId,
     festivalId: args.festivalId,
     names: deduped,
@@ -198,30 +196,28 @@ export const processFestivalLineupBatch = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const lockName = `festival_lineup_import:${args.jobId}`;
+    const job = await ctx.runQuery(internalRef.festivalLineupImport.getJobInternal, { jobId: args.jobId });
+    if (!job || job.status !== "running" || (job.itemsProcessed ?? 0) > args.cursor) return null;
+    const lockName = `festival_lineup_import:${args.festivalId}`;
     const acquired: boolean = await ctx.runMutation(internalRef.maintenance.acquireLock, {
       name: lockName,
       staleMs: 10 * MINUTE,
     });
-    if (!acquired) return null;
+    if (!acquired) {
+      await ctx.scheduler.runAfter(5000, internalRef.festivalLineupImport.processFestivalLineupBatch, args);
+      return null;
+    }
 
     try {
-      const existingArtistIds = new Set<Id<"artists">>(
-        await ctx.runQuery(internalRef.festivalLineupImport.getExistingFestivalArtistIdsInternal, {
-          festivalId: args.festivalId,
-        }),
-      );
-
       const total = args.names.length;
-      const start = Math.max(0, args.cursor);
-      const end = Math.min(total, start + Math.max(1, args.batchSize));
-      const batch = args.names.slice(start, end);
-
+      const end = Math.min(total, args.cursor + args.batchSize);
+      const batch = args.names.slice(args.cursor, end);
       let processed = 0;
       let linked = 0;
       let imported = 0;
       let skipped = 0;
       let failed = 0;
+      const failedItems: string[] = [];
 
       for (const rawName of batch) {
         processed++;
@@ -251,50 +247,35 @@ export const processFestivalLineupBatch = internalAction({
             });
             
             // Find best match - prefer exact name match
-            const exactMatch = searchResults.find(r => 
-              normalizeName(r.name || "") === lower
-            );
-            const top = exactMatch || (Array.isArray(searchResults) ? searchResults[0] : null);
+            const exactMatches = searchResults.filter(r => normalizeName(r.name || "") === lower);
+            const top = exactMatches.length === 1 ? exactMatches[0] : null;
             
             if (!top?.ticketmasterId) {
               console.log(`   ⚠️ No Ticketmaster match for: ${name}`);
-              skipped++;
+              failed++;
+              failedItems.push(name);
               continue;
             }
 
             console.log(`   📥 Importing artist: ${top.name} (TM: ${top.ticketmasterId})`);
-            const syncResult: any = await ctx.runAction(apiRef.ticketmaster.triggerFullArtistSync, {
-              ticketmasterId: String(top.ticketmasterId),
-              artistName: String(top.name || name),
-              genres: Array.isArray(top.genres) ? top.genres : [],
-              images: Array.isArray(top.images) ? top.images : [],
+            artistId = await ctx.runMutation(internalRef.artists.createFromTicketmaster, {
+              ticketmasterId: String(top.ticketmasterId), name: String(top.name || name),
+              genres: Array.isArray(top.genres) ? top.genres : [], images: Array.isArray(top.images) ? top.images : [],
               upcomingEvents: typeof top.upcomingEvents === "number" ? top.upcomingEvents : 0,
-            });
+            }) || undefined;
+            if (!artistId) { failed++; failedItems.push(name); continue; }
 
-            if (syncResult?.type !== "artist" || !syncResult.artistId) {
-              console.log(`   ⚠️ Sync returned non-artist for: ${name} (type: ${syncResult?.type})`);
-              skipped++;
-              continue;
-            }
-
-            artistId = syncResult.artistId as Id<"artists">;
             imported++;
             console.log(`   ✓ Imported new artist: ${name} (ID: ${artistId})`);
           }
 
-          if (artistId && !existingArtistIds.has(artistId)) {
-            await ctx.runMutation(apiRef.festivals.addArtist, {
-              festivalId: args.festivalId,
-              artistId,
-            });
-            existingArtistIds.add(artistId);
+          if (artistId) {
+            await ctx.runMutation(internalRef.festivalRoster.linkArtist, { festivalId: args.festivalId, name, artistId });
             linked++;
-          } else if (artistId) {
-            console.log(`   ⏭️ Already in festival: ${name}`);
-            skipped++;
           }
         } catch (e) {
           failed++;
+          failedItems.push(name);
           console.error(`❌ Festival lineup import failed for ${name}:`, e);
         }
       }
@@ -309,13 +290,14 @@ export const processFestivalLineupBatch = internalAction({
           currentStep: `processed ${newCursor}/${total}`,
           itemsProcessed: newCursor,
           progressPercentage: progress,
+          ...(failed > 0 ? { errorMessage: "One or more lineup artists failed to import; retry required", failedItems } : {}),
           // Store lightweight batch stats in errorMessage if helpful, but avoid overwriting real errors.
         },
       });
 
       if (newCursor < total) {
         // Small delay between batches to avoid TM rate limit bursts.
-        void ctx.scheduler.runAfter(1500, internalRef.festivalLineupImport.processFestivalLineupBatch, {
+        await ctx.scheduler.runAfter(1500, internalRef.festivalLineupImport.processFestivalLineupBatch, {
           jobId: args.jobId,
           festivalId: args.festivalId,
           names: args.names,
@@ -342,6 +324,11 @@ export const processFestivalLineupBatch = internalAction({
       );
 
       return null;
+    } catch (error) {
+      await ctx.runMutation(internalRef.festivalLineupImport.patchJobInternal, {
+        jobId: args.jobId, patch: { status: "failed", completedAt: Date.now(), errorMessage: error instanceof Error ? error.message.slice(0, 500) : "Lineup import failed" },
+      });
+      throw error;
     } finally {
       await ctx.runMutation(internalRef.maintenance.releaseLock, { name: lockName });
     }
@@ -415,15 +402,12 @@ async function fetchLineupFromTicketmaster(festival: any): Promise<string[]> {
       keyword,
       startDate,
       endDate,
-      seenEventIds
+      seenEventIds,
+      festival
     );
     allNames.push(...names);
     
-    // If we found a good number of artists, we can stop
-    if (allNames.length >= 30) {
-      console.log(`   Found ${allNames.length} artists with keyword "${keyword}", stopping search`);
-      break;
-    }
+
   }
 
   // Strategy 2: If keyword search failed, try venue-based search
@@ -494,7 +478,8 @@ async function fetchEventsWithKeyword(
   keyword: string,
   startDate: string,
   endDate: string,
-  seenEventIds: Set<string>
+  seenEventIds: Set<string>,
+  festival: any
 ): Promise<string[]> {
   const names: string[] = [];
   const base = "https://app.ticketmaster.com/discovery/v2/events.json";
@@ -531,6 +516,7 @@ async function fetchEventsWithKeyword(
       if (events.length === 0) break;
 
       for (const event of events) {
+        if (!matchesFestivalEvent(festival, event)) continue;
         // Skip if we've already processed this event
         const eventId = event.id;
         if (eventId && seenEventIds.has(eventId)) continue;
@@ -605,7 +591,7 @@ async function fetchEventsNearVenue(
     const events: any[] = data?._embedded?.events || [];
     
     // Filter events that look like they're part of the festival
-    const festivalKeywords = festivalName.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+
     
     for (const event of events) {
       const eventId = event.id;
@@ -614,7 +600,7 @@ async function fetchEventsNearVenue(
       const eventName = String(event.name || "").toLowerCase();
       
       // Check if event name contains festival keywords
-      const isRelated = festivalKeywords.some(kw => eventName.includes(kw));
+      const isRelated = matchesFestivalEvent({ name: festivalName, location, startDate, endDate }, event);
       if (!isRelated) continue;
       
       if (eventId) seenEventIds.add(eventId);
@@ -634,3 +620,24 @@ async function fetchEventsNearVenue(
 
   return names;
 }
+
+export const getJobInternal = internalQuery({
+  args: { jobId: v.id("syncJobs") }, handler: (ctx, args) => ctx.db.get(args.jobId),
+});
+
+export const expireStalledJobs = internalMutation({
+  args: {},
+  handler: async ctx => {
+    const jobs = await ctx.db.query("syncJobs").withIndex("by_type_and_status", q =>
+      q.eq("type", "festival_lineup_import").eq("status", "running")).take(500);
+    let expired = 0;
+    for (const job of jobs) {
+      if ((job.startedAt ?? job._creationTime) >= Date.now() - 30 * MINUTE) continue;
+      await ctx.db.patch(job._id, { status: "failed", completedAt: Date.now(), errorMessage: "Stalled import: no completed continuation; restart against the correct edition" });
+      expired++;
+    }
+    return { expired };
+  },
+});
+
+export const getRosterInternal = internalQuery({ args: { festivalId: v.id("festivals") }, handler: async (ctx, a) => ctx.db.query("festivalLineupEntries").withIndex("by_festival", q => q.eq("festivalId", a.festivalId)).take(600) });

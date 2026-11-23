@@ -1,3 +1,6 @@
+import { showWithTickets } from "./lib/showTickets";
+import { songKey as normalizeSongKey, summarizeRequests } from "./lib/predictions";
+import { getRequestCounts } from "./lib/songVoteCounts";
 import { query } from "./_generated/server";
 import { v } from "convex/values";
 
@@ -49,20 +52,13 @@ export const getArtistHome = query({
       .filter((s: any) => !!s.venue)
       .sort((a: any, b: any) => parseDate(a.date).getTime() - parseDate(b.date).getTime());
 
-    return { artist, shows };
+    const hasCatalog = !!await ctx.db.query("artistSongs").withIndex("by_artist", q => q.eq("artistId", args.artistId)).first();
+    const nextShow = shows[0];
+    const hasFanRequests = nextShow ? !!await ctx.db.query("showSongDemand")
+      .withIndex("by_show_upvotes", q => q.eq("showId", nextShow._id)).filter(q => q.gt(q.field("upvotes"), 0)).first() : false;
+    return { artist, shows, readiness: { hasCatalog, hasNextShow: !!nextShow, hasFanRequests } };
   },
 });
-
-function normalizeSongKey(title: string): string {
-  return title
-    .toLowerCase()
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 export const getShowDemand = query({
   args: { showId: v.id("shows") },
@@ -136,7 +132,7 @@ export const getShowDemand = query({
     }
 
     return {
-      show: { ...show, artist, venue },
+      show: { ...await showWithTickets(ctx, show), artist, venue },
       predictionSetlistId: prediction?._id ?? null,
       songs: merged,
     };
@@ -476,8 +472,7 @@ export const getPostShowReport = query({
 
     // Find the actual setlist (from setlist.fm) and fan prediction
     const actualSetlist = setlists.find((s: any) => s.actualSetlist && s.actualSetlist.length > 0);
-    const prediction = setlists.find((s: any) => !s.isOfficial && !s.userId) ?? 
-                       setlists.find((s: any) => !s.isOfficial);
+    const prediction = setlists.find((s: any) => !s.isOfficial && !s.userId);
 
     if (!actualSetlist?.actualSetlist) {
       return {
@@ -487,29 +482,16 @@ export const getPostShowReport = query({
       };
     }
 
-    // Get demand data
-    const demandRows = await ctx.db
-      .query("showSongDemand")
-      .withIndex("by_show", (q) => q.eq("showId", args.showId))
-      .collect();
-
-    const demandByKey = new Map<string, number>();
-    for (const row of demandRows) {
-      demandByKey.set(row.songKey, row.upvotes);
-    }
+    const counts = prediction ? await getRequestCounts(ctx, prediction) : [];
+    const summary = summarizeRequests(counts, actualSetlist.actualSetlist);
+    const demandByKey = new Map([...summary.requested.entries()].map(([key, row]) => [key, row.upvotes]));
 
     // Build the actual setlist with vote data
     const actualSongs = (actualSetlist.actualSetlist as any[]).map((song, index) => {
       const songKey = normalizeSongKey(song.title);
       const votes = demandByKey.get(songKey) || 0;
       
-      // Check if it was in the prediction
-      let wasPredicted = false;
-      if (prediction?.songs) {
-        wasPredicted = (prediction.songs as any[]).some(
-          (ps: any) => normalizeSongKey(typeof ps === 'string' ? ps : ps.title) === songKey
-        );
-      }
+      const wasPredicted = votes > 0;
 
       return {
         position: index + 1,
@@ -532,7 +514,7 @@ export const getPostShowReport = query({
     const missedRequests = Array.from(demandByKey.entries())
       .filter(([key, votes]) => !playedKeys.has(key) && votes > 0)
       .map(([key, votes]) => {
-        const demandRow = demandRows.find(r => r.songKey === key);
+        const demandRow = summary.requested.get(key);
         return { songKey: key, songTitle: demandRow?.songTitle || key, votes };
       })
       .sort((a, b) => b.votes - a.votes)
@@ -552,10 +534,10 @@ export const getPostShowReport = query({
         totalSongsPlayed,
         songsWithVotes,
         predictedAndPlayed,
-        predictionAccuracy: prediction?.songs?.length 
-          ? Math.round((predictedAndPlayed / (prediction.songs as any[]).length) * 100) 
-          : null,
-        fanRequestsFulfilled: Math.round((songsWithVotes / totalSongsPlayed) * 100),
+        predictionAccuracy: summary.accuracy,
+        requestedSongs: summary.requestedSongs,
+        fanRequestsFulfilled: summary.accuracy,
+        hasCommunityData: summary.hasCommunityData,
       },
       topRequestsPlayed,
       missedRequests,
@@ -755,13 +737,13 @@ export const getSongFrequency = query({
   handler: async (ctx, args) => {
     await requireArtistMember(ctx, args.artistId);
     
-    const showsToAnalyze = args.showsToAnalyze ?? 50;
-    const limit = args.limit ?? 30;
+    const showsToAnalyze = Math.max(1, Math.min(100, args.showsToAnalyze ?? 50));
+    const limit = Math.max(1, Math.min(100, args.limit ?? 30));
 
     // Get recent completed shows
     const completedShows = await ctx.db
       .query("shows")
-      .withIndex("by_artist_and_status", (q) => q.eq("artistId", args.artistId).eq("status", "completed"))
+      .withIndex("by_artist_status_and_date", (q) => q.eq("artistId", args.artistId).eq("status", "completed"))
       .order("desc")
       .take(showsToAnalyze);
 
@@ -779,8 +761,11 @@ export const getSongFrequency = query({
       if (actualSetlist?.actualSetlist) {
         totalShowsWithSetlists++;
         
+        const playedAtShow = new Set<string>();
         for (const song of actualSetlist.actualSetlist as any[]) {
           const key = normalizeSongKey(song.title);
+          if (!key || playedAtShow.has(key)) continue;
+          playedAtShow.add(key);
           const existing = songCounts.get(key);
           
           if (existing) {

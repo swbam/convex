@@ -1,8 +1,61 @@
+import { ticketInfoValidator } from "./lib/ticketInfo";
 import { catalogResultValidator } from "./lib/catalogResult";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { appearanceValidator } from "./lib/appearanceValidator";
+import { performanceValidator, requestValidator, livePhase } from "./lib/liveSetlistValidators";
 
 const applicationTables = {
+  setlistProviderSettings: defineTable({
+    key: v.literal("global"), dailyBudget: v.number(), cooldownUntil: v.optional(v.number()),
+  }).index("by_key", ["key"]),
+  liveSetlistSessions: defineTable({
+    showId: v.id("shows"), artistId: v.id("artists"), startsAt: v.number(),
+    phase: livePhase, nextCheckAt: v.optional(v.number()), generation: v.number(),
+    leaseUntil: v.optional(v.number()), requestsUsed: v.number(), failures: v.number(),
+    lastCheckedAt: v.optional(v.number()), lastChangedAt: v.optional(v.number()),
+    lastError: v.optional(v.string()), sourceId: v.optional(v.string()),
+    confirmedAt: v.optional(v.number()), frozenAt: v.optional(v.number()),
+    scheduleKey: v.string(),
+  }).index("by_show", ["showId"]).index("by_due", ["nextCheckAt"]),
+  liveSetlistSnapshots: defineTable({
+    showId: v.id("shows"), songs: v.array(performanceValidator),
+    requests: v.array(requestValidator), version: v.optional(v.string()),
+    sourceUrl: v.optional(v.string()), sourceUpdatedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  }).index("by_show", ["showId"]),
+  heroImageCache: defineTable({
+    key: v.string(), refreshAfter: v.number(),
+    image: v.optional(v.object({ url: v.string(), width: v.optional(v.number()), height: v.optional(v.number()) })),
+  }).index("by_key", ["key"]),
+  siteAppearance: defineTable({
+    key: v.literal("global"),
+    settings: appearanceValidator,
+    revision: v.number(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
+  seoSitemapStates: defineTable({
+    kind: v.string(), generation: v.number(), cursor: v.union(v.string(), v.null()),
+    lastIncludedSlug: v.optional(v.union(v.string(), v.null())),
+    building: v.boolean(), updatedAt: v.number(), nextShard: v.number(), urlCount: v.number(),
+    publishedGeneration: v.optional(v.number()), publishedShards: v.optional(v.number()), publishedAt: v.optional(v.number()), publishedUrlCount: v.optional(v.number()),
+  }).index("by_kind", ["kind"]),
+  seoSitemapShards: defineTable({
+    kind: v.string(), generation: v.number(), part: v.number(), xml: v.string(), urlCount: v.number(),
+  }).index("by_generation_part", ["kind", "generation", "part"]).index("by_generation", ["generation"]),
+  performedSongs: defineTable({
+    songKey: v.string(),
+    title: v.string(),
+  }).index("by_song_key", ["songKey"])
+    .searchIndex("search_title", { searchField: "songKey" }),
+
+  songPerformances: defineTable({
+    songId: v.id("performedSongs"),
+    showId: v.id("shows"),
+    title: v.string(),
+    date: v.string(),
+  }).index("by_show", ["showId"])
+    .index("by_song_date", ["songId", "date"]),
   // Custom users table for app-specific data
   users: defineTable({
     authId: v.string(),
@@ -47,6 +100,10 @@ const applicationTables = {
     artistAccessEnabledAt: v.optional(v.number()),
     artistMemberCount: v.optional(v.number()),
     lastShowSyncAt: v.optional(v.number()),
+    nextShowRefreshAt: v.optional(v.number()),
+    lastShowRefreshAttemptAt: v.optional(v.number()),
+    showRefreshFailures: v.optional(v.number()),
+    lastShowRefreshError: v.optional(v.string()),
     // setlist.fm history import (past setlists for the Past tab)
     setlistfmMbid: v.optional(v.string()),
     lastSetlistfmHistorySyncAt: v.optional(v.number()),
@@ -87,6 +144,7 @@ const applicationTables = {
   })
     .index("by_slug", ["slug"])
     .index("by_name", ["name"])
+    .index("by_active_name", ["isActive", "name"])
     .index("by_trending_score", ["trendingScore"])
     .index("by_trending_rank", ["trendingRank"])
     .index("by_spotify_id", ["spotifyId"])
@@ -94,7 +152,27 @@ const applicationTables = {
     .index("by_lower_name", ["lowerName"])
     .index("by_last_synced", ["lastSynced"])
     .index("by_setlistfm_history_sync", ["lastSetlistfmHistorySyncAt"])
-    .index("by_artist_access_enabled", ["artistAccessEnabled"]),
+    .index("by_artist_access_enabled", ["artistAccessEnabled"])
+    .index("by_active_show_refresh", ["isActive", "nextShowRefreshAt"])
+    .searchIndex("search_name", { searchField: "name", filterFields: ["isActive"] }),
+
+  touringRefreshRotation: defineTable({ key: v.string(), window: v.string(), cursor: v.union(v.string(), v.null()) })
+    .index("by_key", ["key"]),
+
+  artistShowCountRuns: defineTable({
+    name: v.string(), generation: v.number(),
+    phase: v.union(v.literal("counting"), v.literal("publishing"), v.literal("complete")),
+    cursor: v.union(v.string(), v.null()), showsCounted: v.number(), artistsUpdated: v.number(),
+    startedAt: v.number(), updatedAt: v.number(), completedAt: v.optional(v.number()),
+  }).index("by_name", ["name"]),
+  artistShowCountTotals: defineTable({
+    generation: v.number(), artistId: v.id("artists"), count: v.number(),
+  }).index("by_generation_artist", ["generation", "artistId"]),
+  attractionDecisions: defineTable({
+    ticketmasterId: v.string(), name: v.string(), fingerprint: v.string(),
+    decision: v.union(v.literal("excluded"), v.literal("review")),
+    reason: v.string(), policyVersion: v.number(), updatedAt: v.number(),
+  }).index("by_ticketmaster_id", ["ticketmasterId"]),
 
   venues: defineTable({
     slug: v.optional(v.string()),
@@ -127,6 +205,21 @@ const applicationTables = {
     imageUrl: v.optional(v.string()),
     websiteUrl: v.optional(v.string()),
     ticketUrl: v.optional(v.string()),    // Direct Ticketmaster link for affiliate revenue
+    sourceVenueName: v.optional(v.string()),
+    discoveryState: v.optional(v.union(v.literal("listed"), v.literal("review"))),
+    discoveryReason: v.optional(v.string()),
+    imageCardUrl: v.optional(v.string()),
+    imageOverrideUrl: v.optional(v.string()),
+    imageAttribution: v.optional(v.string()),
+    imageUpdatedAt: v.optional(v.number()),
+    mediaCheckedAt: v.optional(v.number()),
+    mediaError: v.optional(v.string()),
+    lineupSourceUrl: v.optional(v.string()),
+    lineupSource: v.optional(v.string()),
+    lineupCheckedAt: v.optional(v.number()),
+    lineupStatus: v.optional(v.union(v.literal("partial"), v.literal("verified"))),
+    lineupExpectedCount: v.optional(v.number()),
+
     wikiUrl: v.optional(v.string()),      // Wikipedia source
     ticketmasterId: v.optional(v.string()), // For dynamic festival detection/deduplication
     genres: v.optional(v.array(v.string())),
@@ -145,7 +238,16 @@ const applicationTables = {
     .index("by_year", ["year"])
     .index("by_status", ["status"])
     .index("by_start_date", ["startDate"])
+    .index("by_end_date", ["endDate"])
+    .index("by_discovery_end", ["discoveryState", "endDate"])
+    .searchIndex("search_name", { searchField: "name" })
     .index("by_ticketmaster_id", ["ticketmasterId"]),
+
+  festivalLineupEntries: defineTable({
+    festivalId: v.id("festivals"), name: v.string(), nameKey: v.string(),
+    artistId: v.optional(v.id("artists")), source: v.string(), sourceUrl: v.optional(v.string()),
+    dayNumber: v.optional(v.number()), updatedAt: v.number(),
+  }).index("by_festival", ["festivalId"]).index("by_festival_name", ["festivalId", "nameKey"]),
 
   shows: defineTable({
     slug: v.optional(v.string()),
@@ -160,6 +262,7 @@ const applicationTables = {
     ticketmasterId: v.optional(v.string()),
     setlistfmId: v.optional(v.string()),
     ticketUrl: v.optional(v.string()),
+    ticketInfo: ticketInfoValidator,
     priceRange: v.optional(v.string()),
     // Engagement & trending fields
     setlistCount: v.optional(v.number()),
@@ -176,6 +279,7 @@ const applicationTables = {
       v.literal("failed")
     )),
     importNextAttemptAt: v.optional(v.number()),
+    importRetryExpiresAt: v.optional(v.number()),
     importLastAttemptAt: v.optional(v.number()),
     importAttemptCount: v.optional(v.number()),
     // Festival-specific fields
@@ -184,6 +288,7 @@ const applicationTables = {
     setTime: v.optional(v.string()),        // "21:30" (24h format)
     setEndTime: v.optional(v.string()),     // "23:00"
     dayNumber: v.optional(v.number()),      // 1, 2, 3 for multi-day
+    festivalScheduleConfirmed: v.optional(v.boolean()),
     isFestivalSet: v.optional(v.boolean()), // Quick filter flag
   })
     .index("by_slug", ["slug"])
@@ -198,10 +303,13 @@ const applicationTables = {
     .index("by_date", ["date"])
     .index("by_venue_status_and_date", ["venueId", "status", "date"])
     .index("by_ticketmaster_id", ["ticketmasterId"])
+    .index("by_ticketmaster_and_artist", ["ticketmasterId", "artistId"])
     .index("by_setlistfm_id", ["setlistfmId"]) // For setlist.fm history dedup
     .index("by_trending_rank", ["trendingRank"])
     .index("by_import_status", ["importStatus"]) // For import monitoring
     .index("by_status_import_due", ["status", "importStatus", "importNextAttemptAt"])
+    .index("by_status_import_date", ["status", "importStatus", "date"])
+    .index("by_import_retry_expiry", ["importRetryExpiresAt"])
     .index("by_festival", ["festivalId"]), // For festival pages
 
   songs: defineTable({
@@ -216,10 +324,23 @@ const applicationTables = {
   })
     .index("by_spotify_id", ["spotifyId"]),
 
+  repertoireMergeJobs: defineTable({
+    artistId: v.id("artists"),
+    showId: v.id("shows"),
+    scheduledId: v.optional(v.id("_scheduled_functions")),
+  }).index("by_artist", ["artistId"])
+    .index("by_show", ["showId"])
+    .index("by_scheduled", ["scheduledId"]),
+
   artistSongs: defineTable({
     artistId: v.id("artists"),
     songId: v.id("songs"),
     isPrimaryArtist: v.boolean(),
+    source: v.optional(v.union(v.literal("setlistfm"), v.literal("spotify_repertoire"))),
+    sourceArtistName: v.optional(v.string()),
+    sourceSpotifyArtistId: v.optional(v.string()),
+    sourceTrackTitle: v.optional(v.string()),
+    sourceSetlistId: v.optional(v.id("setlists")),
   })
     .index("by_artist", ["artistId"])
     .index("by_artist_and_song", ["artistId", "songId"])
@@ -255,12 +376,26 @@ const applicationTables = {
     setlistfmData: v.optional(v.any()),
     accuracy: v.optional(v.number()),
     comparedAt: v.optional(v.number()),
+    songVoteCount: v.optional(v.number()),
+    voteCountsReady: v.optional(v.boolean()),
+    voteCountsSchedule: v.optional(v.string()),
     notificationSentAt: v.optional(v.number()),
     notificationScheduledAt: v.optional(v.number()),
   })
     .index("by_show", ["showId"])
     .index("by_user", ["userId"])
+    .index("by_song_vote_count", ["songVoteCount"])
+    .index("by_official", ["isOfficial"])
     .index("by_show_and_user", ["showId", "userId"]),
+
+  songVoteCounts: defineTable({
+    setlistId: v.id("setlists"),
+    songKey: v.string(),
+    songTitle: v.string(),
+    upvotes: v.number(),
+  })
+    .index("by_setlist", ["setlistId"])
+    .index("by_setlist_song_key", ["setlistId", "songKey"]),
 
   // Votes system per CONVEX.md specification
   votes: defineTable({
@@ -288,6 +423,7 @@ const applicationTables = {
   })
     .index("by_user_setlist_song", ["userId", "setlistId", "songTitle"])
     .index("by_user", ["userId"])
+    .index("by_user_created_at", ["userId", "createdAt"])
     .index("by_setlist_song", ["setlistId", "songTitle"])
     .index("by_setlist", ["setlistId"])
     .index("by_created_at", ["createdAt"]),
@@ -347,8 +483,12 @@ const applicationTables = {
     venueCountry: v.string(),
     date: v.string(),
     startTime: v.optional(v.string()),
+    startsAt: v.optional(v.number()),
+    endsAt: v.optional(v.number()),
+    timeZone: v.optional(v.string()),
     artistImage: v.optional(v.string()),
     ticketUrl: v.optional(v.string()),
+    ticketInfo: ticketInfoValidator,
     priceRange: v.optional(v.string()),
     status: v.string(),
     rank: v.number(),
@@ -477,6 +617,18 @@ const applicationTables = {
     .index("by_user_artist", ["userId", "artistId"])
     .index("by_submitted_at", ["submittedAt"]),
 
+  artistNotifications: defineTable({
+    claimId: v.id("artistClaims"), key: v.string(),
+    kind: v.union(v.literal("review_needed"), v.literal("submitted"), v.literal("approved"), v.literal("rejected")),
+    recipient: v.string(), subject: v.string(), html: v.string(), replyTo: v.optional(v.string()),
+    status: v.union(v.literal("pending"), v.literal("sending"), v.literal("accepted"), v.literal("failed"), v.literal("cancelled")),
+    attempts: v.number(), revision: v.number(), nextAttemptAt: v.optional(v.number()),
+    firstAttemptAt: v.optional(v.number()), providerId: v.optional(v.string()),
+    deliveryStatus: v.optional(v.string()), lastError: v.optional(v.string()),
+    createdAt: v.number(), updatedAt: v.number(),
+  }).index("by_key", ["key"]).index("by_claim", ["claimId"])
+    .index("by_status_due", ["status", "nextAttemptAt"]),
+
   artistMembers: defineTable({
     artistId: v.id("artists"),
     userId: v.id("users"),
@@ -519,6 +671,8 @@ const applicationTables = {
     // solely so already-issued links can be migrated/accepted safely.
     inviteToken: v.optional(v.string()),
     tokenHash: v.optional(v.string()),
+    // Issuances in the rolling rate-limit window, including rotations of this row.
+    issuedAtHistory: v.optional(v.array(v.number())),
     invitedBy: v.id("users"),
     createdAt: v.number(),
     expiresAt: v.number(), // Invites expire after 7 days
@@ -567,7 +721,8 @@ const applicationTables = {
       v.literal("active_sync"),
       v.literal("full_sync"),
       v.literal("setlist_import"),
-      v.literal("festival_lineup_import")
+      v.literal("festival_lineup_import"),
+      v.literal("festival_media_sync")
     ),
     entityId: v.optional(v.string()),
     priority: v.number(),
@@ -575,15 +730,18 @@ const applicationTables = {
       v.literal("pending"),
       v.literal("running"),
       v.literal("completed"),
-      v.literal("failed")
+      v.literal("failed"),
+      v.literal("cancelled")
     ),
     retryCount: v.number(),
     maxRetries: v.number(),
     startedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
     errorMessage: v.optional(v.string()),
+    failedItems: v.optional(v.array(v.string())),
     // Progress tracking fields
     currentPhase: v.optional(v.string()),
+    continuationCursor: v.optional(v.union(v.string(), v.null())),
     totalSteps: v.optional(v.number()),
     completedSteps: v.optional(v.number()),
     currentStep: v.optional(v.string()),

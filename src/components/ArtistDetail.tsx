@@ -1,31 +1,33 @@
+import { useDetailMedia } from "../lib/useDetailMedia";
 import React, { useState } from 'react';
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { Doc, Id } from "../../convex/_generated/dataModel";
 import { Calendar, ChevronRight, Users, Music, Plus, Loader2, Heart, Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
 import { AddToSetlistModal } from "./AddToSetlistModal";
-import { SEOHead } from "./SEOHead";
+
 import { MagicCard } from "./ui/magic-card";
-import { BorderBeam } from "./ui/border-beam";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { motion } from "framer-motion";
-import { useAction } from "convex/react";
 import { formatLocation, formatTimeCompact, parseShowCalendarDate } from "../lib/utils";
 import { DetailPageSkeleton } from "./LoadingSkeleton";
 import { capture, captureException } from "../lib/analytics";
 
 interface ArtistDetailProps {
   artistId: Id<"artists">;
+  artistData?: Doc<"artists">;
   onBack: () => void;
   onShowClick: (showId: Id<"shows">, slug?: string) => void;
   onSignInRequired: () => void;
 }
 
-export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }: ArtistDetailProps) {
-  const artist = useQuery(api.artists.getById, { id: artistId });
+export function ArtistDetail({ artistId, artistData, onBack, onShowClick, onSignInRequired }: ArtistDetailProps) {
+  const queriedArtist = useQuery(api.artists.getById, artistData ? "skip" : { id: artistId });
+  const artist = artistData ?? queriedArtist;
+  const teamStatus = useQuery((api as any).artistAccess.getPublicTeamStatus, { artistId });
   const shows = useQuery(api.shows.getByArtist, { artistId, limit: 50 });
   // This surface only renders a short top-songs list. Avoid hydrating the
   // entire catalog here; the show voting picker requests the full set.
@@ -33,41 +35,10 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   const catalogSongCount = useQuery(api.songs.countByArtistPublic, { artistId });
   const isFollowing = useQuery(api.artists.isFollowing, { artistId });
   const user = useQuery(api.auth.loggedInUser);
-  // Media selection via backend (Ticketmaster hero, Spotify avatar)
-  const getArtistImages = useAction(api.media.getArtistImages);
-  const [heroImage, setHeroImage] = React.useState<string | undefined>(undefined);
-  const [avatarImage, setAvatarImage] = React.useState<string | undefined>(undefined);
-  const [spotifyLink, setSpotifyLink] = React.useState<string | undefined>(undefined);
-
-  React.useEffect(() => {
-    if (!artistId) return;
-    void (async () => {
-      try {
-        const res = await getArtistImages({ artistId });
-        if (res) {
-          setHeroImage(res.heroUrl || undefined);
-          setAvatarImage(res.avatarUrl || undefined);
-          setSpotifyLink(res.spotifyUrl || undefined);
-        }
-      } catch {
-        // ignore
-      }
-    })();
-  }, [artistId, getArtistImages]);
-
-  // If this artist's setlist.fm history was never imported (backlog artists
-  // predating the feature), trigger it on first view — the backend skips
-  // anything synced within the last 6h, so repeat visits are free.
-  const requestHistoryImport = useAction((api as any).setlistfmHistory.requestArtistHistoryImport);
-  const historyRequestedRef = React.useRef(false);
-  React.useEffect(() => {
-    if (!artist || historyRequestedRef.current) return;
-    if ((artist as any).lastSetlistfmHistorySyncAt) return;
-    historyRequestedRef.current = true;
-    void requestHistoryImport({ artistId }).catch(() => {
-      // non-critical background trigger
-    });
-  }, [artist, artistId, requestHistoryImport]);
+  const media = useDetailMedia("artist", artistId);
+  const heroImage = media?.heroUrl;
+  const avatarImage = media?.avatarUrl ?? artist?.images?.[0];
+  const spotifyLink = media?.spotifyUrl;
 
   const [anonymousActions, setAnonymousActions] = useState(0);
   const [addToSetlistModal, setAddToSetlistModal] = useState<{ isOpen: boolean; songTitle: string }>({ isOpen: false, songTitle: "" });
@@ -162,7 +133,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
   }
 
   if (isLoading) {
-    return <DetailPageSkeleton />;
+    return <DetailPageSkeleton kind="artist" />;
   }
 
   const upcomingShows = shows?.filter(show => show.status === "upcoming") || [];
@@ -175,10 +146,10 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
 
   return (
     <>
-      <SEOHead />
-      <div className="space-y-4 sm:space-y-8 relative z-10">
+
+      <div className="space-y-1 sm:space-y-8 relative z-10">
         {/* Hero Header - Apple Music/Spotify-inspired immersive design */}
-        <div className="relative w-full overflow-hidden min-h-[176px] sm:min-h-[260px] lg:min-h-[320px]">
+        <div className="relative w-full overflow-hidden min-h-[148px] lg:min-h-[320px]">
           {/* Background Image Layer - Full bleed, high quality */}
           <div className="absolute inset-0 z-0">
             {heroImage ? (
@@ -189,7 +160,7 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 style={{ imageRendering: 'auto' }}
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-primary/20 via-secondary to-background" />
+              <div className="w-full h-full bg-secondary/40" />
             )}
           </div>
           
@@ -206,11 +177,11 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
           </div>
 
           {/* Content - Positioned at bottom for Apple Music style */}
-          <div className="relative z-10 h-full flex items-end">
-            <div className="w-full px-4 sm:px-6 lg:px-8 pb-5 sm:pb-8 lg:pb-10 pt-12 sm:pt-20">
+          <div className="relative z-10 flex items-end">
+            <div className="w-full px-3 lg:px-8 pb-4 lg:pb-10 pt-5 lg:pt-20">
               <div className="flex flex-row items-end gap-3.5 sm:gap-6 lg:gap-8 max-w-6xl mx-auto">
                 {/* Artist Image - Premium shadow and border treatment */}
-                <div className="flex-shrink-0">
+                <div className="hidden lg:block flex-shrink-0">
                   <a
                     href={spotifyLink}
                     target="_blank"
@@ -235,11 +206,13 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 </div>
 
                 {/* Info - Text with enhanced contrast */}
-                <div className="flex-1 min-w-0 pb-1">
+                <div className="flex-1 min-w-0 w-full pb-1">
                   {/* Artist Name - Bold, clear typography */}
                   <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground leading-tight tracking-tight line-clamp-2 drop-shadow-sm">
                     {artist.name}
                   </h1>
+
+                  {teamStatus?.verifiedTeam && <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground" title="An artist or team representative has manually reviewed access. Song requests are not guaranteed performances."><Check className="h-3.5 w-3.5" />Verified team</p>}
 
                   {/* Meta Info - single muted line */}
                   <p className="mt-1 sm:mt-2 text-xs sm:text-sm font-medium text-foreground/75 truncate">
@@ -257,8 +230,8 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                     aria-pressed={!!isFollowing}
                     className={`mt-2.5 sm:mt-4 inline-flex items-center gap-1.5 rounded-full border px-4 min-h-[40px] text-xs sm:text-sm font-semibold transition-colors ${
                       isFollowing
-                        ? "border-border bg-secondary text-foreground"
-                        : "border-foreground/30 bg-background/50 text-foreground backdrop-blur-sm hover:bg-secondary/70 active:bg-secondary/70"
+                        ? "brand-selected border-primary bg-transparent text-primary"
+                        : "brand-primary"
                     }`}
                   >
                     {isFollowing ? (
@@ -273,6 +246,9 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                       </>
                     )}
                   </motion.button>
+                  <a href={`/for-artists/claim/${artistId}`} className="ml-4 inline-flex min-h-10 items-center text-xs sm:text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
+                    Manage this artist?
+                  </a>
                 </div>
               </div>
             </div>
@@ -280,13 +256,13 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
         </div>
 
         {/* Main Content */}
-        <div className="container mx-auto px-4 sm:px-6 pb-4 sm:pb-8">
+        <div className="detail-sections container mx-auto px-0 sm:px-6 pb-4 sm:pb-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* Shows - Main Content */}
         <div className="lg:col-span-2">
           <Tabs defaultValue="upcoming" className="w-full">
                 {/* Sticky tab bar - stays under the fixed app header while scrolling */}
-                <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-30 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0 py-2 mb-2 bg-background/95 backdrop-blur">
+                <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-30 mx-0 px-3 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0 py-2 mb-2 bg-background/95 backdrop-blur">
                   <div className="flex items-center justify-between gap-3">
                     <h2 className="text-lg sm:text-xl font-bold text-foreground">Shows</h2>
                     <TabsList className="inline-flex bg-secondary/50 rounded-lg p-0.5 gap-0.5 h-auto">
@@ -379,7 +355,6 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                   )}
                 </TabsContent>
               </div>
-              <BorderBeam size={120} duration={10} className="opacity-20" />
             </MagicCard>
           </Tabs>
         </div>
@@ -451,7 +426,6 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
               </div>
             )}
             </div>
-            <BorderBeam size={100} duration={8} className="opacity-20" />
           </MagicCard>
 
           {/* Artist Stats */}
@@ -489,7 +463,6 @@ export function ArtistDetail({ artistId, onBack, onShowClick, onSignInRequired }
                 )}
               </div>
             </div>
-            <BorderBeam size={100} duration={8} className="opacity-20" />
           </MagicCard>
         </div>
         </div>

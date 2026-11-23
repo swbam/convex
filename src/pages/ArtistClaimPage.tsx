@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -52,6 +52,7 @@ export function ArtistClaimPage() {
   const [socialLinks, setSocialLinks] = useState("");
   const [context, setContext] = useState("");
   const [loading, setLoading] = useState(false);
+  const restoredClaim = useRef<string | null>(null);
 
   // Convex
   const startClaim = useMutation((api as any).artistClaims.startClaim);
@@ -89,11 +90,16 @@ export function ArtistClaimPage() {
   useEffect(() => {
     if (!artistId || !isLoaded || !user) return;
 
+    let cancelled = false;
+    restoredClaim.current = null;
+    setClaimId(null);
+    setStep("loading");
     const initClaim = async () => {
       try {
         // Spotify improves matching but is not an ownership attestation. The
         // claim still requires verified evidence and review.
         const result = await startClaim({ artistId, bypassSpotifyCheck: true });
+        if (cancelled) return;
         if (result.success && result.claimId) {
           capture("artist_claim_started", {
             artist_id: artistId,
@@ -121,27 +127,36 @@ export function ArtistClaimPage() {
           navigate("/for-artists");
         }
       } catch (error: any) {
+        if (cancelled) return;
         captureException(error, { operation: "artist_claim_start", artist_id: artistId });
         toast.error(error.message || "Failed to start claim");
         navigate("/for-artists");
       }
     };
 
-    initClaim();
-  }, [artistId, isLoaded, user]);
+    void initClaim();
+    return () => { cancelled = true; };
+  }, [artistId, isLoaded, user?.id, !!user]);
 
-  // Update step when claim data changes
+  // Hydrate once per claim. Reactive evidence updates must not erase unsaved edits.
   useEffect(() => {
-    if (!claim) return;
-    
-    if (claim.emailVerified && !claim.officialRole) {
-      setStep("details");
-    } else if (claim.emailVerified && claim.officialRole && claim.status === "verifying") {
-      setStep("review");
-    } else if (claim.status === "pending") {
-      setStep("submitted");
+    if (!claim || !claimId) return;
+    if (restoredClaim.current !== claimId) {
+      restoredClaim.current = claimId;
+      setEmail(claim.verificationEmail ?? "");
+      setRole(claim.officialRole ?? "artist");
+      setOrganization(claim.organizationName ?? "");
+      setWebsite(claim.officialWebsite ?? "");
+      setSocialLinks((claim.socialLinks ?? []).join("\n"));
+      setContext(claim.additionalContext ?? "");
+      setCode("");
+      if (claim.emailVerified) setStep(claim.officialRole ? "review" : "details");
+      else if (claim.verificationEmail) setStep("verify");
     }
-  }, [claim]);
+    if (claim.status === "pending") setStep("submitted");
+    if (claim.status === "approved") navigate(`/for-artists/${artistId}`, { replace: true });
+    if (claim.status === "rejected") navigate("/for-artists", { replace: true });
+  }, [claim, claimId, artistId, navigate]);
 
   // Handlers
   const handleSendCode = async () => {
@@ -304,11 +319,15 @@ export function ArtistClaimPage() {
     }
   };
 
+  if (isLoaded && !user) {
+    return <Navigate to={`/signin?returnTo=${encodeURIComponent(`/for-artists/claim/${artistId ?? ''}`)}`} replace />;
+  }
+
   // Render loading
   if (!isLoaded || step === "loading") {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-16 text-center">
+        <div className="public-page account-page text-center">
           <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Setting up your claim...</p>
         </div>
@@ -318,16 +337,16 @@ export function ArtistClaimPage() {
 
   // Header with artist info
   const artistHeader = artist && (
-    <div className="flex items-center gap-4 mb-8">
-      <div className="w-16 h-16 rounded-2xl bg-secondary overflow-hidden flex items-center justify-center flex-shrink-0">
+    <div className="flex items-center gap-3 mb-6">
+      <div className="w-12 h-12 rounded-[5px] bg-secondary overflow-hidden flex items-center justify-center flex-shrink-0">
         {artist.images?.[0] ? (
           <img src={artist.images[0]} alt={artist.name} className="w-full h-full object-cover" />
         ) : (
           <Music className="h-7 w-7 text-muted-foreground" />
         )}
       </div>
-      <div>
-        <h1 className="text-2xl font-bold">{artist.name}</h1>
+      <div className="min-w-0">
+        <h1 className="page-title">{artist.name}</h1>
         <p className="text-muted-foreground">Claim artist access</p>
       </div>
     </div>
@@ -343,29 +362,22 @@ export function ArtistClaimPage() {
   const currentStepIndex = steps.findIndex(s => s.id === step);
 
   const stepIndicator = step !== "submitted" && (
-    <div className="flex items-center gap-2 mb-8">
-      {steps.map((s, i) => (
-        <React.Fragment key={s.id}>
-          <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-              i <= currentStepIndex
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-muted-foreground"
-            }`}
-          >
-            {i < currentStepIndex ? <CheckCircle className="h-4 w-4" /> : i + 1}
-          </div>
-          {i < steps.length - 1 && (
-            <div className={`flex-1 h-0.5 ${i < currentStepIndex ? "bg-primary" : "bg-secondary"}`} />
-          )}
-        </React.Fragment>
+    <ol aria-label="Artist claim progress" className="grid grid-cols-4 gap-2 mb-6">
+      {steps.map((item, index) => (
+        <li key={item.id} aria-current={index === currentStepIndex ? 'step' : undefined} className="min-w-0">
+          <div className={`mb-2 h-1 ${index <= currentStepIndex ? 'bg-foreground' : 'bg-border'}`} />
+          <span className={`text-xs sm:text-sm ${index === currentStepIndex ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
+            <span className="sr-only">Step </span>{index + 1}. {item.label}
+            {index < currentStepIndex && <span className="sr-only"> — complete</span>}
+          </span>
+        </li>
       ))}
-    </div>
+    </ol>
   );
 
   return (
     <AppLayout>
-      <div className="container mx-auto px-4 py-10 max-w-xl">
+      <div className="public-page account-page !max-w-2xl">
         <Button
           variant="ghost"
           onClick={() => navigate("/for-artists")}
@@ -380,9 +392,9 @@ export function ArtistClaimPage() {
 
         {/* Step: Email */}
         {step === "email" && (
-          <MagicCard className="p-8">
+          <MagicCard className="p-4 sm:p-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-[5px] bg-secondary flex items-center justify-center">
                 <Mail className="h-6 w-6 text-primary" />
               </div>
               <div>
@@ -395,13 +407,13 @@ export function ArtistClaimPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-2 block">Email address</label>
+                <label htmlFor="claim-email" className="text-sm font-medium mb-2 block">Email address</label>
                 <input
-                  type="email"
+                  type="email" id="claim-email" autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full h-12 rounded-lg bg-secondary border border-border px-4 text-foreground"
+                  className="w-full h-12 rounded-[5px] bg-secondary border border-border px-4 text-foreground"
                   autoFocus
                 />
                 <p className="text-xs text-muted-foreground mt-2">
@@ -433,9 +445,9 @@ export function ArtistClaimPage() {
 
         {/* Step: Verify Code */}
         {step === "verify" && (
-          <MagicCard className="p-8">
+          <MagicCard className="p-4 sm:p-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-[5px] bg-secondary flex items-center justify-center">
                 <CheckCircle className="h-6 w-6 text-primary" />
               </div>
               <div>
@@ -448,13 +460,13 @@ export function ArtistClaimPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-2 block">Verification code</label>
+                <label htmlFor="claim-code" className="text-sm font-medium mb-2 block">Verification code</label>
                 <input
-                  type="text"
+                  type="text" id="claim-code" inputMode="numeric" autoComplete="one-time-code"
                   value={code}
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="000000"
-                  className="w-full h-14 rounded-lg bg-secondary border border-border px-4 text-2xl text-center tracking-[0.5em] font-mono"
+                  className="w-full h-14 rounded-[5px] bg-secondary border border-border px-4 text-2xl text-center tracking-[0.5em] font-mono"
                   maxLength={6}
                   autoFocus
                 />
@@ -492,9 +504,9 @@ export function ArtistClaimPage() {
 
         {/* Step: Details */}
         {step === "details" && (
-          <MagicCard className="p-8">
+          <MagicCard className="p-4 sm:p-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-[5px] bg-secondary flex items-center justify-center">
                 <User className="h-6 w-6 text-primary" />
               </div>
               <div>
@@ -507,14 +519,14 @@ export function ArtistClaimPage() {
 
             <div className="space-y-6">
               {/* Role selection */}
-              <div className="space-y-2">
+              <fieldset className="space-y-2"><legend className="mb-2 text-sm font-medium">Your role</legend>
                 {ROLES.map((r) => (
                   <label
                     key={r.value}
-                    className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${
+                    className={`flex items-start gap-3 p-4 rounded-[5px] border cursor-pointer transition-colors ${
                       role === r.value
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
+                        ? "border-foreground bg-secondary"
+                        : "border-border hover:border-foreground/50"
                     }`}
                   >
                     <input
@@ -531,65 +543,65 @@ export function ArtistClaimPage() {
                     </div>
                   </label>
                 ))}
-              </div>
+              </fieldset>
 
               {/* Organization (if not artist) */}
               {role !== "artist" && (
                 <div>
-                  <label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                  <label htmlFor="claim-organization" className="text-sm font-medium mb-2 block flex items-center gap-2">
                     <Building className="h-4 w-4" />
                     Organization (optional)
                   </label>
-                  <input
+                  <input id="claim-organization"
                     type="text"
                     value={organization}
                     onChange={(e) => setOrganization(e.target.value)}
                     placeholder="e.g., Republic Records, WME"
-                    className="w-full h-12 rounded-lg bg-secondary border border-border px-4 text-foreground"
+                    className="w-full h-12 rounded-[5px] bg-secondary border border-border px-4 text-foreground"
                   />
                 </div>
               )}
 
               {/* Website */}
               <div>
-                <label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                <label htmlFor="claim-website" className="text-sm font-medium mb-2 block flex items-center gap-2">
                   <Globe className="h-4 w-4" />
                   Official website (optional)
                 </label>
-                <input
+                <input id="claim-website"
                   type="url"
                   value={website}
                   onChange={(e) => setWebsite(e.target.value)}
                   placeholder="https://"
-                  className="w-full h-12 rounded-lg bg-secondary border border-border px-4 text-foreground"
+                  className="w-full h-12 rounded-[5px] bg-secondary border border-border px-4 text-foreground"
                 />
               </div>
 
               {/* Social links */}
               <div>
-                <label className="text-sm font-medium mb-2 block">
+                <label htmlFor="claim-social" className="text-sm font-medium mb-2 block">
                   Social media links (optional)
                 </label>
-                <textarea
+                <textarea id="claim-social"
                   value={socialLinks}
                   onChange={(e) => setSocialLinks(e.target.value)}
                   placeholder="One link per line:&#10;https://instagram.com/artist&#10;https://twitter.com/artist"
                   rows={3}
-                  className="w-full rounded-lg bg-secondary border border-border px-4 py-3 text-foreground resize-none"
+                  className="w-full rounded-[5px] bg-secondary border border-border px-4 py-3 text-foreground resize-none"
                 />
               </div>
 
               {/* Additional context */}
               <div>
-                <label className="text-sm font-medium mb-2 block">
+                <label htmlFor="claim-context" className="text-sm font-medium mb-2 block">
                   Anything else? (optional)
                 </label>
-                <textarea
+                <textarea id="claim-context"
                   value={context}
                   onChange={(e) => setContext(e.target.value)}
                   placeholder="Any additional info that helps verify your connection..."
                   rows={2}
-                  className="w-full rounded-lg bg-secondary border border-border px-4 py-3 text-foreground resize-none"
+                  className="w-full rounded-[5px] bg-secondary border border-border px-4 py-3 text-foreground resize-none"
                 />
               </div>
 
@@ -620,9 +632,9 @@ export function ArtistClaimPage() {
           <div className="space-y-6">
             {/* Official verification evidence */}
             {verificationStatus && (verificationStatus.domainVerification?.available || verificationStatus.websiteVerification?.available) && (
-              <MagicCard className="p-6 border-2 border-primary/20 bg-primary/5">
+              <MagicCard className="p-6 border-2 border-primary/20 bg-secondary">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-[5px] bg-secondary flex items-center justify-center">
                     <Zap className="h-5 w-5 text-primary" />
                   </div>
                   <div>
@@ -636,7 +648,7 @@ export function ArtistClaimPage() {
                 <div className="space-y-4">
                   {/* Domain match option */}
                   {verificationStatus.domainVerification?.available && (
-                    <div className="p-4 rounded-xl bg-background border border-border">
+                    <div className="p-4 rounded-[5px] bg-background border border-border">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
@@ -674,7 +686,7 @@ export function ArtistClaimPage() {
 
                   {/* Website code verification */}
                   {verificationStatus.websiteVerification?.available && (
-                    <div className="p-4 rounded-xl bg-background border border-border">
+                    <div className="p-4 rounded-[5px] bg-background border border-border">
                       <div className="flex items-center gap-2 mb-2">
                         <Globe className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">Website verification</span>
@@ -684,7 +696,7 @@ export function ArtistClaimPage() {
                       </p>
                       
                       <div className="flex items-center gap-2 mb-3">
-                        <code className="flex-1 px-3 py-2 rounded-lg bg-secondary font-mono text-sm break-all">
+                        <code className="flex-1 px-3 py-2 rounded-[5px] bg-secondary font-mono text-sm break-all">
                           {verificationStatus.websiteVerification.code}
                         </code>
                         <Button
@@ -692,9 +704,10 @@ export function ArtistClaimPage() {
                           size="sm"
                           onClick={handleCopyCode}
                           className="shrink-0"
+                          aria-label={codeCopied ? "Verification code copied" : "Copy website verification code"}
                         >
                           {codeCopied ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                            <CheckCircle2 className="h-4 w-4 text-green-700 dark:text-green-500" />
                           ) : (
                             <Copy className="h-4 w-4" />
                           )}
@@ -705,7 +718,7 @@ export function ArtistClaimPage() {
                         <summary className="cursor-pointer hover:text-foreground">
                           How to add to your website
                         </summary>
-                        <div className="mt-2 p-3 rounded-lg bg-secondary space-y-2">
+                        <div className="mt-2 p-3 rounded-[5px] bg-secondary space-y-2">
                           <p><strong>Option 1:</strong> Add meta tag to your homepage:</p>
                           <code className="block text-xs overflow-x-auto">
                             {`<meta name="setlists-verify" content="${verificationStatus.websiteVerification.code}">`}
@@ -733,6 +746,7 @@ export function ArtistClaimPage() {
                         </Button>
                         <a
                           href={claim.officialWebsite}
+                          aria-label="Open official website"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-muted-foreground hover:text-foreground"
@@ -753,9 +767,9 @@ export function ArtistClaimPage() {
             )}
 
             {/* Claim summary */}
-            <MagicCard className="p-8">
+            <MagicCard className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center">
+                <div className="w-12 h-12 rounded-[5px] bg-secondary flex items-center justify-center">
                   <CheckCircle className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <div>
@@ -767,24 +781,24 @@ export function ArtistClaimPage() {
               </div>
 
               <div className="space-y-4 mb-8">
-                <div className="flex justify-between py-3 border-b border-border">
+                <div className="flex flex-col gap-1 py-3 border-b border-border sm:flex-row sm:justify-between sm:gap-4">
                   <span className="text-muted-foreground">Email</span>
-                  <span className="font-medium">{claim.verificationEmail}</span>
+                  <span className="min-w-0 break-words sm:text-right">{claim.verificationEmail}</span>
                 </div>
-                <div className="flex justify-between py-3 border-b border-border">
+                <div className="flex flex-col gap-1 py-3 border-b border-border sm:flex-row sm:justify-between sm:gap-4">
                   <span className="text-muted-foreground">Role</span>
                   <span className="font-medium capitalize">{claim.officialRole}</span>
                 </div>
                 {claim.organizationName && (
-                  <div className="flex justify-between py-3 border-b border-border">
+                  <div className="flex flex-col gap-1 py-3 border-b border-border sm:flex-row sm:justify-between sm:gap-4">
                     <span className="text-muted-foreground">Organization</span>
-                    <span className="font-medium">{claim.organizationName}</span>
+                    <span className="min-w-0 break-words sm:text-right">{claim.organizationName}</span>
                   </div>
                 )}
                 {claim.officialWebsite && (
-                  <div className="flex justify-between py-3 border-b border-border">
+                  <div className="flex flex-col gap-1 py-3 border-b border-border sm:flex-row sm:justify-between sm:gap-4">
                     <span className="text-muted-foreground">Website</span>
-                    <a href={claim.officialWebsite} className="font-medium text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+                    <a href={claim.officialWebsite} className="min-w-0 break-all underline underline-offset-4 sm:text-right" target="_blank" rel="noopener noreferrer">
                       {claim.officialWebsite}
                     </a>
                   </div>
@@ -822,14 +836,14 @@ export function ArtistClaimPage() {
 
         {/* Step: Submitted */}
         {step === "submitted" && (
-          <MagicCard className="p-8 text-center">
+          <MagicCard className="p-4 sm:p-6 text-center">
             <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="h-8 w-8 text-green-500" />
+              <CheckCircle className="h-8 w-8 text-green-700 dark:text-green-500" />
             </div>
-            <h2 className="text-2xl font-bold mb-2">Claim submitted!</h2>
+            <h2 className="page-title mb-2">Claim submitted!</h2>
             <p className="text-muted-foreground mb-8">
-              We'll review your request and email you when it's approved.
-              This usually takes less than 24 hours.
+              Your request is waiting for review. You can check its status in the artist portal.
+              Access is granted only after your connection to the artist is approved.
             </p>
             <Button onClick={() => navigate("/for-artists")} className="w-full" size="lg">
               Back to For Artists

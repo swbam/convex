@@ -1,47 +1,57 @@
 {
-  "rewrites": [
+  "installCommand": "env -u npm_config_cache_dir -u NPM_CONFIG_CACHE_DIR npm install --prefer-offline --no-audit --no-fund",
+  "buildCommand": "env -u npm_config_cache_dir -u NPM_CONFIG_CACHE_DIR npm run build",
+  "routes": [
     {
-      "source": "/sitemap.xml",
-      "destination": "https://exuberant-weasel-22.convex.site/sitemap.xml"
+      "src": "/(.*)",
+      "headers": {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+        "X-Robots-Tag": "noindex, nofollow"
+      },
+      "continue": true
     },
     {
-      "source": "/artists/:key",
-      "destination": "https://exuberant-weasel-22.convex.site/seo/artists/:key"
+      "src": "/app/(main\\.js|main\\.css)",
+      "headers": {
+        "Cache-Control": "public, max-age=0, must-revalidate"
+      },
+      "continue": true
     },
     {
-      "source": "/shows/:key",
-      "destination": "https://exuberant-weasel-22.convex.site/seo/shows/:key"
+      "src": "/assets/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
     },
     {
-      "source": "/venues/:key",
-      "destination": "https://exuberant-weasel-22.convex.site/seo/venues/:key"
+      "src": "/(?:sitemap(?:_index|s)?\\.xml|sitemaps(?:/.*)?|seo-meta|seo(?:/.*)?)/?$",
+      "status": 410,
+      "headers": {
+        "Cache-Control": "public, max-age=86400"
+      }
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
-      ]
+      "src": "/api/og/?$",
+      "dest": "/og-preview.png"
     },
     {
-      "source": "/assets/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
+      "src": "/apple-touch-icon-precomposed\\.png",
+      "dest": "/apple-touch-icon.png"
     },
     {
-      "source": "/(signin|signup|profile|sso-callback|spotify-connect|for-artists|admin)/:path*",
-      "headers": [
-        { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
-      ]
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(?:assets|app|api)/(.*)",
+      "status": 404
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }

@@ -1,3 +1,6 @@
+import { PageHeader } from "./PageHeader";
+import { ArtistDiscoveryCard, ShowDiscoveryCard, DiscoverySkeleton } from "./discovery/DiscoveryCard";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import React, { useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -6,7 +9,7 @@ import { TrendingUp, Music, MapPin, Calendar, Clock, ChevronRight, Users, Loader
 import { motion } from 'framer-motion';
 import { useArtistImport, useShowImport } from '../hooks/useArtistImport';
 import { formatLocation } from '../lib/utils';
-import { SEOHead } from './SEOHead';
+
 
 interface TrendingProps {
   onArtistClick: (artistKey: Id<'artists'> | string, slug?: string) => void;
@@ -15,16 +18,16 @@ interface TrendingProps {
 
 export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
   const [activeTab, setActiveTab] = useState<'artists' | 'shows' | 'setlists'>('artists');
-  
+
   // Import hooks for triggering full artist/show sync
   const { handleArtistClick: importArtist, importingArtist } = useArtistImport();
   const { handleShowClick: importShow, importingShow } = useShowImport();
-  
+
   // Get trending data directly from main tables with trending ranks!
   const trendingArtists = useQuery(api.trending.getTrendingArtists, { limit: 20 });
   const trendingShows = useQuery(api.trending.getTrendingShows, { limit: 20 });
   const trendingSetlists = useQuery(api.activity.getTrendingSetlists, { limit: 20 });
-  
+
   // Get recent activity/updates
   const recentActivity = useQuery(api.shows.getRecentlyUpdated, { limit: 10 });
 
@@ -33,7 +36,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
     await importArtist(artist, onArtistClick);
   };
 
-  // Handler that triggers import if show not in DB  
+  // Handler that triggers import if show not in DB
   const handleShowClick = async (show: any) => {
     await importShow(show, onShowClick);
   };
@@ -45,30 +48,20 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
   ] as const;
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6 relative z-10">
-      <SEOHead
-        title="Trending Concerts This Week – Hot Setlists & Artists"
-        description="See which artists, shows, and setlists fans are voting on right now. Trending concerts updated in real time — join the vote before the show starts."
-      />
+    <Tabs value={activeTab} onValueChange={value => setActiveTab(value as typeof activeTab)} className="public-page space-y-6 relative z-10">
+      <PageHeader title="Trending" description="Explore popular artists, upcoming shows, and fan setlists." />
+
       {/* Streamlined Header with Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         {/* Tab Navigation */}
-        <div className="flex gap-1 p-1 bg-secondary rounded-xl border border-border">
+        <TabsList aria-label="Trending content">
           {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 py-2 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
-                activeTab === tab.id
-                  ? 'bg-background text-foreground shadow-sm border border-border'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
+            <TabsTrigger key={tab.id} value={tab.id} className="gap-1.5">
               <tab.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span>{tab.label}</span>
-            </button>
+            </TabsTrigger>
           ))}
-        </div>
+        </TabsList>
 
         {/* Stats */}
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -81,18 +74,10 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-3">
-          {activeTab === 'artists' && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+          <TabsContent value="artists" className="mt-0">
+            <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-0 sm:gap-4">
               {!trendingArtists ? (
-                [...Array(10)].map((_, i) => (
-                  <div key={i} className="glow-card overflow-hidden animate-pulse">
-                    <div className="aspect-square bg-secondary" />
-                    <div className="p-3 space-y-2">
-                      <div className="h-4 bg-secondary rounded w-3/4" />
-                      <div className="h-3 bg-secondary rounded w-1/2" />
-                    </div>
-                  </div>
-                ))
+                <DiscoverySkeleton count={10} />
               ) : (!Array.isArray(trendingArtists.page) || trendingArtists.page.length === 0) ? (
                 <div className="col-span-full text-center py-12 text-muted-foreground">
                   <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -100,7 +85,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                 </div>
               ) : (
                 trendingArtists.page.map((artist: any, index: number) => (
-                  <ArtistCard
+                  <ArtistDiscoveryCard
                     key={artist._id || index}
                     artist={artist}
                     rank={index + 1}
@@ -110,20 +95,12 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                 ))
               )}
             </div>
-          )}
+          </TabsContent>
 
-          {activeTab === 'shows' && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+          <TabsContent value="shows" className="mt-0">
+            <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-0 sm:gap-4">
               {!trendingShows ? (
-                [...Array(10)].map((_, i) => (
-                  <div key={i} className="glow-card overflow-hidden animate-pulse">
-                    <div className="aspect-square bg-secondary" />
-                    <div className="p-3 space-y-2">
-                      <div className="h-4 bg-secondary rounded w-3/4" />
-                      <div className="h-3 bg-secondary rounded w-1/2" />
-                    </div>
-                  </div>
-                ))
+                <DiscoverySkeleton count={10} />
               ) : (!Array.isArray(trendingShows.page) || trendingShows.page.length === 0) ? (
                 <div className="col-span-full text-center py-12 text-muted-foreground">
                   <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -131,7 +108,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                 </div>
               ) : (
                 trendingShows.page.map((show: any, index: number) => (
-                  <ShowCard
+                  <ShowDiscoveryCard
                     key={show._id || index}
                     show={show}
                     rank={index + 1}
@@ -141,9 +118,9 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                 ))
               )}
             </div>
-          )}
-          
-          {activeTab === 'setlists' && (
+          </TabsContent>
+
+          <TabsContent value="setlists" className="mt-0">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {!trendingSetlists ? (
                 [...Array(8)].map((_, i) => (
@@ -164,9 +141,9 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                 </div>
               ) : (
                 trendingSetlists.map((setlist: any, index: number) => (
-                  <div
+                  <button type="button"
                     key={setlist._id}
-                    className="glow-card glow-card-hover p-3 cursor-pointer transition-colors"
+                    className="content-card p-3 text-left focus-visible:ring-2 focus-visible:ring-ring"
                     onClick={() => {
                       const showId = setlist.show?._id ?? setlist._id;
                       const showSlug = setlist.show?.slug as string | undefined;
@@ -200,11 +177,11 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))
               )}
             </div>
-          )}
+          </TabsContent>
         </div>
 
         {/* Sidebar - Recent Activity */}
@@ -214,7 +191,7 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
               <Clock className="h-4 w-4 text-muted-foreground" />
               <h3 className="text-sm font-semibold text-foreground">Recent Activity</h3>
             </div>
-            
+
             {!recentActivity ? (
               <div className="space-y-3">
                 {[...Array(5)].map((_, i) => (
@@ -229,9 +206,9 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
             ) : (
               <div className="space-y-2">
                 {recentActivity.slice(0, 6).map((activity, index) => (
-                  <div 
-                    key={index} 
-                    className="p-2 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors cursor-pointer"
+                  <button type="button"
+                    key={index}
+                    className="w-full p-2 text-left hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring"
                     onClick={() => handleShowClick(activity)}
                   >
                     <div className="flex items-start gap-2">
@@ -245,154 +222,13 @@ export function Trending({ onArtistClick, onShowClick }: TrendingProps) {
                         </p>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-// Compact Artist Card
-function ArtistCard({ artist, rank, onClick, isImporting }: { artist: any; rank: number; onClick: () => void; isImporting?: boolean }) {
-  const image = Array.isArray(artist.images) && artist.images.length > 0 ? artist.images[0] : undefined;
-  const upcomingCount = typeof artist.upcomingShowsCount === 'number'
-    ? artist.upcomingShowsCount
-    : typeof artist.upcomingEvents === 'number'
-      ? artist.upcomingEvents
-      : 0;
-
-  return (
-    <motion.div
-      className={`cursor-pointer ${isImporting ? 'pointer-events-none opacity-70' : ''}`}
-      onClick={onClick}
-      whileHover={{ y: -4 }}
-      whileTap={{ scale: 0.98 }}
-    >
-      <div className="glow-card glow-card-hover overflow-hidden relative">
-        {isImporting && (
-          <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          </div>
-        )}
-        <div className="relative aspect-square overflow-hidden">
-          {image ? (
-            <img
-              src={image}
-              alt={artist.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-secondary to-secondary/50 flex items-center justify-center">
-              <span className="text-foreground/60 font-bold text-xl">
-                {artist.name?.slice(0, 2).toUpperCase()}
-              </span>
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-          
-          {/* Rank Badge */}
-          <div className="absolute top-2 left-2">
-            <div className={`w-6 h-6 rounded-md flex items-center justify-center font-bold text-xs ${
-              rank <= 3 
-                ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white' 
-                : 'bg-secondary/80 backdrop-blur-sm text-foreground'
-            }`}>
-              {rank}
-            </div>
-          </div>
-        </div>
-        <div className="p-2.5 sm:p-3">
-          <h3 className="font-semibold text-foreground text-xs sm:text-sm line-clamp-1">{artist.name}</h3>
-          <div className="flex items-center gap-1 mt-1 text-muted-foreground text-[10px] sm:text-xs">
-            {upcomingCount > 0 && (
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {upcomingCount}
-              </span>
-            )}
-            {artist.followers && (
-              <span className="flex items-center gap-1">
-                <Users className="h-3 w-3" />
-                {artist.followers > 1000 
-                  ? `${(artist.followers / 1000).toFixed(0)}k` 
-                  : artist.followers
-                }
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-// Compact Show Card
-function ShowCard({ show, rank, onClick, isImporting }: { show: any; rank: number; onClick: () => void; isImporting?: boolean }) {
-  const artistName = show.artist?.name || show.artistName || 'Unknown Artist';
-  const artistImage = show.artist?.images?.[0] || show.artistImage;
-  const locationDisplay = formatLocation(show.venue?.city || show.venueCity, show.venue?.state || show.venueState);
-  const eventDate = new Date(show.date);
-  const dateLabel = Number.isNaN(eventDate.getTime())
-    ? show.date
-    : eventDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-  return (
-    <motion.div
-      className={`cursor-pointer ${isImporting ? 'pointer-events-none opacity-70' : ''}`}
-      onClick={onClick}
-      whileHover={{ y: -4 }}
-      whileTap={{ scale: 0.98 }}
-    >
-      <div className="glow-card glow-card-hover overflow-hidden relative">
-        {isImporting && (
-          <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          </div>
-        )}
-        <div className="relative aspect-square overflow-hidden">
-          {artistImage ? (
-            <img
-              src={artistImage}
-              alt={artistName}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-secondary to-secondary/50 flex items-center justify-center">
-              <Calendar className="h-8 w-8 text-foreground/40" />
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-          
-          {/* Date Badge */}
-          <div className="absolute top-2 right-2">
-            <div className="bg-background/90 backdrop-blur-sm rounded-md px-1.5 py-0.5 border border-border/50">
-              <p className="text-foreground text-[10px] font-medium">{dateLabel}</p>
-            </div>
-          </div>
-          
-          {/* Rank Badge */}
-          <div className="absolute top-2 left-2">
-            <div className={`w-6 h-6 rounded-md flex items-center justify-center font-bold text-xs ${
-              rank <= 3 
-                ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white' 
-                : 'bg-secondary/80 backdrop-blur-sm text-foreground'
-            }`}>
-              {rank}
-            </div>
-          </div>
-        </div>
-        <div className="p-2.5 sm:p-3">
-          <h3 className="font-semibold text-foreground text-xs sm:text-sm line-clamp-1">{artistName}</h3>
-          <div className="flex items-center gap-1 mt-1 text-muted-foreground text-[10px] sm:text-xs">
-            <MapPin className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">{locationDisplay}</span>
-          </div>
-        </div>
-      </div>
-    </motion.div>
+    </Tabs>
   );
 }

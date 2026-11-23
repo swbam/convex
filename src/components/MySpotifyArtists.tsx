@@ -63,12 +63,12 @@ export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
   }
 
   return (
-    <MagicCard className="p-0 rounded-xl border-0 bg-card" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
+    <MagicCard className="p-0 rounded-[5px] border-0 bg-card" style={{borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
       <div className="p-4 sm:p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center">
-              <Music className="h-5 w-5 text-green-400" />
+            <div className="w-10 h-10 bg-secondary rounded-[5px] flex items-center justify-center">
+              <Music className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-foreground">My Artists on Tour</h2>
@@ -99,13 +99,12 @@ export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
             filteredArtists.map((item) => (
               <div
                 key={item.artist._id}
-                onClick={() => onArtistClick(item.artist._id, item.artist.slug)}
                 className="flex items-center justify-between py-3 px-0 hover:bg-secondary cursor-pointer transition-all touch-manipulation min-h-[44px]"
                 style={{
                   borderBottom: filteredArtists.length > 1 && item !== filteredArtists[filteredArtists.length - 1] ? '1px solid rgba(255, 255, 255, 0.03)' : 'none',
                 }}
               >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
+                <button type="button" onClick={() => onArtistClick(item.artist._id, item.artist.slug)} className="flex min-h-11 items-center gap-3 flex-1 min-w-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
                   <div className="relative">
                     <img 
                       src={item.artist.images?.[0]} 
@@ -114,7 +113,7 @@ export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
                     />
                     {/* Badge for top artists */}
                     {item.isTopArtist && item.topArtistRank && item.topArtistRank <= 5 && (
-                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-[10px] font-bold text-foreground border-2 border-black">
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-foreground rounded-[5px] flex items-center justify-center text-[10px] font-bold text-background border-2 border-background">
                         {item.topArtistRank}
                       </div>
                     )}
@@ -123,25 +122,26 @@ export function MySpotifyArtists({ onArtistClick }: MySpotifyArtistsProps) {
                     <div className="flex items-center gap-2">
                       <p className="text-foreground font-medium text-sm truncate">{item.artist.name}</p>
                       {item.isFollowed && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">Followed</span>
+                        <span className="text-[10px] px-1.5 py-0.5 bg-secondary text-muted-foreground rounded">Followed</span>
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       {item.isTopArtist && (
-                        <p className="text-green-400 text-xs">Top #{item.topArtistRank}</p>
+                        <p className="text-muted-foreground text-xs">Top #{item.topArtistRank}</p>
                       )}
                       <p className="text-muted-foreground text-xs">
                         {item.upcomingShowsCount} {item.upcomingShowsCount === 1 ? 'show' : 'shows'}
                       </p>
                     </div>
                   </div>
-                </div>
+                </button>
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={(e) => { e.stopPropagation(); handleSyncShows(item.artist._id, item.artist.name); }}
                   className="mr-2"
                   title="Refresh shows"
+                  aria-label={`Refresh shows for ${item.artist.name}`}
                 >
                   <RefreshCw className="h-4 w-4" />
                 </Button>

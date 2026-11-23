@@ -1,6 +1,6 @@
 import { AuthGuard } from './AuthGuard';
 import { ScrollToTop } from './ScrollToTop';
-import { SEOHead } from './SEOHead';
+
 
 interface ProtectedLayoutProps {
   children: React.ReactNode;
@@ -20,12 +20,10 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
     <>
       {/* Outside AuthGuard so the noindex robots meta applies even while
           auth is loading or the visitor is signed out. */}
-      <SEOHead />
+
       <AuthGuard>
         <ScrollToTop />
         <div className="min-h-screen min-h-dvh bg-background text-foreground">
-          {/* Theme-aware gradient background */}
-          <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-background dark:from-black dark:via-gray-950 dark:to-black pointer-events-none" />
           <div className="relative z-10">
             {children}
           </div>

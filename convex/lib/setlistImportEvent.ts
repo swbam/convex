@@ -1,3 +1,4 @@
+import { queueRepertoireMerge } from "../catalogRepertoire";
 import type { MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { internalRef } from "../adminHelpers";
@@ -9,12 +10,16 @@ export async function recordSetlistImport(ctx: MutationCtx, args: {
   predictionAccuracy?: number;
 }) {
   if (!args.setlistfmId || args.actualSongCount === 0) throw new Error("Empty official setlist");
+  const pilot = await ctx.db.query("liveSetlistSessions").withIndex("by_show", q => q.eq("showId", args.showId)).unique();
+  if (pilot && !pilot.confirmedAt) throw new Error("Live pilot completeness must be reviewed before official import");
   const show = await ctx.db.get(args.showId);
   if (!show) throw new Error("Show not found");
   await ctx.db.patch(show._id, {
     status: "completed", setlistfmId: args.setlistfmId, importStatus: "completed",
     importNextAttemptAt: undefined, lastSynced: Date.now(),
   });
+  await ctx.scheduler.runAfter(0, internalRef.songSearch.indexShow, { showId: show._id });
+  await queueRepertoireMerge(ctx, show);
   if (!args.previouslyImported) await ctx.scheduler.runAfter(0, internalRef.analytics.capture, {
     event: "official_setlist_imported",
     distinctId: `artist:${show.artistId}`,

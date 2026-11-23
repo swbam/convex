@@ -1,29 +1,15 @@
+import { setlistProviderFetch } from "./lib/setlistProviderFetch";
+import { importRetryExpiry } from "./lib/importRetry";
 import { selectSetlistMatch } from "./lib/setlistMatch";
 import { hasShowEnded } from "./lib/showTiming";
 import { action, internalAction, internalMutation, internalQuery, query } from "./_generated/server";
 import { v } from "convex/values";
-import { internalRef, requireAdmin } from "./adminHelpers";
+import { internalRef, requireAdmin, requireAdminForAction } from "./adminHelpers";
 import { Id } from "./_generated/dataModel";
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 
-
-const SETLISTFM_HTTP_TIMEOUT_MS = 30_000;
-
-async function setlistFetchWithTimeout(
-  url: string,
-  init: RequestInit = {},
-  timeoutMs: number = SETLISTFM_HTTP_TIMEOUT_MS
-): Promise<Response> {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(id);
-  }
-}
 
 export const syncActualSetlist = internalAction({
   args: {
@@ -60,6 +46,7 @@ export const syncActualSetlist = internalAction({
       }
 
       if (show.status === "cancelled" || !hasShowEnded(show)) return null;
+      if (await ctx.runQuery(internalRef.liveSetlists.isReserved, { showId: args.showId })) return null;
 
       // API call to Setlist.fm
       const apiKey = process.env.SETLISTFM_API_KEY;
@@ -86,15 +73,15 @@ export const syncActualSetlist = internalAction({
         let attempt = 0;
         let delay = 1000; // 1s
         while (attempt < maxAttempts) {
-          const response = await setlistFetchWithTimeout(url, {
+          const response = await setlistProviderFetch(ctx, url, {
             headers: {
               "x-api-key": apiKey,
               Accept: "application/json",
               "User-Agent": "setlists.live/1.0",
             },
           });
-          if (response.ok) return response;
-          if (response.status === 429 || response.status >= 500) {
+          if (response.ok || response.status === 429) return response;
+          if (response.status >= 500) {
             attempt += 1;
             if (attempt >= maxAttempts) return response;
             const jitter = Math.floor(Math.random() * 250);
@@ -104,7 +91,7 @@ export const syncActualSetlist = internalAction({
           }
           return response;
         }
-        return await setlistFetchWithTimeout(url, {
+        return await setlistProviderFetch(ctx, url, {
           headers: {
             "x-api-key": apiKey,
             Accept: "application/json",
@@ -221,6 +208,7 @@ export const checkCompletedShows = internalAction({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
+    await ctx.runMutation(internalRef.catalogRepertoire.recoverQueues, {});
     if (!process.env.SETLISTFM_API_KEY) return null;
     const name = "completed-setlist-import";
     const acquired = await ctx.runMutation(internalRef.maintenance.acquireLock, {
@@ -230,14 +218,27 @@ export const checkCompletedShows = internalAction({
     const startedAt = Date.now();
     try {
       await ctx.runMutation(internalRef.setlistfm.prepareCompletedShowImports, {});
-      const shows = await ctx.runQuery(internalRef.setlistfm.getCompletedShowsNeedingImport, {});
-      for (const show of shows) {
+      const budget = await ctx.runQuery(internalRef.setlistProvider.getWorkerBudget, {});
+      if ((budget.cooldownUntil ?? 0) > startedAt) return null;
+      // Pace bulk work across the remaining two-hour windows. Each individual fetch
+      // still passes through the global limiter, including retries and live-show reserves.
+      const windowsLeft = 12 - Math.floor(new Date(startedAt).getUTCHours() / 2);
+      const slots = Math.min(60, Math.floor(budget.remaining * 0.6 / windowsLeft));
+      let firstRemaining = Math.min(20, Math.ceil(slots / 2));
+      let retryRemaining = slots - firstRemaining;
+      for (let wave = 0; wave < 3 && (firstRemaining || retryRemaining); wave++) {
+        const shows = await ctx.runQuery(internalRef.setlistfm.getCompletedShowsNeedingImport,
+          { firstLimit: firstRemaining, retryLimit: retryRemaining });
+        if (!shows.length) break;
+        for (const show of shows) {
         // Leave headroom for a final provider request and release the lock.
         if (Date.now() - startedAt > 4 * 60 * 1000) break;
         const reserved = await ctx.runMutation(internalRef.setlistfm.reserveCompletedShowImport, {
           showId: show._id,
         });
         if (!reserved) continue;
+        if ((show.importAttemptCount ?? 0) === 0) firstRemaining--;
+        else retryRemaining--;
         try {
           const [artist, venue] = await Promise.all([
             ctx.runQuery(internalRef.artists.getByIdInternal, { id: show.artistId }),
@@ -256,6 +257,8 @@ export const checkCompletedShows = internalAction({
         }
         // Keep the existing provider spacing; this is not a provider-wide quota limiter.
         await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+        if (Date.now() - startedAt > 4 * 60 * 1000) break;
       }
     } finally {
       await ctx.runMutation(internalRef.maintenance.releaseLock, { name });
@@ -274,6 +277,7 @@ export const triggerSetlistSync = action({
   },
   returns: v.union(v.string(), v.null()),
   handler: async (ctx, args): Promise<string | null> => {
+    await requireAdminForAction(ctx);
     return await ctx.runAction(internalRef.setlistfm.syncActualSetlist, args);
   },
 });
@@ -292,11 +296,12 @@ export const syncSpecificSetlist = internalAction({
     }
 
     try {
+      if (await ctx.runQuery(internalRef.liveSetlists.isReserved, { showId: args.showId })) return null;
       // Get specific setlist by ID
       const setlistUrl = `https://api.setlist.fm/rest/1.0/setlist/${args.setlistfmId}`;
       console.log(`🔍 Fetching specific setlist: ${args.setlistfmId}`);
 
-      const response = await setlistFetchWithTimeout(setlistUrl, {
+      const response = await setlistProviderFetch(ctx, setlistUrl, {
         headers: {
           'x-api-key': apiKey,
           'Accept': 'application/json',
@@ -326,14 +331,14 @@ export const syncSpecificSetlist = internalAction({
       // Extract songs from sets
       if (setlist.sets && setlist.sets.set) {
         for (const [setIndex, set] of setlist.sets.set.entries()) {
-          const isEncore = set.encore === 1 || set.encore === true || set.encore === "true";
+          const isEncore = Number(set.encore) > 0 || set.encore === true || set.encore === "true";
           const setNumber = setIndex + 1;
 
           console.log(`📋 Processing set ${setNumber} (encore: ${isEncore}) with ${set.song?.length || 0} songs`);
 
           if (set.song && Array.isArray(set.song)) {
             for (const song of set.song) {
-              if (song.name && song.name.trim() !== '') {
+              if (!song.tape && song.name && song.name.trim() !== '') {
                 songs.push({
                   title: song.name.trim(),
                   setNumber: setNumber,
@@ -371,7 +376,7 @@ export const syncSpecificSetlist = internalAction({
   },
 });
 
-export const triggerCompletedShowsCheck = action({
+export const triggerCompletedShowsCheck = internalAction({
   args: {},
   returns: v.object({ success: v.boolean(), message: v.string() }),
   handler: async (ctx): Promise<{ success: boolean; message: string }> => {
@@ -432,11 +437,16 @@ export const prepareCompletedShowImports = internalMutation({
         q.eq("status", "completed").gte("date", windowStart).lte("date", today))
       .paginate({ numItems: 200, cursor: args.cursor ?? null });
     for (const show of result.page) {
-      if (show.importStatus === "completed" || show.importNextAttemptAt !== undefined) continue;
+      if (show.importStatus === "completed") continue;
+      if (show.importNextAttemptAt !== undefined) {
+        if (show.importRetryExpiresAt === undefined) await ctx.db.patch(show._id, { importRetryExpiresAt: importRetryExpiry(show.date) });
+        continue;
+      }
       const retry = show.importStatus === "not_found" || show.importStatus === "failed" ||
         show.importStatus === "importing";
       await ctx.db.patch(show._id, {
         importStatus: show.importStatus ?? "pending",
+        importRetryExpiresAt: importRetryExpiry(show.date),
         importAttemptCount: show.importAttemptCount ?? (retry ? 1 : 0),
         // lastSynced is used once for legacy migration, never for subsequent retries.
         importNextAttemptAt: retry
@@ -452,23 +462,56 @@ export const prepareCompletedShowImports = internalMutation({
 });
 
 export const getCompletedShowsNeedingImport = internalQuery({
-  args: {},
+  args: { firstLimit: v.optional(v.number()), retryLimit: v.optional(v.number()) },
   returns: v.array(v.any()),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const now = Date.now();
+    const windowStart = new Date(now - 14 * 86400000).toISOString().slice(0, 10);
+    const today = new Date(now).toISOString().slice(0, 10);
     const groups = await Promise.all(
       (["pending", "failed", "not_found", "importing"] as const).map(status =>
-        ctx.db.query("shows").withIndex("by_status_import_due", q =>
+        ctx.db.query("shows").withIndex("by_status_import_date", q =>
           q.eq("status", "completed").eq("importStatus", status)
-            .gte("importNextAttemptAt", 0).lte("importNextAttemptAt", now))
-          .take(40))
+            .gte("date", windowStart).lte("date", today))
+          .filter(q => q.and(q.gte(q.field("importNextAttemptAt"), 0), q.lte(q.field("importNextAttemptAt"), now)))
+          .take(60))
     );
-    const due = groups.flat().sort((a, b) =>
-      (a.importNextAttemptAt ?? 0) - (b.importNextAttemptAt ?? 0) ||
-      a.date.localeCompare(b.date) || a._id.localeCompare(b._id));
-    const firstAttempts = due.filter(s => (s.importAttemptCount ?? 0) === 0).slice(0, 20);
-    const retries = due.filter(s => (s.importAttemptCount ?? 0) > 0).slice(0, 10);
-    return [...firstAttempts, ...retries];
+    // Expired rows are excluded by the index range BEFORE either admission budget.
+    const due = groups.flat().filter(s => hasShowEnded(s, now)).sort((a, b) =>
+      (a.importNextAttemptAt ?? 0) - (b.importNextAttemptAt ?? 0) || a.date.localeCompare(b.date) || a._id.localeCompare(b._id));
+    const firstLimit = Math.max(0, Math.min(20, args.firstLimit ?? 20));
+    const retryLimit = Math.max(0, Math.min(40, args.retryLimit ?? 10));
+    return [...due.filter(s => (s.importAttemptCount ?? 0) === 0).slice(0, firstLimit),
+      ...due.filter(s => (s.importAttemptCount ?? 0) > 0).slice(0, retryLimit)];
+  },
+});
+
+// Separate housekeeping from provider admission. No provider requests are spent here.
+export const backfillImportExpiry = internalMutation({
+  args: { cursor: v.optional(v.string()), cutoff: v.optional(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const cutoff = args.cutoff ?? new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
+    const result = await ctx.db.query("shows").withIndex("by_status_and_date",
+      q => q.eq("status", "completed").lt("date", cutoff))
+      .paginate({ numItems: 250, cursor: args.cursor ?? null, maximumBytesRead: 1_000_000 });
+    for (const show of result.page) {
+      if (show.importNextAttemptAt !== undefined) await ctx.db.patch(show._id, { importNextAttemptAt: undefined, importRetryExpiresAt: undefined });
+    }
+    if (!result.isDone) await ctx.scheduler.runAfter(0, internalRef.setlistfm.backfillImportExpiry,
+      { cursor: result.continueCursor, cutoff });
+    return null;
+  },
+});
+
+export const expireCompletedShowImports = internalMutation({
+  args: {}, returns: v.number(),
+  handler: async (ctx) => {
+    const rows = await ctx.db.query("shows").withIndex("by_import_retry_expiry",
+      q => q.gte("importRetryExpiresAt", 0).lte("importRetryExpiresAt", Date.now())).take(250);
+    for (const row of rows) await ctx.db.patch(row._id, { importNextAttemptAt: undefined, importRetryExpiresAt: undefined });
+    if (rows.length === 250) await ctx.scheduler.runAfter(0, internalRef.setlistfm.expireCompletedShowImports, {});
+    return rows.length;
   },
 });
 
@@ -483,7 +526,7 @@ export const reserveCompletedShowImport = internalMutation({
         (show.importNextAttemptAt ?? 0) > now) return false;
     const windowStart = new Date(now - 14 * 86400000).toISOString().slice(0, 10);
     if (show.date < windowStart) {
-      await ctx.db.patch(show._id, { importNextAttemptAt: undefined });
+      await ctx.db.patch(show._id, { importNextAttemptAt: undefined, importRetryExpiresAt: undefined });
       return false;
     }
     if (!hasShowEnded(show, now)) {
@@ -492,6 +535,7 @@ export const reserveCompletedShowImport = internalMutation({
     }
     await ctx.db.patch(show._id, {
       importStatus: "importing", importLastAttemptAt: now,
+      importRetryExpiresAt: importRetryExpiry(show.date),
       importNextAttemptAt: now + 3600000, // recover a crashed action after its lease expires
       importAttemptCount: (show.importAttemptCount ?? 0) + 1,
     });

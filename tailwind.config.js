@@ -43,6 +43,8 @@ module.exports = {
 		},
   		colors: {
   			border: 'hsl(var(--border))',
+        'border-strong': 'hsl(var(--border-strong))',
+        body: 'hsl(var(--body-foreground))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
   			background: 'hsl(var(--background))',

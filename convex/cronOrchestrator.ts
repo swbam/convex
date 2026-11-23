@@ -27,6 +27,9 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 
 const JOBS: Array<JobDef> = [
+  { name: "refresh-touring-artists", kind: "mutation", ref: internalRef.touringRefresh.dispatch,
+    defaultIntervalMs: HOUR, minIntervalMs: HOUR, maxIntervalMs: 24 * HOUR,
+    lockName: "cron:refresh-touring-artists", lockStaleMs: 30 * MINUTE },
   {
     name: "update-trending",
     kind: "action",

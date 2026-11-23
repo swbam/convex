@@ -6,6 +6,7 @@ import { AppLayout } from "../components/AppLayout";
 import { AuthGuard } from "../components/AuthGuard";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { MagicCard } from "../components/ui/magic-card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import {
   Calendar,
@@ -147,8 +148,8 @@ export function ForArtistsDashboardPage() {
   if (!artistId) {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-10">
-          <MagicCard className="p-8 text-center">
+        <div className="public-page account-page">
+          <MagicCard className="p-4 sm:p-6 text-center">
             <p className="text-muted-foreground">Missing artist ID.</p>
             <Button
               variant="outline"
@@ -167,8 +168,8 @@ export function ForArtistsDashboardPage() {
   if (isMember === false) {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-10">
-          <MagicCard className="p-8 text-center">
+        <div className="public-page account-page">
+          <MagicCard className="p-4 sm:p-6 text-center">
             <p className="text-muted-foreground mb-4">
               You don't have access to this artist dashboard.
             </p>
@@ -185,7 +186,7 @@ export function ForArtistsDashboardPage() {
     <ErrorBoundary>
       <AuthGuard>
         <AppLayout>
-          <div className="container mx-auto px-4 sm:px-6 py-6 space-y-6">
+          <div className="public-page account-page space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <Button
@@ -218,7 +219,7 @@ export function ForArtistsDashboardPage() {
                 {/* Artist Header Card */}
                 <MagicCard className="p-6">
                   <div className="flex items-center gap-4 flex-wrap">
-                    <div className="w-16 h-16 rounded-2xl bg-secondary overflow-hidden flex items-center justify-center flex-shrink-0">
+                    <div className="w-16 h-16 rounded-[5px] bg-secondary overflow-hidden flex items-center justify-center flex-shrink-0">
                       {data.artist?.images?.[0] ? (
                         <img
                           src={data.artist.images[0]}
@@ -231,11 +232,11 @@ export function ForArtistsDashboardPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h1 className="text-2xl font-bold truncate">
+                        <h1 className="page-title">
                           {data.artist?.name}
                         </h1>
                         {myRole && (
-                          <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">
+                          <span className="text-xs px-2 py-1 rounded-full bg-secondary text-primary font-medium">
                             {myRole}
                           </span>
                         )}
@@ -258,6 +259,20 @@ export function ForArtistsDashboardPage() {
                     </Button>
                   </div>
                 </MagicCard>
+
+                <section className="border-y border-border py-5" aria-label="Campaign setup">
+                  <h2 className="text-lg font-semibold">Start with your next show</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">Check the songs, share your voting link, then see what your fans request. Requests are feedback for your team, not a promise that a song will be played.</p>
+                  <ol className="mt-4 grid gap-3 sm:grid-cols-3 text-sm">
+                    <li><span className="font-medium">1. Song catalog</span><p className="text-muted-foreground">{data.readiness?.hasCatalog ? "Songs available to request" : "Catalog preparing — check back shortly"}</p></li>
+                    <li><span className="font-medium">2. Upcoming show</span><p className="text-muted-foreground">{data.readiness?.hasNextShow ? "Ready to share" : "No upcoming show is available yet"}</p></li>
+                    <li><span className="font-medium">3. Fan responses</span><p className="text-muted-foreground">{data.readiness?.hasFanRequests ? "Requests received for your next show" : "Share your next show to invite requests"}</p></li>
+                  </ol>
+                  {data.shows?.[0] && <div className="mt-4 flex flex-wrap gap-3">
+                    <Button variant="outline" onClick={() => navigate(`/shows/${data.shows[0].slug ?? data.shows[0]._id}`)}>Review next show</Button>
+                    <ShowShareButton showId={data.shows[0]._id} slug={data.shows[0].slug} artistName={data.artist.name} />
+                  </div>}
+                </section>
 
                 {/* Stats Row */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -295,34 +310,19 @@ export function ForArtistsDashboardPage() {
                   </MagicCard>
                 </div>
 
-                {/* Tab Navigation */}
-                <div className="flex gap-2 border-b border-border pb-1 overflow-x-auto">
-                  {[
-                    { id: "overview" as const, label: "Shows", icon: Calendar },
-                    { id: "tour" as const, label: "Tour Insights", icon: BarChart3 },
-                    { id: "completed" as const, label: "Past Shows", icon: CheckCircle },
-                    { id: "history" as const, label: "Setlist History", icon: History },
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${
-                        activeTab === tab.id
-                          ? "bg-primary/10 text-primary border-b-2 border-primary -mb-[3px]"
-                          : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                      }`}
-                    >
-                      <tab.icon className="h-4 w-4" />
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
+                <Tabs value={activeTab} onValueChange={value => setActiveTab(value as typeof activeTab)}>
+                  <TabsList aria-label="Artist dashboard sections">
+                    <TabsTrigger value="overview">Shows</TabsTrigger>
+                    <TabsTrigger value="tour">Tour insights</TabsTrigger>
+                    <TabsTrigger value="completed">Past shows</TabsTrigger>
+                    <TabsTrigger value="history">Setlist history</TabsTrigger>
+                  </TabsList>
 
                 {/* Tab Content */}
-                {activeTab === "overview" && (
+                <TabsContent value="overview" className="mt-6">
                   <MagicCard className="p-6">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-[5px] bg-secondary flex items-center justify-center">
                         <Calendar className="h-5 w-5 text-primary" />
                       </div>
                       <div>
@@ -338,7 +338,7 @@ export function ForArtistsDashboardPage() {
                         {data.shows.map((s: any) => (
                           <div
                             key={s._id}
-                            className="flex w-full items-stretch overflow-hidden rounded-xl border border-border bg-card/40 transition-colors hover:border-primary/30 hover:bg-card/60"
+                            className="flex w-full items-stretch overflow-hidden rounded-[5px] border border-border bg-card/40 transition-colors hover:border-primary/30 hover:bg-card/60"
                           >
                             <button
                               className="group flex min-w-0 flex-1 items-center justify-between gap-3 p-4 text-left"
@@ -378,7 +378,7 @@ export function ForArtistsDashboardPage() {
                       </div>
                     ) : (
                       <div className="text-center py-8">
-                        <Calendar className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                        <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                         <p className="text-muted-foreground">
                           No upcoming shows found.
                         </p>
@@ -388,15 +388,15 @@ export function ForArtistsDashboardPage() {
                       </div>
                     )}
                   </MagicCard>
-                )}
+                </TabsContent>
 
-                {activeTab === "tour" && (
+                <TabsContent value="tour" className="mt-6">
                   <div className="space-y-6">
                     {/* Tour-wide Top Songs */}
                     <MagicCard className="p-6">
                       <div className="flex items-center justify-between gap-3 mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-[5px] bg-secondary flex items-center justify-center">
                             <ListMusic className="h-5 w-5 text-primary" />
                           </div>
                           <div>
@@ -423,9 +423,9 @@ export function ForArtistsDashboardPage() {
                           {tourTopSongs.songs.slice(0, 15).map((song: any, i: number) => (
                             <div
                               key={song.songKey}
-                              className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30"
+                              className="flex items-center gap-3 p-3 rounded-[5px] bg-secondary/30"
                             >
-                              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
+                              <div className="w-8 h-8 rounded-[5px] bg-secondary flex items-center justify-center text-sm font-bold text-primary">
                                 {i + 1}
                               </div>
                               <div className="flex-1 min-w-0">
@@ -443,7 +443,7 @@ export function ForArtistsDashboardPage() {
                         </div>
                       ) : (
                         <div className="text-center py-8">
-                          <ListMusic className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                          <ListMusic className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                           <p className="text-muted-foreground">No votes yet across your tour.</p>
                         </div>
                       )}
@@ -453,8 +453,8 @@ export function ForArtistsDashboardPage() {
                     <div className="grid md:grid-cols-2 gap-6">
                       <MagicCard className="p-6">
                         <div className="flex items-center gap-3 mb-4">
-                          <div className="w-10 h-10 rounded-xl bg-green-500/15 flex items-center justify-center">
-                            <Flame className="h-5 w-5 text-green-500" />
+                          <div className="w-10 h-10 rounded-[5px] bg-green-500/15 flex items-center justify-center">
+                            <Flame className="h-5 w-5 text-green-700 dark:text-green-500" />
                           </div>
                           <div>
                             <h3 className="font-semibold">Trending Up</h3>
@@ -471,7 +471,7 @@ export function ForArtistsDashboardPage() {
                         ) : songMomentum?.trending?.length > 0 ? (
                           <div className="space-y-2">
                             {songMomentum.trending.map((song: any) => (
-                              <div key={song.songKey} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-green-500/5">
+                              <div key={song.songKey} className="flex items-center justify-between gap-2 p-2 rounded-[5px] bg-green-500/5">
                                 <span className="truncate text-sm">{song.songTitle}</span>
                                 <span className="text-xs font-medium text-green-600 flex items-center gap-1 shrink-0">
                                   <TrendingUp className="h-3 w-3" />
@@ -489,8 +489,8 @@ export function ForArtistsDashboardPage() {
 
                       <MagicCard className="p-6">
                         <div className="flex items-center gap-3 mb-4">
-                          <div className="w-10 h-10 rounded-xl bg-orange-500/15 flex items-center justify-center">
-                            <TrendingDown className="h-5 w-5 text-orange-500" />
+                          <div className="w-10 h-10 rounded-[5px] bg-orange-500/15 flex items-center justify-center">
+                            <TrendingDown className="h-5 w-5 text-orange-700 dark:text-orange-500" />
                           </div>
                           <div>
                             <h3 className="font-semibold">Cooling Off</h3>
@@ -507,7 +507,7 @@ export function ForArtistsDashboardPage() {
                         ) : songMomentum?.falling?.length > 0 ? (
                           <div className="space-y-2">
                             {songMomentum.falling.map((song: any) => (
-                              <div key={song.songKey} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-orange-500/5">
+                              <div key={song.songKey} className="flex items-center justify-between gap-2 p-2 rounded-[5px] bg-orange-500/5">
                                 <span className="truncate text-sm">{song.songTitle}</span>
                                 <span className="text-xs font-medium text-orange-600 flex items-center gap-1 shrink-0">
                                   <TrendingDown className="h-3 w-3" />
@@ -527,8 +527,8 @@ export function ForArtistsDashboardPage() {
                     {/* City Deltas */}
                     <MagicCard className="p-6">
                       <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center">
-                          <MapPin className="h-5 w-5 text-blue-500" />
+                        <div className="w-10 h-10 rounded-[5px] bg-blue-500/15 flex items-center justify-center">
+                          <MapPin className="h-5 w-5 text-blue-700 dark:text-blue-500" />
                         </div>
                         <div>
                           <h2 className="text-xl font-semibold">City Insights</h2>
@@ -545,7 +545,7 @@ export function ForArtistsDashboardPage() {
                       ) : cityDeltas?.cities?.length > 0 ? (
                         <div className="space-y-4">
                           {cityDeltas.cities.map((city: any) => (
-                            <div key={city.city} className="p-4 rounded-xl bg-secondary/30">
+                            <div key={city.city} className="p-4 rounded-[5px] bg-secondary/30">
                               <div className="flex items-center justify-between mb-3">
                                 <div className="font-semibold">{city.city}</div>
                                 <div className="text-xs text-muted-foreground">
@@ -585,19 +585,19 @@ export function ForArtistsDashboardPage() {
                         </div>
                       ) : (
                         <div className="text-center py-8">
-                          <MapPin className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                          <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                           <p className="text-muted-foreground">Not enough city data yet.</p>
                         </div>
                       )}
                     </MagicCard>
                   </div>
-                )}
+                </TabsContent>
 
-                {activeTab === "completed" && (
+                <TabsContent value="completed" className="mt-6">
                   <MagicCard className="p-6">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-green-500/15 flex items-center justify-center">
-                        <CheckCircle className="h-5 w-5 text-green-500" />
+                      <div className="w-10 h-10 rounded-[5px] bg-green-500/15 flex items-center justify-center">
+                        <CheckCircle className="h-5 w-5 text-green-700 dark:text-green-500" />
                       </div>
                       <div>
                         <h2 className="text-xl font-semibold">Completed Shows</h2>
@@ -616,7 +616,7 @@ export function ForArtistsDashboardPage() {
                         {completedShows.shows.map((show: any) => (
                           <button
                             key={show._id}
-                            className="w-full flex items-center justify-between gap-3 rounded-xl border border-border bg-card/40 p-4 hover:bg-card/60 hover:border-primary/30 transition-colors text-left group"
+                            className="w-full flex items-center justify-between gap-3 rounded-[5px] border border-border bg-card/40 p-4 hover:bg-card/60 hover:border-primary/30 transition-colors text-left group"
                             onClick={() => navigate(`/for-artists/${artistId}/shows/${show._id}`)}
                           >
                             <div className="min-w-0 flex-1">
@@ -647,20 +647,20 @@ export function ForArtistsDashboardPage() {
                       </div>
                     ) : (
                       <div className="text-center py-8">
-                        <CheckCircle className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                        <CheckCircle className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                         <p className="text-muted-foreground">No completed shows yet.</p>
                       </div>
                     )}
                   </MagicCard>
-                )}
+                </TabsContent>
 
-                {activeTab === "history" && (
+                <TabsContent value="history" className="mt-6">
                   <div className="space-y-6">
                     {/* Song Frequency */}
                     <MagicCard className="p-6">
                       <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center">
-                          <Repeat className="h-5 w-5 text-purple-500" />
+                        <div className="w-10 h-10 rounded-[5px] bg-purple-500/15 flex items-center justify-center">
+                          <Repeat className="h-5 w-5 text-purple-700 dark:text-purple-500" />
                         </div>
                         <div>
                           <h2 className="text-xl font-semibold">Most Played Songs</h2>
@@ -679,9 +679,9 @@ export function ForArtistsDashboardPage() {
                           {songFrequency.songs.slice(0, 15).map((song: any, i: number) => (
                             <div
                               key={song.songKey}
-                              className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30"
+                              className="flex items-center gap-3 p-3 rounded-[5px] bg-secondary/30"
                             >
-                              <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-sm font-bold text-purple-500">
+                              <div className="w-8 h-8 rounded-[5px] bg-purple-500/10 flex items-center justify-center text-sm font-bold text-purple-700 dark:text-purple-500">
                                 {i + 1}
                               </div>
                               <div className="flex-1 min-w-0">
@@ -691,7 +691,7 @@ export function ForArtistsDashboardPage() {
                                 </div>
                               </div>
                               <div className="text-right">
-                                <div className="font-semibold text-purple-500">{song.percentage}%</div>
+                                <div className="font-semibold text-purple-700 dark:text-purple-500">{song.percentage}%</div>
                                 <div className="text-xs text-muted-foreground">
                                   {song.count}/{songFrequency.totalShowsAnalyzed} shows
                                 </div>
@@ -701,7 +701,7 @@ export function ForArtistsDashboardPage() {
                         </div>
                       ) : (
                         <div className="text-center py-8">
-                          <Repeat className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                          <Repeat className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                           <p className="text-muted-foreground">No historical setlist data yet.</p>
                         </div>
                       )}
@@ -716,8 +716,8 @@ export function ForArtistsDashboardPage() {
                     {/* Historical Setlists */}
                     <MagicCard className="p-6">
                       <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center">
-                          <History className="h-5 w-5 text-blue-500" />
+                        <div className="w-10 h-10 rounded-[5px] bg-blue-500/15 flex items-center justify-center">
+                          <History className="h-5 w-5 text-blue-700 dark:text-blue-500" />
                         </div>
                         <div>
                           <h2 className="text-xl font-semibold">Recent Setlists</h2>
@@ -736,7 +736,7 @@ export function ForArtistsDashboardPage() {
                           {historicalSetlists.setlists.map((setlist: any) => (
                             <details
                               key={setlist.showId}
-                              className="rounded-xl border border-border bg-card/40 overflow-hidden group"
+                              className="rounded-[5px] border border-border bg-card/40 overflow-hidden group"
                             >
                               <summary className="flex items-center justify-between gap-3 p-4 cursor-pointer hover:bg-card/60 transition-colors">
                                 <div className="min-w-0 flex-1">
@@ -751,7 +751,7 @@ export function ForArtistsDashboardPage() {
                                   </div>
                                 </div>
                                 <div className="text-right flex-shrink-0">
-                                  <div className="text-sm font-medium text-blue-500">
+                                  <div className="text-sm font-medium text-blue-700 dark:text-blue-500">
                                     {setlist.songCount} songs
                                   </div>
                                 </div>
@@ -766,7 +766,7 @@ export function ForArtistsDashboardPage() {
                                       <span className="flex-1">
                                         {song.title}
                                         {song.encore && (
-                                          <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                                          <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-secondary text-primary">
                                             Encore
                                           </span>
                                         )}
@@ -791,7 +791,7 @@ export function ForArtistsDashboardPage() {
                         </div>
                       ) : (
                         <div className="text-center py-8">
-                          <History className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                          <History className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                           <p className="text-muted-foreground">No historical setlists found.</p>
                           <p className="text-sm text-muted-foreground mt-1">
                             Setlists are imported from setlist.fm for completed shows.
@@ -800,7 +800,8 @@ export function ForArtistsDashboardPage() {
                       )}
                     </MagicCard>
                   </div>
-                )}
+                </TabsContent>
+                </Tabs>
               </>
             )}
           </div>

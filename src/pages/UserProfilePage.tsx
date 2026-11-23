@@ -5,16 +5,22 @@ import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { MagicCard } from '../components/ui/magic-card';
-import { BorderBeam } from '../components/ui/border-beam';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { ArrowLeft, User, Settings, Activity, Vote, Shield, Star, Music, RefreshCw, Calendar, Loader2 } from 'lucide-react';
 import { useSpotifyAuth } from '../hooks/useSpotifyAuth';
 import { ArtistCard } from '../components/ArtistCard';
+import { useTheme } from 'next-themes';
+import { PageHeader } from '../components/PageHeader';
 import { AppLayout } from '../components/AppLayout';
 
 export function UserProfilePage() {
   const { openUserProfile } = useClerk();
+  const { resolvedTheme } = useTheme();
+  const accountAppearance = {
+    variables: { colorPrimary: resolvedTheme === 'dark' ? '#ffffff' : '#171a1f', colorTextOnPrimaryBackground: resolvedTheme === 'dark' ? '#000000' : '#ffffff', colorText: resolvedTheme === 'dark' ? '#fafafa' : '#111111', colorTextSecondary: resolvedTheme === 'dark' ? '#a1a1aa' : '#596474', colorBackground: resolvedTheme === 'dark' ? '#0a0a0a' : '#ffffff', colorInputBackground: resolvedTheme === 'dark' ? '#171717' : '#ffffff', colorInputText: resolvedTheme === 'dark' ? '#fafafa' : '#111111', borderRadius: '5px', fontFamily: 'Overpass, sans-serif' },
+    elements: { rootBox: 'w-full max-w-full min-w-0', card: 'bg-card border border-border shadow-none max-w-full', formButtonPrimary: 'brand-primary rounded-[5px]', formFieldInput: 'border border-input bg-card text-foreground', footerActionLink: 'text-foreground underline', pageScrollBox: 'p-0' }
+  };
   const navigate = useNavigate();
   const { user, isSignedIn, isLoaded } = useUser();
   const appUser = useQuery(api.auth.loggedInUser);
@@ -38,7 +44,7 @@ export function UserProfilePage() {
   if (!isLoaded) {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-8 text-center">
+        <div className="public-page account-page text-center">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Loading...</p>
         </div>
@@ -64,7 +70,7 @@ export function UserProfilePage() {
       return (
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="animate-pulse bg-secondary rounded-lg p-3 h-12" />
+            <div key={i} className="animate-pulse bg-secondary rounded-[5px] p-3 h-12" />
           ))}
         </div>
       );
@@ -83,12 +89,12 @@ export function UserProfilePage() {
       <div className="space-y-3">
         <div className="text-center mb-4">
           <div className="text-2xl font-bold text-foreground">{userVotes.length}</div>
-          <div className="text-xs text-muted-foreground">Total Votes</div>
+          <div className="text-xs text-muted-foreground">Recent votes</div>
         </div>
         
         <div className="space-y-2 max-h-60 overflow-y-auto">
           {userVotes.slice(0, 5).map((vote) => (
-            <div key={vote._id} className="bg-secondary border border-border rounded-lg p-3">
+            <div key={vote._id} className="bg-secondary border border-border rounded-[5px] p-3">
               <div className="flex items-center gap-2">
                 <Star className="h-3 w-3 text-primary flex-shrink-0" />
                 <span className="text-sm text-foreground truncate">{vote.songTitle}</span>
@@ -106,7 +112,7 @@ export function UserProfilePage() {
           className="w-full mt-4"
           onClick={() => navigate('/activity')}
         >
-          View All Activity
+          View recent activity
         </Button>
       </div>
     );
@@ -114,54 +120,31 @@ export function UserProfilePage() {
 
   return (
     <AppLayout>
-      <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 relative z-10">
-      {/* Header */}
-      <MagicCard className="relative overflow-hidden rounded-2xl p-0 border-0 bg-card">
-        <div className="relative z-10 p-4 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
-              </Button>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4 mt-4">
-            <div className="w-12 h-12 bg-primary/20 rounded-2xl flex items-center justify-center">
-              <User className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Settings</h1>
-              <p className="text-muted-foreground text-sm sm:text-base">Manage your account preferences and view activity</p>
-            </div>
-          </div>
-        </div>
-        <BorderBeam size={150} duration={12} className="opacity-30" />
-      </MagicCard>
+      <div className="public-page account-page space-y-6 relative z-10">
+      <PageHeader title="Account settings" description="Manage your profile, connected artists, and recent activity." actions={<Button variant="outline" onClick={() => navigate('/dashboard')}>Back to dashboard</Button>} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Profile Settings */}
         <div className="lg:col-span-2">
-          <MagicCard className="p-0 rounded-2xl border-0 bg-card">
+          <MagicCard className="p-0 rounded-[5px] border-0 bg-card">
             <div className="p-4 sm:p-6">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="flex flex-wrap w-full bg-secondary rounded-lg p-1 gap-2 h-auto">
-                  <TabsTrigger value="general" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-secondary py-2.5">
+                <TabsList aria-label="Account settings sections" className="flex flex-wrap w-full bg-secondary rounded-[5px] p-1 gap-2 h-auto">
+                  <TabsTrigger value="general" className="flex-1 min-w-[100px] justify-center py-2.5">
                     <User className="h-4 w-4 mr-2" />
                     <span className="text-sm">General</span>
                   </TabsTrigger>
                   {hasSpotify && (
-                    <TabsTrigger value="spotify" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-secondary py-2.5">
+                    <TabsTrigger value="spotify" className="flex-1 min-w-[100px] justify-center py-2.5">
                       <Music className="h-4 w-4 mr-2" />
                       <span className="text-sm">My Artists</span>
                     </TabsTrigger>
                   )}
-                  <TabsTrigger value="security" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-secondary py-2.5">
+                  <TabsTrigger value="security" className="flex-1 min-w-[100px] justify-center py-2.5">
                     <Shield className="h-4 w-4 mr-2" />
                     <span className="text-sm">Security</span>
                   </TabsTrigger>
-                  <TabsTrigger value="activity" className="flex-1 min-w-[100px] justify-center data-[state=active]:bg-secondary py-2.5 lg:hidden">
+                  <TabsTrigger value="activity" className="flex-1 min-w-[100px] justify-center py-2.5 lg:hidden">
                     <Activity className="h-4 w-4 mr-2" />
                     <span className="text-sm">Activity</span>
                   </TabsTrigger>
@@ -173,28 +156,7 @@ export function UserProfilePage() {
                     {/* Clerk UserProfile Component for general settings */}
                     <div className="clerk-profile-container">
                       <UserProfile 
-                        appearance={{
-                          variables: {
-                            colorPrimary: '#6366f1',
-                            colorText: '#ffffff',
-                            colorTextSecondary: '#a1a1aa',
-                            colorBackground: '#000000',
-                            colorInputBackground: 'rgba(255, 255, 255, 0.05)',
-                            colorInputText: '#ffffff',
-                          },
-                          elements: {
-                            rootBox: 'w-full',
-                            card: 'bg-card border border-border shadow-none',
-                            headerTitle: 'text-foreground',
-                            headerSubtitle: 'text-muted-foreground',
-                            socialButtonsBlockButton: 'border-border text-foreground hover:bg-secondary',
-                            formButtonPrimary: 'bg-primary hover:bg-primary/90',
-                            footerActionLink: 'text-primary hover:text-primary/80',
-                            navbar: 'hidden',
-                            navbarMobileMenuRow: 'hidden',
-                            pageScrollBox: 'p-0',
-                          }
-                        }}
+                        appearance={{ ...accountAppearance, elements: { ...accountAppearance.elements, navbar: 'hidden', navbarMobileMenuRow: 'hidden' } }}
                       />
                     </div>
                   </div>
@@ -204,7 +166,7 @@ export function UserProfilePage() {
                   <div>
                     <h3 className="text-lg font-semibold text-foreground mb-4">Security Settings</h3>
                     <div className="clerk-profile-container">
-                      <Button variant="outline" onClick={() => { void openUserProfile(); }}>Open account security settings</Button>
+                      <Button variant="outline" onClick={() => { void openUserProfile({ appearance: accountAppearance }); }}>Open account security settings</Button>
                     </div>
                   </div>
                 </TabsContent>
@@ -238,7 +200,7 @@ export function UserProfilePage() {
                             <p className="text-muted-foreground mb-2">No artists with upcoming shows found</p>
                             <p className="text-sm text-muted-foreground">Your Spotify artists will appear here when they have concerts scheduled</p>
                             {!appUser?.appUser?.spotifyId && (
-                              <p className="text-xs text-yellow-500 mt-4">Note: Spotify ID not detected. Try refreshing.</p>
+                              <p className="text-xs text-yellow-700 dark:text-yellow-500 mt-4">Your Spotify connection needs refreshing.</p>
                             )}
                           </div>
                           <Button
@@ -300,34 +262,32 @@ export function UserProfilePage() {
                 </TabsContent>
               </Tabs>
             </div>
-            <BorderBeam size={120} duration={8} className="opacity-20" />
           </MagicCard>
         </div>
 
         {/* Activity Sidebar */}
         <div className="space-y-6">
           {/* Voting Activity */}
-          <MagicCard className="p-0 rounded-2xl border-0 bg-card">
+          <MagicCard className="p-0 rounded-[5px] border-0 bg-card">
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 bg-green-500/20 rounded-xl flex items-center justify-center">
-                  <Activity className="h-4 w-4 text-green-400" />
+                <div className="w-8 h-8 bg-green-500/20 rounded-[5px] flex items-center justify-center">
+                  <Activity className="h-4 w-4 text-green-700 dark:text-green-400" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground">Your Activity</h3>
               </div>
 
               {renderActivityContent()}
             </div>
-            <BorderBeam size={80} duration={8} className="opacity-20" />
           </MagicCard>
 
           {/* Quick Stats */}
           {appUser?.appUser && (
-            <MagicCard className="p-0 rounded-2xl border-0 bg-card">
+            <MagicCard className="p-0 rounded-[5px] border-0 bg-card">
               <div className="p-4 sm:p-6">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 bg-purple-500/20 rounded-xl flex items-center justify-center">
-                    <User className="h-4 w-4 text-purple-400" />
+                  <div className="w-8 h-8 bg-secondary rounded-[5px] flex items-center justify-center">
+                    <User className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <h3 className="text-lg font-semibold text-foreground">Account Info</h3>
                 </div>
@@ -342,14 +302,13 @@ export function UserProfilePage() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Role</span>
                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      appUser.appUser.role === 'admin' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'
+                      appUser.appUser.role === 'admin' ? 'bg-red-500/20 text-red-700 dark:text-red-400' : 'bg-green-500/20 text-green-700 dark:text-green-400'
                     }`}>
                       {appUser.appUser.role.toUpperCase()}
                     </span>
                   </div>
                 </div>
               </div>
-              <BorderBeam size={80} duration={8} className="opacity-20" />
             </MagicCard>
           )}
         </div>

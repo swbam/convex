@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTicketmasterAffiliateUrl } from "./ticketmaster";
+import { buildTicketmasterAffiliateUrl, resolveTicketLink } from "./ticketmaster";
 
 describe("buildTicketmasterAffiliateUrl", () => {
   it("preserves a valid Ticketmaster event and adds affiliate attribution", () => {
@@ -12,8 +12,8 @@ describe("buildTicketmasterAffiliateUrl", () => {
     expect(result.hostname).toBe("www.ticketmaster.com");
     expect(result.pathname).toBe("/example-event/event/123");
     expect(result.searchParams.get("existing")).toBe("1");
-    expect(result.searchParams.get("irgwc")).toBe("1");
-    expect(result.searchParams.get("clickid")).toHaveLength(40);
+    expect(result.searchParams.has("irgwc")).toBe(false);
+    expect(result.searchParams.has("clickid")).toBe(false);
     expect(result.searchParams.get("utm_medium")).toBe("affiliate");
   });
 
@@ -30,6 +30,15 @@ describe("buildTicketmasterAffiliateUrl", () => {
     expect(result.protocol).toBe("https:");
     expect(result.hostname).toBe("www.ticketmaster.com");
     expect(result.pathname).toBe("/");
-    expect(result.searchParams.get("irgwc")).toBe("1");
+    expect(result.searchParams.has("irgwc")).toBe(false);
   });
+});
+
+it("preserves network-issued click IDs and real festival destinations", () => {
+  const tracked = new URL(buildTicketmasterAffiliateUrl("https://www.ticketmaster.com/event/1?clickid=issued-by-network&irgwc=1"));
+  expect(tracked.searchParams.get("clickid")).toBe("issued-by-network");
+  expect(tracked.searchParams.get("irgwc")).toBe("1");
+  expect(resolveTicketLink("https://tickets.festival.example/weekend")?.href).toBe("https://tickets.festival.example/weekend");
+  expect(resolveTicketLink("https://tickets.festival.example/weekend")?.affiliateTagged).toBe(false);
+  expect(resolveTicketLink("javascript:alert(1)")).toBeNull();
 });

@@ -496,13 +496,16 @@ export const prepareInvite = internalMutation({
       return { success: false, message: "Wait a minute before sending another invitation" };
     }
 
+    const windowStart = args.now - 60 * 60 * 1000;
+    const recentIssuances = (invite: Doc<"artistInvites">) =>
+      (invite.issuedAtHistory ?? [invite.createdAt]).filter(at => at > windowStart);
     const recentInvites = await ctx.db
       .query("artistInvites")
       .withIndex("by_artist_created_at", (q) =>
-        q.eq("artistId", args.artistId).gte("createdAt", args.now - 60 * 60 * 1000),
+        q.eq("artistId", args.artistId).gt("createdAt", windowStart),
       )
-      .take(MAX_INVITES_PER_HOUR + 1);
-    if (recentInvites.length >= MAX_INVITES_PER_HOUR) {
+      .take(MAX_INVITES_PER_HOUR);
+    if (recentInvites.reduce((total, invite) => total + recentIssuances(invite).length, 0) >= MAX_INVITES_PER_HOUR) {
       return { success: false, message: "Hourly invitation limit reached. Try again later." };
     }
 
@@ -512,6 +515,7 @@ export const prepareInvite = internalMutation({
       await ctx.db.patch(inviteId, {
         role: args.role,
         tokenHash: args.tokenHash,
+        issuedAtHistory: [...recentIssuances(existingInvite), args.now],
         inviteToken: undefined,
         invitedBy: user._id,
         createdAt: args.now,
@@ -526,6 +530,7 @@ export const prepareInvite = internalMutation({
         role: args.role,
         status: "pending",
         tokenHash: args.tokenHash,
+        issuedAtHistory: [args.now],
         invitedBy: user._id,
         createdAt: args.now,
         expiresAt: args.expiresAt,
@@ -544,19 +549,23 @@ export const prepareInvite = internalMutation({
 export const recordInviteDelivery = internalMutation({
   args: {
     inviteId: v.id("artistInvites"),
+    tokenHash: v.optional(v.string()),
     deliveryStatus: v.union(
       v.literal("sent"),
       v.literal("not_configured"),
       v.literal("failed"),
     ),
   },
-  returns: v.null(),
+  returns: v.boolean(),
   handler: async (ctx, args) => {
+    const invite = await ctx.db.get(args.inviteId);
+    if (!args.tokenHash || !invite || invite.tokenHash !== args.tokenHash || invite.status !== "pending") return false;
+    if (invite.deliveryStatus === "sent") return true;
     await ctx.db.patch(args.inviteId, {
       deliveryStatus: args.deliveryStatus,
       sentAt: args.deliveryStatus === "sent" ? Date.now() : undefined,
     });
-    return null;
+    return true;
   },
 });
 
@@ -713,7 +722,7 @@ export const getInvitePreviewByHash = internalQuery({
 });
 
 export const acceptInviteByHash = internalMutation({
-  args: { tokenHash: v.string() },
+  args: { tokenHash: v.string(), verifiedEmails: v.optional(v.array(v.string())) },
   returns: v.object({
     success: v.boolean(),
     message: v.optional(v.string()),
@@ -749,10 +758,10 @@ export const acceptInviteByHash = internalMutation({
       return { success: false, message: "This invite has expired" };
     }
     
-    if (!user.email || normalizeEmail(user.email) !== invite.email) {
+    if (!args.verifiedEmails?.some(email => normalizeEmail(email) === invite.email)) {
       return {
         success: false,
-        message: "Sign in with the same email address this invitation was sent to",
+        message: "Sign in with the verified email address this invitation was sent to",
       };
     }
     
@@ -816,5 +825,22 @@ export const acceptInviteByHash = internalMutation({
       artistId: invite.artistId,
       artistName: artist.name,
     };
+  },
+});
+
+// Public proof is derived from a manually reviewed claim AND current membership.
+// Removing access removes the badge without waiting for cached artist fields.
+export const getPublicTeamStatus = query({
+  args: { artistId: v.id("artists") }, returns: v.object({ verifiedTeam: v.boolean() }),
+  handler: async (ctx, args) => {
+    const claims = await ctx.db.query("artistClaims").withIndex("by_artist",
+      q => q.eq("artistId", args.artistId)).filter(q => q.eq(q.field("status"), "approved")).take(100);
+    for (const claim of claims) {
+      if (claim.verificationMethod !== "manual_review" || !claim.reviewedBy || !claim.emailVerified) continue;
+      const membership = await ctx.db.query("artistMembers").withIndex("by_user_artist",
+        q => q.eq("userId", claim.userId).eq("artistId", args.artistId)).first();
+      if (membership && membership.role !== "viewer") return { verifiedTeam: true };
+    }
+    return { verifiedTeam: false };
   },
 });

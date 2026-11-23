@@ -4,6 +4,7 @@ import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { internalRef } from "./adminHelpers";
+import { RELATED_REPERTOIRE, selectRepertoireTracks } from "./lib/spotifyRepertoire";
 
 
 
@@ -443,6 +444,7 @@ export const syncArtistCatalog = internalAction({
   args: {
     artistId: v.id("artists"),
     artistName: v.string(),
+    force: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -463,7 +465,7 @@ export const syncArtistCatalog = internalAction({
       return null;
     }
 
-    const attemptedAt = await ctx.runMutation(internalRef.catalogSync.begin, { artistId: args.artistId });
+    const attemptedAt = await ctx.runMutation(internalRef.catalogSync.begin, { artistId: args.artistId, force: args.force });
     if (attemptedAt === null) return null;
     const result: {
       albumsExpected: number; albumsFailed: number; tracksExpected: number; tracksImported: number;
@@ -506,61 +508,24 @@ export const syncArtistCatalog = internalAction({
 
       console.log(`✅ Updated artist ${args.artistName} with Spotify ID: ${spotifyArtist.id}`);
 
-      // GENIUS: Fetch all albums with advanced filtering at API level
-      const albumsUrl = `https://api.spotify.com/v1/artists/${spotifyArtist.id}/albums?include_groups=album,single&market=US&limit=50`;
-      const albums = await fetchAllSpotifyPages(albumsUrl, accessToken);
-
-      console.log(`📀 Total albums found: ${albums.length}`);
-
+      const sources = [spotifyArtist, ...(RELATED_REPERTOIRE[spotifyArtist.id] ?? [])];
+      const artistIds = new Set<string>(sources.map(source => source.id));
+      const albumsById = new Map<string, any>();
+      for (const source of sources) {
+        // Paginate every release group. Live albums and deluxe bonus songs are
+        // valid repertoire; track credits below exclude unrelated compilation tracks.
+        const albums = await fetchAllSpotifyPages<any>(
+          `https://api.spotify.com/v1/artists/${source.id}/albums?include_groups=album,single,compilation&market=US&limit=50`, accessToken);
+        for (const album of albums) {
+          if (album.album_group === "appears_on" || /\b(karaoke|backing tracks)\b/i.test(album.name)) continue;
+          albumsById.set(album.id, album);
+        }
+      }
+      const catalogAlbums = [...albumsById.values()];
       let songsImported = 0;
 
-      // FIXED: More intelligent album filtering - keep ALL studio albums and singles
-      const studioAlbums = (albums as any[])
-        .filter(album => {
-          // Skip compilations and appears_on
-          if (album.album_type === 'compilation') return false;
-          if (album.album_group === 'appears_on') return false;
-
-          const albumName = album.name.toLowerCase();
-
-          // ONLY exclude clear non-studio types:
-          const exclude = [
-            // Live albums (must have "live" as standalone word or in parentheses)
-            ' live ', '(live)', '[live]', 'live at', 'live from',
-            // True compilations (not studio albums with "collection" in subtitle)
-            'greatest hits', 'best of',
-            // Soundtracks
-            'soundtrack',
-            // Karaoke/Instrumental compilations
-            'karaoke', 'instrumental album',
-          ];
-
-          // More precise matching - avoid false positives
-          const matchedExclude = exclude.find(k => {
-            if (k.startsWith(' ') && k.endsWith(' ')) {
-              // Word boundary check for " live "
-              return albumName.includes(k);
-            }
-            return albumName.includes(k);
-          });
-
-          if (matchedExclude) {
-            console.log(`❌ Filtered album: ${album.name} (matched: ${matchedExclude})`);
-            return false;
-          }
-
-          console.log(`✅ Keeping album: ${album.name} (${album.album_type})`);
-          return true;
-        })
-        .sort((a, b) => {
-          // Sort by release date (oldest first = prefer original versions)
-          return new Date(a.release_date).getTime() - new Date(b.release_date).getTime();
-        });
-
-      console.log(`🎯 Filtered to ${studioAlbums.length} pure studio albums from ${albums.length} total`);
-
       // GENIUS BATCH PROCESSING: Fetch all tracks efficiently
-      const albumIds = studioAlbums.map(album => album.id);
+      const albumIds = catalogAlbums.map(album => album.id);
       result.albumsExpected = albumIds.length;
       const { tracksByAlbum, failedAlbumIds } = await batchFetchAlbumTracks(albumIds, accessToken);
       result.albumsFailed = failedAlbumIds.length;
@@ -568,7 +533,7 @@ export const syncArtistCatalog = internalAction({
 
       // Collect all tracks with album information for duplicate detection
       const allTracks: any[] = [];
-      for (const album of studioAlbums) {
+      for (const album of catalogAlbums) {
         const tracks = tracksByAlbum.get(album.id) || [];
         for (const track of tracks) {
           allTracks.push({
@@ -578,61 +543,27 @@ export const syncArtistCatalog = internalAction({
         }
       }
 
-      console.log(`📊 Collected ${allTracks.length} total tracks from ${studioAlbums.length} albums`);
+      console.log(`📊 Collected ${allTracks.length} total tracks from ${catalogAlbums.length} albums`);
 
-      // GENIUS DUPLICATE DETECTION: Filter original tracks only
-      const originalTracks = await filterOriginalTracks(allTracks, args.artistId, ctx);
+      const originalTracks = selectRepertoireTracks(allTracks, artistIds);
       result.tracksExpected = originalTracks.length;
-
-      console.log(`🎯 Filtered to ${originalTracks.length} original studio tracks (from ${allTracks.length} total, ${((originalTracks.length / allTracks.length) * 100).toFixed(1)}% kept)`);
-
-      // CRITICAL FIX: Track import progress every 50 songs to detect caps
-      console.log(`📝 Beginning import of ${originalTracks.length} songs...`);
-
-      for (let i = 0; i < originalTracks.length; i++) {
-        const track = originalTracks[i];
-
+      // A bounded mutation per batch replaces two round trips per song.
+      for (let offset = 0; offset < originalTracks.length; offset += 100) {
+        const batch = originalTracks.slice(offset, offset + 100);
         try {
-          // Create song with full metadata
-          const songId = await ctx.runMutation(internalRef.songs.create, {
-            title: track.name,
-            album: track.album_info.name,
-            spotifyId: track.id,
-            durationMs: track.duration_ms,
-            popularity: track.popularity || 0,
-            trackNo: track.track_number,
-            isLive: false,
-            isRemix: false,
-          });
-
-          // Link artist to song (with duplicate prevention)
-          await ctx.runMutation(internalRef.artistSongs.create, {
+          const merged = await ctx.runMutation(internalRef.catalogRepertoire.mergeSpotifyTracks, {
             artistId: args.artistId,
-            songId,
-            isPrimaryArtist: true,
+            tracks: batch.map(track => {
+              const credited = track.artists.find((a: any) => artistIds.has(a.id));
+              return { title: track.repertoireTitle, album: track.album_info.name, spotifyId: track.id,
+                sourceArtistName: credited.name, sourceSpotifyArtistId: credited.id, sourceTrackTitle: track.name };
+            }),
           });
-
-          songsImported++;
+          songsImported += merged.processed;
           result.tracksImported = songsImported;
-
-          // Progress logging every 50 songs
-          if ((i + 1) % 50 === 0) {
-            console.log(`📊 Progress: ${i + 1}/${originalTracks.length} songs processed (${songsImported} imported)`);
-          }
         } catch (error) {
-          result.failedTrackIds.push(String(track.id));
-          console.error(`❌ Failed to import song ${track.name}:`, error);
-          // Track error for monitoring
-          await ctx.runMutation(internalRef.errorTracking.logError, {
-            operation: "spotify_song_import",
-            error: error instanceof Error ? error.message : String(error),
-            context: {
-              artistId: args.artistId,
-              artistName: args.artistName,
-              additionalData: { songTitle: track.name, album: track.album_info?.name },
-            },
-            severity: "warning",
-          });
+          result.failedTrackIds.push(...batch.map(track => String(track.id)));
+          console.error("Catalog batch failed", error);
         }
       }
 
@@ -749,88 +680,3 @@ function isStudioSong(songName: string, albumName: string): boolean {
   return true;
 }
 
-// Removed isHighQualityStudioAlbum - was filtering out too many legitimate albums
-// Now relying on isStudioAlbum only for simpler, more inclusive filtering
-
-// GENIUS duplicate detection and original track filtering
-async function filterOriginalTracks(allTracks: any[], artistId: string, ctx: any): Promise<any[]> {
-  // Group tracks by normalized title to detect duplicates
-  const trackGroups = new Map<string, any[]>();
-
-  for (const track of allTracks) {
-    if (!isStudioSong(track.name, track.album_info.name)) continue;
-
-    // Normalize title for duplicate detection
-    const normalizedTitle = normalizeTrackTitle(track.name);
-
-    if (!trackGroups.has(normalizedTitle)) {
-      trackGroups.set(normalizedTitle, []);
-    }
-    trackGroups.get(normalizedTitle)!.push(track);
-  }
-
-  const originalTracks: any[] = [];
-
-  // For each group of tracks with same title, pick the best one
-  for (const [title, tracks] of trackGroups) {
-    if (tracks.length === 1) {
-      originalTracks.push(tracks[0]);
-    } else {
-      // Multiple versions - pick the best one using genius logic
-      const bestTrack = selectBestTrackVersion(tracks);
-      originalTracks.push(bestTrack);
-
-      console.log(`🔍 Duplicate detected for "${title}": ${tracks.length} versions, selected from "${bestTrack.album_info.name}"`);
-    }
-  }
-
-  return originalTracks;
-}
-
-// Normalize track title for duplicate detection
-function normalizeTrackTitle(title: string): string {
-  return title
-    .toLowerCase()
-    .trim()
-    // Remove common variations
-    .replace(/\(.*?\)/g, '') // Remove parentheses content
-    .replace(/\[.*?\]/g, '') // Remove bracket content  
-    .replace(/\s+/g, ' ') // Normalize whitespace
-    .replace(/[^\w\s]/g, '') // Remove special characters
-    .trim();
-}
-
-// Select the best version when multiple tracks have same title
-function selectBestTrackVersion(tracks: any[]): any {
-  return tracks.sort((a, b) => {
-    // Prefer albums over singles
-    const albumTypeScore = (track: any) => {
-      if (track.album_info.album_type === 'album') return 3;
-      if (track.album_info.album_type === 'single') return 2;
-      return 1;
-    };
-
-    // Prefer non-deluxe versions (aggressive detection)
-    const isDeluxe = (track: any) => {
-      const albumName = track.album_info.name.toLowerCase();
-      return albumName.includes('deluxe') || albumName.includes('expanded') ||
-        albumName.includes('special') || albumName.includes('remaster') ||
-        albumName.includes('edition') || albumName.includes('3am') ||
-        albumName.includes('til dawn') || albumName.includes('vault') ||
-        albumName.includes('complete') || albumName.includes('enhanced') ||
-        albumName.includes('[') || albumName.includes('(from the vault)');
-    };
-
-    // Prefer higher popularity
-    const popularityScore = (track: any) => track.popularity || 0;
-
-    // Prefer shorter duration (original versions are usually not extended)
-    const durationScore = (track: any) => -(track.duration_ms || 0); // Negative for shorter preference
-
-    // Calculate composite score
-    const scoreA = albumTypeScore(a) * 1000 + (isDeluxe(a) ? 0 : 500) + popularityScore(a);
-    const scoreB = albumTypeScore(b) * 1000 + (isDeluxe(b) ? 0 : 500) + popularityScore(b);
-
-    return scoreB - scoreA;
-  })[0];
-}

@@ -40,12 +40,12 @@ function SyncButton({
     const shouldReduce = useReducedMotion();
 
     return (
-        <motion.div whileHover={shouldReduce ? {} : { y: -1, transition: { duration: 0.15 } }}>
+        <motion.div>
             <Button
                 onClick={onClick}
                 disabled={loading}
                 variant="outline"
-                className={`w-full justify-start h-11 border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05] text-foreground/80 ${variant === "danger" ? "hover:border-red-500/20 hover:text-red-400" : "hover:border-white/[0.12]"
+                className={`w-full justify-start h-11 border-border bg-card hover:bg-accent text-foreground/80 ${variant === "danger" ? "hover:border-red-500/20 hover:text-red-700 dark:hover:text-red-400" : "hover:border-border-strong"
                     }`}
             >
                 {loading ? (
@@ -63,7 +63,7 @@ function SyncButton({
 function SectionTitle({ icon: Icon, children }: { icon: React.ElementType; children: React.ReactNode }) {
     return (
         <motion.h3 variants={fadeUp} className="text-sm font-semibold text-foreground/80 flex items-center gap-2 uppercase tracking-wider">
-            <Icon className="h-4 w-4 text-muted-foreground/50" />
+            <Icon className="h-4 w-4 text-muted-foreground" />
             {children}
         </motion.h3>
     );
@@ -71,12 +71,12 @@ function SectionTitle({ icon: Icon, children }: { icon: React.ElementType; child
 
 /* ─── Setlist.fm import health ─── */
 const IMPORT_STATUS_META = [
-    { key: "completed", label: "Completed", chip: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", alwaysShow: true },
-    { key: "not_found", label: "Not found", chip: "bg-amber-500/10 text-amber-400 border-amber-500/20", alwaysShow: true },
-    { key: "failed", label: "Failed", chip: "bg-red-500/10 text-red-400 border-red-500/20", alwaysShow: true },
-    { key: "pending", label: "Pending", chip: "bg-white/[0.04] text-muted-foreground/70 border-white/[0.08]", alwaysShow: false },
-    { key: "importing", label: "Importing", chip: "bg-white/[0.04] text-muted-foreground/70 border-white/[0.08]", alwaysShow: false },
-    { key: "unset", label: "No status", chip: "bg-white/[0.04] text-muted-foreground/70 border-white/[0.08]", alwaysShow: false },
+    { key: "completed", label: "Completed", chip: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20", alwaysShow: true },
+    { key: "not_found", label: "Not found", chip: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20", alwaysShow: true },
+    { key: "failed", label: "Failed", chip: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20", alwaysShow: true },
+    { key: "pending", label: "Pending", chip: "bg-secondary text-muted-foreground border-border", alwaysShow: false },
+    { key: "importing", label: "Importing", chip: "bg-secondary text-muted-foreground border-border", alwaysShow: false },
+    { key: "unset", label: "No status", chip: "bg-secondary text-muted-foreground border-border", alwaysShow: false },
 ] as const;
 
 function ImportHealthCard() {
@@ -84,7 +84,7 @@ function ImportHealthCard() {
 
     // Loading — skeleton matching neighboring sections
     if (importStats === undefined) {
-        return <div className="h-28 rounded-xl bg-white/[0.02] animate-pulse" />;
+        return <div className="h-28 rounded-xl bg-secondary animate-pulse" />;
     }
 
     // Non-admin — hide the card entirely
@@ -100,18 +100,18 @@ function ImportHealthCard() {
         .filter((p) => p.value > 0);
 
     return (
-        <motion.div variants={fadeUp} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+        <motion.div variants={fadeUp} className="rounded-xl border border-border bg-card p-4">
             <div className="flex items-center gap-3 mb-3">
                 <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                    <Activity className="h-4 w-4 text-emerald-400" />
+                    <Activity className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
                 </div>
                 <div className="min-w-0 flex-1">
                     <h3 className="font-semibold text-foreground text-sm">Setlist.fm Import Health</h3>
-                    <p className="text-[11px] text-muted-foreground/40">
+                    <p className="text-[11px] text-muted-foreground">
                         Completed shows from the last {importStats.windowDays} days by import status
                     </p>
                 </div>
-                <span className="text-xs text-muted-foreground/40 font-mono tabular-nums flex-shrink-0">
+                <span className="text-xs text-muted-foreground font-mono tabular-nums flex-shrink-0">
                     {importStats.recentCompletedShows.toLocaleString()} shows
                 </span>
             </div>
@@ -130,7 +130,7 @@ function ImportHealthCard() {
                     ))}
             </div>
 
-            <p className="mt-3 text-[11px] text-muted-foreground/30">
+            <p className="mt-3 text-[11px] text-muted-foreground">
                 All-time:{" "}
                 {globalParts.length === 0
                     ? "no import records yet"
@@ -166,20 +166,20 @@ function ImportSetlistHistoryCard() {
     };
 
     return (
-        <motion.div variants={fadeUp} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2.5">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-medium">Import setlist history by Artist ID</p>
+        <motion.div variants={fadeUp} className="rounded-xl border border-border bg-card p-4 space-y-2.5">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Import setlist history by Artist ID</p>
             <div className="flex gap-2">
                 <Input
                     placeholder="artistId"
                     value={artistId}
                     onChange={(e) => setArtistId(e.target.value)}
-                    className="border-white/[0.08] bg-white/[0.02] placeholder:text-muted-foreground/30"
+                    className="border-border bg-card placeholder:text-muted-foreground"
                 />
                 <Button
                     onClick={() => void handleImport()}
                     disabled={running}
                     variant="outline"
-                    className="border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05] whitespace-nowrap"
+                    className="border-border bg-card hover:bg-accent whitespace-nowrap"
                 >
                     {running ? (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -266,32 +266,32 @@ export function AdminSyncSection(props: AdminSyncSectionProps) {
 
             {/* ─── Force Sync & Engagement ─── */}
             <motion.div variants={fadeUp} className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2.5">
-                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-medium">Force catalog sync by Artist ID</p>
+                <div className="rounded-xl border border-border bg-card p-4 space-y-2.5">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Force catalog sync by Artist ID</p>
                     <div className="flex gap-2">
                         <Input
                             placeholder="Artist ID"
                             value={props.forceArtistId}
                             onChange={(e) => props.onForceArtistIdChange(e.target.value)}
-                            className="border-white/[0.08] bg-white/[0.02] placeholder:text-muted-foreground/30"
+                            className="border-border bg-card placeholder:text-muted-foreground"
                         />
                         <Button
                             onClick={props.onForceCatalog}
                             disabled={props.forceCatalogRunning}
                             variant="outline"
-                            className="border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05] whitespace-nowrap"
+                            className="border-border bg-card hover:bg-accent whitespace-nowrap"
                         >
                             {props.forceCatalogRunning ? "Syncing..." : "Force Sync"}
                         </Button>
                     </div>
                 </div>
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2.5">
-                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-medium">One-time engagement backfill</p>
+                <div className="rounded-xl border border-border bg-card p-4 space-y-2.5">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">One-time engagement backfill</p>
                     <Button
                         onClick={props.onRecomputeEngagement}
                         disabled={props.engagementRunning}
                         variant="outline"
-                        className="border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05]"
+                        className="border-border bg-card hover:bg-accent"
                     >
                         {props.engagementRunning ? "Recomputing..." : "Recompute counts"}
                     </Button>
@@ -312,24 +312,24 @@ export function AdminSyncSection(props: AdminSyncSectionProps) {
             {/* ─── Admin Users / Promote ─── */}
             <div className="space-y-3">
                 <SectionTitle icon={Shield}>Admin Users</SectionTitle>
-                <motion.div variants={fadeUp} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-medium mb-2.5">Promote user by email</div>
+                <motion.div variants={fadeUp} className="rounded-xl border border-border bg-card p-4">
+                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium mb-2.5">Promote user by email</div>
                     <div className="flex gap-2">
                         <Input
                             placeholder="user@example.com"
                             value={props.newAdminEmail}
                             onChange={(e) => props.onNewAdminEmailChange(e.target.value)}
-                            className="flex-1 border-white/[0.08] bg-white/[0.02] placeholder:text-muted-foreground/30"
+                            className="flex-1 border-border bg-card placeholder:text-muted-foreground"
                         />
                         <Button
                             onClick={props.onPromoteAdmin}
                             variant="outline"
-                            className="border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05]"
+                            className="border-border bg-card hover:bg-accent"
                         >
                             Promote
                         </Button>
                     </div>
-                    <p className="text-[11px] text-muted-foreground/30 mt-2">
+                    <p className="text-[11px] text-muted-foreground mt-2">
                         Note: Clerk role update requires CLERK_SECRET_KEY configured.
                     </p>
                 </motion.div>
@@ -341,24 +341,24 @@ export function AdminSyncSection(props: AdminSyncSectionProps) {
                 {!props.activeSyncJobs ? (
                     <div className="space-y-2">
                         {[...Array(3)].map((_, i) => (
-                            <div key={i} className="h-14 rounded-xl bg-white/[0.02] animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
+                            <div key={i} className="h-14 rounded-xl bg-secondary animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
                         ))}
                     </div>
                 ) : props.activeSyncJobs.length === 0 ? (
-                    <motion.p variants={fadeUp} className="text-sm text-muted-foreground/40">No running sync jobs.</motion.p>
+                    <motion.p variants={fadeUp} className="text-sm text-muted-foreground">No running sync jobs.</motion.p>
                 ) : (
                     <motion.div variants={stagger} className="space-y-2">
                         {props.activeSyncJobs.map((job: any) => (
                             <motion.div
                                 key={job._id}
                                 variants={fadeUp}
-                                className="flex justify-between items-center rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5"
+                                className="flex justify-between items-center rounded-xl border border-border bg-card p-3.5"
                             >
                                 <div>
                                     <div className="text-sm text-foreground font-medium">{job.type}</div>
-                                    <div className="text-xs text-muted-foreground/40">Step: {job.currentStep || "n/a"}</div>
+                                    <div className="text-xs text-muted-foreground">Step: {job.currentStep || "n/a"}</div>
                                 </div>
-                                <div className="text-xs text-muted-foreground/40 font-mono">
+                                <div className="text-xs text-muted-foreground font-mono">
                                     {job.progressPercentage ?? 0}% • Retries: {job.retryCount}/{job.maxRetries}
                                 </div>
                             </motion.div>
@@ -373,7 +373,7 @@ export function AdminSyncSection(props: AdminSyncSectionProps) {
                 {!props.cronSettings ? (
                     <div className="space-y-2">
                         {[...Array(4)].map((_, i) => (
-                            <div key={i} className="h-14 rounded-xl bg-white/[0.02] animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
+                            <div key={i} className="h-14 rounded-xl bg-secondary animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
                         ))}
                     </div>
                 ) : (
@@ -382,19 +382,19 @@ export function AdminSyncSection(props: AdminSyncSectionProps) {
                             <motion.div
                                 key={c._id}
                                 variants={fadeUp}
-                                className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5"
+                                className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5"
                             >
                                 <div className="flex-1 min-w-0">
                                     <div className="text-sm text-foreground font-medium truncate">{c.name}</div>
-                                    <div className="text-[11px] text-muted-foreground/40">
+                                    <div className="text-[11px] text-muted-foreground">
                                         Last run: {c.lastRunAt ? new Date(c.lastRunAt).toLocaleString() : "never"}
                                     </div>
-                                    <div className="text-[11px] text-muted-foreground/30">
+                                    <div className="text-[11px] text-muted-foreground">
                                         Last success: {c.lastSuccessAt ? new Date(c.lastSuccessAt).toLocaleString() : "—"}
                                         {c.lastFailureAt ? ` • Last failure: ${new Date(c.lastFailureAt).toLocaleString()}` : ""}
                                     </div>
                                     {c.lastError && (
-                                        <div className="text-[11px] text-red-400/70 truncate">Error: {c.lastError}</div>
+                                        <div className="text-[11px] text-red-700 dark:text-red-400/70 truncate">Error: {c.lastError}</div>
                                     )}
                                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -402,25 +402,25 @@ export function AdminSyncSection(props: AdminSyncSectionProps) {
                                         type="number"
                                         min={1}
                                         defaultValue={Math.max(1, Math.round((c.intervalMs || 60000) / 60000))}
-                                        className="w-20 h-8 text-xs border-white/[0.08] bg-white/[0.02]"
+                                        className="w-20 h-8 text-xs border-border bg-card"
                                         onBlur={(e) => {
                                             const minutes = Math.max(1, Number(e.currentTarget.value || 1));
                                             props.onCronUpdate(c.name, minutes * 60000, c.enabled !== false);
                                         }}
                                     />
-                                    <span className="text-[10px] text-muted-foreground/40">min</span>
+                                    <span className="text-[10px] text-muted-foreground">min</span>
                                     <Checkbox
                                         checked={c.enabled !== false}
                                         onCheckedChange={(checked) => {
                                             props.onCronUpdate(c.name, c.intervalMs || 60000, Boolean(checked));
                                         }}
                                     />
-                                    <span className="text-[10px] text-muted-foreground/40">On</span>
+                                    <span className="text-[10px] text-muted-foreground">On</span>
                                     <Button
                                         size="sm"
                                         variant="outline"
                                         onClick={() => props.onCronRunNow(c.name)}
-                                        className="h-7 text-xs border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05]"
+                                        className="h-7 text-xs border-border bg-card hover:bg-accent"
                                     >
                                         Run now
                                     </Button>
@@ -429,28 +429,28 @@ export function AdminSyncSection(props: AdminSyncSectionProps) {
                         ))}
                     </motion.div>
                 )}
-                <motion.p variants={fadeUp} className="text-[11px] text-muted-foreground/30">
+                <motion.p variants={fadeUp} className="text-[11px] text-muted-foreground">
                     Orchestrator checks every 5 min; jobs adhere to these intervals.
                 </motion.p>
             </div>
 
             {/* ─── Status ─── */}
-            <motion.div variants={fadeUp} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+            <motion.div variants={fadeUp} className="rounded-xl border border-border bg-card p-4">
                 <div className="flex items-center gap-3 mb-3">
                     <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                        <AlertCircle className="h-4 w-4 text-amber-400" />
+                        <AlertCircle className="h-4 w-4 text-amber-700 dark:text-amber-400" />
                     </div>
                     <div>
                         <h3 className="font-semibold text-foreground text-sm">Sync Status</h3>
-                        <p className="text-[11px] text-muted-foreground/30">Last operation</p>
+                        <p className="text-[11px] text-muted-foreground">Last operation</p>
                     </div>
                 </div>
                 <div className="text-sm space-y-1">
-                    <div className="flex items-center gap-2 text-emerald-400/80">
+                    <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400/80">
                         <CheckCircle className="h-3 w-3" />
                         <span>System ready</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground/30">
+                    <p className="text-[11px] text-muted-foreground">
                         🔄 Trending updated every 4h • 📊 Rankings: popularity, followers, shows, activity
                     </p>
                 </div>

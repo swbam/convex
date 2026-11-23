@@ -1,3 +1,4 @@
+import { getUserPredictionStats } from "./lib/songVoteCounts";
 import { query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "./auth";
@@ -186,7 +187,9 @@ export const getUserActivityStats = query({
     totalVotes: v.number(),
     totalSetlists: v.number(),
     recentVotes: v.number(),
-    accuracy: v.number(),
+    accuracy: v.union(v.number(), v.null()),
+    evaluatedVotes: v.number(),
+    historyLimited: v.boolean(),
     streak: v.number(),
     rank: v.number(),
     joinedAt: v.number(),
@@ -199,7 +202,9 @@ export const getUserActivityStats = query({
         totalVotes: 0,
         totalSetlists: 0,
         recentVotes: 0,
-        accuracy: 0,
+        accuracy: null,
+        evaluatedVotes: 0,
+        historyLimited: false,
         streak: 0,
         rank: 0,
         joinedAt: 0,
@@ -213,7 +218,9 @@ export const getUserActivityStats = query({
         totalVotes: 0,
         totalSetlists: 0,
         recentVotes: 0,
-        accuracy: 0,
+        accuracy: null,
+        evaluatedVotes: 0,
+        historyLimited: false,
         streak: 0,
         rank: 0,
         joinedAt: 0,
@@ -224,60 +231,22 @@ export const getUserActivityStats = query({
     // Get vote statistics
     const votes = await ctx.db
       .query("songVotes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
+      .withIndex("by_user_created_at", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(501);
     
     const setlists = await ctx.db
       .query("setlists")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     
-    // Get follows (only for Spotify users)
-    let totalFollows = 0;
-    if (user.spotifyId) {
-      const follows = await ctx.db
-        .query("userFollows")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
-        .collect();
-      totalFollows = follows.length;
-    }
-    
     // Calculate recent activity (last 7 days)
     const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
     const recentVotes = votes.filter(v => v.createdAt > weekAgo).length;
     
-    // ENHANCED: Calculate REAL accuracy based on actual setlist matches
-    let accurateVoteCount = 0;
-    let totalVotesWithActual = 0;
-    
-    for (const vote of votes) {
-      // Get the setlist for this vote
-      const voteRecord = await ctx.db
-        .query("votes")
-        .withIndex("by_user", (q) => q.eq("userId", user._id))
-        .filter((q) => q.eq(q.field("setlistId"), vote.setlistId))
-        .first();
-      
-      if (voteRecord && voteRecord.voteType === "accurate") {
-        const setlist = await ctx.db.get(vote.setlistId);
-        if (setlist?.actualSetlist && setlist.actualSetlist.length > 0) {
-          totalVotesWithActual++;
-          // Vote was accurate
-          accurateVoteCount++;
-        }
-      } else if (voteRecord && voteRecord.voteType === "inaccurate") {
-        const setlist = await ctx.db.get(vote.setlistId);
-        if (setlist?.actualSetlist && setlist.actualSetlist.length > 0) {
-          totalVotesWithActual++;
-          // Vote was inaccurate (counted but not added to accurate)
-        }
-      }
-    }
-    
-    const accuracy = totalVotesWithActual > 0 
-      ? Math.round((accurateVoteCount / totalVotesWithActual) * 100) 
-      : 0;
-    
+    const predictionStats = await getUserPredictionStats(ctx, votes.slice(0, 500));
+    const accuracy = predictionStats.accuracy === null ? null : Math.round(predictionStats.accuracy * 100);
+
     // ENHANCED: Calculate REAL voting streak (consecutive days with votes)
     let streak = 0;
     const today = new Date();
@@ -297,29 +266,16 @@ export const getUserActivityStats = query({
       }
     }
     
-    // ENHANCED: Calculate REAL user rank based on total votes
-    // Bounded read: capped so a growing users table can't blow Convex's read
-    // limits. Rank is computed over the first 2000 users (currently the whole
-    // table); behavior is identical for those users.
-    const allUsers = await ctx.db.query("users").take(2000);
-    const userVoteCounts = await Promise.all(
-      allUsers.map(async (u) => {
-        const uVotes = await ctx.db
-          .query("songVotes")
-          .withIndex("by_user", (q) => q.eq("userId", u._id))
-          .collect();
-        return { userId: u._id, voteCount: uVotes.length };
-      })
-    );
-    
-    const sortedByVotes = userVoteCounts.sort((a, b) => b.voteCount - a.voteCount);
-    const userRank = sortedByVotes.findIndex(u => u.userId === user._id) + 1;
-    
+    // Global rank needs a maintained leaderboard, not a per-page scan of every account.
+    const userRank = 0;
+
     return {
-      totalVotes: votes.length,
+      totalVotes: Math.min(votes.length, 500),
       totalSetlists: setlists.length,
       recentVotes,
       accuracy,
+      evaluatedVotes: predictionStats.evaluated,
+      historyLimited: votes.length > 500,
       streak,
       rank: userRank,
       joinedAt: user._creationTime,
@@ -452,67 +408,29 @@ export const getTrendingSetlists = query({
     songs: v.optional(v.array(v.any())),
   })),
   handler: async (ctx, args) => {
-    const limit = args.limit || 20;
-    
-    // Bounded read: full-table .collect() on setlists exceeds Convex's read
-    // limits at prod scale. Take the newest 2000 (desc by _creationTime) so
-    // trending candidates are recent setlists, not the oldest rows.
-    const setlists = await ctx.db.query("setlists").order("desc").take(2000);
-    const setlistsWithVotes = await Promise.all(
-      setlists.map(async (setlist) => {
-        const votes = await ctx.db
-          .query("songVotes")
-          .withIndex("by_setlist", (q) => q.eq("setlistId", setlist._id))
-          .collect();
-        
-        const show = await ctx.db.get(setlist.showId);
-        if (!show) return null;
-        
-        const [artist, venue] = await Promise.all([
-          ctx.db.get(show.artistId),
-          ctx.db.get(show.venueId)
-        ]);
-        
-        return {
-          _id: setlist._id,
-          voteCount: votes.length,
-          show,
-          artist,
-          venue,
-          songs: setlist.songs,
-        };
-      })
-    );
-    
-    return setlistsWithVotes
-      .filter(s => s !== null)
-      .sort((a: any, b: any) => b.voteCount - a.voteCount)
-      .slice(0, limit);
+    const limit = Math.max(1, Math.min(args.limit ?? 20, 50));
+    // Rank by maintained real-vote totals before fetching related records.
+    const candidates = await ctx.db.query("setlists")
+      .withIndex("by_song_vote_count", q => q.gt("songVoteCount", 0)).order("desc").take(limit);
+    const results = await Promise.all(candidates.map(async setlist => {
+      const show = await ctx.db.get(setlist.showId);
+      if (!show) return null;
+      const [artist, venue] = await Promise.all([ctx.db.get(show.artistId), ctx.db.get(show.venueId)]);
+      return { _id: setlist._id, voteCount: setlist.songVoteCount ?? 0, show, artist, venue, songs: setlist.songs };
+    }));
+    return results.filter((row): row is NonNullable<typeof row> => row !== null);
   },
 });
 
 export const getVoteAccuracy = query({
   args: { userId: v.id("users") },
-  returns: v.number(), // Percentage 0-1
+  returns: v.union(v.number(), v.null()),
   handler: async (ctx, args) => {
-    const userVotes = await ctx.db
-      .query("songVotes")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .collect();
-
-    let correct = 0;
-    let total = 0;
-    for (const vote of userVotes) {
-      if (vote.setlistId) {
-        const setlist = await ctx.db.get(vote.setlistId);
-        if (setlist && setlist.actualSetlist) {
-          const song = setlist.actualSetlist.find(s => s.title === vote.songTitle);
-          if (song && vote.voteType === "upvote") correct++; // Simple: upvote if in setlist
-          total++;
-        }
-      }
-    }
-    return total > 0 ? correct / total : 0;
+    const userId = await getAuthUserId(ctx);
+    if (!userId || userId !== args.userId) return null;
+    const votes = await ctx.db.query("songVotes")
+      .withIndex("by_user_created_at", q => q.eq("userId", userId)).order("desc").take(500);
+    return (await getUserPredictionStats(ctx, votes)).accuracy;
   },
 });
 

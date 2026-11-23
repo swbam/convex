@@ -9,7 +9,7 @@ interface MagicCardProps {
   style?: React.CSSProperties;
   /** Glow variant: 'default' | 'animated' | 'section' | 'sm' | 'none' */
   variant?: "default" | "animated" | "section" | "sm" | "none";
-  /** Enable hover glow effect */
+  /** Opt in to interaction styling for clickable surfaces. */
   hoverGlow?: boolean;
   /** Show top edge highlight */
   edgeHighlight?: boolean;
@@ -18,11 +18,11 @@ interface MagicCardProps {
   onClick?: React.MouseEventHandler<HTMLDivElement>;
 }
 
-// Helper to strip conflicting classes that would override glow styling
+// Keep the shared panel geometry consistent with legacy caller classes.
 function stripConflictingClasses(className: string | undefined): string {
   if (!className) return "";
   
-  // Remove classes that conflict with glow system
+  // The panel owns its border, radius and base surface.
   return className
     .split(" ")
     .filter((cls) => {
@@ -48,21 +48,21 @@ const paddingClasses = {
 };
 
 /**
- * MagicCard - Premium card component with silver gradient glow effect
+ * MagicCard - Shared panel surface with legacy variant compatibility
  * 
  * Variants:
- * - default: Standard glow card with gradient border
- * - animated: Rotating conic gradient border animation
- * - section: Larger section container style
- * - sm: Compact card for smaller elements
- * - none: No glow, just basic card styling
+ * - default: Standard shared panel
+ * - animated: Legacy alias for the standard panel
+ * - section: Section panel
+ * - sm: Compact panel
+ * - none: Unfiltered caller styling
  */
 export function MagicCard({
   children,
   className,
   style,
   variant = "default",
-  hoverGlow = true,
+  hoverGlow = false,
   edgeHighlight = false,
   padding = "none",
   onClick,
@@ -75,15 +75,15 @@ export function MagicCard({
     none: "bg-card border border-border rounded-xl",
   };
 
-  // Strip conflicting classes from user-provided className (except for 'none' variant)
+  // Preserve the existing caller API while using shared surface tokens.
   const safeClassName = variant === "none" ? className : stripConflictingClasses(className);
 
   return (
     <div
       className={cn(
-        "relative overflow-hidden transition-all duration-300",
+        "app-surface relative overflow-hidden",
         variantClasses[variant],
-        hoverGlow && variant !== "none" && "glow-card-hover",
+        (hoverGlow || onClick) && "interactive-card",
         edgeHighlight && "glow-edge-top",
         paddingClasses[padding],
         safeClassName
@@ -91,13 +91,13 @@ export function MagicCard({
       onClick={onClick}
       style={style}
     >
-      <div className="relative z-10">{children}</div>
+      <div className="app-surface-content relative z-10">{children}</div>
     </div>
   );
 }
 
 /**
- * GlowCard - Alias for MagicCard with default glow styling
+ * GlowCard - Legacy alias for MagicCard
  * Use this for consistency across the app
  */
 export function GlowCard({
@@ -105,7 +105,7 @@ export function GlowCard({
   className,
   style,
   variant = "default",
-  hoverGlow = true,
+  hoverGlow = false,
   padding = "md",
   onClick,
 }: MagicCardProps) {
@@ -124,7 +124,7 @@ export function GlowCard({
 }
 
 /**
- * GlowSection - For larger content sections with subtle glow
+ * GlowSection - Legacy alias for a static section panel
  */
 export function GlowSection({
   children,

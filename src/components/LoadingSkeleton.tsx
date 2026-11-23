@@ -95,40 +95,22 @@ export function GridSkeleton({ count = 12 }: { count?: number }) {
   );
 }
 
-// Detail page skeleton
-export function DetailPageSkeleton() {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      className="container mx-auto px-4 sm:px-6 py-4 sm:py-8"
-    >
-      <div className="rounded-xl p-8 space-y-6 bg-card border border-border">
-        <div className="space-y-6">
-          {/* Header skeleton */}
-          <div className="flex items-center gap-6">
-            <div className={`w-32 h-32 sm:w-40 sm:h-40 ${shimmerClass} rounded-xl`} />
-            <div className="flex-1 space-y-4">
-              <div className={`h-8 sm:h-10 ${shimmerClass} rounded w-2/3`} />
-              <div className={`h-4 sm:h-5 ${shimmerClass} rounded w-1/2`} />
-              <div className={`h-4 sm:h-5 ${shimmerClass} rounded w-1/3`} />
-            </div>
-          </div>
-          {/* Grid skeleton */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
-            {[...Array(6)].map((_, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3, delay: 0.1 + i * 0.05, ease: [0.16, 1, 0.3, 1] }}
-                className={`h-40 sm:h-48 ${shimmerClass} rounded-xl`}
-              />
-            ))}
-          </div>
-        </div>
+// Stable, quiet placeholders that share the detail pages' header and content geometry.
+export function DetailRowsSkeleton() {
+  return <div role="status" aria-label="Loading content" className="space-y-2 py-2">
+    <span className="sr-only">Loading content…</span>
+    {Array.from({ length: 5 }, (_, i) => <div key={i} aria-hidden="true" className="flex h-14 items-center gap-4 border-b border-border/40 px-2"><span className="h-3 w-5 bg-muted/50 rounded" /><span className="h-4 w-2/3 max-w-72 bg-muted/50 rounded" /></div>)}
+  </div>;
+}
+export function DetailPageSkeleton({ kind = "show" }: { kind?: "show" | "artist" | "venue" }) {
+  return <div role="status" aria-label={`Loading ${kind}`} className="w-full" aria-busy="true">
+    <span className="sr-only">Loading {kind}…</span>
+    <div aria-hidden="true" className={`flex items-end bg-secondary/20 px-3 lg:px-8 pb-4 lg:pb-8 pt-5 lg:pt-20 ${kind === "artist" ? "min-h-[148px] lg:min-h-[320px]" : kind === "venue" ? "min-h-[180px]" : "min-h-[168px] lg:min-h-[280px]"}`}>
+      <div className="mx-auto flex w-full max-w-6xl items-end gap-8">
+        {kind !== "venue" && <div className="hidden lg:block w-40 h-40 shrink-0 rounded-[5px] bg-muted/40" />}
+        <div className="flex-1 space-y-4"><div className="h-8 lg:h-12 w-3/4 max-w-xl bg-muted/40 rounded" /><div className="h-4 w-2/3 max-w-lg bg-muted/40 rounded" /><div className="h-10 w-40 bg-muted/40 rounded-[5px]" /></div>
       </div>
-    </motion.div>
-  );
+    </div>
+    <div className="mx-auto max-w-7xl px-3 sm:px-6 py-5 sm:py-8"><DetailRowsSkeleton /></div>
+  </div>;
 }

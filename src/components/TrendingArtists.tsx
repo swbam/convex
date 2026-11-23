@@ -46,7 +46,7 @@ export function TrendingArtists({ onArtistClick }: TrendingArtistsProps) {
           key={artist._id}
           type="button"
           onClick={() => onArtistClick(artist._id)}
-          className="group flex w-full items-center gap-3 p-3 rounded-lg text-left hover:bg-accent cursor-pointer transition-colors touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+          className="group flex w-full items-center gap-3 p-3 rounded-lg text-left hover:bg-accent cursor-pointer transition-colors touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <div className="w-8 h-8 flex-shrink-0 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-semibold">
             {index + 1}

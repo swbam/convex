@@ -1,3 +1,4 @@
+import { TicketLink } from "./TicketLink";
 import { useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -147,15 +148,9 @@ function ShowCard({ show }: { show: any }) {
         {/* Ticket Link */}
         {show.ticketUrl && (
           <div className="flex items-center">
-            <a
-              href={show.ticketUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="px-4 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg text-sm font-medium transition-colors"
-            >
+            <TicketLink href={show.ticketUrl} placement="venue_show" properties={{ show_id: show._id || show.showId, artist_id: show.artistId || show.artist?._id, venue_id: show.venueId || show.venue?._id, show_date: show.date }} className="px-4 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg text-sm font-medium transition-colors" >
               Tickets
-            </a>
+            </TicketLink>
           </div>
         )}
       </div>

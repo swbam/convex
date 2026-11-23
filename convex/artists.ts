@@ -1,3 +1,5 @@
+import { matchesSearch, searchRank } from "../shared/searchRelevance";
+import { classifyAttraction, attractionFingerprint, ATTRACTION_POLICY_VERSION } from "./lib/attractionIdentity";
 import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
@@ -176,19 +178,13 @@ export const search = query({
   },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
-    const limit = args.limit || 20;
-    
-    // Simple text search - in production you'd use full-text search
-    const artists = await ctx.db
-      .query("artists")
-      .filter((q) => q.eq(q.field("isActive"), true))
-      .take(100);
-    
-    return artists
-      .filter(artist => 
-        artist.name.toLowerCase().includes(args.query.toLowerCase())
-      )
-      .slice(0, limit);
+    const term = args.query.trim().slice(0, 120);
+    if (term.length < 2) return [];
+    const candidates = await ctx.db.query("artists")
+      .withSearchIndex("search_name", q => q.search("name", term).eq("isActive", true)).take(50);
+    return candidates.filter(artist => matchesSearch(artist.name, term))
+      .sort((a, b) => searchRank(a.name, term) - searchRank(b.name, term) || (b.popularity ?? 0) - (a.popularity ?? 0))
+      .slice(0, Math.max(1, Math.min(25, args.limit ?? 20)));
   },
 });
 
@@ -290,78 +286,25 @@ export const createFromTicketmaster = internalMutation({
     const upcomingEvents = args.upcomingEvents || 0;
     const initialTrendingScore = calculateInitialTrendingScore(upcomingEvents);
     
-    // CRITICAL: Only allow actual CONCERT genres (rock/pop/country/hip-hop/electronic/metal/indie/etc)
-    const concertGenres = [
-      'rock', 'pop', 'country', 'hip-hop', 'rap', 'r&b', 'soul', 'funk',
-      'electronic', 'edm', 'techno', 'house', 'indie', 'alternative',
-      'metal', 'punk', 'hardcore', 'folk', 'bluegrass', 'americana',
-      'blues', 'jazz', 'reggae', 'ska', 'latin', 'world',
-      'singer-songwriter', 'adult contemporary', 'dance',
-    ];
-    
-    const excludedGenres = [
-      'children\'s music', 'childrens music', 'kids', 'family',
-      'classical', 'orchestra', 'symphony', 'chamber', 'opera',
-      'musical', 'theatre', 'broadway', 'show tunes',
-      'spoken word', 'comedy', 'podcast',
-    ];
-    
-    // Check if artist has at least ONE valid concert genre
-    const genres = (args.genres || []).map(g => g.toLowerCase());
-    const hasValidGenre = genres.some(genre => 
-      concertGenres.some(valid => genre.includes(valid))
-    );
-    const hasExcludedGenre = genres.some(genre => 
-      excludedGenres.some(excluded => genre.includes(excluded))
-    );
-    
-    if (!hasValidGenre || hasExcludedGenre) {
-      console.log(`⏭️ Skipping non-concert artist: ${args.name} (genres: ${genres.join(', ')})`);
+    let existing = await ctx.db.query("artists")
+      .withIndex("by_ticketmaster_id", q => q.eq("ticketmasterId", args.ticketmasterId)).first();
+    const decision = classifyAttraction(args.name, args.genres);
+    const previousDecision = await ctx.db.query("attractionDecisions").withIndex("by_ticketmaster_id",
+      q => q.eq("ticketmasterId", args.ticketmasterId)).unique();
+    if (!existing && decision.decision !== "artist") {
+      const data = { ticketmasterId: args.ticketmasterId, name: args.name,
+        fingerprint: attractionFingerprint(args.name, args.genres),
+        decision: decision.decision === "review" ? "review" as const : "excluded" as const,
+        reason: decision.reason, policyVersion: ATTRACTION_POLICY_VERSION, updatedAt: Date.now() };
+      if (previousDecision) await ctx.db.patch(previousDecision._id, data);
+      else await ctx.db.insert("attractionDecisions", data);
       return null;
     }
-    
-    // CRITICAL: Filter out non-musical artists (festivals, theater, plays)
-    const skipKeywords = [
-      'festival',
-      'coachella',
-      'lollapalooza',
-      'bonnaroo',
-      'rocky horror',
-      'theatre',
-      'theater',
-      'broadway',
-      'grease',
-      'phantom',
-      'wicked',
-      'hamilton',
-      'lions king',
-      'in concert', // Excludes "Movie in Concert" type shows
-      'live in concert',
-      'documentary',
-      'film with',
-      'movie',
-      'picture show',
-      'christmas', // Often holiday shows, not concerts
-      'quartet', // Usually classical
-      'philharmonic',
-      'chamber',
-    ];
-    
-    if (skipKeywords.some(keyword => lowerName.includes(keyword))) {
-      console.log(`⏭️ Skipping non-musical artist: ${args.name} (festival/theatrical/orchestra)`);
-      return null;
-    }
-    // Check existing by name or TM ID
-    let existing = await ctx.db
-      .query("artists")
-      .withIndex("by_lower_name", (q) => q.eq("lowerName", lowerName))
-      .first();
-
+    if (previousDecision) await ctx.db.delete(previousDecision._id);
     if (!existing) {
-      existing = await ctx.db
-        .query("artists")
-        .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.ticketmasterId))
-        .first();
+      const sameName = await ctx.db.query("artists")
+        .withIndex("by_lower_name", q => q.eq("lowerName", lowerName)).take(2);
+      if (sameName.length === 1 && !sameName[0].ticketmasterId) existing = sameName[0];
     }
 
     if (existing) {
@@ -831,7 +774,7 @@ export const getStaleArtists = query({
   },
 });
 
-export const updateArtist = mutation({
+export const updateArtist = internalMutation({
   args: { 
     artistId: v.id("artists"),
     name: v.string(),
@@ -841,6 +784,7 @@ export const updateArtist = mutation({
     followers: v.number(),
     lastSynced: v.number(),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const updates: any = {
       name: args.name,
@@ -853,6 +797,7 @@ export const updateArtist = mutation({
       updates.images = [args.image];
     }
     await ctx.db.patch(args.artistId, updates);
+    return null;
   },
 });
 
@@ -1037,5 +982,15 @@ export const getAllSlugs = internalQuery({
       if (a.slug) results.push({ slug: a.slug, lastmod: a.lastSynced ?? a._creationTime });
     }
     return results;
+  },
+});
+
+export const getAttractionImportDecision = internalQuery({
+  args: { ticketmasterId: v.string(), name: v.string(), genres: v.optional(v.array(v.string())) },
+  handler: async (ctx, args) => {
+    const row = await ctx.db.query("attractionDecisions").withIndex("by_ticketmaster_id",
+      q => q.eq("ticketmasterId", args.ticketmasterId)).unique();
+    return row?.policyVersion === ATTRACTION_POLICY_VERSION &&
+      row.fingerprint === attractionFingerprint(args.name, args.genres) ? row : null;
   },
 });

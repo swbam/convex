@@ -1,4 +1,4 @@
-import { action, internalAction, internalQuery, internalMutation } from "./_generated/server";
+import { internalAction, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { internalRef } from "./adminHelpers";
@@ -27,7 +27,7 @@ export const syncTrendingData = internalAction({
     try {
       // Step 1: Update artist show counts (cached)
       await ctx.runMutation(internalRef.trending.updateArtistShowCounts, {});
-      console.log("✅ Updated artist show counts");
+      console.log("Scheduled complete artist show-count reconciliation");
 
       // Step 2: Update artist trending scores and ranks
       await ctx.runMutation(internalRef.trending.updateArtistTrending, {});
@@ -45,6 +45,7 @@ export const syncTrendingData = internalAction({
       console.log("✅ Trending data sync completed");
     } catch (error) {
       console.error("❌ Trending sync failed:", error);
+      throw error;
     } finally {
       await ctx.runMutation(internalRef.maintenance.releaseLock, { name: lockName });
     }
@@ -91,7 +92,7 @@ export const releaseLock = internalMutation({
 });
 
 // Public action to trigger trending sync
-export const triggerTrendingSync = action({
+export const triggerTrendingSync = internalAction({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
@@ -101,7 +102,7 @@ export const triggerTrendingSync = action({
 });
 
 // Public: Normalize existing show slugs by removing legacy time suffix ("-hh-mm")
-export const normalizeShowSlugs = action({
+export const normalizeShowSlugs = internalAction({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ processed: v.number(), updated: v.number() }),
   handler: async (ctx, args): Promise<{ processed: number; updated: number }> => {
@@ -111,7 +112,7 @@ export const normalizeShowSlugs = action({
 });
 
 // CRITICAL: Fix artists with 0 songs by importing Spotify catalogs
-export const fixArtistsWithNoSongs = action({
+export const fixArtistsWithNoSongs = internalAction({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ processed: v.number(), imported: v.number(), failed: v.number() }),
   handler: async (ctx, args): Promise<{ processed: number; imported: number; failed: number }> => {
@@ -160,7 +161,7 @@ export const fixArtistsWithNoSongs = action({
 });
 
 // One-off backfill to seed auto-generated setlists for upcoming shows
-export const backfillMissingSetlists = action({
+export const backfillMissingSetlists = internalAction({
   args: { limit: v.optional(v.number()) },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -245,7 +246,7 @@ export const regenerateEmptySetlists = internalMutation({
 });
 
 // Public action to trigger empty setlist regeneration
-export const triggerEmptySetlistRegeneration = action({
+export const triggerEmptySetlistRegeneration = internalAction({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ found: v.number(), deleted: v.number(), scheduled: v.number() }),
   handler: async (ctx, args): Promise<{ found: number; deleted: number; scheduled: number }> => {
@@ -314,9 +315,9 @@ export const importTrendingShows = internalMutation({
 
         const slug = `${artist.slug}-${ven.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${ven.city.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${show.date}`.substring(0, 200);
         const showId = await ctx.db.insert("shows", {
-          slug, artistId, venueId, date: show.date, startTime: show.startTime,
+          slug, artistId, venueId, date: show.date, startTime: show.startTime, startsAt: show.startsAt, endsAt: show.endsAt, timeZone: show.timeZone,
           status: (show.status || '').includes('cancel') ? 'cancelled' as const : 'upcoming' as const,
-          ticketmasterId: show.ticketmasterId, ticketUrl: show.ticketUrl, priceRange: show.priceRange,
+          ticketmasterId: show.ticketmasterId, ticketUrl: show.ticketUrl, ticketInfo: show.ticketInfo, priceRange: show.priceRange,
           voteCount: 0, setlistCount: 0, trendingScore: 0, trendingRank: 0, lastSynced: Date.now(), lastTrendingUpdate: Date.now(),
         });
 
@@ -331,7 +332,7 @@ export const importTrendingShows = internalMutation({
   },
 });
 
-export const triggerShowImport = action({
+export const triggerShowImport = internalAction({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ processed: v.number(), imported: v.number(), errors: v.number() }),
   handler: async (ctx, args): Promise<{ processed: number; imported: number; errors: number }> => {
@@ -538,7 +539,7 @@ export const cleanupOldOperationalData = internalAction({
 });
 
 // Public action to trigger NaN fix
-export const triggerNaNFix = action({
+export const triggerNaNFix = internalAction({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
