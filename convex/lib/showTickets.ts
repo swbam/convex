@@ -16,6 +16,13 @@ function sameEventGroup(anchor: Show, other: Show) {
     (!anchor.slug || !other.slug || dateOnlySlug(anchor.slug) === dateOnlySlug(other.slug));
 }
 
+export async function canonicalShowKey(ctx: QueryCtx, anchor: Show) {
+  const firstAtSlug = anchor.slug ? await ctx.db.query("shows")
+    .withIndex("by_slug", q => q.eq("slug", anchor.slug)).first() : null;
+  // A direct ID for another performance must survive URL canonicalization.
+  return firstAtSlug?._id === anchor._id ? anchor.slug! : String(anchor._id);
+}
+
 export async function showWithTickets(ctx: QueryCtx, anchor: Show) {
   // Fetch a single artist/date range, including older ingestion paths which
   // stored a time suffix. Keep voting, setlists and private reports on their original IDs.
@@ -25,10 +32,7 @@ export async function showWithTickets(ctx: QueryCtx, anchor: Show) {
   const siblings = rows.filter(row => sameEventGroup(anchor, row));
   const ticketOffers = selectTicketOffers(anchor, siblings);
   const admissions = ticketOffers.filter(offer => offer.kind === "admission");
-  const firstAtSlug = anchor.slug ? await ctx.db.query("shows")
-    .withIndex("by_slug", q => q.eq("slug", anchor.slug)).first() : null;
-  // A direct ID for another performance must survive URL canonicalization.
-  const canonicalKey = firstAtSlug?._id === anchor._id ? anchor.slug! : String(anchor._id);
+  const canonicalKey = await canonicalShowKey(ctx, anchor);
   return { ...anchor, canonicalKey, ticketOffers, ticketUrl: admissions.length === 1 ? admissions[0].href : undefined };
 }
 

@@ -44,7 +44,7 @@ import { hasVotingClosed } from "../../convex/lib/showTiming";
 
 interface ShowDetailProps {
   showId: Id<"shows">;
-  showData?: Doc<"shows"> & { artist: Doc<"artists">; venue: Doc<"venues">; ticketOffers?: TicketOffer[] };
+  showData?: Doc<"shows"> & { artist: Doc<"artists">; venue: Doc<"venues">; canonicalKey?: string; ticketOffers?: TicketOffer[] };
   onBack: () => void;
   onArtistClick: (artistId: Id<"artists">) => void;
   onSignInRequired: () => void;
@@ -556,7 +556,7 @@ export function ShowDetail({
                     ))}
                     <ShowShareButton
                       showId={show._id}
-                      slug={show.slug}
+                      slug={show.canonicalKey}
                       artistName={show.artist?.name}
                       venueName={show.venue?.name}
                       date={show.date}

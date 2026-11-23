@@ -1,3 +1,4 @@
+import { showShareUrl, type ShareOrigin } from "../../shared/showCampaign";
 import { Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
@@ -10,6 +11,7 @@ interface ShowShareButtonProps {
   venueName?: string;
   date?: string;
   label?: string;
+  source?: ShareOrigin;
   mode?: "voting" | "setlist";
   className?: string;
 }
@@ -22,18 +24,11 @@ export function ShowShareButton({
   date,
   label = "Share voting link",
   mode = "voting",
+  source = "fan",
   className,
 }: ShowShareButtonProps) {
   const handleShare = async () => {
-    const key = slug || showId;
-    const shareUrl = new URL(`/shows/${encodeURIComponent(key)}`, window.location.origin);
-    shareUrl.searchParams.set("utm_source", "setlists.live");
-    shareUrl.searchParams.set("utm_medium", "share");
-    shareUrl.searchParams.set(
-      "utm_campaign",
-      mode === "setlist" ? "historical_setlist" : "show_voting",
-    );
-    const url = shareUrl.toString();
+    const url = showShareUrl(window.location.origin, slug || showId, showId, source);
     const title = `${artistName}${venueName ? ` at ${venueName}` : ""} — setlists.live`;
     const text =
       mode === "setlist"
@@ -43,11 +38,11 @@ export function ShowShareButton({
     try {
       if (typeof navigator.share === "function") {
         await navigator.share({ title, text, url });
-        capture("show_shared", { show_id: showId, method: "native_share", share_context: mode });
+        capture("show_shared", { show_id: showId, method: "native_share", share_context: mode, share_origin: source });
         return;
       }
       await navigator.clipboard.writeText(url);
-      capture("show_shared", { show_id: showId, method: "clipboard", share_context: mode });
+      capture("show_shared", { show_id: showId, method: "clipboard", share_context: mode, share_origin: source });
       toast.success(mode === "setlist" ? "Setlist link copied" : "Voting link copied");
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
@@ -62,7 +57,7 @@ export function ShowShareButton({
       variant="outline"
       onClick={handleShare}
       className={className}
-      aria-label={`Share ${artistName} show voting link`}
+      aria-label={`Share ${artistName} ${mode === "setlist" ? "setlist" : "show voting link"}`}
     >
       <Share2 className="mr-2 h-4 w-4" />
       {label}

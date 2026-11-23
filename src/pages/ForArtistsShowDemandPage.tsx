@@ -222,7 +222,8 @@ export function ForArtistsShowDemandPage() {
                     {data.show?._id && (
                       <ShowShareButton
                         showId={data.show._id}
-                        slug={data.show.slug}
+                        source="artist_team"
+                        slug={data.show.canonicalKey}
                         artistName={data.show.artist?.name}
                         venueName={data.show.venue?.name}
                         date={data.show.date}
@@ -331,7 +332,7 @@ export function ForArtistsShowDemandPage() {
                             variant="outline"
                             className="mt-4"
                             onClick={() =>
-                              navigate(`/shows/${data.show?.slug ?? showId}`)
+                              navigate(`/shows/${data.show?.canonicalKey ?? showId}`)
                             }
                           >
                             View Public Page

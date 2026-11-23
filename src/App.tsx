@@ -86,10 +86,12 @@ function App() {
   useEffect(() => {
     const resolved = artistSlug ? artistBySlug : showSlug ? showBySlugOrId : venueSlug ? venueBySlugOrId : null;
     const prefix = artistSlug ? "artists" : showSlug ? "shows" : "venues";
-    if (resolved?.slug && location.pathname !== `/${prefix}/${resolved.slug}`) {
-      void navigate(`/${prefix}/${resolved.slug}${location.search}`, { replace: true });
+    const key = showSlug ? showBySlugOrId?.canonicalKey ?? resolved?.slug : resolved?.slug;
+    const canonicalPath = key && `/${prefix}/${encodeURIComponent(key)}`;
+    if (canonicalPath && location.pathname !== canonicalPath) {
+      void navigate({ pathname: canonicalPath, search: location.search, hash: location.hash }, { replace: true });
     }
-  }, [artistSlug, showSlug, venueSlug, artistBySlug, showBySlugOrId, venueBySlugOrId, location.pathname, location.search, navigate]);
+  }, [artistSlug, showSlug, venueSlug, artistBySlug, showBySlugOrId, venueBySlugOrId, location.pathname, location.search, location.hash, navigate]);
 
   const handleViewChange = (
     view: View,
@@ -146,9 +148,9 @@ function App() {
   };
 
   const handleShowClick = (showKey: string | Id<"shows">, slug?: string) => {
-    const showId = typeof showKey === 'string' && showKey.startsWith('k') ? (showKey as Id<"shows">) : undefined;
-    const preferredSlug = slug ?? (typeof showKey === 'string' && !showKey.startsWith('k') ? showKey : undefined);
-    handleViewChange("show", showId ?? null, preferredSlug);
+    // Resolve a known record before its potentially shared date slug.
+    const key = typeof showKey === "string" && /^[a-z0-9]{32}$/i.test(showKey) ? showKey : slug || showKey;
+    if (key) handleViewChange("show", null, key);
   };
 
   const handleFestivalClick = (slug: string) => {

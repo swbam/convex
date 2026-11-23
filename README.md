@@ -9,7 +9,11 @@ The platform features a sophisticated multi-phase data synchronization system th
 4. **Fetches actual setlists** from Setlist.fm after concerts complete
 5. **Compares predictions** to actual performances, tracking user accuracy
 
-Current operating documentation lives in [docs/README.md](./docs/README.md).
+The frontend uses Vite and React Router. Vercel caches catalog HTML, and Convex renders cache misses from stored records. Verified Google Search can discover eligible shows, artists, venues and festivals. [SEO and indexing](docs/SEO.md)
+
+Public show links identify the exact performance, including when two performances share a date and venue. Links from an artist dashboard carry an artist-team referral, and public share buttons carry a fan referral. Eligible US Ticketmaster links can pass that source, show ID and button placement to Impact when an approved tracking link is configured. A ticket click measures interest. The affiliate network confirms purchases and earnings. [Ticket measurement](docs/analytics.md#ticket-share-attribution)
+
+Current operating documentation lives in the [documentation index](docs/README.md).
 Feature work is not complete until its user flows, permissions, operations,
 analytics, and release checks are documented there.
 
@@ -132,36 +136,7 @@ convex-app/
 
 ## Sync System Architecture
 
-The app uses a **progressive import system** that fetches data on-demand and in the background:
-
-### Phase 1: Artist Discovery
-When a user searches or views trending content:
-1. Ticketmaster API returns artist with `ticketmasterId`
-2. Artist record created with `syncStatus.phase = "basics"`
-3. Spotify API enriches: name matching → `spotifyId`, `followers`, `popularity`, `images`
-
-### Phase 2: Show Import
-When viewing an artist page:
-1. `ticketmaster.searchAndSyncArtistShows()` fetches upcoming events
-2. Shows created with venue lookups (upsert by `ticketmasterId`)
-3. `syncStatus.showsImported = true`
-
-### Phase 3: Catalog Sync
-When viewing a show that needs a setlist:
-1. `spotify.syncArtistCatalog()` fetches artist's tracks from Spotify
-2. Songs stored with `artistSongs` relationships
-3. `syncStatus.catalogImported = true`, `syncStatus.songCount` updated
-
-### Phase 4: Auto-Setlist Generation
-1. `setlists.autoGenerateSetlist()` creates prediction from top songs
-2. Weighted by Spotify popularity + performance frequency
-3. Users can add songs and upvote predictions
-
-### Phase 5: Actual Setlist Import (Post-Show)
-1. Cron job `setlistfm.checkCompletedShows()` runs every 2 hours
-2. Searches Setlist.fm by artist name, date, venue city
-3. Updates setlist with `actualSetlist` array
-4. Calculates accuracy vs predictions
+Convex discovers and updates artists, shows, venues and festivals from provider data. Spotify supplies catalog tracks used in fan predictions. After a concert, the completed-show job looks for the recorded setlist and reconciles it with fan activity. Public catalog HTML reads these records independently of scheduled provider work. [Catalog sync and scheduling](docs/SYNC_SYSTEM.md)
 
 ### Circuit Breaker Pattern
 Artists track sync failures to prevent infinite retries:
@@ -175,23 +150,7 @@ catalogSyncBackoffUntil: number     // Block syncs until this timestamp
 
 ## Cron Jobs
 
-All cron jobs are defined in `convex/crons.ts`:
-
-| Job | Interval | Function | Purpose |
-|-----|----------|----------|---------|
-| `update-trending` | 4 hours | `maintenance.syncTrendingData` | Refresh trending from Ticketmaster |
-| `check-completed-shows` | 2 hours | `setlistfm.checkCompletedShows` | Import actual setlists |
-| `daily-cleanup` | 24 hours | `maintenance.cleanupOrphanedRecords` | Remove orphaned data |
-| `cleanup-operational-data` | 24 hours | `maintenance.cleanupOldOperationalData` | Prune old logs |
-| `setlistfm-scan` | 30 min | `setlistfm.scanPendingImports` | Queue setlist imports |
-| `process-setlist-queue` | 30 min | `syncJobs.processSetlistImportQueue` | Process import queue |
-| `update-artist-show-counts` | 2 hours | `trending.updateArtistShowCounts` | Update upcoming show counts |
-| `update-artist-trending` | 4 hours | `trending.updateArtistTrending` | Recalculate artist scores |
-| `update-show-trending` | 4 hours | `trending.updateShowTrending` | Recalculate show scores |
-| `auto-transition-shows` | 2 hours | `shows.autoTransitionStatuses` | Mark shows as completed |
-| `populate-missing-fields` | 1 hour | `maintenance.populateMissingFields` | Fill in missing data |
-| `spotify-refresh` | 12 hours | `spotifyAuth.refreshUserTokens` | Refresh user Spotify tokens |
-| `refresh-auto-setlists` | 6 hours | `setlists.refreshMissingAutoSetlists` | Generate missing setlists |
+Fixed schedules are defined in `convex/crons.ts`. A separate orchestrator checks configurable jobs every ten minutes. Completed-show imports run every two hours, and the stable sitemap refresh runs weekly. [Job schedules and sources](docs/SYNC_SYSTEM.md)
 
 ---
 
@@ -280,19 +239,9 @@ All cron jobs are defined in `convex/crons.ts`:
 | `user` | Vote, add songs, follow artists |
 | `admin` | Full dashboard access, sync controls, user management |
 
-### Admin Promotion
-Admins are auto-promoted on deployment via `convex/deployment.ts`:
-```typescript
-// Ensures sethbamb@gmail.com is always admin
-await ctx.runMutation(internal.admin.ensureAdminByEmailInternal, {
-  email: "sethbamb@gmail.com"
-});
-```
+### Artist access and anonymous participation
 
-### Anonymous Actions
-Users can perform 1 free action (add song, upvote) before sign-in prompt:
-- Tracked via `localStorage` with anonymous ID
-- `songVotes.userId` accepts `Id<"users"> | string`
+Artist-team access requires a reviewed claim or an accepted invitation. Fans can make a limited number of anonymous song additions and votes before signing in. [Artist claims and team access](docs/artist-claims-and-team-access.md)
 
 ---
 
@@ -328,6 +277,8 @@ Located at `/admin`, the dashboard provides:
 ---
 
 ## Frontend Architecture
+
+Public catalog requests can be served directly from Vercel's cache. Convex generates the initial HTML on a cache miss, and React loads the interactive experience. The page template is built locally without fetching it from the public site. [Public routes and cache behavior](docs/SEO.md)
 
 ### Theme System
 - **Provider**: `next-themes` with `attribute="class"`
@@ -383,15 +334,15 @@ VITE_CLERK_PUBLISHABLE_KEY=  # Clerk frontend key
 ## Development
 
 ### Prerequisites
-- Node.js 22+
+- Node.js 24 (see `.nvmrc`)
 - npm
 - Convex account
 - Clerk account
 
 ### Setup
 ```bash
-# Install dependencies
-npm install
+# Install locked dependencies
+npm ci
 
 # Start development (frontend + backend)
 npm run dev
@@ -424,35 +375,13 @@ npm run lint
 
 ## Deployment
 
-### Backend (Convex)
-```bash
-npm run deploy:backend
-# Deploys to Convex Cloud
-# Triggers onDeploy hook to ensure admin user
-```
-
-### Frontend (Vercel)
-```bash
-npm run deploy:frontend
-# Deploys to Vercel
-```
-
-### Full Deployment
-```bash
-npm run all
-# deploy:backend → deploy:frontend → sync:trending
-```
-
-### Post-Deployment
-The `deployment.ts` action runs automatically:
-1. Ensures admin user exists
-2. Logs deployment timestamp
+GitHub Actions type-checks, tests and builds the app. The production Git branch is `main`. Vercel deploys the frontend from that branch. Backend changes are deployed separately to Convex. The `post-deploy` and `all` scripts can start production trending work. [Deployment checks and troubleshooting](docs/OPERATIONS.md)
 
 ---
 
 ## Recent Implementations
 
-### UI/UX Improvements (This Session)
+### Earlier UI improvements
 1. **Consistent Font Sizing**: Top nav bar uses `text-base` (16px) across all links
 2. **Compact Section Headers**: "Shows", "Top Songs", "Setlist" use `text-lg sm:text-xl`
 3. **Smaller Tabs**: Upcoming/Past tabs reduced padding, compact styling
@@ -481,7 +410,7 @@ Before launch, verify:
 - [ ] Clerk webhook configured and verified
 - [ ] Trending sync runs successfully
 - [ ] Admin user can access dashboard
-- [ ] Anonymous voting works (1 free action)
+- [ ] Anonymous voting and its per-show limits work
 - [ ] Setlist.fm imports work for completed shows
 - [ ] Light/dark mode functions correctly
 - [ ] Mobile responsive on all pages

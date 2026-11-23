@@ -220,6 +220,25 @@ describe("concert timing", () => {
     expect(await f.t.run(ctx => ctx.db.query("shows").withIndex("by_status", q => q.eq("status", "completed")).collect())).toHaveLength(205);
     expect(await f.t.run(ctx => ctx.db.get(lateId))).toMatchObject({ status: "upcoming" });
   });
+  it("shares the exact dashboard performance and preserves referral labels through canonical redirects", async () => {
+    const f = await setup();
+    const [first, later] = await f.t.run(async ctx => {
+      await ctx.db.insert("artistMembers", { artistId: f.artistId, userId: f.userId, role: "owner", createdAt: NOW });
+      const show = { artistId: f.artistId, venueId: f.venueId, date: "2026-09-08", status: "upcoming" as const, slug: "same-date" };
+      return [await ctx.db.insert("shows", { ...show, startTime: "17:00" }), await ctx.db.insert("shows", { ...show, startTime: "21:00" })];
+    });
+    const home = await f.applicant.query(publicApi.artistDashboard.getArtistHome, { artistId: f.artistId });
+    expect(home.shows.map((s: { canonicalKey: string }) => s.canonicalKey)).toEqual(["same-date", later]);
+    for (const s of home.shows) {
+      const resolved = await f.t.query(publicApi.shows.getBySlugOrId, { key: s.canonicalKey });
+      expect(resolved._id).toBe(s._id);
+    }
+    const tags = new URLSearchParams({ utm_source: "setlists.live", utm_medium: "artist_share", utm_campaign: "show-" + first });
+    const redirect = await f.t.fetch("/catalog-html/shows/" + first + "?" + tags + "&private=ignore", { redirect: "manual" });
+    expect(redirect.status).toBe(308);
+    expect(redirect.headers.get("Location")).toBe("https://www.setlists.live/shows/same-date?" + tags);
+    expect(redirect.headers.get("Cache-Control")).toContain("no-store");
+  });
   it("selects the nearest 100 dashboard shows before limiting the query", async () => {
     const f = await setup();
     await f.t.run(async ctx => {

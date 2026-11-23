@@ -269,8 +269,8 @@ export function ForArtistsDashboardPage() {
                     <li><span className="font-medium">3. Fan responses</span><p className="text-muted-foreground">{data.readiness?.hasFanRequests ? "Requests received for your next show" : "Share your next show to invite requests"}</p></li>
                   </ol>
                   {data.shows?.[0] && <div className="mt-4 flex flex-wrap gap-3">
-                    <Button variant="outline" onClick={() => navigate(`/shows/${data.shows[0].slug ?? data.shows[0]._id}`)}>Review next show</Button>
-                    <ShowShareButton showId={data.shows[0]._id} slug={data.shows[0].slug} artistName={data.artist.name} />
+                    <Button variant="outline" onClick={() => navigate(`/shows/${data.shows[0].canonicalKey ?? data.shows[0]._id}`)}>Review next show</Button>
+                    <ShowShareButton source="artist_team" slug={data.shows[0].canonicalKey} showId={data.shows[0]._id} artistName={data.artist.name} />
                   </div>}
                 </section>
 
@@ -366,7 +366,8 @@ export function ForArtistsDashboardPage() {
                             </button>
                             <ShowShareButton
                               showId={s._id}
-                              slug={s.slug}
+                              source="artist_team"
+                              slug={s.canonicalKey}
                               artistName={data.artist?.name}
                               venueName={s.venue?.name}
                               date={s.date}

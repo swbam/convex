@@ -60,7 +60,8 @@ API key must never be put in `VITE_*` variables or browser code.
 | `artist_follow_changed` | Follow state is successfully changed | `artist_id`, `action`, `auth_state` |
 | `venue_viewed` | Venue detail and show inventory load | `venue_id`, location, capacity, show counts |
 | `show_viewed` | Show detail loads | `show_id`, `artist_id`, `venue_id`, `show_status`, `show_date` |
-| `ticket_link_clicked` | Ticketmaster affiliate link is opened | `show_id`, `artist_id`, `placement`, `provider`, `affiliate` |
+| `ticket_offer_viewed` | A ticket offer becomes visible | `placement`, `provider`, `affiliate_tagged`, `tracking`, available show and artist IDs |
+| `ticket_link_clicked` | A user follows a ticket provider link | `placement`, `provider`, `affiliate_tagged`, `tracking`, available show and artist IDs |
 
 ### Setlist engagement
 
@@ -133,11 +134,8 @@ conversions when operational volume matters.
    `song_vote_changed` or `song_added`. Break down by `action_type`, auth
    method, and device class. This is the primary signup funnel.
 
-4. **Ticket affiliate conversion**
-   `show_viewed` → `ticket_link_clicked`. Break down by placement, artist,
-   show, device class, and acquisition source. Pair this with Ticketmaster's
-   affiliate conversion report because PostHog measures outbound intent, not
-   the completed ticket purchase.
+4. **Ticket referrals and earnings**
+   Follow `show_viewed` → `ticket_offer_viewed` → `ticket_link_clicked`. Group clicks by show, placement, provider and tracking mode. When the approved US Impact link is configured, eligible links can carry the show ID and placement as reporting fields. Directly tagged Ticketmaster links and other providers use distinct tracking modes. Confirm attributed orders, reversals and approved commissions in the affiliate network. The application does not send automated earnings emails. [Ticket link component](../src/components/TicketLink.tsx) · [Destination builder](../src/utils/ticketmaster.ts)
 
 5. **Artist claim conversion**
    `artist_portal_viewed` → `artist_claim_started` →
@@ -189,3 +187,12 @@ Pin these insights to one launch dashboard:
 - JavaScript exceptions, dead clicks, LCP, CLS, and INP by route/device.
 
 Exclude internal/test users and localhost traffic from launch reporting.
+
+
+## Ticket share attribution
+
+A public show share uses `utm_source=setlists.live`, `utm_medium=fan_share` and `utm_campaign=show-<show ID>`. Sharing from the artist dashboard or a show demand report uses `artist_share`. Both use the backend's canonical performance key. For performances that share a slug, that key can be a record ID. A referral describes how a link was created. It does not authenticate the person opening or forwarding it.
+
+The ticket component records `share_origin` (`artist_team`, `fan`, `shared` for earlier share links, or `onsite`). When available, `shared_show_id` identifies the landing campaign. The ticket's own `show_id` identifies the offer selected, including when a fan navigates to a different show within the app.
+
+With an approved US deep-link base in `VITE_TICKETMASTER_US_IMPACT_LINK`, eligible Impact links send the source in `subId1`, the selected show's ID when available in `subId2`, and the button placement in `subId3`. Existing reporting values on an approved link are preserved. Other provider URLs retain their normal destination. Use the network's order and commission reports for revenue reconciliation. [Referral labels](../shared/showCampaign.ts) · [Ticket link component](../src/components/TicketLink.tsx)
