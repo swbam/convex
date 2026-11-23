@@ -1,6 +1,6 @@
 import { useDetailMedia } from "../lib/useDetailMedia";
 import { LiveSetlistPanel, PerformanceCredits } from "./LiveSetlistPanel";
-import type { TicketOffer } from "../../shared/ticketOffers";
+import { selectTicketOffers, type TicketOffer } from "../../shared/ticketOffers";
 import { TicketLink } from "./TicketLink";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -61,6 +61,9 @@ export function ShowDetail({
 }: ShowDetailProps) {
   const queriedShow = useQuery(api.shows.getById, showData ? "skip" : { id: showId });
   const show = showData ?? queriedShow;
+  // Tickets follow provider sale and show end times, independently of the voting deadline.
+  const ticketOffers = useMemo<TicketOffer[]>(() =>
+    show ? show.ticketOffers ?? selectTicketOffers(show) : [], [show]);
   const isDmbShow = show?.artist?.slug === "dave-matthews-band";
   const liveState = useQuery(api.liveSetlists.getState, isDmbShow ? { showId } : "skip");
   const liveContent = useQuery(api.liveSetlists.getContent, isDmbShow ? { showId } : "skip");
@@ -149,10 +152,10 @@ export function ShowDetail({
       venue_city: show.venue?.city,
       show_date: show.date,
       show_status: show.status,
-      has_ticket_link: show.ticketOffers ? show.ticketOffers.length > 0 : Boolean(show.ticketUrl),
+      has_ticket_link: ticketOffers.length > 0,
       auth_state: user ? "authenticated" : "anonymous",
     });
-  }, [show, user]);
+  }, [show, user, ticketOffers]);
 
 
   const predictionSetlist = useMemo(() => {
@@ -422,10 +425,6 @@ export function ShowDetail({
   const showDate = parseShowCalendarDate(show.date);
   const isUpcoming = show.status === "upcoming" && !hasVotingClosed(show) && !hasActualSetlist;
 
-  const ticketOffers: TicketOffer[] = show.ticketOffers ?? (show.ticketUrl
-    ? [{ href: show.ticketUrl, kind: "admission", label: "Get tickets" }]
-    : []);
-
   // First-paint images straight from the show doc so the hero renders
   // immediately; the media action upgrades these once it resolves.
   const fallbackImage =
@@ -549,7 +548,7 @@ export function ShowDetail({
 
                   <div className="mt-3 flex flex-wrap items-center gap-2 sm:mt-4">
                     {/* Get Tickets - Premium button */}
-                    {isUpcoming && ticketOffers.map(offer => (
+                    {ticketOffers.map(offer => (
                       <TicketLink key={offer.href} href={offer.href} placement="show_hero" properties={{ ticket_kind: offer.kind, show_id: show._id, artist_id: show.artistId || show.artist?._id, venue_id: show.venueId || show.venue?._id, show_date: show.date }} className="brand-primary inline-flex items-center px-4 py-2 sm:px-5 sm:py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg text-sm sm:text-base transition-all shadow-lg hover:shadow-xl" >
                         <Ticket className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                         {offer.label}
