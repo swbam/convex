@@ -1,4 +1,4 @@
-import { showWithTickets } from "./lib/showTickets";
+import { canonicalShowKey, showWithTickets } from "./lib/showTickets";
 import { songKey as normalizeSongKey, summarizeRequests } from "./lib/predictions";
 import { getRequestCounts } from "./lib/songVoteCounts";
 import { query } from "./_generated/server";
@@ -42,9 +42,9 @@ export const getArtistHome = query({
       .take(100);
 
     const hydrated = await Promise.all(
-      upcoming.map(async (s: any) => {
-        const venue = await ctx.db.get(s.venueId);
-        return { ...s, venue };
+      upcoming.map(async show => {
+        const [venue, canonicalKey] = await Promise.all([ctx.db.get(show.venueId), canonicalShowKey(ctx, show)]);
+        return { ...show, venue, canonicalKey };
       }),
     );
 

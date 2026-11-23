@@ -6,6 +6,12 @@ behavior that exists in the application.
 
 ## Current documents
 
+- [Google Search and public catalog pages](SEO.md) explains eligible routes, the Googlebot exception, shared HTML caching and sitemap maintenance.
+- [Deployment and operations](OPERATIONS.md) covers GitHub, Vercel and Convex release checks and request investigation.
+- [Catalog sync and scheduling](SYNC_SYSTEM.md) describes the fixed schedules and configurable provider jobs.
+- [November 23 show-sharing release](releases/2026-11-23-show-sharing.md) describes exact-performance links and affiliate reporting fields.
+- [November 23 Google Search release](releases/2026-11-23-google-search.md) records production verification and its limits.
+
 - [Artist claims and team access](./artist-claims-and-team-access.md): claim
   states, verification rules, admin review, team invitations, security,
   automation, analytics, and release checks.

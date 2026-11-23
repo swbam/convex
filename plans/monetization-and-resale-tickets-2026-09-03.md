@@ -1,5 +1,7 @@
 # setlists.live — Monetization Priorities & Resale Ticket Stack Design
 
+This September proposal records the assumptions at the time. The November release changed public page rendering and crawler access. [Current SEO behavior](../docs/SEO.md) · [Current ticket tracking](../docs/analytics.md)
+
 **Exported from a Claude Code session on 2026-09-03.**
 Working directory: `/Users/seth/convex-app` (branch `main`, last commit `09f784c fix: harden analytics and ticket flows`).
 No code was changed during this session. Short "continue" nudges between turns are omitted.

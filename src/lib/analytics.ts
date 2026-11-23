@@ -1,4 +1,7 @@
+import { safeCampaignProperties } from "../../shared/showCampaign";
 import type { PostHog } from "posthog-js";
+
+export { safeCampaignProperties };
 
 type Primitive = string | number | boolean | null | undefined;
 export type AnalyticsProperties = Record<
@@ -127,20 +130,15 @@ function sanitizeAnalyticsUrl(value: unknown) {
   }
 }
 
-export function safeCampaignProperties(search: string): AnalyticsProperties {
-  const params = new URLSearchParams(search);
-  const properties: AnalyticsProperties = {};
-  for (const name of ["utm_source", "utm_medium", "utm_campaign"]) {
-    const value = params.get(name);
-    // No free-form URL, email, token or search-query fields are retained.
-    if (value && /^[a-z0-9][a-z0-9_.-]{0,79}$/i.test(value)) properties[name] = value;
-  }
-  return properties;
-}
 export function recordCampaign(search: string, pathname: string) {
   if (isSensitiveAnalyticsRoute(pathname)) return;
   const incoming = safeCampaignProperties(search);
   if (Object.keys(incoming).length) campaignProperties = incoming;
+}
+export function currentCampaign() {
+  if (typeof window === "undefined" || isSensitiveAnalyticsRoute(window.location.pathname)) return {};
+  const incoming = safeCampaignProperties(window.location.search);
+  return Object.keys(incoming).length ? incoming : campaignProperties;
 }
 export function setInternalAnalyticsUser(value: boolean) { isInternalUser = value; }
 

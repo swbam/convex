@@ -1,6 +1,7 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internalRef } from "./adminHelpers";
+import { safeCampaignProperties } from "../shared/showCampaign";
 import { appShell } from "../shared/appShell";
 import { renderSeoDocument } from "./seoHtml";
 import { resolveSeoPage } from "./seoRoutes";
@@ -18,16 +19,24 @@ function catalogResponse(body: string, status: number, type: string, robots: str
 }
 
 http.route({ pathPrefix: "/catalog-html/", method: "GET", handler: httpAction(async (ctx, request) => {
-  const path = new URL(request.url).pathname.slice("/catalog-html".length).replace(/\/+$/, "") || "/";
+  const incoming = new URL(request.url);
+  const path = incoming.pathname.slice("/catalog-html".length).replace(/\/+$/, "") || "/";
   if (path !== "/" && !/^\/(?:artists|shows|festivals)(?:\/[^/]{1,540})?$|^\/venues\/[^/]{1,540}$/.test(path)) {
     return new Response("Not found", { status: 404 });
   }
   try {
     // A cache miss may read the catalog. It must never fetch Vercel or start a provider sync.
     const result = await resolveSeoPage({ runQuery: ctx.runQuery.bind(ctx) }, path);
-    if (result.redirect) return new Response(null, { status: result.status, headers: {
-      Location: result.redirect, "Cache-Control": "public, max-age=300",
-    } });
+    if (result.redirect) {
+      const destination = new URL(result.redirect);
+      for (const [name, value] of Object.entries(safeCampaignProperties(incoming.search))) {
+        destination.searchParams.set(name, value);
+      }
+      // Redirect targets may carry distinct referral labels even when the CDN ignores UTMs.
+      return new Response(null, { status: result.status, headers: {
+        Location: destination.href, "Cache-Control": "private, no-store",
+      } });
+    }
     return catalogResponse(renderSeoDocument(catalogShell, result.page, path), result.status,
       "text/html; charset=utf-8", result.page.robots, result.status === 404 ? 300 : 21600);
   } catch (error) {
