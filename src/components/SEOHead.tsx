@@ -16,7 +16,7 @@ export function applySeoPage(page: SeoPage) {
   for (const name of ["image:width", "image:height", "image:type", "image:alt"]) {
     if (!(name in imageMeta)) document.head.querySelectorAll(`meta[property="og:${name}"]`).forEach(node => node.remove());
   }
-  meta("description", page.description); meta("robots", "noindex, nofollow");
+  meta("description", page.description); meta("robots", page.robots);
   for (const [key, value] of Object.entries({ title: page.title, description: page.description, url: page.canonical, image: page.image, type: page.type, site_name: "setlists.live", ...imageMeta })) meta(`og:${key}`, value, true);
   for (const [key, value] of Object.entries({ card: "summary_large_image", title: page.title, description: page.description, url: page.canonical, image: page.image, "image:alt": imageMeta["image:alt"] })) meta(`twitter:${key}`, value);
   let canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
@@ -31,7 +31,18 @@ export function applySeoPage(page: SeoPage) {
 export function SEOHead() {
   const { pathname } = useLocation();
   useEffect(() => {
-    applySeoPage(graphPage(basicSeoPage(normalizePath(pathname))));
+    const path = normalizePath(pathname);
+    const embedded = document.getElementById("seo-data")?.textContent;
+    if (embedded) {
+      const initial = JSON.parse(embedded) as { path: string; page: SeoPage };
+      if (initial.path === path) {
+        applySeoPage(initial.page);
+        return;
+      }
+    }
+    const page = graphPage(basicSeoPage(path));
+    page.robots = "noindex, nofollow";
+    applySeoPage(page);
   }, [pathname]);
   return null;
 }

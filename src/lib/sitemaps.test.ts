@@ -21,6 +21,32 @@ it("retires public crawl routes without resolving catalog data or fetching the f
     fetchSpy.mockRestore();
   }
 });
+it("serves public catalog HTML from stored data without fetching the frontend or starting a sync", async () => {
+  const t = convexTest({ schema, modules });
+  await t.run(async ctx => {
+    const artistId = await ctx.db.insert("artists", { name: "The Band", slug: "the-band", lowerName: "the band", isActive: true });
+    const venueId = await ctx.db.insert("venues", { name: "City Hall", slug: "city-hall", city: "London", country: "GB" });
+    await ctx.db.insert("shows", { artistId, venueId, date: "2027-01-01", status: "upcoming", slug: "the-band-at-city-hall" });
+  });
+  const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("unexpected outbound request"));
+  try {
+    const page = await t.fetch("/catalog-html/artists/the-band");
+    expect(page.status).toBe(200);
+    expect(page.headers.get("Vercel-CDN-Cache-Control")).toContain("max-age=21600");
+    expect(page.headers.get("X-Robots-Tag")).toBe("index, follow");
+    const html = await page.text();
+    expect(html).toContain("<h1>The Band</h1>");
+    expect(html).toContain('name=\'impact-site-verification\'');
+    expect(html).toContain('id="seo-jsonld"');
+    expect((await t.fetch("/catalog-html/artists/missing")).status).toBe(404);
+    expect((await t.fetch("/catalog-html/for-artists/invite/secret")).status).toBe(404);
+    expect((await t.fetch("/catalog-map/index.xml")).status).toBe(503);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  } finally {
+    fetchSpy.mockRestore();
+  }
+});
+
 it("publishes bounded canonical shards, excludes thin history, and retains the old snapshot during refresh", async () => {
   const t = convexTest({ schema, modules, transactionLimits: true });
   await t.run(async ctx => {
@@ -39,6 +65,10 @@ it("publishes bounded canonical shards, excludes thin history, and retains the o
   expect(published.states.find((s: any) => s.kind === "shows")).toMatchObject({ publishedUrlCount: 86, publishedShards: 2 });
   expect(published.xml).toContain("/sitemaps/shows-0.xml");
   expect(published.xml).not.toContain("/sitemaps/shows-1.xml");
+  expect(published.xml).not.toContain("blog.xml");
+  expect(await (await t.fetch("/catalog-map/index.xml")).text()).toBe(published.xml);
+  expect((await t.fetch("/catalog-map/shows-0.xml")).status).toBe(200);
+  expect((await t.fetch("/catalog-map/shows-99.xml")).status).toBe(404);
   const group = await t.query(priv.sitemaps.publishedFile, { kind: "shows", part: 0 });
   expect(group.match(/<url>/g)).toHaveLength(86);
   expect(group.match(/<urlset /g)).toHaveLength(1);

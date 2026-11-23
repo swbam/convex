@@ -66,8 +66,9 @@ export const step = internalMutation({
 });
 export const index = internalQuery({ args: {}, handler: async ctx => {
   const states = await ctx.db.query("seoSitemapStates").take(10);
-  const entries = [`${SITE_URL}/sitemaps/static.xml`, `${SITE_URL}/sitemaps/blog.xml`];
+  const entries: string[] = [];
   for (const state of states) {
+    if (!KINDS.some(kind => kind === state.kind)) continue;
     const count = Math.ceil((state.publishedShards || 0) / PARTS_PER_SITEMAP);
     for (let part = 0; part < count; part++) entries.push(`${SITE_URL}/sitemaps/${state.kind}-${part}.xml`);
   }
@@ -87,11 +88,21 @@ export const publishedFile = internalQuery({
   },
 });
 export const shard = internalQuery({ args: { kind: v.string(), generation: v.number(), part: v.number() }, handler: async (ctx, a) => (await ctx.db.query("seoSitemapShards").withIndex("by_generation_part", q => q.eq("kind", a.kind).eq("generation", a.generation).eq("part", a.part)).unique())?.xml ?? null });
-export const cleanup = internalMutation({ args: {}, handler: async ctx => {
-  const states = await ctx.db.query("seoSitemapStates").take(10);
-  const candidates = await ctx.db.query("seoSitemapShards").withIndex("by_generation", q => q.lt("generation", Date.now() - 7 * 86400_000)).take(100);
-  let deleted = 0;
-  for (const shard of candidates) if (!states.some(s => s.kind === shard.kind && (s.generation === shard.generation || s.publishedGeneration === shard.generation))) { await ctx.db.delete(shard._id); deleted++; }
-  if (deleted === 100) await ctx.scheduler.runAfter(0, cleanupRef, {});
-} });
+export const cleanup = internalMutation({
+  args: { cursor: v.optional(v.string()), before: v.optional(v.number()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const before = args.before ?? Date.now() - 7 * 86400_000;
+    const states = await ctx.db.query("seoSitemapStates").take(10);
+    const batch = await ctx.db.query("seoSitemapShards").withIndex("by_generation", q =>
+      q.lt("generation", before)).paginate({ cursor: args.cursor ?? null, numItems: 100 });
+    for (const shard of batch.page) {
+      const live = states.some(state => state.kind === shard.kind &&
+        (state.generation === shard.generation || state.publishedGeneration === shard.generation));
+      if (!live) await ctx.db.delete(shard._id);
+    }
+    if (!batch.isDone) await ctx.scheduler.runAfter(0, cleanupRef, { cursor: batch.continueCursor, before });
+    return null;
+  },
+});
 export const staticSitemap = () => urlset(Object.keys(STATIC_PAGES));
