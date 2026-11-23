@@ -1,10 +1,13 @@
 import React from "react";
+import { MotionConfig } from "framer-motion";
 import { createRoot } from "react-dom/client";
 import { ClerkProvider, useAuth as useClerkAuth } from "@clerk/clerk-react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexReactClient } from "convex/react";
 import { RouterProvider } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
+import { MobileViewport } from "./components/MobileViewport";
+import { SiteAppearance } from "./components/SiteAppearance";
 import "./index.css";
 import { router } from "./router";
 import { DiagnosticApp } from "./components/DiagnosticApp";
@@ -49,7 +52,8 @@ if (!convexUrl || !publishableKey) {
     };
 
     createRoot(rootElement).render(
-      <React.StrictMode>
+      <React.StrictMode><MotionConfig reducedMotion="user">
+        <MobileViewport />
         <ThemeProvider 
           attribute="class"
           defaultTheme="dark"
@@ -67,6 +71,7 @@ if (!convexUrl || !publishableKey) {
             }}
           >
             <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+              <SiteAppearance />
               <React.Suspense
                 fallback={
                   <div className="flex min-h-dvh items-center justify-center bg-background text-foreground">
@@ -83,7 +88,7 @@ if (!convexUrl || !publishableKey) {
             </ConvexProviderWithClerk>
           </ClerkProvider>
         </ThemeProvider>
-      </React.StrictMode>,
+      </MotionConfig></React.StrictMode>,
     );
   } catch (error) {
     console.error('Failed to initialize app:', error);

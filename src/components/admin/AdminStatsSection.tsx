@@ -33,8 +33,8 @@ function GlassPanel({
     return (
         <motion.div
             variants={fadeUp}
-            className={`relative overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.015] backdrop-blur-sm ${className}`}
-            style={{ boxShadow: "inset 0 1px 0 0 rgba(255,255,255,0.03), 0 4px 24px rgba(0,0,0,0.15)" }}
+            className={`relative overflow-hidden rounded-xl border border-border bg-card backdrop-blur-sm ${className}`}
+            style={{ boxShadow: "var(--surface-shadow)" }}
         >
             {children}
         </motion.div>
@@ -48,7 +48,7 @@ function Skeletons({ count, height = "h-20" }: { count: number; height?: string 
             {[...Array(count)].map((_, i) => (
                 <div
                     key={i}
-                    className={`${height} rounded-xl bg-white/[0.03] animate-pulse`}
+                    className={`${height} rounded-xl bg-secondary animate-pulse`}
                     style={{ animationDelay: `${i * 80}ms` }}
                 />
             ))}
@@ -99,7 +99,7 @@ export function AdminStatsSection({
                 <div className="p-5 sm:p-6">
                     <div className="flex items-center gap-3 mb-5">
                         <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                            <TrendingUp className="h-4 w-4 text-blue-400" />
+                            <TrendingUp className="h-4 w-4 text-blue-700 dark:text-blue-400" />
                         </div>
                         <h2 className="text-lg font-semibold text-foreground tracking-tight">Platform Statistics</h2>
                     </div>
@@ -131,7 +131,7 @@ export function AdminStatsSection({
                 <div className="p-5 sm:p-6">
                     <div className="flex items-center gap-3 mb-5">
                         <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                            <BarChart3 className="h-4 w-4 text-purple-400" />
+                            <BarChart3 className="h-4 w-4 text-purple-700 dark:text-purple-400" />
                         </div>
                         <h2 className="text-lg font-semibold text-foreground tracking-tight">Analytics (last 30 days)</h2>
                     </div>
@@ -151,7 +151,7 @@ export function AdminStatsSection({
 
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                 {/* Ops health by day */}
-                                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+                                <div className="rounded-xl border border-border bg-card p-4">
                                     <div className="text-xs font-semibold text-foreground/80 mb-3 uppercase tracking-wider">Ops Health (by day)</div>
                                     <div className="space-y-1.5 max-h-56 overflow-auto scrollbar-hide">
                                         {(analytics.ops?.cronRuns?.byDay || []).slice(-14).map((d: any) => (
@@ -169,7 +169,7 @@ export function AdminStatsSection({
                                 </div>
 
                                 {/* Top shows */}
-                                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+                                <div className="rounded-xl border border-border bg-card p-4">
                                     <div className="text-xs font-semibold text-foreground/80 mb-3 uppercase tracking-wider">Top Shows (internal rank)</div>
                                     <div className="space-y-1.5 max-h-56 overflow-auto scrollbar-hide">
                                         {(analytics.top?.shows || []).map((s: any) => (
@@ -194,7 +194,7 @@ export function AdminStatsSection({
             <GlassPanel>
                 <div className="p-5 sm:p-6">
                     <div className="flex items-center gap-3 mb-4">
-                        <div className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center">
                             <Shield className="h-4 w-4 text-foreground/60" />
                         </div>
                         <h2 className="text-lg font-semibold text-foreground tracking-tight">Auth Diagnostics</h2>
@@ -215,7 +215,7 @@ export function AdminStatsSection({
                             variant="outline"
                             disabled={spotifyTesting}
                             onClick={onTestSpotify}
-                            className="border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05] text-foreground/80"
+                            className="border-border bg-card hover:bg-accent text-foreground/80"
                         >
                             <RefreshCw className={`h-3.5 w-3.5 mr-2 ${spotifyTesting ? "animate-spin" : ""}`} />
                             Test Spotify Credentials
@@ -229,7 +229,7 @@ export function AdminStatsSection({
                 <div className="p-5 sm:p-6">
                     <div className="flex items-center gap-3 mb-5">
                         <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                            <CheckCircle className="h-4 w-4 text-emerald-400" />
+                            <CheckCircle className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
                         </div>
                         <h2 className="text-lg font-semibold text-foreground tracking-tight">System Health</h2>
                     </div>
@@ -240,18 +240,18 @@ export function AdminStatsSection({
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-                                <div className="text-[10px] uppercase tracking-widest text-muted-foreground/60 mb-1">Database</div>
+                            <div className="rounded-xl border border-border bg-card p-4">
+                                <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Database</div>
                                 <div className="text-xl font-bold text-foreground tabular-nums">{health.database.totalRecords.toLocaleString()}</div>
-                                <div className="text-xs text-muted-foreground/60 mt-0.5">{health.database.orphanedRecords} orphaned</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">{health.database.orphanedRecords} orphaned</div>
                             </div>
-                            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-                                <div className="text-[10px] uppercase tracking-widest text-muted-foreground/60 mb-1">Sync Status</div>
+                            <div className="rounded-xl border border-border bg-card p-4">
+                                <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Sync Status</div>
                                 <div className="text-xl font-bold text-foreground tabular-nums">{health.sync.artistsNeedingSync}</div>
-                                <div className="text-xs text-muted-foreground/60 mt-0.5">artists need sync</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">artists need sync</div>
                             </div>
-                            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-                                <div className="text-[10px] uppercase tracking-widest text-muted-foreground/60 mb-1">API Status</div>
+                            <div className="rounded-xl border border-border bg-card p-4">
+                                <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">API Status</div>
                                 <div className="flex gap-2 mt-2">
                                     {[
                                         { label: "Spotify", ok: health.api.spotifyConfigured },
@@ -261,8 +261,8 @@ export function AdminStatsSection({
                                         <span
                                             key={api.label}
                                             className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${api.ok
-                                                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                                    : "bg-red-500/10 text-red-400 border border-red-500/20"
+                                                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                                                    : "bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20"
                                                 }`}
                                         >
                                             {api.label}
@@ -280,11 +280,11 @@ export function AdminStatsSection({
                 <div className="p-5 sm:p-6">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                            <AlertCircle className="h-4 w-4 text-amber-400" />
+                            <AlertCircle className="h-4 w-4 text-amber-700 dark:text-amber-400" />
                         </div>
                         <div>
                             <h2 className="text-lg font-semibold text-foreground tracking-tight">Error Monitoring</h2>
-                            <p className="text-[11px] text-muted-foreground/50">Pulled from admin/errorMonitoring</p>
+                            <p className="text-[11px] text-muted-foreground">Pulled from admin/errorMonitoring</p>
                         </div>
                     </div>
 
@@ -301,8 +301,8 @@ export function AdminStatsSection({
                                 { label: "Last 24h", value: errorStats.last24Hours },
                                 { label: "Errors", value: errorStats.bySeverity.error },
                             ].map((s) => (
-                                <div key={s.label} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
-                                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground/60">{s.label}</div>
+                                <div key={s.label} className="rounded-lg border border-border bg-card p-3">
+                                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</div>
                                     <div className="text-foreground font-bold text-lg tabular-nums">{s.value}</div>
                                 </div>
                             ))}
@@ -314,18 +314,18 @@ export function AdminStatsSection({
                         {!recentErrors ? (
                             <Skeletons count={3} height="h-12" />
                         ) : recentErrors.length === 0 ? (
-                            <p className="text-muted-foreground/60 text-sm">No unresolved errors 🎉</p>
+                            <p className="text-muted-foreground text-sm">No unresolved errors 🎉</p>
                         ) : (
                             recentErrors.map((err: any) => (
-                                <div key={err._id} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+                                <div key={err._id} className="rounded-lg border border-border bg-card p-3">
                                     <div className="flex justify-between text-sm text-foreground">
                                         <span className="font-medium">{err.operation}</span>
-                                        <span className="text-xs text-muted-foreground/50 font-mono">
+                                        <span className="text-xs text-muted-foreground font-mono">
                                             {new Date(err.timestamp).toLocaleString()}
                                         </span>
                                     </div>
-                                    <p className="text-xs text-muted-foreground/60 mt-1 truncate">{err.error}</p>
-                                    <p className="text-[11px] text-muted-foreground/40 mt-1">
+                                    <p className="text-xs text-muted-foreground mt-1 truncate">{err.error}</p>
+                                    <p className="text-[11px] text-muted-foreground mt-1">
                                         Severity: {err.severity} • Resolved: {err.resolved ? "yes" : "no"}
                                     </p>
                                 </div>

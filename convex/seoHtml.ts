@@ -1,32 +1,15 @@
-const SITE_URL = "https://www.setlists.live";
-const DEFAULT_IMAGE = `${SITE_URL}/og-preview.png`;
-
-export interface SeoPage {
-  title: string;
-  description: string;
-  canonical: string;
-  image: string;
-  type: string;
-  robots: string;
-  jsonLd: Record<string, unknown>;
-  body: string;
-}
-
-export function escapeHtml(value: unknown): string {
-  return String(value ?? "").replace(/[&<>'"]/g, (character) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    "'": "&#39;",
-    '"': "&quot;",
-  })[character] ?? character);
-}
+import { SITE_URL, escapeHtml, graphPage, safeJson, seoTitle, socialImage, socialImageMeta, type SeoPage } from "../shared/seo";
+import { hasVotingClosed } from "./lib/showTiming";
+import { APP_STARTUP_MARKUP, APP_STARTUP_SCRIPT, APP_STARTUP_STYLES } from "../shared/appStartup";
+export { escapeHtml };
+export type { SeoPage };
+const DEFAULT_IMAGE = socialImage("/");
 
 function safeImage(value: unknown) {
   if (typeof value !== "string") return DEFAULT_IMAGE;
   try {
     const url = new URL(value);
-    return url.protocol === "https:" ? url.toString() : DEFAULT_IMAGE;
+    return url.protocol === "https:" && !url.username && !url.password ? url.toString() : DEFAULT_IMAGE;
   } catch {
     return DEFAULT_IMAGE;
   }
@@ -59,13 +42,13 @@ function showList(shows: any[], empty: string) {
   }).join("")}</ul>`;
 }
 
-export function buildSeoPage(data: any): SeoPage {
+function buildEntityPage(data: any, now: number): SeoPage {
   if (data.kind === "artist") {
     const artist = data.artist;
-    const title = `${artist.name} Tour Dates, Setlists & Song Voting`;
+    const title = seoTitle(`${artist.name} Setlists & Tour Dates`, "Vote & Request Songs");
     const description = truncate(
       data.upcoming.length
-        ? `${artist.name} has ${data.upcoming.length} upcoming shows on setlists.live. Browse tour dates, vote for songs, and compare fan picks with past setlists.`
+        ? `Explore ${artist.name} tour dates and setlists. Request songs, vote for your favorites before each show, and see what was played at past concerts.`
         : `Explore ${artist.name} songs, concert history, and past setlists on setlists.live.`,
     );
     const canonical = `${SITE_URL}/artists/${encodeURIComponent(data.canonicalKey)}`;
@@ -73,15 +56,17 @@ export function buildSeoPage(data: any): SeoPage {
       title,
       description,
       canonical,
-      image: safeImage(artist.images?.[0]),
-      type: "profile",
+      image: safeImage(data.hero?.heroUrl || artist.images?.[0]),
+      imageAlt: `${artist.name} artist photograph`,
+      imageWidth: data.hero?.heroWidth, imageHeight: data.hero?.heroHeight,
+      type: "website",
       robots: data.indexable ? "index, follow" : "noindex, follow",
       jsonLd: {
         "@context": "https://schema.org",
         "@type": "MusicGroup",
         name: artist.name,
         url: canonical,
-        image: safeImage(artist.images?.[0]),
+        image: safeImage(data.hero?.heroUrl || artist.images?.[0]),
         ...(artist.genres?.length ? { genre: artist.genres } : {}),
       },
       body: `
@@ -101,12 +86,20 @@ export function buildSeoPage(data: any): SeoPage {
     const location = [data.venue.city, data.venue.state || data.venue.country].filter(Boolean).join(", ");
     const date = formatDate(data.show.date);
     const isHistorical = data.show.status === "completed";
-    const title = `${artistName} Setlist – ${venueName} (${date})`;
+    const isCancelled = data.show.status === "cancelled";
+    const votingOpen = data.show.status === "upcoming" && !hasVotingClosed(data.show, now);
+    const title = seoTitle(isCancelled ? artistName : `${artistName} Setlist`,
+      isCancelled ? "Cancelled" : votingOpen ? "Vote & Request Songs" : undefined,
+      venueName, date);
     const songNames = data.actualSongs.slice(0, 5).map((song: any) => song.title).filter(Boolean);
     const description = truncate(
-      isHistorical && songNames.length
+      isCancelled
+        ? `${artistName} at ${venueName} on ${date} is cancelled. Song voting and requests are closed. Explore other dates and past setlists.`
+        : isHistorical && songNames.length
         ? `${artistName}'s confirmed ${date} setlist at ${venueName}${location ? ` in ${location}` : ""}, including ${songNames.join(", ")}.`
-        : `Vote for the songs you want ${artistName} to play at ${venueName}${location ? ` in ${location}` : ""} on ${date}.`,
+        : votingOpen
+        ? `Vote for your favorites and request songs for ${artistName} at ${venueName} on ${date}${location ? ` in ${location}` : ""}.`
+        : `Song voting and requests are closed for ${artistName} at ${venueName} on ${date}. The confirmed setlist is not yet available.`,
     );
     const canonical = `${SITE_URL}/shows/${encodeURIComponent(data.canonicalKey)}`;
     const songs = isHistorical ? data.actualSongs : data.suggestedSongs;
@@ -114,28 +107,33 @@ export function buildSeoPage(data: any): SeoPage {
       title,
       description,
       canonical,
-      image: safeImage(data.artist.images?.[0]),
+      image: safeImage(data.hero?.heroUrl || data.show.artistImage || data.artist.images?.[0]),
+      imageAlt: `${artistName} artist photograph`,
+      imageWidth: data.hero?.heroWidth, imageHeight: data.hero?.heroHeight,
       type: "website",
       robots: data.indexable ? "index, follow" : "noindex, follow",
       jsonLd: {
         "@context": "https://schema.org",
         "@type": "MusicEvent",
         name: `${artistName} at ${venueName}`,
-        startDate: data.show.startTime ? `${data.show.date}T${data.show.startTime}` : data.show.date,
+        startDate: typeof data.show.startsAt === "number" ? new Date(data.show.startsAt).toISOString() : data.show.date,
+        eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+        description,
         eventStatus:
           data.show.status === "cancelled"
             ? "https://schema.org/EventCancelled"
-            : data.show.status === "completed"
-              ? "https://schema.org/EventCompleted"
-              : "https://schema.org/EventScheduled",
+            : "https://schema.org/EventScheduled",
         url: canonical,
-        image: safeImage(data.artist.images?.[0]),
-        performer: { "@type": "MusicGroup", name: artistName },
+        image: safeImage(data.hero?.heroUrl || data.show.artistImage || data.artist.images?.[0]),
+        performer: { "@type": "MusicGroup", "@id": `${SITE_URL}/artists/${encodeURIComponent(data.artist.slug || data.artist._id)}#entity`, name: artistName, url: `${SITE_URL}/artists/${encodeURIComponent(data.artist.slug || data.artist._id)}` },
         location: {
           "@type": "MusicVenue",
           name: venueName,
+          "@id": `${SITE_URL}/venues/${encodeURIComponent(data.venue.slug || data.venue._id)}#entity`,
+          url: `${SITE_URL}/venues/${encodeURIComponent(data.venue.slug || data.venue._id)}`,
           address: {
             "@type": "PostalAddress",
+            ...(data.venue.address ? { streetAddress: data.venue.address } : {}),
             addressLocality: data.venue.city,
             ...(data.venue.state ? { addressRegion: data.venue.state } : {}),
             addressCountry: data.venue.country,
@@ -155,14 +153,16 @@ export function buildSeoPage(data: any): SeoPage {
       },
       body: `
         <main class="seo-prerender">
-          <p class="seo-eyebrow">${isHistorical ? "Confirmed concert setlist" : "Fan setlist voting"}</p>
+          <p class="seo-eyebrow">${isCancelled ? "Cancelled show" : isHistorical && songNames.length ? "Confirmed concert setlist" : votingOpen ? "Fan setlist voting and song requests" : "Concert setlist"}</p>
           <h1>${escapeHtml(artistName)} at ${escapeHtml(venueName)}</h1>
           <p>${escapeHtml(date)}${location ? ` · ${escapeHtml(location)}` : ""}</p>
+          <p>${escapeHtml(description)}</p>
+          <p><a href="/artists/${encodeURIComponent(data.artist.slug || data.artist._id)}">${escapeHtml(artistName)} tour dates</a> · <a href="/venues/${encodeURIComponent(data.venue.slug || data.venue._id)}">${escapeHtml(venueName)} concerts</a></p>
           <section>
-            <h2>${isHistorical ? "Songs played" : "Songs fans want to hear"}</h2>
+            <h2>${isHistorical ? "Songs played" : data.hasFanRequests ? "Songs fans requested" : "Suggested songs"}</h2>
             ${songs?.length
               ? `<ol>${songs.slice(0, 40).map((song: any) => `<li>${escapeHtml(song.title || song.songTitle)}</li>`).join("")}</ol>`
-              : `<p>${isHistorical ? "The confirmed setlist is still being imported from setlist.fm." : "Open the interactive voting page to make the first pick."}</p>`}
+              : `<p>${isCancelled ? "This show was cancelled." : isHistorical ? "The confirmed setlist is still being imported from setlist.fm." : votingOpen ? "Request a song or vote for your favorites in the interactive setlist." : "Song voting and requests are closed."}</p>`}
           </section>
         </main>`,
     };
@@ -170,21 +170,24 @@ export function buildSeoPage(data: any): SeoPage {
 
   const venue = data.venue;
   const location = [venue.city, venue.state || venue.country].filter(Boolean).join(", ");
-  const title = `${venue.name} Concerts & Setlists – ${location}`;
+  const title = seoTitle(`${venue.name} Concerts`, "Setlists & Song Voting", location);
   const description = truncate(
-    `Browse upcoming concerts and recent setlists at ${venue.name} in ${location}. Open any show to vote for songs before doors open.`,
+    `Explore concerts and past setlists at ${venue.name}${location ? ` in ${location}` : ""}. Choose an upcoming show to request songs and vote before it starts.`,
   );
   const canonical = `${SITE_URL}/venues/${encodeURIComponent(data.canonicalKey)}`;
   return {
     title,
     description,
     canonical,
-    image: DEFAULT_IMAGE,
-    type: "place",
+    image: safeImage(data.hero?.heroUrl),
+    imageAlt: `${venue.name} in ${location}`,
+    imageWidth: data.hero?.heroWidth, imageHeight: data.hero?.heroHeight,
+    type: "website",
     robots: data.indexable ? "index, follow" : "noindex, follow",
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "MusicVenue",
+      image: safeImage(data.hero?.heroUrl),
       name: venue.name,
       url: canonical,
       address: {
@@ -206,12 +209,18 @@ export function buildSeoPage(data: any): SeoPage {
   };
 }
 
+export function buildSeoPage(data: any, now = Date.now()): SeoPage {
+  const page = buildEntityPage(data, now);
+  const label = data.kind === "artist" ? data.artist.name : data.kind === "venue" ? data.venue.name : `${data.artist.name} at ${data.venue.name}`;
+  return graphPage(page, [{ name: "Home", path: "/" }, ...(data.kind === "venue" ? [] : [{ name: data.kind === "artist" ? "Artists" : "Shows", path: data.kind === "artist" ? "/artists" : "/shows" }]), { name: label, path: new URL(page.canonical).pathname }]);
+}
+
 function replaceMeta(html: string, selector: RegExp, tag: string) {
   if (selector.test(html)) return html.replace(selector, tag);
   return html.replace("</head>", `  ${tag}\n</head>`);
 }
 
-export function renderSeoDocument(shell: string, page: SeoPage) {
+export function renderSeoDocument(shell: string, page: SeoPage, path = new URL(page.canonical).pathname) {
   let html = shell.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(page.title)}</title>`);
   const meta = [
     [/\s*<meta\s+name=["']description["'][^>]*>/i, `<meta name="description" content="${escapeHtml(page.description)}" />`],
@@ -233,16 +242,23 @@ export function renderSeoDocument(shell: string, page: SeoPage) {
     `<link rel="canonical" href="${escapeHtml(page.canonical)}" />`,
   );
 
-  const jsonLd = JSON.stringify(page.jsonLd)
-    .replace(/</g, "\\u003c")
-    .replace(/\u2028/g, "\\u2028")
-    .replace(/\u2029/g, "\\u2029");
+  const jsonLd = safeJson(page.jsonLd);
+  const imageMeta = socialImageMeta(page);
+  // Clear stale shell tags before adding measured properties for this image.
+  html = html.replace(/<meta\s+property=["']og:image:(?:width|height|type|alt)["'][^>]*>/gi, "");
+  const extras = { ...Object.fromEntries(Object.entries(imageMeta).map(([key, value]) => [`og:${key}`, value])), "og:site_name": "setlists.live" };
+  for (const [name, content] of Object.entries(extras)) html = replaceMeta(html, new RegExp(`<meta\\s+property=["']${name}["'][^>]*>`, "i"), `<meta property="${name}" content="${escapeHtml(content)}" />`);
+  html = replaceMeta(html, /<meta\s+name=["']twitter:card["'][^>]*>/i, '<meta name="twitter:card" content="summary_large_image" />');
+  html = replaceMeta(html, /<meta\s+name=["']twitter:image:alt["'][^>]*>/i, `<meta name="twitter:image:alt" content="${escapeHtml(imageMeta["image:alt"])}" />`);
+  html = html.replace(/<script[^>]*id=["']seo-(?:jsonld|data)["'][^>]*>[\s\S]*?<\/script>/gi, "");
   html = html.replace(
     "</head>",
+    `  <script id="seo-data" type="application/json">${safeJson({ path, page: { ...page, body: "" } })}</script>\n` +
     `  <script id="seo-jsonld" type="application/ld+json">${jsonLd}</script>\n` +
-      `  <style id="seo-prerender-style">.seo-prerender{max-width:72rem;margin:0 auto;padding:7rem 1.25rem 4rem;color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.seo-prerender h1{font-size:clamp(2.25rem,6vw,4.75rem);line-height:1.02;letter-spacing:-.04em;margin:.5rem 0 1rem}.seo-prerender h2{font-size:1.25rem;margin:2rem 0 .75rem}.seo-prerender p,.seo-prerender li{color:#a1a1aa;line-height:1.6}.seo-prerender a{color:#f4f4f5}.seo-prerender section{border-top:1px solid #27272a;margin-top:2rem}.seo-eyebrow{text-transform:uppercase;letter-spacing:.18em;font-size:.72rem;color:#facc15!important}@media(max-width:640px){.seo-prerender{padding-top:5.5rem}}body{background:#02040a}</style>\n</head>`,
+      `  <style id="seo-prerender-style">.seo-prerender{max-width:72rem;min-height:100vh;margin:0 auto;padding:4rem 1rem;color:hsl(var(--foreground,0 0% 96%));background:hsl(var(--background,0 0% 4%));font-family:Overpass,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.seo-prerender h1{font-size:clamp(1.75rem,4vw,3rem);line-height:1.15;letter-spacing:-.025em;margin:.5rem 0 1rem}.seo-prerender h2{font-size:1.25rem;margin:2rem 0 .75rem}.seo-prerender p,.seo-prerender li{color:hsl(var(--muted-foreground,0 0% 64%));line-height:1.6}.seo-prerender a{color:inherit;text-decoration:underline}.seo-prerender nav{display:flex;flex-wrap:wrap;gap:.5rem;font-size:.875rem;margin-bottom:1rem}.seo-prerender section{border-top:1px solid hsl(var(--border,0 0% 16%));margin-top:2rem}.seo-eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:.72rem}${APP_STARTUP_STYLES}</style>\n` +
+      `  <script id="app-startup-script">${APP_STARTUP_SCRIPT}</script>\n</head>`,
   );
-  return html.replace(/<div\s+id=["']root["']\s*><\/div>/i, `<div id="root">${page.body}</div>`);
+  return html.replace(/<div\s+id=["']root["']\s*><\/div>/i, `${APP_STARTUP_MARKUP}<div id="root">${page.body}</div>`);
 }
 
 export function renderNotFoundDocument(shell: string) {

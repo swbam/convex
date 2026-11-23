@@ -1,10 +1,14 @@
 "use node";
 
+import { discoveryTicketInfo, ticketInfoValidator } from "./lib/ticketInfo";
+
 import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { internalRef } from "./adminHelpers";
 import { hasShowEnded, parseProviderTimestamp } from "./lib/showTiming";
+import { isFestivalEvent } from "./lib/festivalIdentity";
+import { selectFestivalImages } from "./lib/festivalMedia";
 import { Id } from "./_generated/dataModel";
 
 
@@ -16,73 +20,6 @@ import { Id } from "./_generated/dataModel";
 /**
  * Known major festival name patterns for detection
  */
-const KNOWN_FESTIVAL_PATTERNS = [
-  /\brailbird\b/i,
-  /\bcoachella\b/i,
-  /\bbonnaroo\b/i,
-  /\blollapalooza\b/i,
-  /\bstagecoach\b/i,
-  /\bbottlerock\b/i,
-  /\belectric forest\b/i,
-  /\bedc\b/i,
-  /\bultra\s+(music\s+)?festival\b/i,
-  /\bgovernors\s+ball\b/i,
-  /\bfirefly\s+(music\s+)?festival\b/i,
-  /\boutside\s+lands\b/i,
-  /\brolling\s+loud\b/i,
-  /\bsummerfest\b/i,
-  /\briot\s+fest\b/i,
-  /\bshaky\s+knees\b/i,
-  /\bangout\s+(music\s+)?fest/i,
-  /\bpitchfork\s+(music\s+)?fest/i,
-  /\blife\s+is\s+beautiful\b/i,
-  /\bwhen\s+we\s+were\s+young\b/i,
-  /\bacl\s+fest/i,
-  /\baustin\s+city\s+limits\b/i,
-  /\bsxsw\b/i,
-];
-
-/**
- * Detect if a Ticketmaster event is a music festival
- */
-function isFestivalEvent(event: any): boolean {
-  const eventName = String(event.name || "").toLowerCase();
-  const venueName = String(event._embedded?.venues?.[0]?.name || "").toLowerCase();
-
-  // Check for "festival" in the name (common pattern)
-  if (/\bfestival\b/i.test(eventName) || /\bfest\b/i.test(eventName)) {
-    // Exclude false positives like "Festival of Lights" or non-music
-    const isNonMusic = /\b(lights?|food|beer|wine|art|film|comedy|dance)\s*(festival|fest)\b/i.test(eventName);
-    if (!isNonMusic) return true;
-  }
-
-  // Check against known festival patterns
-  for (const pattern of KNOWN_FESTIVAL_PATTERNS) {
-    if (pattern.test(eventName) || pattern.test(venueName)) {
-      return true;
-    }
-  }
-
-  // Check Ticketmaster classifications
-  const classifications = event.classifications || [];
-  for (const classification of classifications) {
-    const genreName = String(classification.genre?.name || "").toLowerCase();
-    const subGenreName = String(classification.subGenre?.name || "").toLowerCase();
-    const segmentName = String(classification.segment?.name || "").toLowerCase();
-
-    if (genreName === "festival" || subGenreName === "festival") {
-      return true;
-    }
-
-    // Music segment with festival in type
-    if (segmentName === "music" && /festival/i.test(String(classification.type?.name || ""))) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 const TICKETMASTER_HTTP_TIMEOUT_MS = 30_000;
 const TICKETMASTER_MAX_ATTEMPTS = 3;
 
@@ -228,17 +165,17 @@ export const triggerFullArtistSyncInternal = internalAction({
     upcomingEvents: v.optional(v.number()),
   },
   returns: v.object({
-    type: v.union(v.literal("artist"), v.literal("festival")),
+    type: v.union(v.literal("artist"), v.literal("festival"), v.literal("excluded")),
     artistId: v.optional(v.id("artists")),
     festivalId: v.optional(v.id("festivals")),
     slug: v.string(),
   }),
   handler: async (ctx, args) => {
-    return await triggerFullArtistSyncImpl(ctx, args);
+    return await triggerFullArtistSyncImpl(ctx, args, true);
   },
 });
 
-const triggerFullArtistSyncImpl = async (ctx: any, args: any) => {
+const triggerFullArtistSyncImpl = async (ctx: any, args: any, scheduled = false): Promise<any> => {
   const upcomingEvents = args.upcomingEvents || 0;
   console.log(`🚀 Starting optimized sync for: ${args.artistName} (${upcomingEvents} upcoming events)`);
 
@@ -251,31 +188,36 @@ const triggerFullArtistSyncImpl = async (ctx: any, args: any) => {
   if (isFestival) {
     console.log(`🎪 Detected festival: ${args.artistName}`);
 
-    // Extract year from name or use current year
-    const yearMatch = args.artistName.match(/\b(20\d{2})\b/);
-    const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
-
-    // Create festival slug
-    const slug = args.artistName
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-")
-      .trim();
-
-    // Try to create or find the festival
+    const apiKey = process.env.TICKETMASTER_API_KEY;
+    if (!apiKey) throw new Error("Ticketmaster is not configured");
+    const params = new URLSearchParams({ apikey: apiKey, attractionId: args.ticketmasterId, size: "1", sort: "date,asc" });
+    const response = await fetch(`https://app.ticketmaster.com/discovery/v2/events.json?${params}`);
+    if (!response.ok) throw new Error(`Festival lookup failed (${response.status})`);
+    const data: any = await response.json();
+    const event = data?._embedded?.events?.[0];
+    const venue = event?._embedded?.venues?.[0];
+    if (!event?.dates?.start?.localDate || !venue?.city?.name) {
+      throw new Error("No dated festival edition is available from Ticketmaster yet");
+    }
     const festivalId = await ctx.runMutation(internalRef.festivals.upsertFestivalFromEvent, {
       eventName: args.artistName,
-      eventDate: `${year}-06-01`, // Default to June 1 if no date
-      ticketmasterId: args.ticketmasterId,
+      eventDate: event.dates.start.localDate,
+      ticketmasterId: event.id,
+      venueName: venue.name,
+      venueCity: venue.city.name,
+      venueState: venue.state?.stateCode,
+      ticketUrl: event.url,
+      classificationConfirmed: isFestivalEvent(event),
+      ...selectFestivalImages(event.images),
     });
 
     if (festivalId) {
       console.log(`✅ Festival created/found: ${festivalId}`);
+      const festival = await ctx.runQuery(internalRef.festivals.getById, { festivalId });
       return {
         type: "festival" as const,
         festivalId,
-        slug,
+        slug: festival.slug,
       };
     } else {
       // Fallback: throw error with helpful message
@@ -304,7 +246,8 @@ const triggerFullArtistSyncImpl = async (ctx: any, args: any) => {
 
   // Handle null return (non-concert entity that wasn't caught as festival)
   if (!artistId) {
-    throw new Error(`"${args.artistName}" is not a musical artist. Try searching for a band, singer, or musician.`);
+    if (scheduled) return { type: "excluded", slug: "" };
+    throw new Error(`We could not confirm an artist profile for "${args.artistName}" from the provider metadata. It has been saved for review.`);
   }
 
   // Initialize sync status
@@ -596,8 +539,7 @@ export const syncArtistShows = internalAction({
   handler: async (ctx, args) => {
     const apiKey = process.env.TICKETMASTER_API_KEY;
     if (!apiKey) {
-      console.error("❌ TICKETMASTER_API_KEY not configured");
-      return null;
+      throw new Error("TICKETMASTER_API_KEY not configured");
     }
 
     try {
@@ -609,6 +551,7 @@ export const syncArtistShows = internalAction({
       const PAGE_SIZE = 200;
       const MAX_PAGES = 5;
       const events: any[] = [];
+      let partialReason: string | undefined;
       for (let page = 0; page < MAX_PAGES; page++) {
         const url = `https://app.ticketmaster.com/discovery/v2/events.json?attractionId=${args.ticketmasterId}&size=${PAGE_SIZE}&page=${page}&apikey=${apiKey}`;
         const response = await tmFetchWithRetry(url);
@@ -620,7 +563,8 @@ export const syncArtistShows = internalAction({
             console.error("⚠️  Rate limited by Ticketmaster API");
           }
           // Abort if the very first page fails; otherwise keep what we gathered.
-          if (page === 0) return null;
+          if (page === 0) throw new Error(errorMsg);
+          partialReason = errorMsg;
           break;
         }
 
@@ -629,6 +573,7 @@ export const syncArtistShows = internalAction({
         events.push(...pageEvents);
 
         const totalPages = Number(data.page?.totalPages ?? 1);
+        if (totalPages > MAX_PAGES) partialReason = "Ticketmaster result exceeded its deep-paging window";
         if (pageEvents.length < PAGE_SIZE || page + 1 >= totalPages) break;
 
         // Gentle backoff between pages to respect rate limits.
@@ -638,6 +583,13 @@ export const syncArtistShows = internalAction({
       console.log(`📅 Found ${events.length} shows for artist ${args.ticketmasterId}`);
 
       for (const event of events) {
+        const eventDate = String(event.dates?.start?.localDate ?? "");
+        if (!event.id || !/^\d{4}-\d{2}-\d{2}$/.test(eventDate) ||
+          !Number.isFinite(Date.parse(`${eventDate}T00:00:00Z`)) ||
+          new Date(`${eventDate}T00:00:00Z`).toISOString().slice(0, 10) !== eventDate) {
+          console.warn("Skipping an event without a confirmed date or provider ID");
+          continue;
+        }
         // Create or get venue
         const venue = event._embedded?.venues?.[0];
         // CRITICAL: Ensure all venue fields are properly populated
@@ -648,13 +600,7 @@ export const syncArtistShows = internalAction({
           state: venue?.state?.stateCode ? String(venue.state.stateCode) : (venue?.state?.name ? String(venue.state.name) : undefined),
           country: venue?.country?.name ? String(venue.country.name) : (venue?.country?.countryCode ? String(venue.country.countryCode) : "US"),
           address: venue?.address?.line1 ? String(venue.address.line1) : undefined,
-          capacity: venue?.generalInfo?.generalRule ? (() => {
-            const parsed = parseInt(venue.generalInfo.generalRule, 10);
-            return Number.isFinite(parsed) ? parsed : undefined;
-          })() : (venue?.capacity ? (() => {
-            const parsed = parseInt(String(venue.capacity), 10);
-            return Number.isFinite(parsed) ? parsed : undefined;
-          })() : undefined),
+          capacity: venue?.capacity && Number.isFinite(Number(venue.capacity)) && Number(venue.capacity) > 0 ? Number(venue.capacity) : undefined,
           lat: venue?.location?.latitude ? (() => {
             const parsed = parseFloat(String(venue.location.latitude));
             return Number.isFinite(parsed) ? parsed : undefined;
@@ -680,10 +626,7 @@ export const syncArtistShows = internalAction({
           startsAt: parseProviderTimestamp(event.dates?.start?.dateTime),
           endsAt: parseProviderTimestamp(event.dates?.end?.dateTime),
           timeZone: event.dates?.timezone || venue?.timezone || undefined,
-          date: (() => {
-            const d = String(event.dates?.start?.localDate || '').trim();
-            return d && /\d{4}-\d{2}-\d{2}/.test(d) ? d : new Date().toISOString().split('T')[0];
-          })(),
+          date: eventDate,
           startTime: (() => {
             const t = String(event.dates?.start?.localTime || '').trim();
             if (!t) return undefined;
@@ -702,6 +645,7 @@ export const syncArtistShows = internalAction({
             return "upcoming" as const;
           })(),
           ticketUrl: event.url ? String(event.url) : undefined,
+          ticketInfo: discoveryTicketInfo(event),
         });
 
         // NEW: Patch show with priceRange after creation (since createFromTicketmaster doesn't accept it)
@@ -728,6 +672,8 @@ export const syncArtistShows = internalAction({
                 venueCity: venue?.city?.name ? String(venue.city.name) : undefined,
                 venueState: venue?.state?.stateCode ? String(venue.state.stateCode) : undefined,
                 ticketUrl: event.url ? String(event.url) : undefined,
+                classificationConfirmed: isFestivalEvent(event),
+                ...selectFestivalImages(event.images),
               });
 
               if (festivalId) {
@@ -757,6 +703,7 @@ export const syncArtistShows = internalAction({
         artistId: args.artistId,
         upcomingShowsCount: upcomingShows,
       });
+      if (partialReason) throw new Error(`Show import incomplete: ${partialReason}`);
       await ctx.runMutation(internalRef.artists.recordAutomationSync, {
         artistId: args.artistId,
         lastShowSyncAt: Date.now(),
@@ -765,12 +712,13 @@ export const syncArtistShows = internalAction({
 
       // FIXED: Await scheduler call to prevent dangling promise warning
       try {
-        await ctx.scheduler.runAfter(0, internalRef.trending.updateShowTrending, {});
+        await ctx.runMutation(internalRef.trending.requestShowTrendingRefresh, {});
       } catch (e) {
         console.log('⚠️ Failed to schedule trending refresh after sync', e);
       }
     } catch (error) {
       console.error("Failed to sync artist shows:", error);
+      throw error;
     }
     return null;
   },
@@ -791,6 +739,9 @@ export const getTrendingShows = action({
     venueCountry: v.string(),
     date: v.string(),
     startTime: v.optional(v.string()),
+    startsAt: v.optional(v.number()),
+    endsAt: v.optional(v.number()),
+    timeZone: v.optional(v.string()),
     artistImage: v.optional(v.string()),
     artistImages: v.optional(v.array(v.string())),
     artistGenres: v.optional(v.array(v.string())),
@@ -798,6 +749,7 @@ export const getTrendingShows = action({
     artistUrl: v.optional(v.string()),
     popularityRank: v.number(),
     ticketUrl: v.optional(v.string()),
+    ticketInfo: ticketInfoValidator,
     priceRange: v.optional(v.string()),
     status: v.string(),
   })),
@@ -863,6 +815,9 @@ export const getTrendingShows = action({
           : undefined,
         venueCountry: String(event._embedded?.venues?.[0]?.country?.name || ''),
         date: String(event.dates?.start?.localDate || ''),
+        startsAt: parseProviderTimestamp(event.dates?.start?.dateTime),
+        endsAt: parseProviderTimestamp(event.dates?.end?.dateTime),
+        timeZone: event.dates?.timezone || event._embedded?.venues?.[0]?.timezone || undefined,
         startTime: event.dates?.start?.localTime
           ? String(event.dates.start.localTime)
           : undefined,
@@ -873,6 +828,7 @@ export const getTrendingShows = action({
         artistUrl: attraction?.url ? String(attraction.url) : undefined,
         popularityRank,
         ticketUrl: event.url ? String(event.url) : undefined,
+        ticketInfo: discoveryTicketInfo(event),
         priceRange: event.priceRanges?.[0]
           ? `$${event.priceRanges[0].min}-${event.priceRanges[0].max}`
           : undefined,
@@ -1181,7 +1137,11 @@ export const searchShowsByZipCode = action({
     venueState: v.optional(v.string()),
     date: v.string(),
     startTime: v.optional(v.string()),
+    startsAt: v.optional(v.number()),
+    endsAt: v.optional(v.number()),
+    timeZone: v.optional(v.string()),
     ticketUrl: v.optional(v.string()),
+    ticketInfo: ticketInfoValidator,
     priceRange: v.optional(v.string()),
   })),
   handler: async (ctx, args) => {
@@ -1261,8 +1221,12 @@ export const searchShowsByZipCode = action({
         venueCity: String(event._embedded?.venues?.[0]?.city?.name || ''),
         venueState: event._embedded?.venues?.[0]?.state?.stateCode ? String(event._embedded.venues[0].state.stateCode) : undefined,
         date: String(event.dates?.start?.localDate || ''),
+        startsAt: parseProviderTimestamp(event.dates?.start?.dateTime),
+        endsAt: parseProviderTimestamp(event.dates?.end?.dateTime),
+        timeZone: event.dates?.timezone || event._embedded?.venues?.[0]?.timezone || undefined,
         startTime: event.dates?.start?.localTime ? String(event.dates.start.localTime) : undefined,
         ticketUrl: event.url ? String(event.url) : undefined,
+        ticketInfo: discoveryTicketInfo(event),
         priceRange: event.priceRanges?.[0] ? `$${event.priceRanges[0].min}-${event.priceRanges[0].max}` : undefined,
       }));
     } catch (error) {

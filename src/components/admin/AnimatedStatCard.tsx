@@ -40,12 +40,12 @@ export function AnimatedStatCard({
 
     // Accent color map for icon glow
     const accentMap: Record<string, { bg: string; text: string; glow: string }> = {
-        blue: { bg: "bg-blue-500/10", text: "text-blue-400", glow: "shadow-blue-500/20" },
-        green: { bg: "bg-emerald-500/10", text: "text-emerald-400", glow: "shadow-emerald-500/20" },
-        purple: { bg: "bg-purple-500/10", text: "text-purple-400", glow: "shadow-purple-500/20" },
-        amber: { bg: "bg-amber-500/10", text: "text-amber-400", glow: "shadow-amber-500/20" },
-        red: { bg: "bg-red-500/10", text: "text-red-400", glow: "shadow-red-500/20" },
-        cyan: { bg: "bg-cyan-500/10", text: "text-cyan-400", glow: "shadow-cyan-500/20" },
+        blue: { bg: "bg-blue-500/10", text: "text-blue-700 dark:text-blue-400", glow: "shadow-blue-500/20" },
+        green: { bg: "bg-emerald-500/10", text: "text-emerald-700 dark:text-emerald-400", glow: "shadow-emerald-500/20" },
+        purple: { bg: "bg-purple-500/10", text: "text-purple-700 dark:text-purple-400", glow: "shadow-purple-500/20" },
+        amber: { bg: "bg-amber-500/10", text: "text-amber-700 dark:text-amber-400", glow: "shadow-amber-500/20" },
+        red: { bg: "bg-red-500/10", text: "text-red-700 dark:text-red-400", glow: "shadow-red-500/20" },
+        cyan: { bg: "bg-cyan-500/10", text: "text-cyan-700 dark:text-cyan-400", glow: "shadow-cyan-500/20" },
     };
 
     const accent = accentMap[accentColor] || accentMap.blue;
@@ -55,13 +55,9 @@ export function AnimatedStatCard({
             initial={shouldReduce ? { opacity: 1 } : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            whileHover={shouldReduce ? {} : {
-                y: -2,
-                transition: { duration: 0.2, ease: "easeOut" },
-            }}
-            className="group relative overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm p-4"
+            className="group relative overflow-hidden rounded-xl border border-border bg-card backdrop-blur-sm p-4"
             style={{
-                boxShadow: "inset 0 1px 0 0 rgba(255,255,255,0.03), 0 4px 24px rgba(0,0,0,0.2)",
+                boxShadow: "var(--surface-shadow)",
             }}
         >
             {/* Subtle gradient overlay on hover */}
@@ -88,7 +84,7 @@ export function AnimatedStatCard({
                 )}
 
                 {/* Label */}
-                <span className="text-[11px] uppercase tracking-widest text-muted-foreground/70 font-medium">
+                <span className="text-[11px] uppercase tracking-widest text-muted-foreground font-medium">
                     {label}
                 </span>
             </div>

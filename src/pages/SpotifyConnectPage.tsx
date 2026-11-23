@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useUser, useSignIn } from '@clerk/clerk-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { AppLayout } from '../components/AppLayout';
 import { MagicCard } from '../components/ui/magic-card';
 import { Music, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
@@ -86,19 +87,19 @@ export function SpotifyConnectPage() {
   // Show loading while checking user state
   if (!isUserLoaded) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <MagicCard className="p-8 max-w-md text-center">
+      <AppLayout><div className="public-page account-page flex justify-center">
+        <MagicCard className="p-4 sm:p-6 w-full max-w-md text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#1DB954]" />
           <p className="text-muted-foreground mt-4">Loading...</p>
         </MagicCard>
-      </div>
+      </div></AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <MagicCard className="p-8 max-w-md text-center">
-        <div className={`w-16 h-16 ${isSpotifyConnected ? 'bg-green-500/20' : 'bg-[#1DB954]/20'} rounded-2xl flex items-center justify-center mx-auto mb-6`}>
+    <AppLayout><div className="public-page account-page flex justify-center">
+      <MagicCard className="p-4 sm:p-6 w-full max-w-md text-center">
+        <div className={`w-16 h-16 ${isSpotifyConnected ? 'bg-green-500/20' : 'bg-[#1DB954]/20'} rounded-[5px] flex items-center justify-center mx-auto mb-6`}>
           {isSpotifyConnected ? (
             <CheckCircle className="h-8 w-8 text-green-500" />
           ) : (
@@ -115,16 +116,16 @@ export function SpotifyConnectPage() {
             <p className="text-muted-foreground mb-6">
               Your Spotify account is already linked. We're using your music preferences to personalize your experience.
             </p>
-            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 mb-6">
+            <div className="bg-green-500/10 border border-green-500/20 rounded-[5px] p-3 mb-6">
               <p className="text-sm text-green-400">
                 Connected as: {spotifyAccount?.emailAddress || 'Spotify User'}
               </p>
             </div>
             <Button
               onClick={() => { void navigate(returnTo); }}
-              className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-foreground"
+              className="w-full brand-primary"
             >
-              Continue to Dashboard
+              Continue
             </Button>
           </>
         ) : (
@@ -139,7 +140,7 @@ export function SpotifyConnectPage() {
               <Button
                 onClick={() => { void handleSpotifyConnect(); }}
                 disabled={isLoading}
-                className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-foreground"
+                className="w-full brand-primary"
               >
                 {isLoading ? (
                   <>
@@ -170,6 +171,6 @@ export function SpotifyConnectPage() {
           </>
         )}
       </MagicCard>
-    </div>
+    </div></AppLayout>
   );
 }

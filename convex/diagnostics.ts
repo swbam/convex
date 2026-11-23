@@ -1,4 +1,4 @@
-import { internalQuery, action } from "./_generated/server";
+import { internalQuery, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internalRef } from "./adminHelpers";
 
@@ -60,7 +60,7 @@ export const findShowsWithoutSetlists = internalQuery({
 });
 
 // Public action to manually trigger backfill (for admin dashboard)
-export const backfillMissingSetlists = action({
+export const backfillMissingSetlists = internalAction({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ scheduled: v.number() }),
   handler: async (ctx, args): Promise<{ scheduled: number }> => {

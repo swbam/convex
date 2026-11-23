@@ -1,6 +1,11 @@
+import { selectOfficialSetlist } from "./lib/officialSetlist";
+import { songKey, summarizeRequests } from "./lib/predictions";
+import { hasVotingClosed } from "./lib/showTiming";
+import { calculateFanAccuracy, getRequestCounts } from "./lib/songVoteCounts";
+import { requireOpenShow, validateCatalogSong } from "./lib/voting";
 import { recordSetlistImport } from "./lib/setlistImportEvent";
-import { query, mutation, internalMutation, action } from "./_generated/server";
-import { internalRef } from "./adminHelpers";
+import { query, mutation, internalMutation, internalAction, action } from "./_generated/server";
+import { internalRef, requireAdminForAction } from "./adminHelpers";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { api as apiRef } from "./_generated/api";
@@ -47,6 +52,12 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Sign in to create a setlist");
+    if (args.isOfficial) throw new Error("Official setlists can only be imported by the server");
+    const show = await requireOpenShow(ctx, args.showId);
+    if (!args.songs.length || args.songs.length > 100) throw new Error("Choose between 1 and 100 songs");
+    const songs = await Promise.all(args.songs.map(song => validateCatalogSong(ctx, show.artistId, song)));
+    if (new Set(songs.map(song => songKey(song.title))).size !== songs.length) throw new Error("Duplicate songs are not allowed");
 
     // Check if user already has a setlist for this show
     if (userId) {
@@ -60,7 +71,7 @@ export const create = mutation({
       if (existing) {
         // Update existing setlist
         await ctx.db.patch(existing._id, {
-          songs: args.songs,
+          songs,
           lastUpdated: Date.now(),
         });
         return existing._id;
@@ -70,11 +81,11 @@ export const create = mutation({
     const setlistId = await ctx.db.insert("setlists", {
       showId: args.showId,
       userId: userId || undefined,
-      songs: args.songs,
+      songs,
       verified: false,
       source: "user_submitted",
       lastUpdated: Date.now(),
-      isOfficial: args.isOfficial || false,
+      isOfficial: false,
       confidence: 0.5,
       upvotes: 0,
       downvotes: 0,
@@ -99,10 +110,12 @@ export const addSongToSetlist = mutation({
   handler: async (ctx, args) => {
     try {
       const authUserId = await getAuthUserId(ctx);
+      const show = await requireOpenShow(ctx, args.showId);
+      const song = await validateCatalogSong(ctx, show.artistId, args.song);
       let effectiveUserId: Id<"users"> | string;
 
       if (!authUserId) {
-        if (!args.anonId) {
+        if (!args.anonId || !/^anon_[a-zA-Z0-9_-]{8,120}$/.test(args.anonId)) {
           throw new Error("Anonymous ID required for unauthenticated users");
         }
         effectiveUserId = args.anonId;
@@ -145,15 +158,16 @@ export const addSongToSetlist = mutation({
 
       if (communitySetlist) {
         // Add song if not already present (case insensitive to avoid duplicates)
-        const normalizedTitle = args.song.title.toLowerCase().trim();
+        const normalizedTitle = songKey(song.title);
         const songExists = (communitySetlist.songs || []).some((existing) => {
           const title = typeof existing === "string" ? existing : existing?.title;
-          return title ? title.toLowerCase().trim() === normalizedTitle : false;
+          return title ? songKey(title) === normalizedTitle : false;
         });
 
         if (!songExists) {
+          if (communitySetlist.songs.length >= 500) throw new Error("This setlist has reached its song limit");
           await ctx.db.patch(communitySetlist._id, {
-            songs: [...(communitySetlist.songs || []), args.song],
+            songs: [...(communitySetlist.songs || []), song],
             lastUpdated: Date.now(),
           });
           setlistId = communitySetlist._id;
@@ -166,7 +180,7 @@ export const addSongToSetlist = mutation({
         setlistId = await ctx.db.insert("setlists", {
           showId: args.showId,
           userId: undefined, // Shared setlist, not user-specific
-          songs: [args.song],
+          songs: [song],
           verified: false,
           source: "user_submitted",
           lastUpdated: Date.now(),
@@ -375,6 +389,8 @@ export const vote = mutation({
       throw new Error("Setlist not found");
     }
 
+    await requireOpenShow(ctx, setlist.showId);
+
     // Can't vote on official setlists
     if (setlist.isOfficial) {
       throw new Error("Cannot vote on official setlists");
@@ -469,11 +485,13 @@ export const autoGenerateSetlist = internalMutation({
     artistId: v.id("artists"),
   },
   handler: async (ctx, args) => {
-    // CRITICAL: Check if a setlist already exists for this show
-    const existingSetlist = await ctx.db
-      .query("setlists")
-      .withIndex("by_show", (q) => q.eq("showId", args.showId))
-      .first();
+    const show = await ctx.db.get(args.showId);
+    if (!show || show.artistId !== args.artistId || show.status !== "upcoming" || hasVotingClosed(show)) return null;
+    const existing = await ctx.db.query("setlists").withIndex("by_show", q => q.eq("showId", args.showId)).collect();
+    if (existing.some(list => list.isOfficial)) return null;
+    const existingSetlist = existing.find(list => !list.isOfficial && !list.userId);
+    // Seed once; never replace fan additions, votes, personal lists, or official data.
+    if (existingSetlist?.songs.length) return existingSetlist._id;
 
     // Get all songs for this artist
     const artistSongs = await ctx.db
@@ -497,9 +515,11 @@ export const autoGenerateSetlist = internalMutation({
       })
     );
 
+    const seenTitles = new Set<string>();
     const studioSongs = songs
       .filter((song): song is NonNullable<typeof song> => song !== null)
       .filter(song => !song.isLive && !song.isRemix)
+      .filter(song => { const key = songKey(song.title); if (!key || seenTitles.has(key)) return false; seenTitles.add(key); return true; })
       .sort((a, b) => (b.popularity || 0) - (a.popularity || 0)); // Sort by popularity
 
     if (studioSongs.length === 0) {
@@ -575,74 +595,19 @@ export const autoGenerateSetlist = internalMutation({
   },
 });
 
-// Internal helper: ensure all upcoming shows for an artist have a prediction setlist
+// Isolate each show's catalog reads from the artist/show import transaction.
 export const ensurePredictionsForArtistShows = internalMutation({
-  args: {
-    artistId: v.id("artists"),
-  },
-  returns: v.object({
-    showsChecked: v.number(),
-    setlistsCreated: v.number(),
-    skippedExisting: v.number(),
-  }),
+  args: { artistId: v.id("artists"), cursor: v.optional(v.string()) },
+  returns: v.object({ showsChecked: v.number(), scheduled: v.number(), done: v.boolean() }),
   handler: async (ctx, args) => {
-    const shows = await ctx.db
-      .query("shows")
-      .withIndex("by_artist_and_status", (q) =>
-        q.eq("artistId", args.artistId).eq("status", "upcoming"),
-      )
-      .collect();
-
-    let created = 0;
-    let skipped = 0;
-
-    for (const show of shows) {
-      try {
-        // Check for an existing non-official, system prediction setlist with songs
-        const existing = await ctx.db
-          .query("setlists")
-          .withIndex("by_show", (q) => q.eq("showId", show._id))
-          .collect();
-
-        const hasPrediction = existing.some(
-          (s: any) =>
-            !s.isOfficial &&
-            !s.userId &&
-            Array.isArray(s.songs) &&
-            s.songs.length > 0,
-        );
-
-        if (hasPrediction) {
-          skipped += 1;
-          continue;
-        }
-
-        const setlistId = await ctx.runMutation(
-          internalRef.setlists.autoGenerateSetlist,
-          {
-            showId: show._id,
-            artistId: show.artistId,
-          },
-        );
-
-        if (setlistId) {
-          created += 1;
-        } else {
-          skipped += 1;
-        }
-      } catch (error) {
-        await trackError(ctx, "ensurePredictionsForArtistShows", error, {
-          artistId: args.artistId,
-          showId: show._id,
-        });
-      }
+    const page = await ctx.db.query("shows").withIndex("by_artist_and_status", q =>
+      q.eq("artistId", args.artistId).eq("status", "upcoming"))
+      .paginate({ cursor: args.cursor ?? null, numItems: 25 });
+    for (const [index, show] of page.page.entries()) {
+      await ctx.scheduler.runAfter(index * 100, internalRef.setlists.autoGenerateSetlist, { showId: show._id, artistId: args.artistId });
     }
-
-    return {
-      showsChecked: shows.length,
-      setlistsCreated: created,
-      skippedExisting: skipped,
-    };
+    if (!page.isDone) await ctx.scheduler.runAfter(3000, internalRef.setlists.ensurePredictionsForArtistShows, { artistId: args.artistId, cursor: page.continueCursor });
+    return { showsChecked: page.page.length, scheduled: page.page.length, done: page.isDone };
   },
 });
 
@@ -675,38 +640,9 @@ export const updateWithActualSetlist = internalMutation({
     const officialSetlist = setlistsForShow.find((setlist: any) => setlist.isOfficial) ?? null;
     let notificationTargetId: Id<"setlists"> | null = officialSetlist?._id ?? null;
 
-    const predictedSongLookup = new Map<string, any>();
-    if (predictionSetlist?.songs) {
-      for (const song of predictionSetlist.songs as any[]) {
-        const title = typeof song === "string" ? song : song?.title;
-        if (!title) continue;
-        predictedSongLookup.set(title.toLowerCase().trim(), song);
-      }
-    }
-
-    const calculateAccuracy = (predictedSongs: any[]) => {
-      if (!predictedSongs || predictedSongs.length === 0) {
-        return 0;
-      }
-      const predictedTitles = predictedSongs
-        .map((song: any) => (typeof song === "string" ? song : song?.title))
-        .filter((title: string | undefined) => Boolean(title))
-        .map((title: string) => title.toLowerCase().trim());
-
-      const actualTitles = args.actualSetlist
-        .map((song) => song.title.toLowerCase().trim());
-
-      if (predictedTitles.length === 0 || actualTitles.length === 0) {
-        return 0;
-      }
-
-      const correctPredictions = predictedTitles.filter((title) => actualTitles.includes(title)).length;
-      const pct = Math.round((correctPredictions / predictedTitles.length) * 100);
-      return Number.isFinite(pct) ? pct : 0;
-    };
+    if (!show || !args.actualSetlist.length) throw new Error("Cannot import an empty or orphaned official setlist");
     const predictionAccuracy = predictionSetlist
-      ? calculateAccuracy(predictionSetlist.songs || [])
-      : undefined;
+      ? (await calculateFanAccuracy(ctx, predictionSetlist, args.actualSetlist)) ?? undefined : undefined;
 
     if (predictionSetlist) {
       await ctx.db.patch(predictionSetlist._id, {
@@ -794,59 +730,24 @@ export const getSetlistWithVotes = query({
     }
 
     // Find the setlist with actual setlist data (from setlist.fm)
-    const officialSetlist = setlists.find(s => s.actualSetlist && s.actualSetlist.length > 0);
+    const officialSetlist = selectOfficialSetlist(setlists);
 
     if (!officialSetlist || !officialSetlist.actualSetlist) {
       return null;
     }
 
-    // Get all song votes for this show
-    const allVotes = await ctx.db
-      .query("songVotes")
-      .withIndex("by_setlist", (q) => q.eq("setlistId", officialSetlist._id))
-      .collect();
-
-    // Count votes by song title
-    const votesByTitle = new Map<string, number>();
-    for (const vote of allVotes) {
-      const current = votesByTitle.get(vote.songTitle) || 0;
-      votesByTitle.set(vote.songTitle, current + 1);
-    }
-
-    // Get all predicted songs from user setlists
-    const predictedSongs = new Set<string>();
-    const unpredictedSongsMap = new Map<string, any>();
-
-    for (const setlist of setlists) {
-      for (const song of setlist.songs || []) {
-        predictedSongs.add(song.title.toLowerCase().trim());
-        unpredictedSongsMap.set(song.title, {
-          title: song.title,
-          album: song.album,
-          duration: song.duration,
-          songId: song.songId,
-          voteCount: votesByTitle.get(song.title) || 0,
-        });
-      }
-    }
-
-    // Process actual setlist with vote counts
+    const prediction = setlists.find(list => !list.isOfficial && !list.userId);
+    const counts = prediction ? await getRequestCounts(ctx, prediction) : [];
+    const summary = summarizeRequests(counts, officialSetlist.actualSetlist);
+    const actualKeys = new Set(officialSetlist.actualSetlist.map(song => songKey(song.title)));
     const actualSetlistWithVotes = officialSetlist.actualSetlist.map(song => ({
-      title: song.title,
-      setNumber: song.setNumber || 1,
-      encore: song.encore || false,
-      album: song.album,
-      duration: song.duration,
-      voteCount: votesByTitle.get(song.title) || 0,
-      wasPredicted: predictedSongs.has(song.title.toLowerCase().trim()),
+      ...song,
+      wasPredicted: summary.requested.has(songKey(song.title)),
+      voteCount: summary.requested.get(songKey(song.title))?.upvotes ?? 0,
     }));
-
-    // Find songs that were predicted but not played
-    const unpredictedSongs = Array.from(unpredictedSongsMap.values()).filter(song =>
-      !officialSetlist.actualSetlist!.some(actualSong =>
-        actualSong.title.toLowerCase().trim() === song.title.toLowerCase().trim()
-      )
-    );
+    const unpredictedSongs = [...summary.requested.entries()]
+      .filter(([key]) => !actualKeys.has(key))
+      .map(([, row]) => ({ title: row.songTitle, voteCount: row.upvotes }));
 
     return {
       actualSetlist: actualSetlistWithVotes,
@@ -962,6 +863,7 @@ export const ensureAutoSetlistForShow = action({
   args: { showId: v.id("shows") },
   returns: v.object({ created: v.boolean(), message: v.string() }),
   handler: async (ctx, args): Promise<{ created: boolean; message: string }> => {
+    await requireAdminForAction(ctx);
     // If a prediction setlist already exists with songs, do nothing
     const setlists = await ctx.runQuery(apiRef.setlists.getByShow, { showId: args.showId });
     const hasPrediction = (setlists || []).some((s: any) => !s.isOfficial && !s.userId && Array.isArray(s.songs) && s.songs.length > 0);
@@ -1032,8 +934,8 @@ export const ensureAutoSetlistForShow = action({
   },
 });
 
-// Public action: refresh missing auto-setlists in bulk
-export const refreshMissingAutoSetlistsAction = action({
+// Maintenance CLI trigger for bulk repairs
+export const refreshMissingAutoSetlistsAction = internalAction({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ scheduled: v.number() }),
   handler: async (ctx, args): Promise<{ scheduled: number }> => {
@@ -1054,12 +956,12 @@ export const createFromApi = internalMutation({
 
     if (args.data.sets && args.data.sets.set && Array.isArray(args.data.sets.set)) {
       for (const [setIndex, set] of args.data.sets.set.entries()) {
-        const isEncore = set.encore === 1 || set.encore === true || set.encore === "true";
+        const isEncore = Number(set.encore) > 0 || set.encore === true || set.encore === "true";
         const setNumber = setIndex + 1;
 
         if (set.song && Array.isArray(set.song)) {
           for (const song of set.song) {
-            if (song.name && song.name.trim() !== '') {
+            if (!song.tape && song.name && song.name.trim() !== '') {
               extractedSongs.push({
                 title: song.name.trim(),
                 setNumber,
@@ -1099,18 +1001,8 @@ export const createFromApi = internalMutation({
       encore: s.encore || false
     }));
 
-    // Calculate accuracy if there's a prediction setlist
-    let accuracy = 0;
-    if (predictionSetlist?.songs && Array.isArray(predictionSetlist.songs)) {
-      const predictedTitles = predictionSetlist.songs
-        .map((song: any) => (typeof song === "string" ? song : song?.title)?.toLowerCase().trim())
-        .filter(Boolean);
-      const actualTitles = actualSetlistData.map((s: { title: string }) => s.title.toLowerCase().trim());
-      if (predictedTitles.length > 0 && actualTitles.length > 0) {
-        const correct = predictedTitles.filter((t: string) => actualTitles.includes(t)).length;
-        accuracy = Math.round((correct / predictedTitles.length) * 100);
-      }
-    }
+    const accuracy = predictionSetlist
+      ? (await calculateFanAccuracy(ctx, predictionSetlist, actualSetlistData)) ?? undefined : undefined;
 
     // Update prediction setlist with actual data
     if (predictionSetlist) {
@@ -1122,7 +1014,7 @@ export const createFromApi = internalMutation({
         accuracy,
         comparedAt: Date.now(),
       });
-      console.log(`✅ Updated prediction setlist ${predictionSetlist._id} with actual setlist (${songs.length} songs, ${accuracy}% accuracy)`);
+      console.log(`✅ Updated prediction setlist ${predictionSetlist._id} with actual setlist (${songs.length} songs, ${accuracy === undefined ? "no fan votes" : `${accuracy}% accuracy`})`);
     }
 
     await recordSetlistImport(ctx, {

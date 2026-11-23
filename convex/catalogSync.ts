@@ -6,16 +6,16 @@ const HOUR = 3600000;
 
 // Claim the existing catalog job atomically, including recovery after action termination.
 export const begin = internalMutation({
-  args: { artistId: v.id("artists") },
+  args: { artistId: v.id("artists"), force: v.optional(v.boolean()) },
   returns: v.union(v.number(), v.null()),
-  handler: async (ctx, { artistId }) => {
+  handler: async (ctx, { artistId, force }) => {
     const artist = await ctx.db.get(artistId);
     const now = Date.now();
-    if (!artist || (artist.catalogSyncBackoffUntil ?? 0) > now) return null;
+    if (!artist || (!force && (artist.catalogSyncBackoffUntil ?? 0) > now)) return null;
     const age = now - (artist.catalogSyncAttemptedAt ?? 0);
     if (artist.catalogSyncStatus === "syncing") {
       if (age < 30 * 60000) return null;
-    } else if (artist.catalogSyncAttemptedAt !== undefined &&
+    } else if (!force && artist.catalogSyncAttemptedAt !== undefined &&
       age < (artist.catalogSyncStatus === "completed" ? 24 * HOUR : HOUR)) return null;
     await ctx.db.patch(artistId, { catalogSyncStatus: "syncing", catalogSyncAttemptedAt: now });
     return now;

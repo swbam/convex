@@ -3,17 +3,17 @@ import { Heart, Github, Twitter, Instagram, Mail } from 'lucide-react'
 
 export function Footer() {
   return (
-    <footer className="w-full bg-transparent border-t border-border mt-auto">
+    <footer className="w-full bg-secondary/50 border-t border-border mt-auto">
       <div className="mx-auto max-w-page-full px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 py-8 sm:py-12 lg:py-16">
         {/* Main Footer Content */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-12">
           {/* Brand */}
           <div className="col-span-2 sm:col-span-1 space-y-4 sm:space-y-6">
             <div className="flex items-center">
-              <span className="text-2xl sm:text-3xl font-bold text-foreground" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>setlists.live</span>
+              <span className="brand-logo text-2xl sm:text-3xl font-bold">setlists.live</span>
             </div>
             <p className="text-responsive-xs sm:text-responsive-sm text-muted-foreground max-w-xs leading-relaxed hidden sm:block">
-              The ultimate platform for concert setlist voting and music discovery. Join thousands of fans predicting their favorite shows.
+              Find your next show, request your favorite songs, and explore what was played.
             </p>
          
           </div>
@@ -78,7 +78,7 @@ export function Footer() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6">
             {/* Copyright */}
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3 text-responsive-xs sm:text-responsive-sm text-muted-foreground">
-              <span>© 2024 setlists.live</span>
+              <span>© {new Date().getFullYear()} setlists.live</span>
               <span className="hidden sm:inline w-1 h-1 bg-muted-foreground rounded-full"></span>
               <span className="hidden sm:inline">All rights reserved</span>
               <span className="hidden lg:inline w-1 h-1 bg-muted-foreground rounded-full"></span>

@@ -1,16 +1,2 @@
-# Allow all search engines to crawl the site
 User-agent: *
-Allow: /
-
-# Block admin, auth, and account routes from indexing
-Disallow: /admin
-Disallow: /signin
-Disallow: /signup
-Disallow: /profile
-Disallow: /for-artists
-Disallow: /sso-callback
-Disallow: /spotify-connect
-Disallow: /studio
-
-# Sitemap location
-Sitemap: https://www.setlists.live/sitemap.xml
+Disallow: /

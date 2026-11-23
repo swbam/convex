@@ -310,3 +310,18 @@ export const getFailedImports = query({
       .take(10);
   },
 });
+// Retirement keeps the audit trail and never executes superseded provider work.
+export const retireLegacySetlistJobs = internalMutation({
+  args: {}, returns: v.number(),
+  handler: async (ctx) => {
+    const jobs = await ctx.db.query("syncJobs").withIndex("by_type_and_status",
+      q => q.eq("type", "setlist_import").eq("status", "pending"))
+      .filter(q => q.lt(q.field("_creationTime"), Date.now() - 30 * 86400000)).take(100);
+    for (const job of jobs) await ctx.db.patch(job._id, {
+      status: "cancelled", currentPhase: "retired", completedAt: Date.now(),
+      errorMessage: "Superseded by the show-level import queue; no provider request executed.",
+    });
+    if (jobs.length === 100) await ctx.scheduler.runAfter(0, internalRef.syncJobs.retireLegacySetlistJobs, {});
+    return jobs.length;
+  },
+});

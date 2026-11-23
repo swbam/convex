@@ -17,6 +17,10 @@ export const submitVote = mutation({
       throw new Error("Must be logged in to vote");
     }
 
+    const target = await ctx.db.get(args.setlistId);
+    if (!target || !(await ctx.db.get(target.showId))) throw new Error("Setlist not found");
+    if ((args.songVotes?.length ?? 0) > 100) throw new Error("Too many song ratings");
+
     // Check if user already voted on this setlist
     const existingVote = await ctx.db
       .query("votes")

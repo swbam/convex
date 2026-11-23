@@ -1,4 +1,5 @@
-import { internalMutation, action } from "./_generated/server";
+import { internalMutation, internalAction } from "./_generated/server";
+import { refreshLinkedTickets } from "./lib/ticketInfo";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { internalRef } from "./adminHelpers";
@@ -7,37 +8,7 @@ import { internalRef } from "./adminHelpers";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 
 
-// Helper to filter out non-concert content (plays, musicals, film screenings, etc.)
-const isRealConcert = (name: string): boolean => {
-  const lowerName = (name || '').toLowerCase();
-
-  // Reject patterns for non-concert content
-  const rejectPatterns = [
-    // Theatrical/Stage productions
-    'tribute', 'experience', 'orchestra', 'symphony', 'chamber',
-    'ballet', 'opera', 'broadway', 'musical', 'playhouse',
-    'cirque', 'comedy', 'film with', '- film', 'live in concert',
-    'ensemble', 'philharmonic', 'chorale', 'choir', 'choral',
-    // Film screenings
-    'film score', 'movie score', 'cinema', 'screening',
-    'live to film', 'in concert film', 'soundtrack live',
-    // Holiday/Themed shows
-    'charlie brown', 'a christmas', 'christmas story', 'holiday spectacular',
-    'on ice', 'disney on', 'sesame street', 'paw patrol', 'peppa pig',
-    'bluey', 'baby shark', 'cocomelon', 'nick jr', 'nutcracker',
-    // Non-music entertainment
-    'magic show', 'illusionist', 'hypnotist', 'speaker', 'lecture',
-    'podcast', 'wrestling', 'ufc', 'boxing', 'esports',
-    'stand-up', 'standup', 'comedian', 'line dancing', 'game night',
-    // Known theatrical productions
-    'wicked', 'hamilton', 'phantom', 'les mis', 'cats the musical',
-    'lion king', 'book of mormon', 'dear evan', 'moulin rouge',
-    // Classical
-    'recital', 'concerto', 'twilight in concert'
-  ];
-
-  return !rejectPatterns.some(p => lowerName.includes(p));
-};
+import { isConcertDiscoveryCandidate as isRealConcert } from "./lib/attractionIdentity";
 
 /**
  * SIMPLE, ATOMIC APPROACH: Import trending shows in a single mutation
@@ -53,7 +24,7 @@ export const importTrendingShowsBatch = internalMutation({
     errors: v.array(v.string()),
   }),
   handler: async (ctx, args) => {
-    const limit = args.limit ?? 50;
+    const limit = Math.max(1, Math.min(100, Math.trunc(args.limit ?? 50)));
     const stats = {
       processed: 0,
       imported: 0,
@@ -70,10 +41,16 @@ export const importTrendingShowsBatch = internalMutation({
       stats.processed++;
 
       try {
-        // Skip if already has showId
         if (cached.showId) {
-          stats.skipped++;
-          continue;
+          const linked = await ctx.db.get(cached.showId);
+          if (linked?.ticketmasterId === cached.ticketmasterId) {
+            // Never overwrite a more recent canonical provider update with old cache data.
+            if (!linked.ticketInfo || (linked.lastSynced ?? 0) <= cached.lastUpdated) {
+              await refreshLinkedTickets(ctx, linked, cached);
+            }
+            stats.skipped++;
+            continue;
+          }
         }
 
         // Validate required fields
@@ -190,6 +167,9 @@ export const importTrendingShowsBatch = internalMutation({
 
         if (existingShow) {
           showId = existingShow._id;
+          if (!existingShow.ticketInfo || (existingShow.lastSynced ?? 0) <= cached.lastUpdated) {
+            await refreshLinkedTickets(ctx, existingShow, cached);
+          }
         } else {
           // Generate slug
           const artist = await ctx.db.get(artistId);
@@ -203,10 +183,11 @@ export const importTrendingShowsBatch = internalMutation({
             artistId,
             venueId,
             date: cached.date,
-            startTime: cached.startTime,
+            startTime: cached.startTime, startsAt: cached.startsAt, endsAt: cached.endsAt, timeZone: cached.timeZone,
             status: (cached.status || '').toLowerCase().includes('cancel') ? 'cancelled' as const : 'upcoming' as const,
             ticketmasterId: cached.ticketmasterId,
             ticketUrl: cached.ticketUrl,
+            ticketInfo: cached.ticketInfo,
             priceRange: cached.priceRange,
             voteCount: 0,
             setlistCount: 0,
@@ -235,8 +216,8 @@ export const importTrendingShowsBatch = internalMutation({
   },
 });
 
-// Public trigger
-export const runImport = action({
+// Maintenance CLI trigger
+export const runImport = internalAction({
   args: { limit: v.optional(v.number()) },
   returns: v.object({
     processed: v.number(),

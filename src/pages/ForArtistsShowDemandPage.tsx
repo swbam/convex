@@ -1,3 +1,4 @@
+import { TicketLink } from "../components/TicketLink";
 import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
@@ -108,8 +109,8 @@ export function ForArtistsShowDemandPage() {
   if (!showId || !artistId) {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-10">
-          <MagicCard className="p-8 text-center">
+        <div className="public-page account-page">
+          <MagicCard className="p-4 sm:p-6 text-center">
             <p className="text-muted-foreground">Missing show or artist ID.</p>
             <Button
               variant="outline"
@@ -127,8 +128,8 @@ export function ForArtistsShowDemandPage() {
   if (isMember === false) {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-10">
-          <MagicCard className="p-8 text-center">
+        <div className="public-page account-page">
+          <MagicCard className="p-4 sm:p-6 text-center">
             <p className="text-muted-foreground mb-4">
               You don't have access to this artist dashboard.
             </p>
@@ -145,7 +146,7 @@ export function ForArtistsShowDemandPage() {
     <ErrorBoundary>
       <AuthGuard>
         <AppLayout>
-          <div className="container mx-auto px-4 sm:px-6 py-6 space-y-6">
+          <div className="public-page account-page space-y-6">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <Button
                 variant="ghost"
@@ -177,7 +178,7 @@ export function ForArtistsShowDemandPage() {
                 {/* Show Header */}
                 <MagicCard className="p-6">
                   <div className="flex items-start gap-4 flex-wrap">
-                    <div className="w-16 h-16 rounded-2xl bg-secondary overflow-hidden flex items-center justify-center flex-shrink-0">
+                    <div className="w-16 h-16 rounded-[5px] bg-secondary overflow-hidden flex items-center justify-center flex-shrink-0">
                       {data.show?.artist?.images?.[0] ? (
                         <img
                           src={data.show.artist.images[0]}
@@ -189,7 +190,7 @@ export function ForArtistsShowDemandPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h1 className="text-2xl font-bold truncate">
+                      <h1 className="page-title">
                         {data.show?.artist?.name ?? "Show"}
                       </h1>
                       <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 mt-1">
@@ -207,15 +208,15 @@ export function ForArtistsShowDemandPage() {
                         </span>
                       </div>
                       {data.show?.ticketUrl && (
-                        <a
-                          href={data.show.ticketUrl}
+                        <TicketLink
+                          href={data.show.ticketUrl} placement="artist_portal_show" properties={{ show_id: data.show._id }}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-2"
                         >
                           <Ticket className="h-4 w-4" />
                           View Tickets
-                        </a>
+                        </TicketLink>
                       )}
                     </div>
                     {data.show?._id && (
@@ -233,33 +234,10 @@ export function ForArtistsShowDemandPage() {
                   </div>
                 </MagicCard>
 
-                {/* View Toggle for Completed Shows */}
-                {isCompleted && (
-                  <div className="flex gap-2 border-b border-border pb-1">
-                    <button
-                      onClick={() => setViewMode("demand")}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${
-                        viewMode === "demand"
-                          ? "bg-primary/10 text-primary border-b-2 border-primary -mb-[3px]"
-                          : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                      }`}
-                    >
-                      <ListMusic className="h-4 w-4" />
-                      Pre-Show Demand
-                    </button>
-                    <button
-                      onClick={() => setViewMode("report")}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${
-                        viewMode === "report"
-                          ? "bg-primary/10 text-primary border-b-2 border-primary -mb-[3px]"
-                          : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                      }`}
-                    >
-                      <BarChart3 className="h-4 w-4" />
-                      Post-Show Report
-                    </button>
-                  </div>
-                )}
+                {isCompleted && <div role="group" aria-label="Show report view" className="flex flex-wrap gap-2">
+                  <Button variant={viewMode === 'demand' ? 'default' : 'outline'} aria-pressed={viewMode === 'demand'} onClick={() => setViewMode('demand')}>Pre-show demand</Button>
+                  <Button variant={viewMode === 'report' ? 'default' : 'outline'} aria-pressed={viewMode === 'report'} onClick={() => setViewMode('report')}>Post-show report</Button>
+                </div>}
 
                 {/* Demand View */}
                 {viewMode === "demand" && (
@@ -300,7 +278,7 @@ export function ForArtistsShowDemandPage() {
                     {/* Song Demand List */}
                     <MagicCard className="p-6">
                       <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-[5px] bg-secondary flex items-center justify-center">
                           <ListMusic className="h-5 w-5 text-primary" />
                         </div>
                         <div>
@@ -318,9 +296,9 @@ export function ForArtistsShowDemandPage() {
                           {data.songs.slice(0, 50).map((row: any, idx: number) => (
                             <div
                               key={row.songKey}
-                              className="flex items-center gap-3 rounded-xl border border-border bg-card/40 p-4"
+                              className="flex items-center gap-3 rounded-[5px] border border-border bg-card/40 p-4"
                             >
-                              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">
+                              <div className="w-8 h-8 rounded-[5px] bg-secondary flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">
                                 {idx + 1}
                               </div>
                               <div className="flex-1 min-w-0">
@@ -342,7 +320,7 @@ export function ForArtistsShowDemandPage() {
                         </div>
                       ) : (
                         <div className="text-center py-8">
-                          <ListMusic className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                          <ListMusic className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                           <p className="text-muted-foreground">
                             No song requests yet for this show.
                           </p>
@@ -373,8 +351,8 @@ export function ForArtistsShowDemandPage() {
                         <p className="text-muted-foreground">Loading report…</p>
                       </div>
                     ) : !hasReport ? (
-                      <MagicCard className="p-8 text-center">
-                        <BarChart3 className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+                      <MagicCard className="p-4 sm:p-6 text-center">
+                        <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                         <h3 className="text-lg font-semibold mb-2">Report Not Available</h3>
                         <p className="text-muted-foreground">
                           {postShowReport?.message || "The actual setlist hasn't been imported yet."}
@@ -396,8 +374,8 @@ export function ForArtistsShowDemandPage() {
                             </div>
                           </MagicCard>
                           <MagicCard className="p-4 text-center">
-                            <div className="text-2xl font-bold text-green-500">
-                              {postShowReport.stats?.fanRequestsFulfilled ?? 0}%
+                            <div className="text-2xl font-bold text-green-700 dark:text-green-500">
+                              {postShowReport.stats?.fanRequestsFulfilled == null ? "—" : `${postShowReport.stats.fanRequestsFulfilled}%`}
                             </div>
                             <div className="text-sm text-muted-foreground">
                               Requests Fulfilled
@@ -412,8 +390,8 @@ export function ForArtistsShowDemandPage() {
                             </div>
                           </MagicCard>
                           <MagicCard className="p-4 text-center">
-                            <div className="text-2xl font-bold text-blue-500">
-                              {postShowReport.stats?.predictionAccuracy ?? "—"}%
+                            <div className="text-2xl font-bold text-blue-700 dark:text-blue-500">
+                              {postShowReport.stats?.predictionAccuracy == null ? "—" : `${postShowReport.stats.predictionAccuracy}%`}
                             </div>
                             <div className="text-sm text-muted-foreground">
                               Prediction Accuracy
@@ -424,8 +402,8 @@ export function ForArtistsShowDemandPage() {
                         {/* Actual Setlist */}
                         <MagicCard className="p-6">
                           <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-xl bg-green-500/15 flex items-center justify-center">
-                              <CheckCircle className="h-5 w-5 text-green-500" />
+                            <div className="w-10 h-10 rounded-[5px] bg-green-500/15 flex items-center justify-center">
+                              <CheckCircle className="h-5 w-5 text-green-700 dark:text-green-500" />
                             </div>
                             <div>
                               <h2 className="text-xl font-semibold">Actual Setlist</h2>
@@ -439,27 +417,27 @@ export function ForArtistsShowDemandPage() {
                             {postShowReport.setlist?.map((song: any) => (
                               <div
                                 key={`${song.position}-${song.songKey}`}
-                                className={`flex items-center gap-3 rounded-xl border p-4 ${
+                                className={`flex items-center gap-3 rounded-[5px] border p-4 ${
                                   song.votes > 0
                                     ? "border-green-500/30 bg-green-500/5"
                                     : "border-border bg-card/40"
                                 }`}
                               >
-                                <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-sm font-bold text-muted-foreground flex-shrink-0">
+                                <div className="w-8 h-8 rounded-[5px] bg-secondary flex items-center justify-center text-sm font-bold text-muted-foreground flex-shrink-0">
                                   {song.position}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="font-medium truncate flex items-center gap-2">
                                     {song.title}
                                     {song.encore && (
-                                      <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                      <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-primary">
                                         Encore
                                       </span>
                                     )}
                                   </div>
                                   <div className="text-xs text-muted-foreground flex items-center gap-2">
                                     {song.wasPredicted && (
-                                      <span className="text-blue-500">✓ Predicted</span>
+                                      <span className="text-blue-700 dark:text-blue-500">✓ Predicted</span>
                                     )}
                                     {song.votes > 0 && (
                                       <span className="text-green-600">
@@ -469,7 +447,7 @@ export function ForArtistsShowDemandPage() {
                                   </div>
                                 </div>
                                 {song.votes > 0 ? (
-                                  <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                                  <CheckCircle className="h-5 w-5 text-green-700 dark:text-green-500 flex-shrink-0" />
                                 ) : null}
                               </div>
                             ))}
@@ -481,8 +459,8 @@ export function ForArtistsShowDemandPage() {
                           {/* Top Requests Fulfilled */}
                           <MagicCard className="p-6">
                             <div className="flex items-center gap-3 mb-4">
-                              <div className="w-10 h-10 rounded-xl bg-green-500/15 flex items-center justify-center">
-                                <Trophy className="h-5 w-5 text-green-500" />
+                              <div className="w-10 h-10 rounded-[5px] bg-green-500/15 flex items-center justify-center">
+                                <Trophy className="h-5 w-5 text-green-700 dark:text-green-500" />
                               </div>
                               <div>
                                 <h3 className="font-semibold">Top Requests Played</h3>
@@ -495,7 +473,7 @@ export function ForArtistsShowDemandPage() {
                             {postShowReport.topRequestsPlayed?.length > 0 ? (
                               <div className="space-y-2">
                                 {postShowReport.topRequestsPlayed.map((song: any) => (
-                                  <div key={song.songKey} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-green-500/5">
+                                  <div key={song.songKey} className="flex items-center justify-between gap-2 p-2 rounded-[5px] bg-green-500/5">
                                     <span className="truncate text-sm">{song.title}</span>
                                     <span className="text-xs font-medium text-green-600 shrink-0">
                                       {song.votes} votes
@@ -513,8 +491,8 @@ export function ForArtistsShowDemandPage() {
                           {/* Missed Requests */}
                           <MagicCard className="p-6">
                             <div className="flex items-center gap-3 mb-4">
-                              <div className="w-10 h-10 rounded-xl bg-orange-500/15 flex items-center justify-center">
-                                <XCircle className="h-5 w-5 text-orange-500" />
+                              <div className="w-10 h-10 rounded-[5px] bg-orange-500/15 flex items-center justify-center">
+                                <XCircle className="h-5 w-5 text-orange-700 dark:text-orange-500" />
                               </div>
                               <div>
                                 <h3 className="font-semibold">Missed Requests</h3>
@@ -527,7 +505,7 @@ export function ForArtistsShowDemandPage() {
                             {postShowReport.missedRequests?.length > 0 ? (
                               <div className="space-y-2">
                                 {postShowReport.missedRequests.map((song: any) => (
-                                  <div key={song.songKey} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-orange-500/5">
+                                  <div key={song.songKey} className="flex items-center justify-between gap-2 p-2 rounded-[5px] bg-orange-500/5">
                                     <span className="truncate text-sm">{song.songTitle}</span>
                                     <span className="text-xs font-medium text-orange-600 shrink-0">
                                       {song.votes} votes

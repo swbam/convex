@@ -5,6 +5,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { AppLayout } from "../components/AppLayout";
 import { MagicCard } from "../components/ui/magic-card";
+import { PageHeader } from "../components/PageHeader";
 import { Button } from "../components/ui/button";
 import { Loader2, Music, ShieldCheck, Mic2, Users, Search, Zap } from "lucide-react";
 import { toast } from "sonner";
@@ -48,13 +49,14 @@ function ArtistClaimSearch({
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          aria-label="Find an artist to claim"
           placeholder="Search artists by name..."
-          className="w-full h-10 rounded-lg bg-background border border-primary/30 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground"
+          className="filter-input w-full pl-10 pr-4"
         />
       </div>
       
       {searchQuery.length >= 2 && (
-        <div className="rounded-lg border border-border bg-background max-h-60 overflow-y-auto">
+        <div className="rounded-[5px] border border-border bg-background max-h-60 overflow-y-auto">
           {searchResults === undefined ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin mx-auto" />
@@ -70,7 +72,7 @@ function ArtistClaimSearch({
                 className="flex items-center justify-between gap-3 p-3 hover:bg-secondary/50 border-b border-border last:border-b-0"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-lg bg-secondary overflow-hidden flex-shrink-0">
+                  <div className="w-10 h-10 rounded-[5px] bg-secondary overflow-hidden flex-shrink-0">
                     {artist.images?.[0] ? (
                       <img src={artist.images[0]} alt={artist.name} className="w-full h-full object-cover" />
                     ) : (
@@ -159,7 +161,7 @@ export function ForArtistsPage() {
   if (!isLoaded) {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-16 text-center">
+        <div className="public-page account-page text-center">
           <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Loading…</p>
         </div>
@@ -171,28 +173,28 @@ export function ForArtistsPage() {
   if (!isSignedIn) {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-16">
-          <div className="max-w-2xl mx-auto text-center mb-12">
-            <div className="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center mx-auto mb-6">
+        <div className="public-page account-page">
+          <div className="max-w-2xl mx-auto text-center mb-6">
+            <div className="w-16 h-16 rounded-[5px] bg-secondary flex items-center justify-center mx-auto mb-6">
               <Mic2 className="h-8 w-8 text-primary" />
             </div>
-            <h1 className="text-4xl font-bold mb-4">For Artists</h1>
-            <p className="text-xl text-muted-foreground">
+            <h1 className="page-title mb-4">For artists and teams</h1>
+            <p className="text-base text-muted-foreground">
               See what your fans want to hear on tour. Access real-time demand
               data powered by fan votes.
             </p>
           </div>
 
-          <MagicCard className="p-8 max-w-md mx-auto text-center">
-            <div className="w-14 h-14 rounded-2xl bg-[#1DB954]/15 flex items-center justify-center mx-auto mb-4">
+          <MagicCard className="p-4 sm:p-6 max-w-md mx-auto text-center">
+            <div className="w-14 h-14 rounded-[5px] bg-[#1DB954]/15 flex items-center justify-center mx-auto mb-4">
               <Music className="h-7 w-7 text-[#1DB954]" />
             </div>
-            <h2 className="text-2xl font-bold mb-2">Sign in</h2>
+            <h2 className="page-title mb-2">Sign in</h2>
             <p className="text-muted-foreground mb-6">
               Sign in to claim an artist page or accept a team invitation. Spotify can be linked to enrich artist matching and catalog data.
             </p>
             <Button
-              onClick={() => navigate("/signin")}
+              onClick={() => navigate("/signin?returnTo=%2Ffor-artists")}
               className="w-full"
               size="lg"
             >
@@ -203,18 +205,18 @@ export function ForArtistsPage() {
             </p>
           </MagicCard>
 
-          <div className="max-w-3xl mx-auto mt-16 grid md:grid-cols-3 gap-6">
+          <div className="max-w-3xl mx-auto mt-8 grid md:grid-cols-3 gap-6">
             <div className="text-center p-6">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <div className="w-12 h-12 rounded-[5px] bg-secondary flex items-center justify-center mx-auto mb-4">
                 <ShieldCheck className="h-6 w-6 text-primary" />
               </div>
               <h3 className="font-semibold mb-2">Verified Access</h3>
               <p className="text-sm text-muted-foreground">
-                Claim your artist page with email verification and quick review.
+                Verify your connection to the artist and submit your claim for review.
               </p>
             </div>
             <div className="text-center p-6">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <div className="w-12 h-12 rounded-[5px] bg-secondary flex items-center justify-center mx-auto mb-4">
                 <Music className="h-6 w-6 text-primary" />
               </div>
               <h3 className="font-semibold mb-2">Song Demand</h3>
@@ -223,7 +225,7 @@ export function ForArtistsPage() {
               </p>
             </div>
             <div className="text-center p-6">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <div className="w-12 h-12 rounded-[5px] bg-secondary flex items-center justify-center mx-auto mb-4">
                 <Users className="h-6 w-6 text-primary" />
               </div>
               <h3 className="font-semibold mb-2">Team Access</h3>
@@ -241,7 +243,7 @@ export function ForArtistsPage() {
   if (myArtists === undefined || myClaims === undefined) {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-16 text-center">
+        <div className="public-page account-page text-center">
           <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Loading your artists…</p>
         </div>
@@ -253,12 +255,9 @@ export function ForArtistsPage() {
   if (Array.isArray(myArtists) && myArtists.length >= 1) {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-10">
+        <div className="public-page account-page">
           <div className="max-w-2xl mx-auto">
-            <h1 className="text-3xl font-bold mb-2">Your Artists</h1>
-            <p className="text-muted-foreground mb-8">
-              Select an artist to view their demand dashboard.
-            </p>
+            <PageHeader title="Your artists" description="Choose an artist to view song requests and manage your team." />
 
             <div className="space-y-3">
               {myArtists.map((item: any) => {
@@ -269,11 +268,10 @@ export function ForArtistsPage() {
                 return (
                   <MagicCard
                     key={artist._id}
-                    className="p-4 cursor-pointer hover:border-primary/50 transition-colors"
-                    onClick={() => navigate(`/for-artists/${artist._id}`)}
+                    className="p-4"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-xl bg-secondary overflow-hidden flex items-center justify-center flex-shrink-0">
+                      <div className="w-14 h-14 rounded-[5px] bg-secondary overflow-hidden flex items-center justify-center flex-shrink-0">
                         {img ? (
                           <img
                             src={img}
@@ -296,7 +294,7 @@ export function ForArtistsPage() {
                               : "Viewer"}
                         </div>
                       </div>
-                      <Button variant="outline">Open</Button>
+                      <Button variant="outline" aria-label={`Open ${artist.name} dashboard`} onClick={() => navigate(`/for-artists/${artist._id}`)}>Open</Button>
                     </div>
                   </MagicCard>
                 );
@@ -306,7 +304,7 @@ export function ForArtistsPage() {
             {/* Claim another artist section */}
             <MagicCard className="mt-8 p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-[5px] bg-secondary flex items-center justify-center">
                   <ShieldCheck className="h-5 w-5 text-primary" />
                 </div>
                 <div>
@@ -346,38 +344,16 @@ export function ForArtistsPage() {
 
   return (
     <AppLayout>
-      <div className="container mx-auto px-4 py-16">
+      <div className="public-page account-page">
         <div className="max-w-2xl mx-auto space-y-6">
-          {!spotifyConnected && (
-            <MagicCard className="p-5 border border-[#1DB954]/20 bg-[#1DB954]/[0.04]">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 rounded-xl bg-[#1DB954]/15 p-2.5">
-                    <Music className="h-5 w-5 text-[#1DB954]" />
-                  </div>
-                  <div>
-                    <div className="font-semibold">Link Spotify</div>
-                    <p className="text-sm text-muted-foreground">
-                      Recommended for artist matching and catalog enrichment. Official access is still verified separately.
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  className="shrink-0 bg-[#1DB954] text-white hover:bg-[#1ed760]"
-                  onClick={() => navigate("/spotify-connect?returnTo=/for-artists")}
-                >
-                  Link Spotify
-                </Button>
-              </div>
-            </MagicCard>
-          )}
-          <MagicCard className="p-8">
+          <PageHeader title="For artists and teams" description="Claim your profile to see what fans want to hear at your shows." />
+          <MagicCard className="p-4 sm:p-6">
             <div className="flex items-start gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <div className="w-14 h-14 rounded-[5px] bg-secondary flex items-center justify-center flex-shrink-0">
                 <ShieldCheck className="h-7 w-7 text-primary" />
               </div>
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold mb-1">Claim your artist page</h1>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-xl font-semibold mb-1">1. Find your artist page</h2>
                 <p className="text-muted-foreground">
                   Find the exact artist profile, verify your work email and official connection, then submit for review.
                 </p>
@@ -388,9 +364,10 @@ export function ForArtistsPage() {
               {spotifyConnected && (spotifyArtists || []).length > 0 && (
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <select
+                    aria-label="Artist from your Spotify activity"
                     value={selectedArtistId}
                     onChange={(e) => setSelectedArtistId(e.target.value)}
-                    className="h-11 flex-1 rounded-lg border border-border bg-secondary px-3 text-sm text-foreground"
+                    className="h-11 flex-1 rounded-[5px] border border-border bg-secondary px-3 text-sm text-foreground"
                   >
                     <option value="">From your Spotify activity…</option>
                     {(spotifyArtists || []).map((row: any) => (
@@ -483,7 +460,7 @@ export function ForArtistsPage() {
 
             {/* Admin Quick Claim */}
             {isAdmin && (
-              <div className="mt-6 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 p-4">
+              <div className="mt-6 rounded-[5px] border-2 border-dashed border-primary/30 bg-secondary p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Zap className="h-5 w-5 text-primary" />
                   <span className="font-semibold text-primary">Admin: Quick Claim Any Artist</span>
@@ -515,7 +492,7 @@ export function ForArtistsPage() {
             )}
 
             {!!inProgressClaims.length && (
-              <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+              <div className="mt-6 rounded-[5px] border border-amber-500/30 bg-amber-500/5 p-4">
                 <div className="font-semibold mb-2 text-amber-600 dark:text-amber-400">Continue your claim</div>
                 <div className="space-y-2">
                   {inProgressClaims.map((c: any) => (
@@ -539,7 +516,7 @@ export function ForArtistsPage() {
             )}
 
             {!!pendingClaims.length && (
-              <div className="mt-6 rounded-xl border border-border bg-card/40 p-4">
+              <div className="mt-6 rounded-[5px] border border-border bg-card/40 p-4">
                 <div className="font-semibold mb-2">Pending review</div>
                 <div className="space-y-2">
                   {pendingClaims.map((c: any) => (
@@ -558,7 +535,7 @@ export function ForArtistsPage() {
             )}
 
             {!!approvedClaims.length && (
-              <div className="mt-6 rounded-xl border border-border bg-card/40 p-4">
+              <div className="mt-6 rounded-[5px] border border-border bg-card/40 p-4">
                 <div className="font-semibold mb-2">Approved</div>
                 <div className="space-y-2">
                   {approvedClaims.slice(0, 3).map((c: any) => (
@@ -578,7 +555,7 @@ export function ForArtistsPage() {
 
           <MagicCard className="p-6">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-[5px] bg-secondary flex items-center justify-center">
                 <Users className="h-5 w-5 text-primary" />
               </div>
               <div>
@@ -598,6 +575,29 @@ export function ForArtistsPage() {
               </Button>
             </div>
           </MagicCard>
+          {!spotifyConnected && (
+            <MagicCard className="p-5 border border-[#1DB954]/20 bg-[#1DB954]/[0.04]">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 rounded-[5px] bg-[#1DB954]/15 p-2.5">
+                    <Music className="h-5 w-5 text-[#1DB954]" />
+                  </div>
+                  <div>
+                    <div className="font-semibold">Spotify is optional</div>
+                    <p className="text-sm text-muted-foreground">
+                      Link your listening account to help find artists. You can complete your claim without Spotify.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  className="shrink-0 brand-primary"
+                  onClick={() => navigate("/spotify-connect?returnTo=/for-artists")}
+                >
+                  Link Spotify
+                </Button>
+              </div>
+            </MagicCard>
+          )}
         </div>
       </div>
     </AppLayout>

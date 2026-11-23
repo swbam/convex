@@ -71,7 +71,7 @@ export function AcceptInvitePage() {
   if (!isLoaded || invite === undefined) {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-16 text-center">
+        <div className="public-page account-page text-center">
           <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Loading invite...</p>
         </div>
@@ -83,12 +83,12 @@ export function AcceptInvitePage() {
   if (!invite) {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-16">
-          <MagicCard className="p-8 max-w-md mx-auto text-center">
+        <div className="public-page account-page">
+          <MagicCard className="p-4 sm:p-6 max-w-md mx-auto text-center">
             <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6">
-              <XCircle className="h-8 w-8 text-red-500" />
+              <XCircle className="h-8 w-8 text-red-700 dark:text-red-500" />
             </div>
-            <h1 className="text-2xl font-bold mb-2">Invalid Invite</h1>
+            <h1 className="page-title mb-2">Invalid Invite</h1>
             <p className="text-muted-foreground mb-6">
               This invite link is invalid or has been removed.
             </p>
@@ -105,12 +105,12 @@ export function AcceptInvitePage() {
   if (invite.isExpired || invite.status === "expired") {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-16">
-          <MagicCard className="p-8 max-w-md mx-auto text-center">
+        <div className="public-page account-page">
+          <MagicCard className="p-4 sm:p-6 max-w-md mx-auto text-center">
             <div className="w-16 h-16 rounded-full bg-orange-500/10 flex items-center justify-center mx-auto mb-6">
-              <Clock className="h-8 w-8 text-orange-500" />
+              <Clock className="h-8 w-8 text-orange-700 dark:text-orange-500" />
             </div>
-            <h1 className="text-2xl font-bold mb-2">Invite Expired</h1>
+            <h1 className="page-title mb-2">Invite Expired</h1>
             <p className="text-muted-foreground mb-6">
               This invite has expired. Ask the team owner to send a new invite.
             </p>
@@ -127,12 +127,12 @@ export function AcceptInvitePage() {
   if (invite.status === "accepted") {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-16">
-          <MagicCard className="p-8 max-w-md mx-auto text-center">
+        <div className="public-page account-page">
+          <MagicCard className="p-4 sm:p-6 max-w-md mx-auto text-center">
             <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="h-8 w-8 text-green-500" />
+              <CheckCircle className="h-8 w-8 text-green-700 dark:text-green-500" />
             </div>
-            <h1 className="text-2xl font-bold mb-2">Already Accepted</h1>
+            <h1 className="page-title mb-2">Already Accepted</h1>
             <p className="text-muted-foreground mb-6">
               This invite has already been used.
             </p>
@@ -149,12 +149,12 @@ export function AcceptInvitePage() {
   if (invite.status === "revoked") {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-16">
-          <MagicCard className="p-8 max-w-md mx-auto text-center">
+        <div className="public-page account-page">
+          <MagicCard className="p-4 sm:p-6 max-w-md mx-auto text-center">
             <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6">
-              <XCircle className="h-8 w-8 text-red-500" />
+              <XCircle className="h-8 w-8 text-red-700 dark:text-red-500" />
             </div>
-            <h1 className="text-2xl font-bold mb-2">Invite Revoked</h1>
+            <h1 className="page-title mb-2">Invite Revoked</h1>
             <p className="text-muted-foreground mb-6">
               This invite has been revoked by the team owner.
             </p>
@@ -171,9 +171,9 @@ export function AcceptInvitePage() {
   if (!isSignedIn) {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-16">
-          <MagicCard className="p-8 max-w-md mx-auto text-center">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6 overflow-hidden">
+        <div className="public-page account-page">
+          <MagicCard className="p-4 sm:p-6 max-w-md mx-auto text-center">
+            <div className="w-16 h-16 rounded-[5px] bg-secondary flex items-center justify-center mx-auto mb-6 overflow-hidden">
               {invite.artistImage ? (
                 <img
                   src={invite.artistImage}
@@ -184,7 +184,7 @@ export function AcceptInvitePage() {
                 <Music className="h-8 w-8 text-primary" />
               )}
             </div>
-            <h1 className="text-2xl font-bold mb-2">You're invited!</h1>
+            <h1 className="page-title mb-2">You're invited!</h1>
             <p className="text-muted-foreground mb-2">
               {invite.invitedByName} invited you to join
             </p>
@@ -210,9 +210,9 @@ export function AcceptInvitePage() {
   // Valid invite - show accept UI
   return (
     <AppLayout>
-      <div className="container mx-auto px-4 py-16">
-        <MagicCard className="p-8 max-w-md mx-auto text-center">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6 overflow-hidden">
+      <div className="public-page account-page">
+        <MagicCard className="p-4 sm:p-6 max-w-md mx-auto text-center">
+          <div className="w-16 h-16 rounded-[5px] bg-secondary flex items-center justify-center mx-auto mb-6 overflow-hidden">
             {invite.artistImage ? (
               <img
                 src={invite.artistImage}
@@ -223,7 +223,7 @@ export function AcceptInvitePage() {
               <Music className="h-8 w-8 text-primary" />
             )}
           </div>
-          <h1 className="text-2xl font-bold mb-2">Join the team!</h1>
+          <h1 className="page-title mb-2">Join the team!</h1>
           <p className="text-muted-foreground mb-2">
             {invite.invitedByName} invited you to join
           </p>

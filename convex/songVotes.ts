@@ -1,25 +1,17 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internalRef } from "./adminHelpers";
 import { getAuthUserId } from "./auth";
 import { Id } from "./_generated/dataModel";
+import { songKey } from "./lib/predictions";
+import { requireOpenShow } from "./lib/voting";
+import { calculateFanAccuracy, getRequestCounts, initializeVoteCounts, updateVoteCount } from "./lib/songVoteCounts";
 
 const ANON_VOTE_LIMIT = 2;
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 
-
-function normalizeSongKey(title: string): string {
-  return title
-    .toLowerCase()
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 // Vote on individual songs within setlists
 export const voteOnSong = mutation({
@@ -36,7 +28,7 @@ export const voteOnSong = mutation({
       let effectiveUserId: Id<"users"> | string;
 
       if (!authUserId) {
-        if (!args.anonId) {
+        if (!args.anonId || !/^anon_[a-zA-Z0-9_-]{8,120}$/.test(args.anonId)) {
           throw new Error("Anonymous ID required for unauthenticated users");
         }
         effectiveUserId = args.anonId;
@@ -49,36 +41,43 @@ export const voteOnSong = mutation({
         throw new Error("Setlist not found");
       }
 
-      // Check if user already voted on this song in this setlist
-      const existingVote = await ctx.db
-        .query("songVotes")
-        .withIndex("by_user_setlist_song", (q) =>
-          q.eq("userId", effectiveUserId)
-            .eq("setlistId", args.setlistId)
-            .eq("songTitle", args.songTitle)
-        )
-        .first();
+      await requireOpenShow(ctx, setlist.showId);
+      if (setlist.isOfficial || setlist.actualSetlist?.length) {
+        throw new Error("Voting is closed for this show");
+      }
+      if (setlist.userId) throw new Error("Vote on the community setlist for this show");
+      const key = songKey(args.songTitle);
+      const canonicalSong = setlist.songs.find(song => songKey(song.title) === key);
+      if (!key || !canonicalSong) throw new Error("Song is not in this setlist");
+      const title = canonicalSong.title;
+      // At most one vote per listener and normalized song, including legacy title variants.
+      const ownVotes = await ctx.db.query("songVotes")
+        .withIndex("by_user_setlist_song", q => q.eq("userId", effectiveUserId).eq("setlistId", args.setlistId)).collect();
+      const existingVotes = ownVotes.filter(vote => songKey(vote.songTitle) === key);
+      const existingVote = existingVotes[0];
+      await initializeVoteCounts(ctx, setlist);
 
       if (existingVote) {
         // Remove existing vote (toggle off)
-        await ctx.db.delete(existingVote._id);
+        for (const vote of existingVotes) await ctx.db.delete(vote._id);
+        await updateVoteCount(ctx, setlist._id, title, -1);
         // Decrement the parent show's voteCount (floor at 0)
         if (setlist?.showId) {
           const show = await ctx.db.get(setlist.showId);
           if (show) {
             await ctx.db.patch(setlist.showId, {
-              voteCount: Math.max(0, (show.voteCount || 0) - 1),
+              voteCount: Math.max(0, (show.voteCount || 0) - existingVotes.length),
             });
           }
         }
 
         // Artist dashboard rollup: decrement demand count
         if (setlist?.showId) {
-          const songKey = normalizeSongKey(args.songTitle);
+          const demandKey = songKey(title);
           const existingDemand = await ctx.db
             .query("showSongDemand")
             .withIndex("by_show_and_songKey", (q) =>
-              q.eq("showId", setlist.showId).eq("songKey", songKey),
+              q.eq("showId", setlist.showId).eq("songKey", demandKey),
             )
             .first();
           if (existingDemand) {
@@ -119,13 +118,12 @@ export const voteOnSong = mutation({
       // For authenticated users: enforce a soft per-day cap to prevent spam
       if (!isAnonymous) {
         const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
+        startOfDay.setUTCHours(0, 0, 0, 0);
         const dayStartMs = startOfDay.getTime();
 
         const todaysVotes = await ctx.db
           .query("songVotes")
-          .withIndex("by_user", (q) => q.eq("userId", effectiveUserId))
-          .filter((q) => q.gte(q.field("createdAt"), dayStartMs))
+          .withIndex("by_user_created_at", (q) => q.eq("userId", effectiveUserId).gte("createdAt", dayStartMs))
           .take(100);
 
         const DAILY_LIMIT = 100;
@@ -138,10 +136,12 @@ export const voteOnSong = mutation({
       await ctx.db.insert("songVotes", {
         userId: effectiveUserId,
         setlistId: args.setlistId,
-        songTitle: args.songTitle,
+        songTitle: title,
         voteType: args.voteType,
         createdAt: Date.now(),
       });
+
+      await updateVoteCount(ctx, setlist._id, title, 1);
 
       // Increment the parent show's voteCount (voteCount includes votes + songVotes)
       if (setlist.showId) {
@@ -155,24 +155,24 @@ export const voteOnSong = mutation({
 
       // Artist dashboard rollup: increment demand count
       if (setlist?.showId) {
-        const songKey = normalizeSongKey(args.songTitle);
+        const demandKey = songKey(title);
         const existingDemand = await ctx.db
           .query("showSongDemand")
           .withIndex("by_show_and_songKey", (q) =>
-            q.eq("showId", setlist.showId).eq("songKey", songKey),
+            q.eq("showId", setlist.showId).eq("songKey", demandKey),
           )
           .first();
         if (existingDemand) {
           await ctx.db.patch(existingDemand._id, {
             upvotes: (existingDemand.upvotes || 0) + 1,
             lastVoteAt: Date.now(),
-            songTitle: existingDemand.songTitle || args.songTitle,
+            songTitle: existingDemand.songTitle || title,
           });
         } else {
           await ctx.db.insert("showSongDemand", {
             showId: setlist.showId,
-            songKey,
-            songTitle: args.songTitle,
+            songKey: demandKey,
+            songTitle: title,
             upvotes: 1,
             lastVoteAt: Date.now(),
           });
@@ -211,22 +211,14 @@ export const getSongVotes = query({
     const userId = await getAuthUserId(ctx);
     const effectiveUserId = userId || args.anonId;
 
-    const votes = await ctx.db
-      .query("songVotes")
-      .withIndex("by_setlist_song", (q) =>
-        q.eq("setlistId", args.setlistId)
-          .eq("songTitle", args.songTitle)
-      )
-      .collect();
-
-    const userVote = effectiveUserId
-      ? votes.find((vote) => vote.userId === effectiveUserId)
-      : null;
-
-    return {
-      upvotes: votes.length,
-      userVoted: !!userVote,
-    };
+    const setlist = await ctx.db.get(args.setlistId);
+    if (!setlist) return { upvotes: 0, userVoted: false };
+    const counts = await getRequestCounts(ctx, setlist);
+    const ownVotes = effectiveUserId ? await ctx.db.query("songVotes")
+      .withIndex("by_user_setlist_song", q => q.eq("userId", effectiveUserId).eq("setlistId", args.setlistId)).collect() : [];
+    const key = songKey(args.songTitle);
+    return { upvotes: counts.find(row => songKey(row.songTitle) === key)?.upvotes ?? 0,
+      userVoted: ownVotes.some(vote => songKey(vote.songTitle) === key) };
   },
 });
 
@@ -245,28 +237,13 @@ export const getSetlistSongVotes = query({
     const userId = await getAuthUserId(ctx);
     const effectiveUserId = userId || args.anonId;
 
-    const votes = await ctx.db
-      .query("songVotes")
-      .withIndex("by_setlist", (q) => q.eq("setlistId", args.setlistId))
-      .collect();
-
-    // Group by song title
-    const songVoteMap = new Map<string, { upvotes: number; userVoted: boolean }>();
-
-    for (const vote of votes) {
-      const current = songVoteMap.get(vote.songTitle) || { upvotes: 0, userVoted: false };
-      current.upvotes++;
-      if (effectiveUserId && vote.userId === effectiveUserId) {
-        current.userVoted = true;
-      }
-      songVoteMap.set(vote.songTitle, current);
-    }
-
-    return Array.from(songVoteMap.entries()).map(([songTitle, data]) => ({
-      songTitle,
-      upvotes: data.upvotes,
-      userVoted: data.userVoted,
-    }));
+    const setlist = await ctx.db.get(args.setlistId);
+    if (!setlist) return [];
+    const counts = await getRequestCounts(ctx, setlist);
+    const ownVotes = effectiveUserId ? await ctx.db.query("songVotes")
+      .withIndex("by_user_setlist_song", q => q.eq("userId", effectiveUserId).eq("setlistId", args.setlistId)).collect() : [];
+    const ownKeys = new Set(ownVotes.map(vote => songKey(vote.songTitle)));
+    return counts.map(row => ({ songTitle: row.songTitle, upvotes: row.upvotes, userVoted: ownKeys.has(songKey(row.songTitle)) }));
   },
 });
 
@@ -287,5 +264,35 @@ export const getUserVotes = query({
       .take(limit);
 
     return votes;
+  },
+});
+
+// Run after deploying the summary indexes. Repeated pages are safe; original votes remain intact.
+export const backfillVoteCounts = internalMutation({
+  args: { cursor: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const page = await ctx.db.query("songVotes").paginate({ cursor: args.cursor ?? null, numItems: 50 });
+    for (const setlistId of new Set(page.page.map(vote => vote.setlistId))) {
+      const list = await ctx.db.get(setlistId);
+      if (list) await initializeVoteCounts(ctx, list);
+    }
+    if (!page.isDone) await ctx.scheduler.runAfter(0, internalRef.songVotes.backfillVoteCounts, { cursor: page.continueCursor });
+    return { processed: page.page.length, done: page.isDone };
+  },
+});
+
+export const repairPredictionAccuracy = internalMutation({
+  args: { cursor: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    // Bound bytes as well as rows: catalogs vary substantially in size.
+    const page = await ctx.db.query("setlists").paginate({ cursor: args.cursor ?? null, numItems: 200, maximumBytesRead: 1_000_000 });
+    let updated = 0;
+    for (const list of page.page) {
+      if (list.isOfficial || !list.actualSetlist?.length) continue;
+      const accuracy = (await calculateFanAccuracy(ctx, list, list.actualSetlist)) ?? undefined;
+      if (list.accuracy !== accuracy) { await ctx.db.patch(list._id, { accuracy }); updated++; }
+    }
+    if (!page.isDone) await ctx.scheduler.runAfter(100, internalRef.songVotes.repairPredictionAccuracy, { cursor: page.continueCursor });
+    return { scanned: page.page.length, updated, done: page.isDone };
   },
 });

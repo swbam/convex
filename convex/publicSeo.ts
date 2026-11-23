@@ -1,10 +1,15 @@
+import { resolveShowKey } from "./lib/showTickets";
+import { festivalView } from "./lib/festivalMedia";
+import { isFestivalListed } from "./lib/festivalIdentity";
+import { selectOfficialSetlist } from "./lib/officialSetlist";
 import { internalQuery } from "./_generated/server";
+import { isShowIndexable } from "./seoEligibility";
 import { v } from "convex/values";
 
-async function getByIdIfType(ctx: any, key: string, requiredField: string) {
+async function getByIdIfType(ctx: any, key: string, table: "artists" | "shows" | "venues") {
   try {
-    const document = await ctx.db.get(key as any);
-    return document && requiredField in document ? document : null;
+    const id = ctx.db.normalizeId(table, key);
+    return id ? await ctx.db.get(id) : null;
   } catch {
     return null;
   }
@@ -16,7 +21,7 @@ export const getArtistPage = internalQuery({
   handler: async (ctx, args) => {
     const artist =
       (await ctx.db.query("artists").withIndex("by_slug", (q) => q.eq("slug", args.key)).first()) ||
-      (await getByIdIfType(ctx, args.key, "isActive"));
+      (await getByIdIfType(ctx, args.key, "artists"));
     if (!artist || !artist.isActive) return null;
 
     const [upcoming, completed, firstCatalogLink] = await Promise.all([
@@ -63,9 +68,7 @@ export const getShowPage = internalQuery({
   args: { key: v.string() },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const show =
-      (await ctx.db.query("shows").withIndex("by_slug", (q) => q.eq("slug", args.key)).first()) ||
-      (await getByIdIfType(ctx, args.key, "artistId"));
+    const show = await resolveShowKey(ctx, args.key);
     if (!show) return null;
 
     const [artist, venue, setlists, demand] = await Promise.all([
@@ -80,16 +83,16 @@ export const getShowPage = internalQuery({
     ]);
     if (!artist || !venue) return null;
 
-    const official = setlists.find((setlist) => setlist.actualSetlist?.length) || null;
+    const official = selectOfficialSetlist(setlists);
     const prediction =
       setlists.find((setlist) => !setlist.isOfficial && !setlist.userId && setlist.songs?.length) ||
       setlists.find((setlist) => !setlist.isOfficial && setlist.songs?.length) ||
       null;
     const actualSongs = official?.actualSetlist || [];
-    const suggestedSongs = demand.length > 0 ? demand : prediction?.songs || [];
+    const requests = demand.filter((song) => song.upvotes > 0);
+    const suggestedSongs = requests.length > 0 ? requests : prediction?.songs || [];
     const indexable =
-      show.status === "upcoming" ||
-      (show.status === "completed" && actualSongs.length >= 3);
+      isShowIndexable(show.status, actualSongs.length);
 
     return {
       kind: "show",
@@ -98,8 +101,9 @@ export const getShowPage = internalQuery({
       venue,
       actualSongs,
       suggestedSongs,
+      hasFanRequests: requests.length > 0,
       indexable,
-      canonicalKey: show.slug || String(show._id),
+      canonicalKey: show.canonicalKey,
     };
   },
 });
@@ -110,7 +114,7 @@ export const getVenuePage = internalQuery({
   handler: async (ctx, args) => {
     const venue =
       (await ctx.db.query("venues").withIndex("by_slug", (q) => q.eq("slug", args.key)).first()) ||
-      (await getByIdIfType(ctx, args.key, "city"));
+      (await getByIdIfType(ctx, args.key, "venues"));
     if (!venue) return null;
 
     const [upcoming, completed] = await Promise.all([
@@ -144,5 +148,27 @@ export const getVenuePage = internalQuery({
       indexable: upcoming.length > 0 || completed.length > 0,
       canonicalKey: venue.slug || String(venue._id),
     };
+  },
+});
+
+export const getFestivalPage = internalQuery({
+  args: { key: v.string() }, returns: v.any(),
+  handler: async (ctx, { key }) => {
+    const festival = await ctx.db.query("festivals").withIndex("by_slug", q => q.eq("slug", key)).first();
+    if (!festival || !isFestivalListed(festival)) return null;
+    const shows = await ctx.db.query("shows").withIndex("by_festival", q => q.eq("festivalId", festival._id)).take(40);
+    const roster = await ctx.db.query("festivalLineupEntries").withIndex("by_festival", q => q.eq("festivalId", festival._id)).take(500);
+    return { roster, kind: "festival", festival: festivalView(festival), shows: await Promise.all(shows.map(async show => ({ ...show, artist: await ctx.db.get(show.artistId) }))) };
+  },
+});
+export const getBrowsePage = internalQuery({
+  args: { path: v.string() }, returns: v.any(),
+  handler: async (ctx, { path }) => {
+    if (path === "/festivals") return { festivals: (await ctx.db.query("festivals").withIndex("by_discovery_end", q => q.eq("discoveryState", "listed").gte("endDate", new Date().toISOString().slice(0,10))).take(30)).map(festivalView) };
+    if (path === "/shows") {
+      const shows = await ctx.db.query("shows").withIndex("by_status_and_date", q => q.eq("status", "upcoming")).take(24);
+      return { shows: await Promise.all(shows.map(async show => ({ ...show, artist: await ctx.db.get(show.artistId), venue: await ctx.db.get(show.venueId) }))) };
+    }
+    return { artists: (await ctx.db.query("artists").withIndex("by_trending_score").order("desc").take(32)).filter(artist => artist.isActive).slice(0, 24) };
   },
 });

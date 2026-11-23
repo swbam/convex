@@ -33,15 +33,19 @@ async function sendInviteEmail(args: {
   invitedByName: string;
   role: "manager" | "viewer";
   inviteUrl: string;
+  inviteId: string;
+  tokenHash: string;
 }) {
   const resendApiKey = process.env.RESEND_API_KEY;
   if (!resendApiKey) return "not_configured" as const;
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
+    signal: AbortSignal.timeout(20_000),
     headers: {
       Authorization: `Bearer ${resendApiKey}`,
       "Content-Type": "application/json",
+      "Idempotency-Key": `artist-invite/${args.inviteId}/${args.tokenHash}`,
     },
     body: JSON.stringify({
       from: "setlists.live <noreply@setlists.live>",
@@ -59,8 +63,7 @@ async function sendInviteEmail(args: {
   });
 
   if (!response.ok) {
-    const detail = (await response.text()).slice(0, 500);
-    throw new Error(`Resend rejected the invitation (${response.status}): ${detail}`);
+    throw new Error(`Email provider rejected the invitation (${response.status})`);
   }
   return "sent" as const;
 }
@@ -79,12 +82,13 @@ export const createInvite = action({
   }),
   handler: async (ctx, args) => {
     const token = randomBytes(32).toString("base64url");
+    const tokenHash = hashToken(token);
     const now = Date.now();
     const prepared = await ctx.runMutation(internalRef.artistAccess.prepareInvite, {
       artistId: args.artistId,
       email: args.email,
       role: args.role,
-      tokenHash: hashToken(token),
+      tokenHash,
       now,
       expiresAt: now + INVITE_EXPIRY_MS,
     });
@@ -102,6 +106,8 @@ export const createInvite = action({
         invitedByName: prepared.invitedByName || "An artist team owner",
         role: args.role,
         inviteUrl,
+        inviteId: prepared.inviteId,
+        tokenHash,
       });
     } catch (error) {
       console.error("Artist invitation email failed", {
@@ -110,10 +116,12 @@ export const createInvite = action({
       });
     }
 
-    await ctx.runMutation(internalRef.artistAccess.recordInviteDelivery, {
+    const current = await ctx.runMutation(internalRef.artistAccess.recordInviteDelivery, {
       inviteId: prepared.inviteId,
+      tokenHash,
       deliveryStatus,
     });
+    if (!current) return { success: false, message: "This invitation changed. Check the current team invitations." };
 
     return {
       success: true,
@@ -150,8 +158,31 @@ export const acceptInvite = action({
     if (args.token.length < 32 || args.token.length > 128) {
       return { success: false, message: "Invalid invitation link" };
     }
-    return await ctx.runMutation(internalRef.artistAccess.acceptInviteByHash, {
-      tokenHash: hashToken(args.token),
-    });
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return { success: false, message: "Please sign in first" };
+    const tokenHash = hashToken(args.token);
+    // Use Clerk's verified address when the signed token contains it. Some
+    // Convex JWT templates omit email claims; read Clerk directly in that case.
+    let verifiedEmails: string[] = [];
+    if (identity.email && identity.emailVerified === true) {
+      verifiedEmails = [identity.email];
+    } else {
+      const preview = await ctx.runQuery(internalRef.artistAccess.getInvitePreviewByHash, { tokenHash });
+      if (!preview?.isValid) return { success: false, message: "This invitation is no longer valid" };
+      const secret = process.env.CLERK_SECRET_KEY;
+      if (!secret) return { success: false, message: "Email verification is temporarily unavailable. Try again later." };
+      try {
+        const response = await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(identity.subject)}`, {
+          headers: { Authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(10_000),
+        });
+        if (!response.ok) throw new Error("Clerk unavailable");
+        const profile = await response.json();
+        const addresses: Array<{ email_address: string; verification?: { status?: string } }> = profile.email_addresses ?? [];
+        verifiedEmails = addresses.filter(a => a.verification?.status === "verified").map(a => a.email_address);
+      } catch {
+        return { success: false, message: "Email verification is temporarily unavailable. Try again later." };
+      }
+    }
+    return await ctx.runMutation(internalRef.artistAccess.acceptInviteByHash, { tokenHash, verifiedEmails });
   },
 });

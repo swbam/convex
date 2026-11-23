@@ -1,6 +1,10 @@
+import { useDetailMedia } from "../lib/useDetailMedia";
+import { LiveSetlistPanel, PerformanceCredits } from "./LiveSetlistPanel";
+import type { TicketOffer } from "../../shared/ticketOffers";
+import { TicketLink } from "./TicketLink";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { Doc, Id } from "../../convex/_generated/dataModel";
 import React, { useMemo, useState, useEffect } from "react";
 import {
   MapPin,
@@ -27,19 +31,20 @@ import {
 } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
-import { SEOHead } from "./SEOHead";
+
 import { MagicCard } from "./ui/magic-card";
-import { BorderBeam } from "./ui/border-beam";
-import { buildTicketmasterAffiliateUrl } from "../utils/ticketmaster";
 import { motion } from "framer-motion";
 import { SongCombobox } from "./SongCombobox";
 import { formatLocation, parseShowCalendarDate } from "../lib/utils";
-import { DetailPageSkeleton } from "./LoadingSkeleton";
+import { DetailPageSkeleton, DetailRowsSkeleton } from "./LoadingSkeleton";
 import { capture, captureException } from "../lib/analytics";
 import { ShowShareButton } from "./ShowShareButton";
+import { songKey, summarizeRequests } from "../../convex/lib/predictions";
+import { hasVotingClosed } from "../../convex/lib/showTiming";
 
 interface ShowDetailProps {
   showId: Id<"shows">;
+  showData?: Doc<"shows"> & { artist: Doc<"artists">; venue: Doc<"venues">; ticketOffers?: TicketOffer[] };
   onBack: () => void;
   onArtistClick: (artistId: Id<"artists">) => void;
   onSignInRequired: () => void;
@@ -50,10 +55,16 @@ const ANON_FREE_ADDS = 2;
 
 export function ShowDetail({
   showId,
+  showData,
   onArtistClick,
   onSignInRequired,
 }: ShowDetailProps) {
-  const show = useQuery(api.shows.getById, { id: showId });
+  const queriedShow = useQuery(api.shows.getById, showData ? "skip" : { id: showId });
+  const show = showData ?? queriedShow;
+  const isDmbShow = show?.artist?.slug === "dave-matthews-band";
+  const liveState = useQuery(api.liveSetlists.getState, isDmbShow ? { showId } : "skip");
+  const liveContent = useQuery(api.liveSetlists.getContent, isDmbShow ? { showId } : "skip");
+  const showLivePanel = !!liveState && (!!liveState.frozenAt || liveState.phase !== "scheduled");
   const songs = useQuery(
     api.songs.getByArtist,
     show?.artistId
@@ -69,30 +80,10 @@ export function ShowDetail({
   const setlists = useQuery(api.setlists.getByShow, show ? { showId } : "skip");
   const user = useQuery(api.auth.loggedInUser);
   const triggerSetlistSync = useAction(api.setlistfm.triggerSetlistSync);
-  const ensureAutoSetlist = useAction(api.setlists.ensureAutoSetlistForShow);
-  const fetchArtistImages = useAction(api.media.getArtistImages);
-
-  // Dynamic media selection (Ticketmaster hero, Spotify avatar)
-  const [heroImage, setHeroImage] = React.useState<string | undefined>(undefined);
-  const [avatarImage, setAvatarImage] = React.useState<string | undefined>(undefined);
-  const [spotifyLink, setSpotifyLink] = React.useState<string | undefined>(undefined);
-
-  React.useEffect(() => {
-    const artistId = show?.artistId as Id<"artists"> | undefined;
-    if (!artistId) return;
-    void (async () => {
-      try {
-        const res = await fetchArtistImages({ artistId });
-        if (res) {
-          setHeroImage(res.heroUrl || undefined);
-          setAvatarImage(res.avatarUrl || undefined);
-          setSpotifyLink(res.spotifyUrl || undefined);
-        }
-      } catch {
-        // ignore
-      }
-    })();
-  }, [show?.artistId, fetchArtistImages]);
+  const media = useDetailMedia("artist", show?.artistId);
+  const heroImage = media?.heroUrl;
+  const avatarImage = media?.avatarUrl ?? show?.artist?.images?.[0];
+  const spotifyLink = media?.spotifyUrl;
 
   const addSongToSetlist = useMutation(api.setlists.addSongToSetlist);
   const voteOnSong = useMutation(api.songVotes.voteOnSong);
@@ -158,7 +149,7 @@ export function ShowDetail({
       venue_city: show.venue?.city,
       show_date: show.date,
       show_status: show.status,
-      has_ticket_link: Boolean(show.ticketUrl),
+      has_ticket_link: show.ticketOffers ? show.ticketOffers.length > 0 : Boolean(show.ticketUrl),
       auth_state: user ? "authenticated" : "anonymous",
     });
   }, [show, user]);
@@ -168,7 +159,7 @@ export function ShowDetail({
     if (!setlists) return null;
     const shared = setlists.find((s: any) => !s.isOfficial && !s.userId);
     if (shared) return shared;
-    return setlists.find((s: any) => !s.isOfficial) ?? null;
+    return null;
   }, [setlists]);
 
   // Fetch all song votes for the prediction setlist to enable sorting by vote count
@@ -199,9 +190,9 @@ export function ShowDetail({
     const map = new Map<string, number>();
     if (allSongVotes) {
       for (const row of allSongVotes as any[]) {
-        const title = (row?.songTitle || "").toString().toLowerCase().trim();
+        const title = songKey(row?.songTitle || "");
         const upvotes = typeof row?.upvotes === "number" ? row.upvotes : 0;
-        if (title) map.set(title, upvotes);
+        if (title) map.set(title, (map.get(title) ?? 0) + upvotes);
       }
     }
     return map;
@@ -220,11 +211,14 @@ export function ShowDetail({
     );
   }, [setlists]);
 
-  const actualSetlistSongs = actualSetlistRecord?.actualSetlist ?? [];
+  const actualSetlistSongs = !liveState && liveContent?.songs.length ? liveContent.songs : actualSetlistRecord?.actualSetlist ?? [];
   const hasActualSetlist = actualSetlistSongs.length > 0;
+  const detailContentReady = setlists !== undefined &&
+    (!isDmbShow || (liveState !== undefined && (!liveState || liveContent !== undefined))) &&
+    (!predictionSetlist || showLivePanel || allSongVotes !== undefined);
 
   useEffect(() => {
-    if (!actualSetlistRecord || !hasActualSetlist) return;
+    if (showLivePanel || !actualSetlistRecord || !hasActualSetlist) return;
     if (trackedOfficialSetlistId.current === actualSetlistRecord._id) return;
     trackedOfficialSetlistId.current = actualSetlistRecord._id;
     capture("official_setlist_viewed", {
@@ -234,7 +228,7 @@ export function ShowDetail({
       song_count: actualSetlistSongs.length,
       source: actualSetlistRecord.source || "setlistfm",
     });
-  }, [actualSetlistRecord, actualSetlistSongs.length, hasActualSetlist, show?.artistId, showId]);
+  }, [actualSetlistRecord, actualSetlistSongs.length, hasActualSetlist, show?.artistId, showId, showLivePanel]);
 
   const predictedSongTitleSet = useMemo(() => {
     if (!predictionSetlist?.songs) {
@@ -243,7 +237,7 @@ export function ShowDetail({
     const titles = (predictionSetlist.songs as any[])
       .map((song) => (typeof song === "string" ? song : song?.title))
       .filter((title: string | undefined): title is string => Boolean(title))
-      .map((title) => title.toLowerCase().trim());
+      .map((title) => songKey(title));
     return new Set<string>(titles);
   }, [predictionSetlist]);
 
@@ -254,9 +248,16 @@ export function ShowDetail({
     const titles = actualSetlistSongs
       .map((song: any) => song?.title)
       .filter((title: string | undefined): title is string => Boolean(title))
-      .map((title) => title.toLowerCase().trim());
+      .map((title) => songKey(title));
     return new Set<string>(titles);
   }, [actualSetlistSongs]);
+
+  const requestSummary = useMemo(
+    () => summarizeRequests(allSongVotes ?? [], actualSetlistSongs),
+    [allSongVotes, actualSetlistSongs],
+  );
+  const topRequests = useMemo(() => [...requestSummary.requested.values()]
+    .sort((a, b) => b.upvotes - a.upvotes).slice(0, 5), [requestSummary]);
 
   // Sort songs by vote count (most voted first)
   const sortedPredictionSongs = useMemo(() => {
@@ -269,8 +270,8 @@ export function ShowDetail({
     
     // Sort by vote count (descending), then alphabetically for ties
     return [...songTitles].sort((a, b) => {
-      const aVotes = songVoteCountMap.get(a.toLowerCase().trim()) || 0;
-      const bVotes = songVoteCountMap.get(b.toLowerCase().trim()) || 0;
+      const aVotes = songVoteCountMap.get(songKey(a)) || 0;
+      const bVotes = songVoteCountMap.get(songKey(b)) || 0;
       if (bVotes !== aVotes) {
         return bVotes - aVotes;
       }
@@ -292,12 +293,7 @@ export function ShowDetail({
       // Deduplicate by normalized title
       .filter((s: any) => {
         const t = (s?.title || "").toString();
-        const norm = t
-          .toLowerCase()
-          .replace(/\s*\(.*?\)\s*/g, " ")
-          .replace(/\s+-\s+.*$/, " ")
-          .replace(/\s+/g, " ")
-          .trim();
+        const norm = songKey(t);
         if (seen.has(norm)) return false;
         seen.add(norm);
         return true;
@@ -306,7 +302,7 @@ export function ShowDetail({
         const title = s.title as string;
         const disabled =
           predictedSongTitleSet.has(
-            (title || "").toLowerCase().trim()
+            songKey(title || "")
           ) || false;
         return {
           id: s._id,
@@ -317,25 +313,6 @@ export function ShowDetail({
       })
       .sort((a, b) => a.title.localeCompare(b.title));
   }, [songs, predictedSongTitleSet]);
-
-  // Ensure a 5-song initial setlist exists (no-op if already present)
-  React.useEffect(() => {
-    if (!showId) return;
-    if (!setlists) return; // wait for load
-    const hasSongs = !!predictionSetlist && Array.isArray(predictionSetlist.songs) && predictionSetlist.songs.length > 0;
-    if (!hasSongs) {
-      void (async () => {
-        try {
-          const res = await ensureAutoSetlist({ showId });
-          if (res && !res.created && res.message) {
-            toast.info(res.message, { duration: 2500 });
-          }
-        } catch {
-          // ignore
-        }
-      })();
-    }
-  }, [showId, setlists, predictionSetlist, ensureAutoSetlist]);
 
   const handleVoteAction = () => {
     if (voteActionCount >= ANON_FREE_VOTES) {
@@ -443,7 +420,11 @@ export function ShowDetail({
   }
 
   const showDate = parseShowCalendarDate(show.date);
-  const isUpcoming = show.status === "upcoming";
+  const isUpcoming = show.status === "upcoming" && !hasVotingClosed(show) && !hasActualSetlist;
+
+  const ticketOffers: TicketOffer[] = show.ticketOffers ?? (show.ticketUrl
+    ? [{ href: show.ticketUrl, kind: "admission", label: "Get tickets" }]
+    : []);
 
   // First-paint images straight from the show doc so the hero renders
   // immediately; the media action upgrades these once it resolves.
@@ -465,17 +446,17 @@ export function ShowDetail({
       artistName: show.artist?.name || "",
       venueCity: show.venue?.city || "",
       showDate: show.date,
-    });
+    }).catch(() => toast.error("Could not start this import."));
     toast.info("Retrying setlist.fm import…");
   };
 
   return (
     <>
-      <div className="space-y-4 sm:space-y-6 relative z-10">
-        <SEOHead />
+      <div className="show-detail space-y-1 sm:space-y-6 relative z-10">
+
 
         {/* Hero Header - Apple Music/Spotify-inspired immersive design */}
-        <div className="relative w-full overflow-hidden min-h-[180px] sm:min-h-[240px] lg:min-h-[280px]">
+        <div className="show-detail-hero w-full overflow-hidden min-h-[168px] lg:min-h-[280px]">
           {/* Background Image Layer - Full bleed, high quality */}
           <div className="absolute inset-0 z-0">
             {effectiveHero ? (
@@ -486,7 +467,7 @@ export function ShowDetail({
                 style={{ imageRendering: 'auto' }}
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-primary/20 via-secondary to-background" />
+              <div className="w-full h-full bg-secondary/40" />
             )}
           </div>
           
@@ -503,11 +484,11 @@ export function ShowDetail({
           </div>
 
           {/* Content - Positioned at bottom for Apple Music style */}
-          <div className="relative z-10 h-full flex items-end">
-            <div className="w-full px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8 pt-16 sm:pt-20">
+          <div className="relative z-10 flex items-end">
+            <div className="w-full px-3 lg:px-8 pb-4 lg:pb-8 pt-5 lg:pt-20">
               <div className="flex flex-row items-end gap-4 sm:gap-6 lg:gap-8 max-w-6xl mx-auto">
                 {/* Artist Image - Premium shadow and border treatment */}
-                <div className="flex-shrink-0">
+                <div className="hidden lg:block flex-shrink-0">
                   <a
                     href={spotifyLink}
                     target="_blank"
@@ -532,22 +513,23 @@ export function ShowDetail({
                 </div>
 
                 {/* Show Info - Text with enhanced contrast */}
-                <div className="flex-1 min-w-0 pb-1">
+                <div className="flex-1 min-w-0 w-full pb-1">
                   {/* Artist Name - Bold, clickable */}
-                  <button
-                    onClick={() => {
-                      if (show?.artistId) onArtistClick(show.artistId);
+                  <h1><a
+                    href={`/artists/${encodeURIComponent(show.artist?.slug || show.artistId)}`}
+                    onClick={(event) => {
+                      if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && show?.artistId) { event.preventDefault(); onArtistClick(show.artistId); }
                     }}
                     className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground hover:text-primary transition-colors leading-tight tracking-tight text-left line-clamp-2 drop-shadow-sm"
                   >
                     {show?.artist?.name}
-                  </button>
+                  </a></h1>
 
                   {/* Venue & Date - Subtle but readable */}
                   <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm sm:text-base text-foreground/80 mt-2 sm:mt-3">
                     <div className="flex items-center gap-1.5">
                       <MapPin className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 opacity-70" />
-                      <span className="truncate max-w-[150px] sm:max-w-none font-medium">{show?.venue?.name}</span>
+                      <span className="font-medium">{show?.venue?.name}</span>
                     </div>
                     <span className="text-foreground/40 hidden sm:inline">•</span>
                     <div className="flex items-center gap-1.5">
@@ -567,30 +549,12 @@ export function ShowDetail({
 
                   <div className="mt-3 flex flex-wrap items-center gap-2 sm:mt-4">
                     {/* Get Tickets - Premium button */}
-                    {isUpcoming && show?.ticketUrl && (
-                      <button
-                        onClick={() => {
-                          capture("ticket_link_clicked", {
-                            show_id: show._id,
-                            artist_id: show.artistId,
-                            venue_id: show.venueId,
-                            show_date: show.date,
-                            placement: "show_hero",
-                            provider: "ticketmaster",
-                            affiliate: true,
-                          });
-                          window.open(
-                            buildTicketmasterAffiliateUrl(show.ticketUrl || ""),
-                            "_blank",
-                            "noopener,noreferrer"
-                          );
-                        }}
-                        className="inline-flex items-center px-4 py-2 sm:px-5 sm:py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg text-sm sm:text-base transition-all shadow-lg hover:shadow-xl"
-                      >
+                    {isUpcoming && ticketOffers.map(offer => (
+                      <TicketLink key={offer.href} href={offer.href} placement="show_hero" properties={{ ticket_kind: offer.kind, show_id: show._id, artist_id: show.artistId || show.artist?._id, venue_id: show.venueId || show.venue?._id, show_date: show.date }} className="brand-primary inline-flex items-center px-4 py-2 sm:px-5 sm:py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg text-sm sm:text-base transition-all shadow-lg hover:shadow-xl" >
                         <Ticket className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                        Get Tickets
-                      </button>
-                    )}
+                        {offer.label}
+                      </TicketLink>
+                    ))}
                     <ShowShareButton
                       showId={show._id}
                       slug={show.slug}
@@ -608,7 +572,7 @@ export function ShowDetail({
           </div>
         </div>
         
-        <div className="container mx-auto px-4 sm:px-6 pb-4 sm:pb-8">
+        <div className="detail-sections container mx-auto px-0 sm:px-6 pb-4 sm:pb-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
@@ -625,7 +589,7 @@ export function ShowDetail({
                 </div>
 
                 {/* Awaiting-import status banner — completed show, no official setlist yet */}
-                {!isUpcoming && !hasActualSetlist && (() => {
+                {!isUpcoming && !showLivePanel && (!isDmbShow || liveState === null) && setlists !== undefined && !hasActualSetlist && (() => {
                   const status = show.importStatus;
                   const isFailed = status === "failed";
                   return (
@@ -663,14 +627,14 @@ export function ShowDetail({
                             <p className="mt-0.5 text-sm text-muted-foreground">
                               We couldn&apos;t pull this show from setlist.fm.
                             </p>
-                            <Button
+                            {user?.appUser?.role === "admin" && <Button
                               variant="outline"
                               size="sm"
                               className="mt-2.5"
                               onClick={handleRetryImport}
                             >
                               Retry Import
-                            </Button>
+                            </Button>}
                           </>
                         ) : status === "not_found" ? (
                           <>
@@ -700,16 +664,18 @@ export function ShowDetail({
                 {!user && isUpcoming && (
                   <button
                     onClick={onSignInRequired}
-                    className="lg:hidden w-full mb-4 flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-left transition-colors active:bg-primary/20"
+                    className="brand-primary lg:hidden w-full mb-4 flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-left transition-colors active:bg-primary/20"
                   >
-                    <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <Vote className="h-4 w-4 text-primary" />
+                    <span className="flex items-center gap-2 text-sm font-medium text-inherit">
+                      <Vote className="h-4 w-4 text-inherit" />
                       Sign in to vote & request songs
                     </span>
-                    <span className="text-xs font-semibold text-primary">Sign in</span>
+                    <span className="text-xs font-semibold text-inherit">Sign in</span>
                   </button>
                 )}
 
+                {/* Reserve the catalog control while its data arrives. */}
+                {!hasActualSetlist && isUpcoming && songs === undefined && <div aria-hidden="true" className="mb-4 h-11 rounded-[5px] border border-border bg-secondary/40" />}
                 {/* Song Addition: Combined Search + Dropdown */}
                 {!hasActualSetlist && isUpcoming && songs && songs.length > 0 && (
                   <div className="mb-4">
@@ -742,7 +708,7 @@ export function ShowDetail({
                   </div>
                 )}
 
-                {hasActualSetlist ? (
+                {!detailContentReady ? <DetailRowsSkeleton /> : showLivePanel && liveState ? <LiveSetlistPanel state={liveState} content={liveContent} /> : hasActualSetlist ? (
                   <div className="space-y-6">
                     {/* MAIN: Actual Setlist Performed - Clean integrated design */}
                     <div className="space-y-4">
@@ -755,14 +721,7 @@ export function ShowDetail({
                             <h2 className="text-lg sm:text-xl font-bold text-foreground">
                               Official Setlist
                             </h2>
-                            <p className="text-green-400 text-sm">
-                              from setlist.fm • {(() => {
-                                const predicted = actualSetlistSongs.filter((song: any) =>
-                                  predictedSongTitleSet.has((song?.title ?? "").toLowerCase().trim())
-                                ).length;
-                                return `${predicted}/${actualSetlistSongs.length} predicted`;
-                              })()}
-                            </p>
+                            <p className="text-muted-foreground text-sm">from setlist.fm</p>
                           </div>
                         </div>
 
@@ -783,78 +742,23 @@ export function ShowDetail({
                             key={`actual-${index}`}
                             song={song}
                             index={index}
-                            predictedSongTitleSet={predictedSongTitleSet}
-                            voteCount={songVoteCountMap.get((song?.title ?? "").toLowerCase().trim()) || 0}
+                            voteCount={songVoteCountMap.get(songKey(song?.title ?? "")) || 0}
                           />
                         ))}
                       </div>
                     </div>
 
-                    {/* Accuracy Summary */}
-                    {predictionSetlist &&
-                      predictionSetlist.songs &&
-                      predictionSetlist.songs.length > 0 && (
-                        <div className="mt-6">
-                          <div className="p-6 bg-secondary border border-border rounded-xl">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center">
-                                  <svg
-                                    className="w-5 h-5 text-purple-400"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4"
-                                    />
-                                  </svg>
-                                </div>
-                                <div>
-                                  <h3 className="text-lg font-bold text-foreground">
-                                    Fan Prediction Accuracy
-                                  </h3>
-                                  <p className="text-purple-400 text-sm">
-                                    How well did the community predict?
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-xl font-bold text-purple-400">
-                                  {(() => {
-                                    const total =
-                                      predictionSetlist.songs.length;
-                                    if (total === 0) return "—";
-                                    const correct = predictionSetlist.songs.filter(
-                                      (s: any) => {
-                                        const songTitle =
-                                          typeof s === "string"
-                                            ? s
-                                            : s?.title;
-                                        if (!songTitle) return false;
-                                        return actualSongTitleSet.has(
-                                          songTitle.toLowerCase().trim()
-                                        );
-                                      }
-                                    ).length;
-                                    const pct =
-                                      total > 0
-                                        ? Math.round((correct / total) * 100)
-                                        : 0;
-                                    return `${pct}%`;
-                                  })()}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  accuracy rate
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+                    {requestSummary.hasCommunityData && requestSummary.accuracy !== null && (
+                      <div className="flex items-start justify-between gap-4 border-t border-border pt-5">
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground">Fan prediction accuracy</h3>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {requestSummary.matched} of {requestSummary.requestedSongs} voted songs were played
+                          </p>
                         </div>
-                      )}
+                        <span className="text-2xl font-semibold tabular-nums text-foreground">{requestSummary.accuracy}%</span>
+                      </div>
+                    )}
                   </div>
                 ) : !predictionSetlist ||
                   predictionSetlist.songs.length === 0 ? (
@@ -899,20 +803,20 @@ export function ShowDetail({
                     {!isUpcoming && (
                       <div className="mb-3 flex items-baseline justify-between">
                         <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                          Fan predictions
+                          {requestSummary.totalVotes > 0 ? "Fan predictions" : "Song suggestions"}
                         </h3>
                         <span className="text-xs text-muted-foreground">
-                          voted before the show
+                          {requestSummary.totalVotes > 0 ? "voted before the show" : "from the artist’s catalog"}
                         </span>
                       </div>
                     )}
                     {/* Setlist - sorted by vote count, animates on reorder */}
-                    <motion.div layout className="space-y-2">
+                    <div className="space-y-2">
                         {sortedPredictionSongs.map((songTitle: string, index: number) => {
                           // Use pre-fetched vote data to avoid N+1 queries
-                          const normalizedTitle = songTitle.toLowerCase().trim();
+                          const normalizedTitle = songKey(songTitle);
                           const voteData = (allSongVotes as any[] | undefined)?.find(
-                            (v: any) => (v?.songTitle || "").toLowerCase().trim() === normalizedTitle
+                            (v: any) => songKey(v?.songTitle || "") === normalizedTitle
                           );
                           return (
                             <FanRequestSongRow
@@ -936,26 +840,25 @@ export function ShowDetail({
                             />
                           );
                         })}
-                    </motion.div>
+                    </div>
                   </div>
                 )}
               </div>
-              <BorderBeam size={120} duration={10} className="opacity-20" />
             </MagicCard>
         </div>
 
           {/* Sidebar - Right Column */}
-          <div className="space-y-4 sm:space-y-6">
+          {detailContentReady && <div className="space-y-4 sm:space-y-6">
             {/* Songs Not Played - Only show after concert with actual setlist */}
-            {hasActualSetlist && predictionSetlist?.songs && (() => {
+            {!showLivePanel && hasActualSetlist && requestSummary.hasCommunityData && predictionSetlist?.songs && (() => {
               const unplayedSongs = (predictionSetlist.songs as any[])
                 .map((s: any) => typeof s === "string" ? s : s?.title)
                 .filter(Boolean)
                 .map((t: string) => t.toString())
-                .filter((title: string) => !actualSongTitleSet.has(title.toLowerCase().trim()))
+                .filter((title: string) => (songVoteCountMap.get(songKey(title)) ?? 0) > 0 && !actualSongTitleSet.has(songKey(title)))
                 .sort((a: string, b: string) => {
-                  const aVotes = songVoteCountMap.get(a.toLowerCase().trim()) || 0;
-                  const bVotes = songVoteCountMap.get(b.toLowerCase().trim()) || 0;
+                  const aVotes = songVoteCountMap.get(songKey(a)) || 0;
+                  const bVotes = songVoteCountMap.get(songKey(b)) || 0;
                   if (bVotes !== aVotes) return bVotes - aVotes;
                   return a.localeCompare(b);
                 });
@@ -966,15 +869,15 @@ export function ShowDetail({
                 <MagicCard className="p-0 rounded-xl border border-border bg-card">
                   <div className="p-4 sm:p-6">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center">
-                        <AlertCircle className="h-4 w-4 text-red-400" />
+                      <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
+                        <AlertCircle className="h-4 w-4 text-muted-foreground" />
                       </div>
                       <div>
                         <h3 className="text-base font-bold text-foreground">
                           Not Played
                         </h3>
-                        <p className="text-xs text-red-400">
-                          {unplayedSongs.length} fan requests missed
+                        <p className="text-xs text-muted-foreground">
+                          {unplayedSongs.length} voted {unplayedSongs.length === 1 ? "song" : "songs"} not played
                         </p>
                       </div>
                     </div>
@@ -983,13 +886,11 @@ export function ShowDetail({
                         <UnplayedRequestRow
                           key={`unplayed-${index}`}
                           songTitle={songTitle}
-                          predictionSetlistId={predictionSetlistId}
-                          voteCount={songVoteCountMap.get(songTitle.toLowerCase().trim()) || 0}
+                          voteCount={songVoteCountMap.get(songKey(songTitle)) || 0}
                         />
                       ))}
                     </div>
                   </div>
-                  <BorderBeam size={100} duration={8} className="opacity-20" />
                 </MagicCard>
               );
             })()}
@@ -1035,7 +936,6 @@ export function ShowDetail({
                   )}
                 </div>
               </div>
-              <BorderBeam size={100} duration={8} className="opacity-20" />
             </MagicCard>
 
             {/* Show Stats */}
@@ -1045,61 +945,50 @@ export function ShowDetail({
                   Show Stats
                 </h3>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
+                  {(showLivePanel || hasActualSetlist || (predictionSetlist?.songs?.length ?? 0) > 0) && <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      Songs {hasActualSetlist ? "played" : "in setlist"}
+                      Songs {showLivePanel ? "reported" : hasActualSetlist ? "played" : "in setlist"}
                     </span>
                     <span className="font-medium text-foreground">
-                      {hasActualSetlist
+                      {showLivePanel ? (liveContent?.songs.length ?? 0) : hasActualSetlist
                         ? actualSetlistSongs.length
                         : predictionSetlist?.songs?.length || 0}
                     </span>
-                  </div>
+                  </div>}
 
-                  <div className="flex items-center justify-between">
+                  {catalogCount > 0 && <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Songs in catalog</span>
                     <span className="font-medium text-foreground">{catalogCount}</span>
-                  </div>
+                  </div>}
 
-                  {predictionSetlist && (
+                  {requestSummary.hasCommunityData && (
                     <>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">
-                          Total votes
-                        </span>
-                        <span className="font-medium text-foreground">
-                          {(predictionSetlist.upvotes || 0) +
-                            (predictionSetlist.downvotes || 0)}
-                        </span>
+                        <span className="text-sm text-muted-foreground">Song votes</span>
+                        <span className="font-medium tabular-nums text-foreground">{requestSummary.totalVotes}</span>
                       </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">
-                          Setlist upvotes
-                        </span>
-                        <span className="font-medium text-foreground">
-                          {predictionSetlist.upvotes || 0}
-                        </span>
+                      <div className="pt-3 mt-3 border-t border-border">
+                        <div className="text-sm font-semibold mb-2 text-foreground">Top requested songs</div>
+                        <ul className="space-y-2">
+                          {topRequests.map(row => (
+                            <li key={songKey(row.songTitle)} className="flex items-center justify-between gap-3 text-sm">
+                              <span className="truncate">{row.songTitle}</span>
+                              <span className="text-muted-foreground tabular-nums">{row.upvotes}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-
-                      {/* Top requested songs */}
-                      {predictionSetlistId && (
-                        <div className="pt-3 mt-3 border-t border-border">
-                          <TopRequestedSongs setlistId={predictionSetlistId} />
-                        </div>
-                      )}
                     </>
                   )}
 
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Show status</span>
                     <span className="font-medium text-foreground capitalize">
-                      {show.status}
+                      {showLivePanel ? (liveState?.confirmedAt ? "Completed" : "Live reports") : show.status}
                     </span>
                   </div>
                 </div>
               </div>
-              <BorderBeam size={100} duration={8} className="opacity-20" />
             </MagicCard>
 
             {/* Call to Action - desktop sidebar only (mobile uses inline nudge above) */}
@@ -1125,10 +1014,9 @@ export function ShowDetail({
                     Sign In to Vote
                   </button>
                 </div>
-                <BorderBeam size={120} duration={10} className="opacity-30" />
               </MagicCard>
             )}
-          </div>
+          </div>}
           </div>
         </div>
 
@@ -1171,28 +1059,6 @@ export function ShowDetail({
   );
 }
 
-function TopRequestedSongs({ setlistId }: { setlistId: Id<"setlists"> }) {
-  const agg = useQuery(api.songVotes.getSetlistSongVotes, { setlistId });
-  const top = React.useMemo(
-    () => (agg || []).sort((a: any, b: any) => b.upvotes - a.upvotes).slice(0, 5),
-    [agg]
-  );
-  if (!top.length) return null;
-  return (
-    <div>
-      <div className="text-sm font-semibold mb-2 text-foreground">Top requested songs</div>
-      <ul className="space-y-1">
-        {top.map((s: any) => (
-          <li key={s.songTitle} className="flex items-center justify-between text-sm">
-            <span className="truncate">{s.songTitle}</span>
-            <span className="opacity-70">{s.upvotes}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 function FanRequestSongRow({
   songTitle,
   index,
@@ -1228,7 +1094,7 @@ function FanRequestSongRow({
   artistId: Id<"artists">;
   anonymousVotesUsed: number;
 }) {
-  const normalizedTitle = songTitle.toLowerCase().trim();
+  const normalizedTitle = songKey(songTitle);
   const wasPlayed = actualSongTitleSet.has(normalizedTitle);
 
   // Use preloaded data if available, otherwise fall back to individual query
@@ -1320,10 +1186,8 @@ function FanRequestSongRow({
   };
 
   return (
-    <motion.div
-      layout
-      transition={{ type: "spring", stiffness: 500, damping: 40 }}
-      className="flex items-center justify-between gap-2 py-2 pl-3 pr-2 sm:pl-4 rounded-lg border border-border/60 bg-secondary/40 hover:bg-secondary/70 active:bg-secondary/70 transition-colors duration-150 min-h-[56px]"
+    <div
+      className="flex items-center justify-between gap-2 py-2 px-0 sm:pl-4 sm:pr-2 rounded-none sm:rounded-lg border-0 border-b sm:border border-border/60 bg-transparent sm:bg-secondary/40 hover:bg-secondary/70 active:bg-secondary/70 transition-colors duration-150 min-h-[62px]"
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         {/* Minimal status indicator */}
@@ -1344,16 +1208,16 @@ function FanRequestSongRow({
             </svg>
           </div>
         ) : (
-          <span className="w-6 flex-shrink-0 text-center text-xs font-medium tabular-nums text-muted-foreground/70">
+          <span className="w-6 flex-shrink-0 text-center text-[0.825rem] font-medium tabular-nums text-muted-foreground">
             {index + 1}
           </span>
         )}
 
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-sm sm:text-base leading-tight text-foreground truncate">
+          <h3 className="font-medium text-[0.9625rem] sm:text-[1.1rem] leading-6 text-foreground break-words">
             {songTitle}
           </h3>
-          {wasPlayed && <p className="text-xs text-green-400 mt-0.5">Played</p>}
+          {wasPlayed && <p className="text-[0.825rem] text-green-400 mt-0.5">Played</p>}
         </div>
       </div>
 
@@ -1367,9 +1231,9 @@ function FanRequestSongRow({
           disabled={isSubmitting}
           aria-pressed={userVoted}
           aria-label={userVoted ? `Remove vote for ${songTitle}` : `Vote for ${songTitle}`}
-          className={`flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-1.5 rounded-xl border flex-shrink-0 transition-colors duration-150 disabled:opacity-70 ${
+          className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] px-1.5 rounded-xl border flex-shrink-0 transition-colors duration-150 disabled:opacity-70 ${
             userVoted
-              ? "bg-primary border-primary text-primary-foreground"
+              ? "brand-selected bg-transparent border-primary text-primary"
               : "bg-secondary/60 border-border text-muted-foreground active:bg-secondary sm:hover:bg-secondary sm:hover:text-foreground"
           }`}
         >
@@ -1381,134 +1245,61 @@ function FanRequestSongRow({
           >
             <ChevronUp
               strokeWidth={2.5}
-              className={`h-4 w-4 ${userVoted ? "fill-current" : ""}`}
+              className={`h-[1.1rem] w-[1.1rem] ${userVoted ? "fill-current" : ""}`}
             />
           </motion.div>
-          <span className="mt-0.5 text-sm font-semibold leading-none tabular-nums">
+          {voteCount > 0 && <span className="mt-0.5 text-[0.9625rem] font-semibold leading-none tabular-nums">
             {voteCount}
-          </span>
+          </span>}
         </motion.button>
       )}
       {/* Show vote count (non-clickable) for completed shows or played songs */}
-      {(wasPlayed || !isUpcoming) && (
+      {(wasPlayed || !isUpcoming) && voteCount > 0 && (
         <div
-          className={`flex flex-col items-center justify-center min-w-[44px] min-h-[44px] flex-shrink-0 ${
+          className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] flex-shrink-0 ${
             wasPlayed ? "text-green-400" : "text-muted-foreground"
           }`}
         >
-          <ChevronUp className={`h-4 w-4 ${wasPlayed ? "fill-current" : ""}`} />
-          <span className="mt-0.5 text-sm font-semibold leading-none tabular-nums">
+          <ChevronUp className={`h-[1.1rem] w-[1.1rem] ${wasPlayed ? "fill-current" : ""}`} />
+          {voteCount > 0 && <span className="mt-0.5 text-[0.9625rem] font-semibold leading-none tabular-nums">
             {voteCount}
-          </span>
+          </span>}
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }
 
-// Actual setlist song row component - Redesigned for integrated vote display
-function ActualSetlistSongRow({
-  song,
-  index,
-  predictedSongTitleSet,
-  voteCount,
-}: {
-  song: any;
-  index: number;
-  predictedSongTitleSet: Set<string>;
-  voteCount: number;
-}) {
-  const normalizedTitle = (song?.title ?? "").toLowerCase().trim();
-  const wasRequested =
-    normalizedTitle.length > 0 && predictedSongTitleSet.has(normalizedTitle);
-
+// Preserve performance order; only real votes earn a quiet count.
+function ActualSetlistSongRow({ song, index, voteCount }: { song: any; index: number; voteCount: number }) {
   return (
-    <div
-      className={`flex items-center justify-between py-3 px-4 sm:px-2 transition-all duration-150 min-h-[52px] rounded-lg ${
-        wasRequested ? "bg-green-500/10 border border-green-500/20" : "hover:bg-secondary"
-      }`}
-    >
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        {/* Song number or checkmark */}
-        {wasRequested ? (
-          <div className="w-7 h-7 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-            <svg
-              className="w-4 h-4 text-green-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-          </div>
-        ) : (
-          <span className="text-sm font-bold w-7 text-center text-muted-foreground">
-          {index + 1}
-        </span>
-        )}
-
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-base leading-tight text-foreground truncate">
-            {song.title}
-          </h3>
-          {song.album && (
-            <p className="text-xs text-muted-foreground truncate mt-0.5">{song.album}</p>
-          )}
+    <div className="flex items-center justify-between gap-3 py-3 px-2 min-h-[57px] border-b border-border/40 last:border-0">
+      <div className="flex items-baseline gap-3 flex-1 min-w-0">
+        <span className="w-7 shrink-0 text-center leading-6 text-[0.9625rem] tabular-nums text-muted-foreground">{index + 1}</span>
+        <div className="min-w-0">
+          <h3 className="font-medium text-[1.1rem] leading-6 text-foreground break-words">{song.title}</h3>
+          <PerformanceCredits song={song} />
+          {!song.notes && typeof song.album === "string" && song.album && <p className="text-[0.825rem] text-muted-foreground mt-0.5">{song.album}</p>}
         </div>
       </div>
-
-      {/* Right side: badges and vote count */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {song.encore && (
-          <span className="bg-yellow-500/20 text-yellow-400 text-xs font-semibold px-2.5 py-1 rounded-full border border-yellow-500/30">
-            Encore
-          </span>
-        )}
-
-        {wasRequested ? (
-          <div className="flex items-center gap-1.5 bg-green-500/20 px-2.5 py-1 rounded-full border border-green-500/30">
-            <ChevronUp className="h-3.5 w-3.5 text-green-400 fill-current" />
-            <span className="text-sm font-bold text-green-400">{voteCount}</span>
-          </div>
-        ) : (
-          <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded-full">
-            surprise
-          </span>
-        )}
+      <div className="flex items-center gap-3 shrink-0">
+        {song.encore && <span className="text-[0.825rem] text-muted-foreground">Encore</span>}
+        {voteCount > 0 && <span className="inline-flex items-center gap-1 text-[0.9625rem] tabular-nums text-muted-foreground" aria-label={`${voteCount} fan votes`}>
+          <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />{voteCount}
+        </span>}
       </div>
     </div>
   );
 }
 
 // Song that was requested but NOT played - for sidebar
-function UnplayedRequestRow({
-  songTitle,
-  predictionSetlistId,
-  voteCount,
-}: {
-  songTitle: string;
-  predictionSetlistId?: Id<"setlists">;
-  voteCount: number;
-}) {
+function UnplayedRequestRow({ songTitle, voteCount }: { songTitle: string; voteCount: number }) {
   return (
-    <div className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-red-500/5 border border-red-500/10 hover:bg-red-500/10 transition-colors">
-      <div className="flex items-center gap-2.5 flex-1 min-w-0">
-        <div className="w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-          <svg className="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </div>
-        <span className="text-sm text-muted-foreground truncate">{songTitle}</span>
-      </div>
-      <div className="flex items-center gap-1 text-red-400/80 flex-shrink-0">
-        <ChevronUp className="h-3 w-3" />
-        <span className="text-xs font-semibold">{voteCount}</span>
-      </div>
+    <div className="flex items-center justify-between gap-3 py-2.5 border-b border-border/40 last:border-0">
+      <span className="text-sm text-muted-foreground break-words">{songTitle}</span>
+      <span className="inline-flex items-center gap-1 text-sm text-muted-foreground tabular-nums shrink-0">
+        <ChevronUp className="h-3 w-3" aria-hidden="true" />{voteCount}
+      </span>
     </div>
   );
 }

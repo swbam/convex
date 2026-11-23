@@ -23,6 +23,7 @@ export type AnalyticsEvent =
   | "show_shared"
   | "venue_viewed"
   | "ticket_link_clicked"
+  | "ticket_offer_viewed"
   | "song_picker_opened"
   | "song_added"
   | "song_add_rejected"
@@ -55,7 +56,9 @@ type OAuthIntent = {
   source: string;
 };
 
-const ANALYTICS_SCHEMA_VERSION = 1;
+const ANALYTICS_SCHEMA_VERSION = 2;
+let isInternalUser = false;
+let campaignProperties: AnalyticsProperties = {};
 const projectToken = import.meta.env.VITE_POSTHOG_KEY?.trim();
 const apiHost =
   import.meta.env.VITE_POSTHOG_HOST?.trim() || "https://us.i.posthog.com";
@@ -82,6 +85,8 @@ const sharedProperties = (): AnalyticsProperties => ({
   app_environment: import.meta.env.MODE,
   device_class: deviceClass(),
   event_source: "web",
+  is_internal_user: isInternalUser,
+  ...campaignProperties,
 });
 
 const OAUTH_INTENT_KEY = "setlists:analytics:oauth-intent";
@@ -121,6 +126,23 @@ function sanitizeAnalyticsUrl(value: unknown) {
     return undefined;
   }
 }
+
+export function safeCampaignProperties(search: string): AnalyticsProperties {
+  const params = new URLSearchParams(search);
+  const properties: AnalyticsProperties = {};
+  for (const name of ["utm_source", "utm_medium", "utm_campaign"]) {
+    const value = params.get(name);
+    // No free-form URL, email, token or search-query fields are retained.
+    if (value && /^[a-z0-9][a-z0-9_.-]{0,79}$/i.test(value)) properties[name] = value;
+  }
+  return properties;
+}
+export function recordCampaign(search: string, pathname: string) {
+  if (isSensitiveAnalyticsRoute(pathname)) return;
+  const incoming = safeCampaignProperties(search);
+  if (Object.keys(incoming).length) campaignProperties = incoming;
+}
+export function setInternalAnalyticsUser(value: boolean) { isInternalUser = value; }
 
 export function recordOAuthIntent(intent: OAuthIntent) {
   if (typeof window === "undefined") return;
@@ -306,23 +328,18 @@ export function capture(
   event: AnalyticsEvent,
   properties: AnalyticsProperties = {},
 ) {
-  enqueue((posthog) => {
-    posthog.capture(event, { ...sharedProperties(), ...properties });
-  });
+  const snapshot = { ...sharedProperties(), ...properties };
+  enqueue((posthog) => posthog.capture(event, snapshot));
 }
 
 export function capturePageView(properties: AnalyticsProperties) {
-  enqueue((posthog) => {
-    const cleanPath = sanitizeAnalyticsPath(window.location.pathname);
-    const cleanUrl = `${window.location.origin}${cleanPath}`;
-    posthog.capture("$pageview", {
-      ...sharedProperties(),
-      ...properties,
-      $current_url: cleanUrl,
-      page_path: cleanPath,
-      page_title: document.title,
-    });
-  });
+  const cleanPath = sanitizeAnalyticsPath(window.location.pathname);
+  const snapshot = {
+    ...sharedProperties(), ...properties,
+    $current_url: `${window.location.origin}${cleanPath}`,
+    page_path: cleanPath, page_title: document.title,
+  };
+  enqueue((posthog) => posthog.capture("$pageview", snapshot));
 }
 
 export function identifyUser(
@@ -339,6 +356,7 @@ export function identifyUser(
 }
 
 export function resetAnalyticsIdentity() {
+  isInternalUser = false;
   enqueue((posthog) => {
     posthog.reset();
     posthog.register({ ...sharedProperties(), auth_state: "anonymous" });

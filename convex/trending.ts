@@ -1,67 +1,10 @@
+import { ticketInfoValidator, refreshLinkedTickets } from "./lib/ticketInfo";
 import { query, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { internalRef } from "./adminHelpers";
 
-// Helper to filter out non-concert content (secondary filter after API segmentId filtering)
-// The API now uses segmentId=KZFzniwnSyZfZ7v7nJ which is Music-only
-// This is a lightweight fallback filter for edge cases that slip through
-const isRealConcert = (name: string, genres?: string[]): boolean => {
-  const lowerName = (name || '').toLowerCase();
-
-  // Festivals have their own discovery surface and should not masquerade as
-  // individual artists or headline shows on the homepage.
-  if (/\bfest(?:ival)?\b/.test(lowerName)) return false;
-
-  // Reject patterns for non-concert content that might still appear in Music segment
-  const rejectPatterns = [
-    // Orchestral performances (often tagged as Music but aren't pop/rock concerts)
-    'orchestra', 'symphony', 'philharmonic', 'chamber',
-    'ensemble', 'chorale', 'choir',
-    // Classical music soloists
-    'recital', 'concerto',
-    // Film/video game music performances (tagged as Music but are soundtrack screenings)
-    'film with', '- film', 'in concert film', 'live to film',
-    'video games live', 'festival of seasons',
-    // Soundtrack/score performances (Hans Zimmer, John Williams, etc.)
-    'music of hans zimmer', 'hans zimmer', 'john williams',
-    'movie scores', 'film scores', 'soundtrack',
-    // Documentary/tribute screenings (sometimes tagged as Music)
-    'documentary', 'at the max', 'making sense',
-    // Ticketmaster occasionally exposes a branded event/tour as an attraction.
-    'concert tour', 'worlds collide',
-    // Tribute bands (detected by common patterns)
-    'smells like nirvana', 'tribute', 'experience featuring',
-    // Award ceremonies and non-performance events
-    'hall of fame', 'induction ceremony', 'awards', 'gala',
-    // Opera (sometimes leaks into Music segment)
-    'opera', 'la traviata', 'rigoletto', 'carmen', 'tosca',
-    // Kids entertainment (sometimes tagged as Music)
-    'sesame street', 'paw patrol', 'peppa pig', 'bluey', 'baby shark',
-    // Party / novelty events that slip into Music segment
-    'bingo', 'bingo loco', 'dance party', 'silent disco', 'karaoke',
-    'trivia', 'game night', 'line dancing', 'brunch', 'drag brunch',
-    'drag show', 'burlesque',
-    // Other non-concert event types that sometimes leak into Music
-    'wrestling', 'ufc', 'boxing', 'esports', 'podcast', 'lecture', 'speaker',
-    'stand-up', 'standup', 'comedy show', 'comedy night'
-  ];
-
-  if (rejectPatterns.some(p => lowerName.includes(p))) return false;
-
-  // Check genres - reject classical/opera/other non-concert genres
-  if (genres && genres.length > 0) {
-    const lowerGenres = genres.map(g => g.toLowerCase());
-    const nonConcertGenres = [
-      'classical', 'opera', 'chamber music', 'choral', 'other', 'undefined'
-    ];
-    if (lowerGenres.some(g => nonConcertGenres.some(ng => g.includes(ng)))) return false;
-  }
-
-  return true;
-};
-
-
+import { isConcertDiscoveryCandidate as isRealConcert } from "./lib/attractionIdentity";
 
 const slugify = (value: string) =>
   value
@@ -525,8 +468,12 @@ export const replaceTrendingShowsCache = internalMutation({
         venueCountry: v.string(),
         date: v.string(),
         startTime: v.optional(v.string()),
+        startsAt: v.optional(v.number()),
+        endsAt: v.optional(v.number()),
+        timeZone: v.optional(v.string()),
         artistImage: v.optional(v.string()),
         ticketUrl: v.optional(v.string()),
+        ticketInfo: ticketInfoValidator,
         priceRange: v.optional(v.string()),
         status: v.string(),
         rank: v.number(),
@@ -581,6 +528,8 @@ export const replaceTrendingShowsCache = internalMutation({
         .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", show.ticketmasterId))
         .first();
 
+      if (linkedShow) await refreshLinkedTickets(ctx, linkedShow, show);
+
       // CRITICAL FIX: Add error recovery for missing artists
       let linkedArtist = null;
       try {
@@ -619,9 +568,10 @@ export const replaceTrendingShowsCache = internalMutation({
         venueState: show.venueState,
         venueCountry: show.venueCountry,
         date: show.date,
-        startTime: show.startTime,
+        startTime: show.startTime, startsAt: show.startsAt, endsAt: show.endsAt, timeZone: show.timeZone,
         artistImage: show.artistImage,
         ticketUrl: show.ticketUrl,
+        ticketInfo: show.ticketInfo,
         priceRange: show.priceRange,
         status: normalizeShowStatus(show.status),
         rank: show.rank,
@@ -775,59 +725,11 @@ export const replaceTrendingArtistsCache = internalMutation({
   },
 });
 
-// Calculate and cache supporting fields used for trending.
-// FIXED: Use .collect() instead of .paginate() to avoid "multiple paginated queries" error
-// Convex only supports a single paginated query per function
+// A complete, resumable generation replaces truncated totals only after all shows are read.
 export const updateArtistShowCounts = internalMutation({
-  args: {},
-  returns: v.null(),
+  args: {}, returns: v.null(),
   handler: async (ctx) => {
-    console.log("🔄 Updating artist show counts...");
-
-    // Build a map of upcoming show counts per artist.
-    // Bounded read: unbounded .collect() exceeds Convex's read limits at prod
-    // scale (~45k shows). Counts are capped — computed from at most the first
-    // 5000 upcoming shows.
-    const upcomingShows = await ctx.db
-      .query("shows")
-      .withIndex("by_status_and_date", (q) => q.eq("status", "upcoming"))
-      .order("asc")
-      .take(5000);
-
-    const artistShowCounts = new Map<string, number>();
-    for (const show of upcomingShows) {
-      const artistKey = show.artistId.toString();
-      artistShowCounts.set(
-        artistKey,
-        (artistShowCounts.get(artistKey) || 0) + 1
-      );
-    }
-
-    // Get artists and update counts where they differ.
-    // Bounded read: artists is ~1.1k rows today; cap so growth can't blow
-    // Convex's read limits.
-    const artists = await ctx.db.query("artists").take(3000);
-    const now = Date.now();
-    let updated = 0;
-
-    for (const artist of artists) {
-      const key = artist._id.toString();
-      const newCount = artistShowCounts.get(key) || 0;
-      const currentCount =
-        typeof artist.upcomingShowsCount === "number"
-          ? artist.upcomingShowsCount
-          : 0;
-
-      if (currentCount !== newCount) {
-        await ctx.db.patch(artist._id, {
-          upcomingShowsCount: newCount,
-          lastTrendingUpdate: now,
-        });
-        updated++;
-      }
-    }
-
-    console.log(`✅ Updated show counts for ${updated} artists (${upcomingShows.length} upcoming shows)`);
+    await ctx.runMutation(internalRef.artistShowCounts.start, {});
     return null;
   },
 });
@@ -1297,3 +1199,15 @@ async function fetchTicketmasterTrendingShows() {
     return { shows: [] };
   }
 }
+
+// Multiple artist imports request one refresh through the existing locked cron runner.
+export const requestShowTrendingRefresh = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const setting = await ctx.db.query("cronSettings").withIndex("by_name", q => q.eq("name", "update-show-trending")).first();
+    if (!setting || !setting.enabled) return false;
+    if ((setting.runNowRequestedAt ?? 0) > (setting.lastRunAt ?? 0)) return false;
+    await ctx.db.patch(setting._id, { runNowRequestedAt: Date.now() });
+    return true;
+  },
+});

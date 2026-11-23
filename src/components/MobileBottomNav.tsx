@@ -85,14 +85,14 @@ export function MobileBottomNav({
 
   return (
     <motion.nav
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-[110] px-2 pb-[max(0.45rem,env(safe-area-inset-bottom))] md:hidden"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-[110] border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
       initial={{ opacity: shouldReduceMotion ? 1 : 0, y: shouldReduceMotion ? 0 : 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: shouldReduceMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
       aria-label="Mobile navigation"
     >
       <motion.ul
-        className="pointer-events-auto mx-auto grid h-[66px] max-w-md grid-cols-5 rounded-[22px] border border-border/80 bg-background/90 p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-2xl"
+        className="pointer-events-auto mx-auto grid h-[66px] max-w-md grid-cols-5 px-2 py-1"
         variants={{
           hidden: { opacity: 1 },
           show: {
@@ -117,7 +117,7 @@ export function MobileBottomNav({
               <motion.button
                 type="button"
                 onClick={tab.onClick}
-                className={`relative flex h-full w-full min-w-0 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[17px] px-1 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${
+                className={`relative flex h-full w-full min-w-0 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg px-1 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${
                   tab.active ? 'text-foreground' : 'text-muted-foreground'
                 }`}
                 whileHover={shouldReduceMotion ? undefined : { scale: 1.025 }}
@@ -129,7 +129,7 @@ export function MobileBottomNav({
                 {tab.active && (
                   <motion.span
                     layoutId="mobile-navigation-active"
-                    className="absolute inset-0 rounded-[17px] border border-border bg-accent/85 shadow-sm"
+                    className="absolute inset-0 rounded-lg bg-accent/60"
                     transition={
                       shouldReduceMotion
                         ? { duration: 0 }

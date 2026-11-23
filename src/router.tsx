@@ -4,7 +4,8 @@ import { App } from './App';
 import { ArtistNotFound } from './components/ArtistNotFound';
 import { ShowNotFound } from './components/ShowNotFound'; // Assume similar for shows
 import { ProtectedLayout } from './components/ProtectedLayout';
-import { SEOHead } from './components/SEOHead';
+
+import { NotFoundPage } from "./pages/NotFoundPage";
 import { AnalyticsLifecycle } from './components/AnalyticsLifecycle';
 
 // Keep the fan-facing shell lean. Auth, studio, blog/Sanity, and legal pages
@@ -44,11 +45,11 @@ export const router = createBrowserRouter([
     // SEOHead applies the robots "noindex" meta for these auth paths
     // (see NOINDEX_PREFIXES in SEOHead).
     path: '/signin',
-    element: <><SEOHead /><SignInPage /></>,
+    element: <><SignInPage /></>,
   },
   {
     path: '/signup',
-    element: <><SEOHead /><SignUpPage /></>,
+    element: <><SignUpPage /></>,
   },
   {
     path: '/sso-callback',
@@ -180,7 +181,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '*',
-    element: <Navigate to="/" replace />,
+    element: <NotFoundPage />,
   },
     ],
   },

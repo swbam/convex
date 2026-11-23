@@ -327,7 +327,8 @@ describe("actual setlists", () => {
     await f.t.mutation(privateApi.setlists.createFromApi, { showId, data: match });
     const lists = await f.t.run(ctx => ctx.db.query("setlists").collect());
     expect(lists).toHaveLength(2);
-    expect(lists.find(s => s._id === predictionId)).toMatchObject({ isOfficial: false, accuracy: 100 });
+    expect(lists.find(s => s._id === predictionId)).toMatchObject({ isOfficial: false });
+    expect(lists.find(s => s._id === predictionId)).not.toHaveProperty("accuracy");
     const show = await f.t.run(ctx => ctx.db.get(showId));
     expect(show).toMatchObject({ importStatus: "completed", setlistfmId: match.id });
     expect(show).not.toHaveProperty("importNextAttemptAt");

@@ -1,4 +1,7 @@
-import { query, internalQuery, internalMutation, action } from "./_generated/server";
+import { dateOnlySlug, resolveShowKey, showWithTickets } from "./lib/showTickets";
+import { ticketInfoValidator } from "./lib/ticketInfo";
+import { importRetryExpiry } from "./lib/importRetry";
+import { query, internalQuery, internalMutation, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { internalRef } from "./adminHelpers";
@@ -136,76 +139,26 @@ export const getById = query({
   args: { id: v.id("shows") },
   returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
-    const show = await ctx.db.get(args.id);
-    if (!show) return null;
-
-    const [artist, venue] = await Promise.all([
-      ctx.db.get(show.artistId),
-      ctx.db.get(show.venueId),
+    const row = await ctx.db.get(args.id);
+    if (!row) return null;
+    const [show, artist, venue] = await Promise.all([
+      showWithTickets(ctx, row), ctx.db.get(row.artistId), ctx.db.get(row.venueId),
     ]);
-
-    // Return null if artist or venue is missing
-    if (!artist || !venue) {
-      return null;
-    }
-
-    return { ...show, artist, venue };
+    return artist && venue ? { ...show, artist, venue } : null;
   },
 });
+
+async function showPageByKey(ctx: import("./_generated/server").QueryCtx, key: string) {
+  const show = await resolveShowKey(ctx, key);
+  if (!show) return null;
+  const [artist, venue] = await Promise.all([ctx.db.get(show.artistId), ctx.db.get(show.venueId)]);
+  return artist && venue ? { ...show, artist, venue } : null;
+}
 
 export const getBySlug = query({
   args: { slug: v.string() },
   returns: v.union(v.any(), v.null()),
-  handler: async (ctx, args) => {
-    // Primary lookup by exact slug
-    let show = await ctx.db
-      .query("shows")
-      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
-      .first();
-
-    // Back-compat: if not found, support legacy slugs that included time
-    // Handles both "-hh-mm" (2 parts) and "-hh-mm-ss" (3 parts) formats
-    if (!show) {
-      const parts = args.slug.split("-");
-      let partsToRemove = 0;
-
-      // Check for 3-part time suffix: -hh-mm-ss (e.g., -20-00-00)
-      if (parts.length >= 3) {
-        const last = parts[parts.length - 1];
-        const secondLast = parts[parts.length - 2];
-        const thirdLast = parts[parts.length - 3];
-        if (/^\d{2}$/.test(last) && /^\d{2}$/.test(secondLast) && /^\d{2}$/.test(thirdLast)) {
-          partsToRemove = 3;
-        }
-      }
-
-      // Check for 2-part time suffix: -hh-mm (e.g., -20-00)
-      if (partsToRemove === 0 && parts.length >= 2) {
-        const last = parts[parts.length - 1];
-        const secondLast = parts[parts.length - 2];
-        if (/^\d{2}$/.test(last) && /^\d{2}$/.test(secondLast)) {
-          partsToRemove = 2;
-        }
-      }
-
-      if (partsToRemove > 0) {
-        const withoutTime = parts.slice(0, parts.length - partsToRemove).join("-");
-        show = await ctx.db
-          .query("shows")
-          .withIndex("by_slug", (q) => q.eq("slug", withoutTime))
-          .first();
-      }
-    }
-
-    if (!show || !show.slug) return null;
-
-    const [artist, venue] = await Promise.all([
-      ctx.db.get(show.artistId),
-      ctx.db.get(show.venueId),
-    ]);
-
-    return { ...show, artist, venue };
-  },
+  handler: (ctx, args) => showPageByKey(ctx, args.slug),
 });
 
 // Internal mutation: normalize all show slugs to remove time suffixes
@@ -221,47 +174,15 @@ export const normalizeSlugsInternal = internalMutation({
 
     for (const show of shows) {
       processed += 1;
-      const slug: string | undefined = (show as any).slug;
-      if (!slug) continue;
-      const parts = slug.split("-");
-      if (parts.length < 2) continue;
-
-      // Check for 3-part time suffix: -hh-mm-ss (e.g., -20-00-00)
-      let partsToRemove = 0;
-      if (parts.length >= 3) {
-        const last = parts[parts.length - 1];
-        const secondLast = parts[parts.length - 2];
-        const thirdLast = parts[parts.length - 3];
-        const hasThreePartTime = /^\d{2}$/.test(last) && /^\d{2}$/.test(secondLast) && /^\d{2}$/.test(thirdLast);
-        if (hasThreePartTime) {
-          partsToRemove = 3;
-        }
-      }
-
-      // Check for 2-part time suffix: -hh-mm (e.g., -20-00)
-      if (partsToRemove === 0 && parts.length >= 2) {
-        const last = parts[parts.length - 1];
-        const secondLast = parts[parts.length - 2];
-        const hasTwoPartTime = /^\d{2}$/.test(last) && /^\d{2}$/.test(secondLast);
-        if (hasTwoPartTime) {
-          partsToRemove = 2;
-        }
-      }
-
-      if (partsToRemove === 0) continue;
-
-      const newSlug = parts.slice(0, parts.length - partsToRemove).join("-");
-
-      if (newSlug !== slug && newSlug.length > 0) {
-        // Ensure uniqueness: if a different show already has this slug, append a short suffix
-        const existing = await ctx.db
-          .query("shows")
-          .withIndex("by_slug", (q) => q.eq("slug", newSlug))
-          .first();
-        const finalSlug = existing && existing._id !== show._id ? `${newSlug}-${String(show._creationTime).slice(-4)}` : newSlug;
-        await ctx.db.patch(show._id, { slug: finalSlug });
-        updated += 1;
-        console.log(`📝 Normalized slug: ${slug} → ${finalSlug}`);
+      if (!show.slug) continue;
+      const newSlug = dateOnlySlug(show.slug);
+      if (newSlug === show.slug) continue;
+      const existing = await ctx.db.query("shows")
+        .withIndex("by_slug", q => q.eq("slug", newSlug)).first();
+      // Keep both public addresses when another performance already owns the date slug.
+      if (!existing) {
+        await ctx.db.patch(show._id, { slug: newSlug });
+        updated++;
       }
     }
 
@@ -269,8 +190,8 @@ export const normalizeSlugsInternal = internalMutation({
   },
 });
 
-// Public action wrapper so we can trigger from CLI / MCP
-export const normalizeShowSlugs = action({
+// Maintenance CLI trigger
+export const normalizeShowSlugs = internalAction({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ processed: v.number(), updated: v.number() }),
   handler: async (ctx, args): Promise<{ processed: number; updated: number }> => {
@@ -283,76 +204,7 @@ export const normalizeShowSlugs = action({
 export const getBySlugOrId = query({
   args: { key: v.string() },
   returns: v.union(v.any(), v.null()),
-  handler: async (ctx, args) => {
-    // Try by slug first
-    let showDoc = await ctx.db
-      .query("shows")
-      .withIndex("by_slug", (q) => q.eq("slug", args.key))
-      .first();
-
-    // Back-compat: if not found, support legacy slugs that included time
-    // Handles both "-hh-mm" (2 parts) and "-hh-mm-ss" (3 parts) formats
-    if (!showDoc) {
-      const parts = args.key.split("-");
-      let partsToRemove = 0;
-
-      // Check for 3-part time suffix: -hh-mm-ss (e.g., -20-00-00)
-      if (parts.length >= 3) {
-        const last = parts[parts.length - 1];
-        const secondLast = parts[parts.length - 2];
-        const thirdLast = parts[parts.length - 3];
-        if (/^\d{2}$/.test(last) && /^\d{2}$/.test(secondLast) && /^\d{2}$/.test(thirdLast)) {
-          partsToRemove = 3;
-        }
-      }
-
-      // Check for 2-part time suffix: -hh-mm (e.g., -20-00)
-      if (partsToRemove === 0 && parts.length >= 2) {
-        const last = parts[parts.length - 1];
-        const secondLast = parts[parts.length - 2];
-        if (/^\d{2}$/.test(last) && /^\d{2}$/.test(secondLast)) {
-          partsToRemove = 2;
-        }
-      }
-
-      if (partsToRemove > 0) {
-        const withoutTime = parts.slice(0, parts.length - partsToRemove).join("-");
-        showDoc = await ctx.db
-          .query("shows")
-          .withIndex("by_slug", (q) => q.eq("slug", withoutTime))
-          .first();
-      }
-    }
-
-    // Fallback: try by id
-    if (!showDoc) {
-      try {
-        // Validate that the key is a valid show ID format
-        const showId = args.key as Id<"shows">;
-        const show = await ctx.db.get(showId);
-        // Verify it's actually a show by checking for required fields
-        if (show && 'artistId' in show && 'venueId' in show && 'date' in show) {
-          showDoc = show;
-        }
-      } catch {
-        // ignore invalid id format
-      }
-    }
-
-    if (!showDoc) return null;
-
-    const [artist, venue] = await Promise.all([
-      ctx.db.get(showDoc.artistId),
-      ctx.db.get(showDoc.venueId),
-    ]);
-
-    // Return null if artist or venue is missing
-    if (!artist || !venue) {
-      return null;
-    }
-
-    return { ...showDoc, artist, venue };
-  },
+  handler: (ctx, args) => showPageByKey(ctx, args.key),
 });
 
 // Internal query to count shows for an artist
@@ -663,9 +515,13 @@ export const createInternal = internalMutation({
     venueId: v.id("venues"),
     date: v.string(),
     startTime: v.optional(v.string()),
+    startsAt: v.optional(v.number()),
+    endsAt: v.optional(v.number()),
+    timeZone: v.optional(v.string()),
     status: v.union(v.literal("upcoming"), v.literal("completed"), v.literal("cancelled")),
     ticketmasterId: v.optional(v.string()),
     ticketUrl: v.optional(v.string()),
+    ticketInfo: ticketInfoValidator,
   },
   handler: async (ctx, args) => {
     // Get artist and venue data to generate slug
@@ -699,7 +555,7 @@ export const createInternal = internalMutation({
     console.log(`✅ Created internal show ${showId} with slug: ${slug}`);
     // FIXED: Single attempt to generate setlist, let cron handle retries
     try {
-      await ctx.runMutation(internalRef.setlists.autoGenerateSetlist, {
+      await ctx.scheduler.runAfter(0, internalRef.setlists.autoGenerateSetlist, {
         showId,
         artistId: args.artistId,
       });
@@ -722,6 +578,7 @@ export const createFromTicketmaster = internalMutation({
     timeZone: v.optional(v.string()),
     status: v.union(v.literal("upcoming"), v.literal("completed"), v.literal("cancelled")),
     ticketUrl: v.optional(v.string()),
+    ticketInfo: ticketInfoValidator,
   },
   handler: async (ctx, args) => {
     // Preserve cancellations; never complete from a UTC date boundary.
@@ -730,17 +587,21 @@ export const createFromTicketmaster = internalMutation({
     // Check for existing show by multiple criteria to avoid duplicates
     let existing = await ctx.db
       .query("shows")
-      .withIndex("by_ticketmaster_id", (q) => q.eq("ticketmasterId", args.ticketmasterId))
+      .withIndex("by_ticketmaster_and_artist", (q) => q.eq("ticketmasterId", args.ticketmasterId).eq("artistId", args.artistId))
       .first();
 
     if (!existing) {
-      existing = await ctx.db
+      const candidates = await ctx.db
         .query("shows")
         .withIndex("by_artist_and_date", (q) =>
           q.eq("artistId", args.artistId).eq("date", args.date),
         )
         .filter((q) => q.eq(q.field("venueId"), args.venueId))
-        .first();
+        .collect();
+      const matches = candidates.filter(show =>
+        (!show.ticketmasterId || show.ticketmasterId === args.ticketmasterId) &&
+        (!show.startTime || !args.startTime || show.startTime === args.startTime));
+      existing = matches.length === 1 ? matches[0] : null;
     }
 
     if (existing) {
@@ -748,6 +609,7 @@ export const createFromTicketmaster = internalMutation({
         lastSynced: Date.now(),
       };
       if (args.ticketmasterId && args.ticketmasterId !== existing.ticketmasterId) patch.ticketmasterId = args.ticketmasterId;
+      if (args.ticketInfo) patch.ticketInfo = args.ticketInfo;
       if (args.ticketUrl !== existing.ticketUrl) patch.ticketUrl = args.ticketUrl;
       if (status !== existing.status) patch.status = status;
       if (args.date !== existing.date) patch.date = args.date;
@@ -770,8 +632,8 @@ export const createFromTicketmaster = internalMutation({
 
         const needsSeed = !existingSetlist || !Array.isArray(existingSetlist.songs) || (existingSetlist.songs?.length ?? 0) < 5;
 
-        if (needsSeed) {
-          await ctx.runMutation(internalRef.setlists.autoGenerateSetlist, {
+        if (status === "upcoming" && needsSeed) {
+          await ctx.scheduler.runAfter(0, internalRef.setlists.autoGenerateSetlist, {
             showId: existing._id,
             artistId: args.artistId,
           });
@@ -808,6 +670,7 @@ export const createFromTicketmaster = internalMutation({
       timeZone: args.timeZone,
       ticketmasterId: args.ticketmasterId,
       ticketUrl: args.ticketUrl,
+      ticketInfo: args.ticketInfo,
       slug,
       lastSynced: Date.now(), // CRITICAL: Set sync timestamp
       voteCount: 0, // Initialize vote count
@@ -824,7 +687,7 @@ export const createFromTicketmaster = internalMutation({
 
     // FIXED: Single attempt to generate setlist, let cron handle retries
     try {
-      await ctx.runMutation(internalRef.setlists.autoGenerateSetlist, {
+      await ctx.scheduler.runAfter(0, internalRef.setlists.autoGenerateSetlist, {
         showId,
         artistId: args.artistId,
       });
@@ -980,11 +843,17 @@ export const updateImportStatus = internalMutation({
     // A late failure from a concurrent request cannot undo a successful actual import.
     if (show.importStatus === "completed" && show.setlistfmId && args.status !== "completed") return null;
     const now = Date.now();
+    const expiry = importRetryExpiry(show.date);
+    const retryHours = args.status === "not_found"
+      ? 24 * 2 ** Math.min(2, Math.max(0, (show.importAttemptCount ?? 1) - 1))
+      : 1;
+    const lastChance = expiry - 6 * 3600_000;
+    const nextAttempt = now < lastChance ? Math.min(now + retryHours * 3600_000, lastChance) : expiry;
     await ctx.db.patch(args.showId, {
       importStatus: args.status,
       importLastAttemptAt: now,
-      importNextAttemptAt: args.status === "completed" ? undefined :
-        now + (args.status === "not_found" ? 24 : 1) * 60 * 60 * 1000,
+      importRetryExpiresAt: args.status === "completed" ? undefined : expiry,
+      importNextAttemptAt: args.status === "completed" ? undefined : nextAttempt,
       lastSynced: now,
     });
     return null;
@@ -1064,6 +933,7 @@ export const autoTransitionStatuses = internalMutation({
           status: "completed",
           importStatus: show.importStatus ?? "pending",
           importNextAttemptAt: show.importStatus === "completed" ? undefined : now,
+          importRetryExpiresAt: show.importStatus === "completed" ? undefined : importRetryExpiry(show.date),
           lastSynced: now,
         });
       }

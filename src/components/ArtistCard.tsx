@@ -36,13 +36,6 @@ function ArtistCardComponent({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      handleClick();
-    }
-  };
-
   const metaParts: string[] = [];
   if (artist.genres?.[0]) {
     metaParts.push(artist.genres[0]);
@@ -55,23 +48,18 @@ function ArtistCardComponent({
   }
 
   return (
-    <motion.div
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      role="button"
-      tabIndex={0}
-      whileTap={{ scale: 0.98 }}
+    <motion.article
       className={cn(
         "group relative overflow-hidden touch-manipulation cursor-pointer transition-all duration-200",
         // Keyboard focus
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset rounded-xl",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset rounded-none sm:rounded-xl",
         // Mobile: simple border bottom for list feel
-        "border-b border-border/50 last:border-b-0",
-        // Desktop: glow card styling
-        "sm:glow-card-sm sm:glow-card-hover sm:border-0"
+        "border-b border-border last:border-b-0",
+        // Desktop: shared panel styling
+        "interactive-row sm:glow-card-sm"
       )}
     >
-      <div className="flex items-center gap-3 p-3 sm:p-4 min-h-[72px]">
+      <div className="flex items-center gap-3 px-0 py-3 sm:p-4 min-h-[72px]">
         {/* Artist Image - Compact Circle */}
         <div className="relative flex-shrink-0">
           <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden bg-secondary ring-1 ring-border transition-colors group-hover:ring-primary/40">
@@ -79,7 +67,7 @@ function ArtistCardComponent({
               <img
                 src={artist.images[0]}
                 alt={artist.name}
-                className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
+                className="w-full h-full object-cover"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-foreground/40 text-xl font-bold">
@@ -90,7 +78,7 @@ function ArtistCardComponent({
         </div>
 
         {/* Content - Compact Info */}
-        <div className="flex-1 min-w-0">
+        <a href={`/artists/${encodeURIComponent(artist.slug || artist._id)}`} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); handleClick(); } }} className="flex-1 min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
           <h3 className="text-foreground font-semibold text-base leading-tight line-clamp-1 mb-0.5">
             {artist.name}
           </h3>
@@ -99,14 +87,14 @@ function ArtistCardComponent({
               {metaParts.join(' · ')}
             </p>
           )}
-        </div>
+        </a>
 
         {/* Actions - Compact Right Side */}
         <div className="flex items-center gap-2 flex-shrink-0">
           {showFollowButton && (
             <button
               onClick={handleFollow}
-              className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-secondary active:bg-secondary/80 transition-colors touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+              className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-secondary active:bg-secondary/80 transition-colors touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label={isFollowing ? "Unfollow" : "Follow"}
             >
               <Heart
@@ -121,7 +109,7 @@ function ArtistCardComponent({
           <ChevronRight className="h-5 w-5 text-muted-foreground transition-colors" />
         </div>
       </div>
-    </motion.div>
+    </motion.article>
   );
 }
 

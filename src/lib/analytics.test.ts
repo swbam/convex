@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   consumeOAuthIntent,
+  safeCampaignProperties,
   isSensitiveAnalyticsRoute,
   recordOAuthIntent,
   sanitizeAnalyticsPath,
@@ -38,4 +39,9 @@ describe("analytics privacy and attribution helpers", () => {
     });
     expect(consumeOAuthIntent()).toBeNull();
   });
+});
+
+it("retains only bounded campaign labels, excluding URL and personal fields", () => {
+  expect(safeCampaignProperties("?utm_source=instagram&utm_medium=social&utm_campaign=fall-tour&token=secret&q=private")).toEqual({ utm_source: "instagram", utm_medium: "social", utm_campaign: "fall-tour" });
+  expect(safeCampaignProperties("?utm_source=person%40example.com&utm_campaign=https%3A%2F%2Fprivate.example")).toEqual({});
 });

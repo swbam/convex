@@ -1,10 +1,15 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { appShell } from "./shared/appShell";
 import path from "path";
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
   plugins: [
+    {
+      name: "shared-app-shell",
+      transformIndexHtml: { order: "pre" as const, handler: () => appShell("/src/main.tsx", "/src/index.css") },
+    },
     react(),
     // The code below enables dev tools like taking screenshots of your site
     // while it is being developed on chef.convex.dev.
@@ -47,6 +52,8 @@ window.addEventListener('message', async (message) => {
         main: './index.html',
       },
       output: {
+        entryFileNames: "app/[name].js",
+        assetFileNames: asset => asset.names.includes("main.css") ? "app/main.css" : "assets/[name]-[hash][extname]",
         manualChunks: {
           'react-vendor': ['react', 'react-dom'],
           'router-vendor': ['react-router-dom'],

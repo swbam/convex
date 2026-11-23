@@ -1,14 +1,16 @@
+import { PageHeader } from "./PageHeader";
+import { ShowDiscoveryCard } from "./discovery/DiscoveryCard";
 import React, { useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { Calendar, MapPin, Music, Search, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { formatLocation, formatTimeCompact } from '../lib/utils';
+import { formatLocation, formatTimeCompact, parseShowCalendarDate } from '../lib/utils';
 import { useShowImport } from '../hooks/useArtistImport';
 import { pageVariants, sectionVariants, gridContainerVariants, gridItemVariants, headerVariants } from './animations/FadeIn';
-import { GridSkeleton } from './LoadingSkeleton';
-import { SEOHead } from './SEOHead';
+import { DiscoverySkeleton as GridSkeleton } from './discovery/DiscoveryCard';
+
 
 interface ShowsProps {
   onShowClick: (showId: Id<'shows'> | string, slug?: string) => void;
@@ -107,16 +109,14 @@ export function Shows({ onShowClick }: ShowsProps) {
 
   return (
     <motion.div
-      className="container mx-auto px-4 py-6 space-y-6 relative z-10"
+      className="public-page space-y-6 relative z-10"
       initial="hidden"
       animate="show"
       variants={pageVariants}
     >
-      <SEOHead
-        title="Upcoming Concerts – Vote on Setlists by City & Date"
-        description="Find upcoming concerts near you, filter by city, and vote on the songs you want played. Setlist predictions for hundreds of shows, updated daily."
-      />
-      {/* Streamlined Header with Search */}
+
+      <PageHeader title="Shows" description="Find a concert and request the songs you want to hear." />
+      {/* Search */}
       <motion.div 
         className="flex flex-col sm:flex-row sm:items-center gap-4"
         variants={headerVariants}
@@ -129,7 +129,7 @@ export function Shows({ onShowClick }: ShowsProps) {
             placeholder="Filter by city, state, or venue..."
             value={locationFilter}
             onChange={(e) => { setLocationFilter(e.target.value); setPage(1); }}
-            className="w-full pl-10 pr-10 py-2.5 bg-secondary border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-foreground placeholder-muted-foreground text-sm"
+            aria-label="Filter shows by city, state, or venue" className="filter-input pl-10 pr-10"
           />
           {locationFilter && (
             <button
@@ -172,10 +172,10 @@ export function Shows({ onShowClick }: ShowsProps) {
           )}
         </div>
       ) : (
-        <motion.div className="space-y-6" variants={sectionVariants}>
+        <motion.div className="space-y-6" variants={sectionVariants} initial="hidden" animate="show">
           {/* Shows Grid - More columns, smaller cards */}
           <motion.div 
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4"
+            className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-0 sm:gap-4"
             variants={gridContainerVariants}
             initial="hidden"
             animate="show"
@@ -183,7 +183,7 @@ export function Shows({ onShowClick }: ShowsProps) {
           >
             {paginatedShows.map((show, index) => (
               <motion.div key={show._id || index} variants={gridItemVariants}>
-                <ShowCard
+                <ShowDiscoveryCard
                   show={show}
                   onClick={() => handleShowClick(show)}
                   isImporting={importingShow === (show.ticketmasterId || show.artist?.ticketmasterId)}
@@ -241,67 +241,3 @@ export function Shows({ onShowClick }: ShowsProps) {
 }
 
 // Compact Show Card - Matching Homepage Style
-function ShowCard({ show, onClick, isImporting }: { show: any; onClick: () => void; isImporting?: boolean }) {
-  const artistImage = Array.isArray(show.artist?.images) && show.artist.images.length > 0 
-    ? show.artist.images[0] 
-    : undefined;
-  
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
-  return (
-    <motion.div 
-      className={`cursor-pointer ${isImporting ? 'pointer-events-none opacity-70' : ''}`}
-      onClick={onClick}
-      whileHover={{ y: -4 }}
-      whileTap={{ scale: 0.98 }}
-    >
-      <div className="glow-card glow-card-hover overflow-hidden relative">
-        {isImporting && (
-          <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          </div>
-        )}
-        {/* Show Image */}
-        <div className="relative w-full aspect-square overflow-hidden">
-          {artistImage ? (
-            <img
-              src={artistImage}
-              alt={show.artist?.name || 'Show'}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-secondary to-secondary/50 flex items-center justify-center">
-              <Calendar className="h-8 w-8 text-foreground/40" />
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-          
-          {/* Date Badge */}
-          <div className="absolute top-2 right-2">
-            <div className="bg-background/90 backdrop-blur-sm rounded-lg px-2 py-1 border border-border/50">
-              <p className="text-foreground text-xs font-medium">
-                {formatDate(show.date)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="p-2.5 sm:p-3">
-          <h3 className="text-foreground font-semibold text-xs sm:text-sm line-clamp-1">
-            {show.artist?.name || 'Unknown Artist'}
-          </h3>
-          <div className="flex items-center gap-1 mt-1 text-muted-foreground text-[10px] sm:text-xs">
-            <MapPin className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">
-              {formatLocation(show.venue?.city, show.venue?.state)}
-            </span>
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-}

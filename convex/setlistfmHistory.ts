@@ -1,28 +1,14 @@
+import { setlistProviderFetch } from "./lib/setlistProviderFetch";
+import { countryKey } from "./venues";
+import { calculateFanAccuracy } from "./lib/songVoteCounts";
 import { recordSetlistImport } from "./lib/setlistImportEvent";
 import { action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
-import { internalRef } from "./adminHelpers";
+import { internalRef, requireAdminForAction } from "./adminHelpers";
 import { Id } from "./_generated/dataModel";
 
 // Type workaround for Convex deep type instantiation issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-
-const SETLISTFM_HTTP_TIMEOUT_MS = 30_000;
-
-// Local fetch-with-timeout (mirrors setlistfm.ts helper)
-async function historyFetchWithTimeout(
-  url: string,
-  init: RequestInit = {},
-  timeoutMs: number = SETLISTFM_HTTP_TIMEOUT_MS
-): Promise<Response> {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(id);
-  }
-}
 
 function setlistfmHeaders(apiKey: string): Record<string, string> {
   return {
@@ -105,9 +91,10 @@ function parseSetlistSongs(entry: any): ParsedHistoricalSong[] {
   let setNumber = 0;
   for (const set of sets) {
     setNumber += 1;
-    const encore = Boolean(set?.encore);
+    const encore = Number(set?.encore) > 0 || set?.encore === true || set?.encore === "true";
     const setSongs = Array.isArray(set?.song) ? set.song : [];
     for (const song of setSongs) {
+      if (song?.tape) continue;
       const title = typeof song?.name === "string" ? song.name.trim() : "";
       if (!title) continue;
       songs.push({ title, setNumber, encore });
@@ -215,11 +202,15 @@ export const upsertHistoricalSetlist = internalMutation({
       for (const candidate of sameDayShows) {
         const candidateVenue = await ctx.db.get(candidate.venueId);
         if (candidateVenue && normalizeVenueKey(candidateVenue.city) === wantedCity &&
+            (!args.venueCountry || countryKey(candidateVenue.country) === countryKey(args.venueCountry)) &&
+            (!args.venueState || !candidateVenue.state || normalizeVenueKey(candidateVenue.state) === normalizeVenueKey(args.venueState)) &&
             venueNamesLooselyMatch(candidateVenue.name, args.venueName)) matches.push(candidate);
       }
       if (matches.length > 1) return { created: false }; // ambiguous: do not overwrite either show
       show = matches[0] ?? null;
     }
+
+    if (show && await ctx.db.query("liveSetlistSessions").withIndex("by_show", q => q.eq("showId", show!._id)).unique()) return { created: false };
 
     let showId: Id<"shows">;
     if (show) {
@@ -238,16 +229,21 @@ export const upsertHistoricalSetlist = internalMutation({
       // 2) Venue (only needed for a brand-new show): dedupe by exact name+city
       //    (mirrors venues.createFromTicketmaster fallback), then by a loose
       //    normalized-name match within the same city before inserting.
-      let existingVenue = await ctx.db
+      const exactVenues = await ctx.db
         .query("venues")
         .withIndex("by_name_city", (q) => q.eq("name", args.venueName).eq("city", args.venueCity))
-        .first();
+        .collect();
+      const sameRegion = (venue: { country: string; state?: string }) =>
+        (!args.venueCountry || countryKey(venue.country) === countryKey(args.venueCountry)) &&
+        (!args.venueState || !venue.state || normalizeVenueKey(venue.state) === normalizeVenueKey(args.venueState));
+      const matches = exactVenues.filter(sameRegion);
+      let existingVenue = matches.length === 1 ? matches[0] : null;
       if (!existingVenue) {
         const cityVenues = await ctx.db
           .query("venues")
           .withIndex("by_location", (q) => q.eq("city", args.venueCity))
           .take(50);
-        existingVenue = cityVenues.find((venue) => venueNamesLooselyMatch(venue.name, args.venueName)) ?? null;
+        existingVenue = cityVenues.find((venue) => sameRegion(venue) && venueNamesLooselyMatch(venue.name, args.venueName)) ?? null;
       }
 
       let venueId: Id<"venues">;
@@ -257,7 +253,7 @@ export const upsertHistoricalSetlist = internalMutation({
           await ctx.db.patch(venueId, { state: args.venueState });
         }
       } else {
-        venueId = await ctx.db.insert("venues", {
+        venueId = await ctx.runMutation(internalRef.venues.createFromTicketmaster, {
           name: args.venueName,
           city: args.venueCity,
           state: args.venueState,
@@ -304,16 +300,7 @@ export const upsertHistoricalSetlist = internalMutation({
     const officialSetlist = setlistsForShow.find((s) => s.isOfficial) ?? null;
 
     if (predictionSetlist) {
-      const predictedTitles = (predictionSetlist.songs ?? [])
-        .map((song) => song.title?.toLowerCase().trim())
-        .filter((title): title is string => Boolean(title));
-      let accuracy = 0;
-      if (predictedTitles.length > 0) {
-        const actualTitles = args.songs.map((s) => s.title.toLowerCase().trim());
-        const correct = predictedTitles.filter((title) => actualTitles.includes(title)).length;
-        const pct = Math.round((correct / predictedTitles.length) * 100);
-        accuracy = Number.isFinite(pct) ? pct : 0;
-      }
+      const accuracy = (await calculateFanAccuracy(ctx, predictionSetlist, args.songs)) ?? undefined;
       await ctx.db.patch(predictionSetlist._id, {
         actualSetlist: args.songs,
         setlistfmId: args.setlistfmId,
@@ -402,11 +389,11 @@ export const importArtistHistory = internalAction({
 
     let response: Response;
     try {
-      response = await historyFetchWithTimeout(url, { headers: setlistfmHeaders(apiKey) });
+      response = await setlistProviderFetch(ctx, url, { headers: setlistfmHeaders(apiKey) });
       if (response.status === 429) {
         // One gentle retry, then give up this run WITHOUT stamping the artist so backfill retries later.
         await new Promise((r) => setTimeout(r, 2000));
-        response = await historyFetchWithTimeout(url, { headers: setlistfmHeaders(apiKey) });
+        response = await setlistProviderFetch(ctx, url, { headers: setlistfmHeaders(apiKey) });
         if (response.status === 429) {
           console.warn(`⏳ setlistfmHistory: rate limited for ${artist.name}, will retry in a later backfill`);
           return { imported: 0, skipped: 0, artistName: artist.name, reason: "rate_limited" };
@@ -558,6 +545,7 @@ export const requestArtistHistoryImport = action({
   args: { artistId: v.id("artists") },
   returns: v.object({ scheduled: v.boolean() }),
   handler: async (ctx, args) => {
+    await requireAdminForAction(ctx);
     const artist = await ctx.runQuery(internalRef.artists.getByIdInternal, { id: args.artistId });
     if (!artist) return { scheduled: false };
     if (

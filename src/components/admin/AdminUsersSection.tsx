@@ -47,7 +47,7 @@ export function AdminUsersSection({
                     placeholder="Search users by email..."
                     value={userSearch}
                     onChange={(e) => onUserSearchChange(e.target.value)}
-                    className="max-w-sm border-white/[0.08] bg-white/[0.02] placeholder:text-muted-foreground/40 focus:border-white/[0.15]"
+                    className="max-w-sm border-border bg-card placeholder:text-muted-foreground focus:border-ring"
                 />
             </motion.div>
 
@@ -57,18 +57,17 @@ export function AdminUsersSection({
                     <motion.div
                         key={user._id}
                         variants={fadeUp}
-                        whileHover={shouldReduce ? {} : { x: 2, transition: { duration: 0.15 } }}
-                        className="group flex items-center justify-between p-4 rounded-xl border border-white/[0.06] bg-white/[0.015] hover:border-white/[0.1] transition-colors duration-200"
-                        style={{ boxShadow: "inset 0 1px 0 0 rgba(255,255,255,0.02)" }}
+                        className="group flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:border-border-strong transition-colors duration-200"
+                        style={{ boxShadow: "var(--surface-shadow)" }}
                     >
                         <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-white/[0.04] flex items-center justify-center flex-shrink-0">
-                                    <Users className="h-3.5 w-3.5 text-muted-foreground/50" />
+                                <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                                    <Users className="h-3.5 w-3.5 text-muted-foreground" />
                                 </div>
                                 <div className="min-w-0">
                                     <p className="text-foreground font-medium text-sm truncate">{user.email}</p>
-                                    <p className="text-[11px] text-muted-foreground/40 font-mono truncate">{user._id}</p>
+                                    <p className="text-[11px] text-muted-foreground font-mono truncate">{user._id}</p>
                                 </div>
                             </div>
                         </div>
@@ -76,8 +75,8 @@ export function AdminUsersSection({
                         <div className="flex items-center gap-2 flex-shrink-0 ml-3">
                             {/* Current role badge */}
                             <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${user.role === "admin"
-                                    ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                                    : "bg-white/[0.04] text-muted-foreground/60 border border-white/[0.06]"
+                                    ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
+                                    : "bg-secondary text-muted-foreground border border-border"
                                 }`}>
                                 {user.role || "user"}
                             </span>
@@ -86,7 +85,7 @@ export function AdminUsersSection({
                                 size="sm"
                                 variant="outline"
                                 onClick={() => onRoleUpdate(user._id, "admin")}
-                                className="h-7 text-xs border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05] text-foreground/70"
+                                className="h-7 text-xs border-border bg-card hover:bg-accent text-foreground/70"
                             >
                                 <Shield className="h-3 w-3 mr-1" />
                                 Admin
@@ -95,7 +94,7 @@ export function AdminUsersSection({
                                 size="sm"
                                 variant="outline"
                                 onClick={() => onRoleUpdate(user._id, "user")}
-                                className="h-7 text-xs border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400/80"
+                                className="h-7 text-xs border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-700 dark:text-red-400/80"
                             >
                                 User
                             </Button>
@@ -104,7 +103,7 @@ export function AdminUsersSection({
                 ))}
 
                 {filteredUsers.length === 0 && users !== undefined && (
-                    <div className="text-center py-12 text-muted-foreground/40 text-sm">
+                    <div className="text-center py-12 text-muted-foreground text-sm">
                         No users found
                     </div>
                 )}

@@ -1,18 +1,19 @@
+import { formatFestivalDates } from "../lib/festivalDates";
+import { TicketLink } from "./TicketLink";
 import React, { useState } from 'react';
 import { useAction, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
-import { 
-  Calendar, MapPin, Music, Users, Sparkles, 
+import {
+  Calendar, MapPin, Music, Users, Sparkles,
   ExternalLink, ChevronLeft, Clock, Vote
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { MagicCard } from './ui/magic-card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { useNavigate } from 'react-router-dom';
-import { buildTicketmasterAffiliateUrl } from '../utils/ticketmaster';
 import { toast } from 'sonner';
-import { SEOHead } from './SEOHead';
+
 
 interface FestivalDetailProps {
   festivalSlug: string;
@@ -21,22 +22,32 @@ interface FestivalDetailProps {
   onArtistClick: (artistId: Id<'artists'>, slug?: string) => void;
 }
 
-export function FestivalDetail({ 
-  festivalSlug, 
-  onBack, 
+export function FestivalDetail({
+  festivalSlug,
+  onBack,
   onShowClick,
-  onArtistClick 
+  onArtistClick
 }: FestivalDetailProps) {
   const navigate = useNavigate();
-  const [selectedDay, setSelectedDay] = useState<number>(1);
-  
+  const [failedImage, setFailedImage] = useState<string>();
+  const [selectedDay, setSelectedDay] = useState<number>(-1);
+
   // Fetch festival schedule with all artists
   const scheduleData = useQuery(api.festivals.getSchedule, { festivalSlug });
-  
+
   const festival = scheduleData?.festival;
   const days = scheduleData?.days || [];
   const totalArtists = scheduleData?.totalArtists || 0;
-  
+  const activeDay = selectedDay === -1 || days.some(day => day.dayNumber === selectedDay) ? selectedDay : -1;
+  const allArtists = React.useMemo(() => {
+    const unique = new Map<string, (typeof days)[number]['shows'][number]>();
+    // Prefer a dated performance over a roster placeholder for the main link.
+    for (const day of [...days].sort((a, b) => (a.dayNumber || Infinity) - (b.dayNumber || Infinity))) {
+      for (const show of day.shows) if (show.artist && !unique.has(show.artist.name.toLocaleLowerCase())) unique.set(show.artist.name.toLocaleLowerCase(), show);
+    }
+    return [...unique.values()].sort((a, b) => (a.artist?.name ?? '').localeCompare(b.artist?.name ?? ''));
+  }, [days]);
+
   const isLoading = scheduleData === undefined;
 
   const isAdmin = useQuery(api.admin.isCurrentUserAdmin);
@@ -55,68 +66,26 @@ export function FestivalDetail({
 
   const [isStartingImport, setIsStartingImport] = useState(false);
 
-  const formatDateRange = (startDate: string, endDate: string) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    const startMonth = start.toLocaleDateString('en-US', { month: 'short' });
-    const endMonth = end.toLocaleDateString('en-US', { month: 'short' });
-    const startDay = start.getDate();
-    const endDay = end.getDate();
-    const year = start.getFullYear();
-    
-    if (startMonth === endMonth) {
-      return `${startMonth} ${startDay}-${endDay}, ${year}`;
-    }
-    return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`;
-  };
+  const formatDateRange = formatFestivalDates;
 
   const getDayDate = (dayNumber: number) => {
     if (!festival?.startDate) return '';
     const start = new Date(festival.startDate);
-    start.setDate(start.getDate() + dayNumber - 1);
-    return start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    start.setUTCDate(start.getUTCDate() + dayNumber - 1);
+    return start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
   };
 
-  // Compute realistic status based on actual artist count
-  const getStatusBadge = (status: string, artistCount?: number) => {
-    // Determine effective status based on artist count (source of truth)
-    let effectiveStatus = status;
-    const count = artistCount ?? 0;
-    
-    if (status === 'ongoing' || status === 'completed') {
-      effectiveStatus = status;
-    } else if (count === 0) {
-      effectiveStatus = 'announced';
-    } else if (count < 10) {
-      effectiveStatus = 'partial';
-    } else {
-      effectiveStatus = 'lineup';
-    }
-    
-    const statusConfig: Record<string, { label: string; color: string }> = {
-      announced: { label: 'Announced', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-      partial: { label: `${count} Artists`, color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
-      lineup: { label: 'Lineup Out', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
-      scheduled: { label: 'Schedule Out', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
-      ongoing: { label: 'Happening Now', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30 animate-pulse' },
-      completed: { label: 'Completed', color: 'bg-gray-500/20 text-gray-400 border-gray-500/30' },
-    };
-    
-    const config = statusConfig[effectiveStatus] || statusConfig.announced;
-    return (
-      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${config.color}`}>
-        {config.label}
-      </span>
-    );
+  const getStatusBadge = (status: string) => {
+    const label = status === 'completed' ? 'Past edition' : status === 'ongoing' ? 'Happening now' : status === 'scheduled' ? 'Schedule available' : null;
+    return label ? <span className="text-xs font-semibold uppercase tracking-wide text-white/75">{label}</span> : null;
   };
 
   if (isLoading) {
     return (
       <div className="space-y-8">
         {/* Hero Skeleton */}
-        <div className="w-full h-[400px] sm:h-[450px] md:h-[500px] bg-gradient-to-r from-secondary/50 via-secondary/30 to-secondary/50 animate-pulse" />
-        
+        <div className="w-full h-[340px] sm:h-[400px] md:h-[440px] bg-gradient-to-r from-secondary/50 via-secondary/30 to-secondary/50 animate-pulse" />
+
         {/* Content Skeleton */}
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -152,59 +121,44 @@ export function FestivalDetail({
   }
 
   return (
-    <div className="space-y-8 relative z-10">
-      <SEOHead
-        title={`${festival.name} – Lineup, Set Times & Setlists`}
-        description={`${festival.name}: ${formatDateRange(festival.startDate, festival.endDate)} in ${festival.location}. ${totalArtists > 0 ? `Browse all ${totalArtists} artists, ` : 'Browse the lineup, '}see set times, and vote on the setlists you want to hear.`}
-        image={festival.imageUrl}
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "Festival",
-          name: festival.name,
-          startDate: festival.startDate,
-          endDate: festival.endDate,
-          ...(festival.imageUrl ? { image: festival.imageUrl } : {}),
-          location: { "@type": "Place", name: festival.location },
-          url: `https://www.setlists.live/festivals/${festivalSlug}`,
-          ...(festival.ticketUrl ? { offers: { "@type": "Offer", url: festival.ticketUrl } } : {}),
-        }}
-      />
+    <div className="space-y-6 relative z-10">
+
       {/* ===== FULL-WIDTH HERO HEADER ===== */}
       <div className="relative w-full overflow-hidden">
         {/* Hero Container */}
-        <div className="relative w-full h-[400px] sm:h-[450px] md:h-[500px] lg:h-[550px]">
+        <div className="relative w-full">
           {/* Background Image */}
           <div className="absolute inset-0">
-            {festival.imageUrl ? (
-              <img 
-                src={festival.imageUrl} 
+            {festival.imageUrl && festival.imageUrl !== failedImage ? (
+              <img
+                src={festival.imageUrl} onError={() => setFailedImage(festival.imageUrl)}
                 alt={festival.name}
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-primary/30 via-primary/20 to-secondary/30 flex items-center justify-center">
-                <Sparkles className="h-24 w-24 text-primary/30" />
+              <div className="w-full h-full bg-card flex items-center justify-center">
+
               </div>
             )}
             {/* Gradient Overlays */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/20" />
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-black/60" />
           </div>
-          
+
           {/* Back Button - Top Left */}
-          <div className="absolute top-6 left-4 sm:left-6 lg:left-8 z-20">
+          <div className="relative z-20 public-page pb-0">
             <button
               onClick={onBack}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm border border-white/10 text-white transition-all duration-200 hover:scale-105"
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm border border-white/10 text-white transition-all duration-200 motion-safe:hover:opacity-90"
             >
               <ChevronLeft className="h-4 w-4" />
               <span className="text-sm font-medium">Back to Festivals</span>
             </button>
           </div>
-          
+
           {/* Content */}
-          <div className="absolute inset-0 flex items-end">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-20 md:pb-24">
+          <div className="relative">
+            <div className="public-page pt-5 pb-7 sm:pb-10">
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -213,14 +167,14 @@ export function FestivalDetail({
               >
                 {/* Status Badge */}
                 <div className="mb-4">
-                  {getStatusBadge(festival.status, totalArtists)}
+                  {getStatusBadge(festival.status)}
                 </div>
-                
+
                 {/* Festival Name */}
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight">
+                <h1 className="text-2xl sm:text-3xl lg:text-5xl font-bold text-white mb-4 leading-tight tracking-tight">
                   {festival.name}
                 </h1>
-                
+
                 {/* Details */}
                 <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-white/90">
                   <div className="flex items-center gap-2">
@@ -236,21 +190,16 @@ export function FestivalDetail({
                   <div className="flex items-center gap-2">
                     <Users className="h-5 w-5" />
                     <span className="text-sm sm:text-base font-medium">
-                      {totalArtists} artists
+                      {totalArtists} artists listed
                     </span>
                   </div>
                 </div>
-                
+
                 {/* Action Buttons */}
                 <div className="mt-6 flex flex-wrap items-center gap-3">
                   {/* Get Tickets - Primary CTA for affiliate revenue */}
-                  {(festival.ticketUrl || festival.websiteUrl) && (
-                    <a
-                      href={buildTicketmasterAffiliateUrl(festival.ticketUrl || festival.websiteUrl)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold transition-all duration-200 hover:scale-105 shadow-lg shadow-primary/25"
-                    >
+                  {festival.status !== "completed" && festival.ticketUrl && (
+                    <TicketLink href={festival.ticketUrl} placement="festival_hero" properties={{ festival_id: festival._id, festival_slug: festival.slug }} className="brand-primary inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold transition-all duration-200 motion-safe:hover:opacity-90" >
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
                         <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
                         <path d="M13 5v2" />
@@ -258,16 +207,16 @@ export function FestivalDetail({
                         <path d="M13 11v2" />
                       </svg>
                       <span>Get Tickets</span>
-                    </a>
+                    </TicketLink>
                   )}
-                  
+
                   {/* Official Website - Secondary link */}
                   {festival.websiteUrl && festival.ticketUrl && (
                     <a
                       href={festival.websiteUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white transition-all duration-200 hover:scale-105"
+                      className="site-button inline-flex min-h-11 items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white transition-all duration-200 motion-safe:hover:opacity-90"
                     >
                       <ExternalLink className="h-4 w-4" />
                       <span className="text-sm font-medium">Official Website</span>
@@ -281,7 +230,7 @@ export function FestivalDetail({
       </div>
 
       {/* ===== LINEUP SECTION ===== */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+      <div className="public-page pt-0 pb-8">
         <div className="space-y-6">
           {/* Section Header */}
           <div className="flex items-center justify-between">
@@ -291,11 +240,11 @@ export function FestivalDetail({
             </h2>
             <div className="flex items-center gap-3">
               <p className="text-sm text-muted-foreground hidden sm:block">
-                Click any artist to vote on their setlist
+                Open a performance to see its setlist
               </p>
               {isAdmin && festival && (
                 <button
-                  disabled={isStartingImport}
+                  disabled={isStartingImport || !!activeFestivalImportJob}
                   onClick={() => { void (async () => {
                     try {
                       setIsStartingImport(true);
@@ -322,7 +271,7 @@ export function FestivalDetail({
           {/* Lineup completeness / import progress */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <p className="text-xs text-muted-foreground">
-              Imported artists: <span className="font-semibold text-foreground">{totalArtists}</span>
+              Artists listed: <span className="font-semibold text-foreground">{totalArtists}</span>
               {activeFestivalImportJob?.totalItems
                 ? (
                   <>
@@ -348,24 +297,27 @@ export function FestivalDetail({
             </div>
           )}
 
+          <p className="text-sm text-muted-foreground">{festival.lineupStatus === "verified" ? "Lineup checked against the edition source." : "Artists from available sources; this lineup may be incomplete."} {festival.status === "completed" ? "Performance details appear where available." : "Days and set times appear when confirmed."}{festival.lineupSourceUrl && <> <a href={festival.lineupSourceUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">Lineup source ↗</a></>}</p>
+
           {/* Day Tabs */}
           {days.length > 1 ? (
-            <Tabs value={String(selectedDay)} onValueChange={(v) => setSelectedDay(Number(v))}>
-              <TabsList className="mb-4">
+            <Tabs value={String(activeDay)} onValueChange={(v) => setSelectedDay(Number(v))}>
+              <TabsList className="mb-4 max-w-full overflow-x-auto justify-start">
+                <TabsTrigger value="-1">All artists</TabsTrigger>
                 {days.map((day) => (
                   <TabsTrigger key={day.dayNumber} value={String(day.dayNumber)}>
-                    Day {day.dayNumber}
-                    <span className="ml-1 text-xs text-muted-foreground hidden sm:inline">
-                      ({getDayDate(day.dayNumber)})
-                    </span>
+                    {day.dayNumber === 0 ? festival.status === "completed" ? "Day unavailable" : "Schedule TBA" : getDayDate(day.dayNumber)}
                   </TabsTrigger>
                 ))}
               </TabsList>
 
+              <TabsContent value="-1">
+                <ArtistGrid shows={allArtists} onShowClick={onShowClick} onArtistClick={onArtistClick} />
+              </TabsContent>
               {days.map((day) => (
                 <TabsContent key={day.dayNumber} value={String(day.dayNumber)}>
-                  <ArtistGrid 
-                    shows={day.shows} 
+                  <ArtistGrid
+                    shows={day.shows}
                     onShowClick={onShowClick}
                     onArtistClick={onArtistClick}
                   />
@@ -373,8 +325,8 @@ export function FestivalDetail({
               ))}
             </Tabs>
           ) : days.length === 1 ? (
-            <ArtistGrid 
-              shows={days[0].shows} 
+            <ArtistGrid
+              shows={days[0].shows}
               onShowClick={onShowClick}
               onArtistClick={onArtistClick}
             />
@@ -384,7 +336,7 @@ export function FestivalDetail({
                 <Music className="h-8 w-8 text-primary" />
               </div>
               <p className="text-muted-foreground">
-                Lineup hasn't been announced yet. Check back later!
+                We don’t have a verified lineup for this edition yet.
               </p>
             </MagicCard>
           )}
@@ -397,12 +349,13 @@ export function FestivalDetail({
 // Artist Grid Component
 interface ArtistGridProps {
   shows: Array<{
-    showId: Id<'shows'>;
+    showId?: Id<'shows'>;
+    lineupEntryId?: string;
     slug?: string;
     artist: {
-      _id: Id<'artists'>;
+      _id?: Id<'artists'>;
       name: string;
-      slug: string;
+      slug?: string;
       images?: string[];
       genres?: string[];
     } | null;
@@ -419,15 +372,15 @@ function ArtistGrid({ shows, onShowClick, onArtistClick }: ArtistGridProps) {
   // Group by stage if available
   const stages = React.useMemo(() => {
     const stageMap = new Map<string, typeof shows>();
-    
+
     shows.forEach((show) => {
-      const stage = show.stageName || 'Main Stage';
+      const stage = show.stageName || 'Stage TBA';
       if (!stageMap.has(stage)) {
         stageMap.set(stage, []);
       }
       stageMap.get(stage)!.push(show);
     });
-    
+
     // Sort each stage's shows by time
     stageMap.forEach((stageShows) => {
       stageShows.sort((a, b) => {
@@ -437,7 +390,7 @@ function ArtistGrid({ shows, onShowClick, onArtistClick }: ArtistGridProps) {
         return 0;
       });
     });
-    
+
     return Array.from(stageMap.entries());
   }, [shows]);
 
@@ -455,9 +408,9 @@ function ArtistGrid({ shows, onShowClick, onArtistClick }: ArtistGridProps) {
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
               {stageShows.map((show, index) => (
-                <ArtistCard 
-                  key={show.showId} 
-                  show={show} 
+                <ArtistCard
+                  key={show.showId || show.lineupEntryId}
+                  show={show}
                   index={index}
                   onShowClick={onShowClick}
                   onArtistClick={onArtistClick}
@@ -469,9 +422,9 @@ function ArtistGrid({ shows, onShowClick, onArtistClick }: ArtistGridProps) {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
           {shows.map((show, index) => (
-            <ArtistCard 
-              key={show.showId} 
-              show={show} 
+            <ArtistCard
+              key={show.showId || show.lineupEntryId}
+              show={show}
               index={index}
               onShowClick={onShowClick}
               onArtistClick={onArtistClick}
@@ -486,12 +439,13 @@ function ArtistGrid({ shows, onShowClick, onArtistClick }: ArtistGridProps) {
 // Individual Artist Card
 interface ArtistCardProps {
   show: {
-    showId: Id<'shows'>;
+    showId?: Id<'shows'>;
+    lineupEntryId?: string;
     slug?: string;
     artist: {
-      _id: Id<'artists'>;
+      _id?: Id<'artists'>;
       name: string;
-      slug: string;
+      slug?: string;
       images?: string[];
       genres?: string[];
     } | null;
@@ -505,11 +459,11 @@ interface ArtistCardProps {
   onArtistClick: (artistId: Id<'artists'>, slug?: string) => void;
 }
 
-function ArtistCard({ show, index, onShowClick, onArtistClick }: ArtistCardProps) {
+function ArtistCard({ show, index }: ArtistCardProps) {
   if (!show.artist) return null;
-  
+
   const artistImage = show.artist.images?.[0];
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -517,26 +471,27 @@ function ArtistCard({ show, index, onShowClick, onArtistClick }: ArtistCardProps
       transition={{ duration: 0.3, delay: Math.min(index * 0.02, 0.3) }}
     >
       <MagicCard
-        className="group cursor-pointer rounded-xl overflow-hidden transition-all duration-300 hover:scale-[1.03] hover:shadow-xl"
-        onClick={() => onShowClick(show.showId, show.slug)}
+        className="group rounded-lg overflow-hidden transition-all duration-300 motion-safe:hover:opacity-90"
+
       >
         {/* Artist Image */}
-        <div className="relative aspect-square bg-gradient-to-br from-secondary to-secondary/50">
+        <a href={show.showId ? `/shows/${show.slug || show.showId}` : show.artist.slug ? `/artists/${show.artist.slug}` : undefined} className="block relative aspect-square bg-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" aria-label={`${show.artist.name}${show.showId ? " festival setlist" : show.artist.slug ? " artist profile" : " lineup artist"}`}>
           {artistImage ? (
-            <img 
-              src={artistImage} 
+            <img
+              src={artistImage}
+              loading="lazy"
               alt={show.artist.name}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <Music className="h-8 w-8 text-muted-foreground/50" />
+              <Music className="h-8 w-8 text-muted-foreground" />
             </div>
           )}
-          
+
           {/* Gradient Overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-          
+
           {/* Set Time Badge */}
           {show.setTime && (
             <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/70 backdrop-blur-sm rounded text-xs text-white flex items-center gap-1">
@@ -544,7 +499,7 @@ function ArtistCard({ show, index, onShowClick, onArtistClick }: ArtistCardProps
               {show.setTime}
             </div>
           )}
-          
+
           {/* Vote Count */}
           {show.voteCount > 0 && (
             <div className="absolute top-2 left-2 px-2 py-0.5 bg-primary/90 backdrop-blur-sm rounded text-xs text-primary-foreground flex items-center gap-1">
@@ -552,7 +507,7 @@ function ArtistCard({ show, index, onShowClick, onArtistClick }: ArtistCardProps
               {show.voteCount}
             </div>
           )}
-          
+
           {/* Artist Name */}
           <div className="absolute bottom-0 left-0 right-0 p-3">
             <h4 className="text-sm font-semibold text-white line-clamp-2 group-hover:text-primary transition-colors">
@@ -564,7 +519,8 @@ function ArtistCard({ show, index, onShowClick, onArtistClick }: ArtistCardProps
               </p>
             )}
           </div>
-        </div>
+        </a>
+        {show.artist.slug ? <a href={`/artists/${show.artist.slug}`} className="block px-3 py-2 text-xs text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">Artist profile →</a> : <p className="px-3 py-2 text-xs text-muted-foreground">Listed in the lineup</p>}
       </MagicCard>
     </motion.div>
   );

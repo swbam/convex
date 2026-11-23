@@ -358,6 +358,7 @@ export const sendVerificationEmail = internalAction({
     try {
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
+        signal: AbortSignal.timeout(20_000),
         headers: { "Authorization": "Bearer " + resendApiKey, "Content-Type": "application/json" },
         body: JSON.stringify({
           from: "Verification <noreply@setlists.live>",
@@ -897,14 +898,8 @@ export const submitClaim = mutation({
 
     await ctx.db.patch(args.claimId, { status: "pending", submittedAt: Date.now() });
 
-    await ctx.scheduler.runAfter(0, internalRef.artistClaims.notifyOwnerOfClaim, {
-      claimId: args.claimId,
-      artistName: (artist as any).name ?? "Unknown",
-      userEmail: claim.verificationEmail ?? user?.email ?? "unknown",
-      userName: user?.name ?? user?.username ?? "Unknown",
-      role: claim.officialRole,
-      organizationName: claim.organizationName,
-    });
+    await ctx.runMutation(internalRef.artistNotifications.enqueue, { claimId: args.claimId, kind: "review_needed" });
+    await ctx.runMutation(internalRef.artistNotifications.enqueue, { claimId: args.claimId, kind: "submitted" });
 
     return { success: true, message: "Submitted for review" };
   },
@@ -1063,7 +1058,7 @@ export const approve = mutation({
     const user = await ctx.db.get(claim.userId);
     const artist = await ctx.db.get(claim.artistId);
     if (claim.verificationEmail || user?.email) {
-      await ctx.scheduler.runAfter(0, internalRef.artistClaims.sendApprovalEmail, { email: claim.verificationEmail ?? user?.email ?? "", artistName: artist?.name ?? "your artist" });
+      await ctx.runMutation(internalRef.artistNotifications.enqueue, { claimId: args.claimId, kind: "approved" });
     }
     await ctx.scheduler.runAfter(0, internalRef.artistAutomation.runManagedArtistWarmup, {
       artistId: claim.artistId,
@@ -1104,7 +1099,7 @@ export const reject = mutation({
     const user = await ctx.db.get(claim.userId);
     const artist = await ctx.db.get(claim.artistId);
     if (claim.verificationEmail || user?.email) {
-      await ctx.scheduler.runAfter(0, internalRef.artistClaims.sendRejectionEmail, { email: claim.verificationEmail ?? user?.email ?? "", artistName: artist?.name ?? "your artist", reason: args.note });
+      await ctx.runMutation(internalRef.artistNotifications.enqueue, { claimId: args.claimId, kind: "rejected" });
     }
 
     return { success: true };
@@ -1112,7 +1107,7 @@ export const reject = mutation({
 });
 
 // ============================================================================
-// EMAILS
+// LEGACY EMAIL HANDLERS — retained for already-scheduled jobs. New transitions use artistNotifications.
 // ============================================================================
 
 export const notifyOwnerOfClaim = internalAction({
@@ -1152,6 +1147,7 @@ export const sendApprovalEmail = internalAction({
     try {
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
+        signal: AbortSignal.timeout(20_000),
         headers: { "Authorization": "Bearer " + resendApiKey, "Content-Type": "application/json" },
         body: JSON.stringify({
           from: "Verification <noreply@setlists.live>",
@@ -1176,6 +1172,7 @@ export const sendRejectionEmail = internalAction({
     try {
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
+        signal: AbortSignal.timeout(20_000),
         headers: { "Authorization": "Bearer " + resendApiKey, "Content-Type": "application/json" },
         body: JSON.stringify({
           from: "Verification <noreply@setlists.live>",

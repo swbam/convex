@@ -62,14 +62,14 @@ export function ShowHeader({
                 <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
                 <span className="truncate max-w-[120px] sm:max-w-none">{show?.venue?.name}</span>
               </div>
-              <span className="text-muted-foreground/40">•</span>
+              <span className="text-muted-foreground">•</span>
               <div className="flex items-center gap-1">
                 <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
                 <span>{showDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
               </div>
               {show?.startTime && (
                 <>
-                  <span className="text-muted-foreground/40 hidden sm:inline">•</span>
+                  <span className="text-muted-foreground hidden sm:inline">•</span>
                   <span className="hidden sm:inline">{formatShowTime(show?.startTime, show?.venue?.state)}</span>
                 </>
               )}

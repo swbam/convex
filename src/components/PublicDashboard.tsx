@@ -1,15 +1,15 @@
+import { ArtistDiscoveryCard, ShowDiscoveryCard } from "./discovery/DiscoveryCard";
 import React, { useMemo, useState } from 'react';
 import { useQuery, useAction } from "convex/react";
 import { useUser } from "@clerk/clerk-react";
 import { api } from "../../convex/_generated/api";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { MapPin, Music, ArrowRight, Loader2, Radio, CalendarDays, Flame, Clock3 } from "lucide-react";
 import { SearchBar } from "./SearchBar";
 import { Id } from "../../convex/_generated/dataModel";
 import { GridSkeleton } from "./LoadingSkeleton";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { MagicCard } from "./ui/magic-card";
-import { BorderBeam } from "./ui/border-beam";
 import { FaSpotify } from "react-icons/fa";
 import { formatLocation } from "../lib/utils";
 import { toast } from "sonner";
@@ -346,7 +346,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
           <div className="max-w-3xl mx-auto text-center">
             <motion.h1
               variants={itemVariants}
-              className="text-[1.75rem] leading-[1.15] sm:text-4xl md:text-5xl font-bold tracking-tight gradient-text"
+              className="text-[1.75rem] leading-[1.15] sm:text-4xl md:text-5xl font-bold tracking-tight"
             >
               See what fans want to hear — before doors open
             </motion.h1>
@@ -358,7 +358,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
               Vote on the setlist for any upcoming show.{' '}
               <a
                 href="/about"
-                className="whitespace-nowrap text-muted-foreground/80 underline underline-offset-4 decoration-border hover:text-foreground transition-colors"
+                className="whitespace-nowrap text-muted-foreground underline underline-offset-4 decoration-border hover:text-foreground transition-colors"
               >
                 How it works <span aria-hidden="true">→</span>
               </a>
@@ -392,27 +392,27 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: shouldReduceMotion ? 0 : 0.28, delay: shouldReduceMotion ? 0 : 0.12 }}
       >
-        <div className="grid grid-cols-[1.2fr_1fr_1fr] overflow-hidden rounded-2xl border border-border/80 bg-card/55 shadow-sm backdrop-blur-xl">
+        <div className="grid grid-cols-[1.2fr_1fr_1fr] overflow-hidden rounded-none sm:rounded-2xl border-y sm:border border-border bg-card shadow-sm backdrop-blur-xl">
           <div className="flex min-w-0 items-center gap-2.5 border-r border-border/70 px-3 py-3 sm:px-4">
-            <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+            <span className="relative hidden sm:flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
               <Radio className="h-4 w-4" />
               <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-emerald-400" />
             </span>
             <div className="min-w-0">
-              <p className="truncate text-xs font-semibold text-foreground sm:text-sm">Live tour pulse</p>
+              <p className="truncate text-xs font-semibold text-foreground sm:text-sm"><span className="sm:hidden">Live tours</span><span className="hidden sm:inline">Live tour pulse</span></p>
               <p className="truncate text-[10px] text-muted-foreground sm:text-xs">
                 {trendingShowsMeta?.isFallback
                   ? "Refreshing discovery"
-                  : `Updated ${formatUpdatedAt(trendingShowsMeta?.lastUpdated) || "recently"}`}
+                  : <><span className="hidden sm:inline">Updated </span>{formatUpdatedAt(trendingShowsMeta?.lastUpdated) || "recently"}</>}
               </p>
             </div>
           </div>
-          <div className="flex flex-col justify-center border-r border-border/70 px-3 py-3 text-center sm:px-4">
-            <span className="text-lg font-bold tracking-tight text-foreground sm:text-xl">
-              {Array.isArray(trendingArtists) ? trendingArtists.length : "—"}
+          <Link to="/artists" aria-label="Browse all touring artists" className="flex min-w-0 flex-col items-center justify-center gap-1 border-r border-border/70 px-3 py-3 text-center hover:bg-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring sm:px-4">
+            <span className="text-xs font-semibold text-foreground sm:text-sm">Touring artists</span>
+            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground sm:text-xs">
+              Browse all <ArrowRight className="h-3 w-3" aria-hidden="true" />
             </span>
-            <span className="text-[10px] text-muted-foreground sm:text-xs">artists touring</span>
-          </div>
+          </Link>
           <div className="flex flex-col justify-center px-3 py-3 text-center sm:px-4">
             <span className="text-lg font-bold tracking-tight text-foreground sm:text-xl">
               {Array.isArray(trendingShows) ? trendingShows.length : "—"}
@@ -455,7 +455,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                 </div>
                 
                 {/* Horizontal snap-scroll on mobile, grid on larger screens */}
-                <div className="flex sm:grid sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 overflow-x-auto sm:overflow-x-visible snap-x snap-mandatory -mx-4 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex sm:grid sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 overflow-x-auto sm:overflow-x-visible snap-x snap-mandatory -mx-3 px-3 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {sortedSpotifyArtists.slice(0, 12).map((item) => (
                     <div
                       key={item.artist._id}
@@ -469,7 +469,6 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                   ))}
                 </div>
               </div>
-              <BorderBeam size={100} duration={12} className="opacity-20" />
             </MagicCard>
           </motion.section>
         )}
@@ -509,15 +508,15 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
         <section className="relative">
           <div className="flex items-end justify-between gap-3 mb-3 sm:mb-4">
             <div className="min-w-0">
-              <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-400/90 sm:text-[11px]">
+              <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-800 dark:text-amber-400 sm:text-[11px]">
                 <Flame className="h-3.5 w-3.5" />
                 Touring now
               </div>
               <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground">Trending Artists</h2>
               <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
-                Explore the artists moving tickets across every sound
+                Featured picks from current tours
                 {trendingArtistsMeta && (
-                  <span className="text-muted-foreground/60">
+                  <span className="text-muted-foreground">
                     {" "}·{" "}
                     {trendingArtistsMeta.isFallback
                       ? "Refreshing…"
@@ -527,17 +526,17 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
               </p>
             </div>
             <motion.button
-              onClick={() => navigateTo('/trending')}
+              onClick={() => navigateTo('/artists')}
               className="shrink-0 text-xs sm:text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors min-h-[44px]"
               whileHover={shouldReduceMotion ? undefined : { x: 2 }}
               whileTap={shouldReduceMotion ? undefined : { scale: 0.97 }}
             >
-              View all <ArrowRight className="h-3 w-3" />
+              All artists <ArrowRight className="h-3 w-3" />
             </motion.button>
           </div>
 
           {!isLoading && availableArtistCategories.length > 1 && (
-            <div className="-mx-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
+            <div className="-mx-3 mb-4 flex snap-x gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
               {availableArtistCategories.map((category) => {
                 const active = artistCategory === category.label;
                 return (
@@ -556,8 +555,8 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                     }}
                     className={`relative flex h-9 shrink-0 snap-start items-center gap-1.5 overflow-hidden rounded-full border px-3 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${
                       active
-                        ? "border-foreground/20 text-background"
-                        : "border-border bg-card/55 text-muted-foreground hover:text-foreground"
+                        ? "border-foreground text-background"
+                        : "border-border bg-card text-muted-foreground hover:text-foreground"
                     }`}
                     whileHover={shouldReduceMotion ? undefined : { y: -1 }}
                     whileTap={shouldReduceMotion ? undefined : { scale: 0.96 }}
@@ -570,9 +569,6 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                       />
                     )}
                     <span className="relative z-10">{category.label}</span>
-                    <span className={`relative z-10 text-[10px] ${active ? "text-background/65" : "text-muted-foreground/60"}`}>
-                      {category.count}
-                    </span>
                   </motion.button>
                 );
               })}
@@ -591,7 +587,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
               </>
             ) : (visibleTrendingArtists as any[])?.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Music className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <Music className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">No trending artists yet</p>
               </div>
             ) : (
@@ -604,7 +600,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
                   exit={{ opacity: 0 }}
                 >
                   {/* Mobile: editorial horizontal snap-scroll shelf */}
-                  <div className="sm:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory -mx-4 px-4 scrollbar-hide">
+                  <div className="sm:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory -mx-3 px-3 scrollbar-hide">
                     {(surfacedTrendingArtists as any[]).map((artist: any, index: number) => {
                       const artistId = artist?._id || artist?.artistId;
                       const isImporting = importingArtist === artist.ticketmasterId;
@@ -706,7 +702,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
         <section className="relative">
           <div className="flex items-end justify-between gap-3 mb-3 sm:mb-4">
             <div className="min-w-0">
-              <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-400/90 sm:text-[11px]">
+              <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-800 dark:text-sky-400 sm:text-[11px]">
                 <CalendarDays className="h-3.5 w-3.5" />
                 Pick a night
               </div>
@@ -714,7 +710,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
               <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
                 Artist-diverse concerts, refreshed automatically
                 {trendingShowsMeta && (
-                  <span className="text-muted-foreground/60">
+                  <span className="text-muted-foreground">
                     {" "}·{" "}
                     {trendingShowsMeta.isFallback
                       ? "Refreshing…"
@@ -735,7 +731,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
 
           {!isLoading && Array.isArray(visibleTrendingShows) && visibleTrendingShows.length > 1 && (
             <div className="mb-4 flex flex-wrap items-center gap-2.5">
-              <div className="inline-flex rounded-xl border border-border bg-card/55 p-1">
+              <div className="inline-flex rounded-xl border border-border bg-card p-1">
                 {([
                   { value: "soonest", label: "Soonest", icon: Clock3 },
                   { value: "popular", label: "Popular", icon: Flame },
@@ -799,7 +795,7 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
               <GridSkeleton count={12} />
             ) : (visibleTrendingShows as any[])?.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Music className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <Music className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">No shows available</p>
               </div>
             ) : (
@@ -834,64 +830,18 @@ export function PublicDashboard({ onArtistClick, onShowClick }: PublicDashboardP
   );
 }
 
-// Artist Card - Compact with silver glow
 function ArtistCard({ artist, onClick, isLoading }: { artist: any; onClick: () => void; isLoading?: boolean }) {
-  return (
-    <motion.div 
-      className={`w-full cursor-pointer ${isLoading ? 'pointer-events-none' : ''}`}
-      onClick={onClick}
-      whileHover={{ y: -4 }}
-      whileTap={{ scale: 0.98 }}
-    >
-      <div className="glow-card glow-card-hover overflow-hidden relative">
-        {isLoading && (
-          <div className="absolute inset-0 z-10 bg-black/50 flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-white" />
-          </div>
-        )}
-        <div className="relative w-full aspect-square overflow-hidden rounded-t-[0.75rem]">
-          {artist.images?.[0] ? (
-            <img 
-              src={artist.images[0]} 
-              alt={artist.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-secondary to-secondary/50 flex items-center justify-center">
-              <span className="text-foreground/60 font-bold text-xl">
-                {(typeof artist?.name === 'string' && artist.name.length > 0 ? artist.name : '??').slice(0, 2).toUpperCase()}
-              </span>
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-        </div>
-        <div className="p-2.5 sm:p-3">
-          <h3 className="text-foreground font-semibold text-xs sm:text-sm line-clamp-1">
-            {artist.name}
-          </h3>
-          <div className="flex items-center justify-between mt-1">
-            <p className="text-muted-foreground text-[10px] sm:text-xs">
-              {artist.upcomingEvents || artist.upcomingShowsCount || 0} shows
-            </p>
-            {artist.genres?.[0] && (
-              <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full bg-secondary/50 text-muted-foreground truncate max-w-[50px]">
-                {artist.genres[0]}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
+  return <ArtistDiscoveryCard artist={artist} onClick={onClick} isImporting={isLoading} tile />;
 }
 
 // Artist Shelf Card - image-led card for the mobile horizontal snap-scroll shelf
 function ArtistShelfCard({ artist, onClick, isLoading }: { artist: any; onClick: () => void; isLoading?: boolean }) {
+  const reduceMotion = useReducedMotion();
   return (
     <motion.button
       type="button"
       onClick={onClick}
-      whileTap={{ scale: 0.97 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.97 }}
       className={`relative shrink-0 snap-start w-[40vw] max-w-[170px] aspect-[4/5] rounded-xl overflow-hidden bg-secondary border border-border text-left ${isLoading ? 'pointer-events-none' : ''}`}
     >
       {artist.images?.[0] ? (
@@ -931,7 +881,7 @@ function ArtistShelfCard({ artist, onClick, isLoading }: { artist: any; onClick:
 function ArtistShelfSkeleton() {
   const shimmerClass = "bg-gradient-to-r from-muted via-muted/60 to-muted animate-shimmer bg-[length:200%_100%]";
   return (
-    <div className="flex gap-3 overflow-x-hidden -mx-4 px-4">
+    <div className="flex gap-3 overflow-x-hidden -mx-3 px-3">
       {[...Array(4)].map((_, i) => (
         <div
           key={i}
@@ -942,76 +892,18 @@ function ArtistShelfSkeleton() {
   );
 }
 
-// Show Card - Compact with silver glow
 function ShowCard({ show, onClick }: { show: any; onClick: () => void }) {
-  const showDate = new Date(show.date);
-  const shouldReduceMotion = useReducedMotion();
-  const artistName = show.artist?.name || show.artistName || "Artist";
-  const venueName = show.venue?.name || show.venueName || "Venue TBA";
-  const location = formatLocation(show.venue?.city || show.venueCity, show.venue?.state || show.venueState);
-
-  return (
-    <motion.div 
-      className="w-full cursor-pointer"
-      onClick={onClick}
-      whileHover={shouldReduceMotion ? undefined : { y: -4 }}
-      whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
-    >
-      <div className="glow-card glow-card-hover group overflow-hidden">
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-[0.75rem] sm:aspect-square">
-          {(() => {
-            const imgSrc = show?.artist?.images?.[0] || show?.artistImage || show?.cachedTrending?.artistImage;
-            return imgSrc ? (
-              <img
-                src={imgSrc}
-                alt={artistName}
-                loading="lazy"
-                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.035]"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-secondary to-secondary/50 flex items-center justify-center">
-                <span className="text-foreground/60 font-bold text-xl">
-                  {((show?.artist?.name || show?.artistName || '??') as string).slice(0, 2).toUpperCase()}
-                </span>
-              </div>
-            );
-          })()}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-transparent" />
-          
-          {/* Date Badge */}
-          <div className="absolute left-2 top-2">
-            <div className="rounded-lg border border-white/15 bg-black/70 px-2 py-1 text-white backdrop-blur-sm">
-              <p className="text-[10px] font-semibold uppercase tracking-wide">
-                {showDate.toLocaleDateString('en-US', { month: 'short' })}
-              </p>
-              <p className="text-base font-bold leading-none">{showDate.getDate()}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-2.5 sm:p-3">
-          <h3 className="text-foreground font-semibold text-xs sm:text-sm line-clamp-1">
-            {artistName}
-          </h3>
-          <p className="mt-1 truncate text-[10px] font-medium text-foreground/70 sm:text-xs">{venueName}</p>
-          <p className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground sm:text-xs">
-            <MapPin className="h-2.5 w-2.5 flex-shrink-0" />
-            <span className="truncate">{location || "Location TBA"}</span>
-          </p>
-        </div>
-      </div>
-    </motion.div>
-  );
+  return <ShowDiscoveryCard show={show} onClick={onClick} tile />;
 }
 
 // Spotify Artist Card - Compact card for Your Artists section
 function SpotifyArtistCard({ item, onClick }: { item: any; onClick: () => void }) {
+  const reduceMotion = useReducedMotion();
   return (
     <motion.div
-      className="w-full cursor-pointer group"
+      className="interactive-card w-full cursor-pointer group"
       onClick={onClick}
-      whileHover={{ y: -4 }}
-      whileTap={{ scale: 0.98 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.98 }}
     >
       <div className="relative">
         <div className="relative w-full aspect-square glow-card-sm glow-card-hover overflow-hidden bg-secondary">
@@ -1019,7 +911,7 @@ function SpotifyArtistCard({ item, onClick }: { item: any; onClick: () => void }
             <img 
               src={item.artist.images[0]} 
               alt={item.artist.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              className="w-full h-full object-cover"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-foreground/40 font-bold text-xl">
@@ -1050,6 +942,7 @@ function SpotifyArtistCard({ item, onClick }: { item: any; onClick: () => void }
 
 // Festival Card - Vibrant with silver glow
 function FestivalCard({ festival, onClick }: { festival: any; onClick: () => void }) {
+  const reduceMotion = useReducedMotion();
   const startDate = new Date(festival.startDate);
   const endDate = new Date(festival.endDate);
   
@@ -1068,13 +961,12 @@ function FestivalCard({ festival, onClick }: { festival: any; onClick: () => voi
 
   return (
     <motion.div 
-      className="w-full cursor-pointer"
+      className="interactive-card w-full cursor-pointer"
       onClick={onClick}
-      whileHover={{ y: -4 }}
-      whileTap={{ scale: 0.98 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.98 }}
     >
       <div className="glow-card glow-card-hover overflow-hidden">
-        <div className="relative w-full aspect-square overflow-hidden rounded-t-[0.75rem]">
+        <div className="relative w-full aspect-square overflow-hidden rounded-t-[5px]">
           {festival.imageUrl ? (
             <img
               src={festival.imageUrl}
@@ -1082,7 +974,7 @@ function FestivalCard({ festival, onClick }: { festival: any; onClick: () => voi
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-purple-600/40 to-pink-600/40 flex items-center justify-center">
+            <div className="w-full h-full bg-gradient-to-br from-secondary to-secondary flex items-center justify-center">
               <span className="text-white/80 font-bold text-xl">
                 {(festival.name || '??').slice(0, 2).toUpperCase()}
               </span>

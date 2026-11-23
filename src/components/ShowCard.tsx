@@ -1,11 +1,10 @@
+import { TicketLink } from "./TicketLink";
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Id } from "../../convex/_generated/dataModel";
 import { Calendar, MapPin, ChevronRight, Ticket } from "lucide-react";
 import { formatLocation, formatShowTime, parseShowCalendarDate } from "../lib/utils";
 import { cn } from "../lib/utils";
-import { capture } from "../lib/analytics";
-import { buildTicketmasterAffiliateUrl } from "../utils/ticketmaster";
 
 interface ShowCardProps {
   show: any;
@@ -39,53 +38,22 @@ function ShowCardComponent({
     return formatShowTime(show.startTime, show.venue?.state);
   };
 
-  const handleTicketClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (show.ticketUrl) {
-      capture("ticket_link_clicked", {
-        show_id: show._id || show.showId,
-        artist_id: show.artistId || show.artist?._id,
-        venue_id: show.venueId || show.venue?._id,
-        show_date: show.date,
-        placement: "show_card",
-        provider: "ticketmaster",
-        affiliate: true,
-      });
-      window.open(buildTicketmasterAffiliateUrl(show.ticketUrl), '_blank', 'noopener,noreferrer');
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Only handle keys targeted at the card itself — nested interactive
-    // elements (e.g. the Tickets button) keep their native activation.
-    if (e.target !== e.currentTarget) return;
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      handleClick();
-    }
-  };
-
   const dateInfo = formatDate(show.date);
   const time = getTime();
 
   return (
-    <motion.div
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      role="button"
-      tabIndex={0}
-      whileTap={{ scale: 0.98 }}
+    <motion.article
       className={cn(
         "group relative overflow-hidden touch-manipulation cursor-pointer transition-all duration-200",
         // Keyboard focus
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset rounded-xl",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset rounded-none sm:rounded-xl",
         // Mobile: simple border bottom for list feel
-        "border-b border-border/50 last:border-b-0",
-        // Desktop: glow card styling
-        "sm:glow-card-sm sm:glow-card-hover sm:border-0"
+        "border-b border-border last:border-b-0",
+        // Desktop: shared panel styling
+        "interactive-row sm:glow-card-sm"
       )}
     >
-      <div className="flex items-center gap-3 p-3 sm:p-4 min-h-[72px]">
+      <div className="flex items-center gap-3 px-0 py-3 sm:p-4 min-h-[72px]">
         {/* Date Badge - Compact */}
         <div className="flex-shrink-0">
           <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-secondary ring-1 ring-border flex flex-col items-center justify-center">
@@ -99,7 +67,7 @@ function ShowCardComponent({
         </div>
 
         {/* Content - Compact Info */}
-        <div className="flex-1 min-w-0">
+        <a href={`/shows/${encodeURIComponent(show.slug || show.showSlug || show.cachedTrending?.showSlug || show._id || show.showId)}`} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); handleClick(); } }} className="flex-1 min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
           {showArtist && show.artist?.name && (
             <h3 className="text-foreground font-semibold text-base leading-tight line-clamp-1 mb-0.5">
               {show.artist.name}
@@ -127,24 +95,20 @@ function ShowCardComponent({
               </span>
             </div>
           </div>
-        </div>
+        </a>
 
         {/* Actions - Compact Right Side */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {show.ticketUrl && (
-            <button
-              onClick={handleTicketClick}
-              aria-label="Buy tickets"
-              className="min-h-[44px] min-w-[44px] px-3 rounded-full bg-secondary hover:bg-secondary/80 active:bg-secondary/60 transition-colors text-xs font-medium text-foreground flex items-center justify-center gap-1.5 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-            >
+          {show.ticketUrl && show.status === "upcoming" && (
+            <TicketLink href={show.ticketUrl} placement="show_card" properties={{ show_id: show._id || show.showId, artist_id: show.artistId || show.artist?._id, venue_id: show.venueId || show.venue?._id, show_date: show.date }} className="min-h-[44px] min-w-[44px] px-3 rounded-full bg-secondary hover:bg-secondary/80 active:bg-secondary/60 transition-colors text-xs font-medium text-foreground flex items-center justify-center gap-1.5 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Buy tickets">
               <Ticket className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Tickets</span>
-            </button>
+            </TicketLink>
           )}
           <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-muted-foreground transition-colors" />
         </div>
       </div>
-    </motion.div>
+    </motion.article>
   );
 }
 

@@ -1,3 +1,4 @@
+import { normalizeMusicName } from "./lib/setlistMatch";
 import { query, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
@@ -183,10 +184,15 @@ export const createFromTicketmaster = internalMutation({
     }
 
     // CRITICAL FIX: Fallback to name+city to prevent duplicates
-    const existingByLocation = await ctx.db
+    const existingByLocationCandidates = await ctx.db
       .query("venues")
       .withIndex("by_name_city", (q) => q.eq("name", args.name).eq("city", args.city))
-      .first();
+      .collect();
+    const matchingVenues = existingByLocationCandidates.filter(venue =>
+      countryKey(venue.country) === countryKey(args.country) &&
+      (!venue.state || !args.state || normalizeMusicName(venue.state) === normalizeMusicName(args.state)) &&
+      (!venue.ticketmasterId || !args.ticketmasterId || venue.ticketmasterId === args.ticketmasterId));
+    const existingByLocation = matchingVenues.length === 1 ? matchingVenues[0] : null;
 
     if (existingByLocation) {
       const patch: Record<string, unknown> = {};
@@ -276,3 +282,10 @@ export const getAllSlugs = internalQuery({
     return result;
   },
 });
+
+export function countryKey(country: string) {
+  const key = normalizeMusicName(country);
+  if (["us", "usa", "united states", "united states of america"].includes(key)) return "us";
+  if (["uk", "gb", "united kingdom", "great britain"].includes(key)) return "gb";
+  return key;
+}

@@ -1,3 +1,4 @@
+import { getUserPredictionStats } from "./lib/songVoteCounts";
 import { query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
@@ -5,70 +6,40 @@ import { v } from "convex/values";
 export const getUserLeaderboard = query({
   args: { limit: v.optional(v.number()) },
   returns: v.array(v.object({
+    scope: v.literal("recent_250_votes"),
+    evaluatedVotes: v.number(),
     userId: v.id("users"),
     username: v.string(),
     totalVotes: v.number(),
     accurateVotes: v.number(),
-    accuracyPercentage: v.number(),
+    accuracyPercentage: v.union(v.number(), v.null()),
     totalSetlists: v.number(),
     score: v.number(),
     rank: v.number(),
   })),
   handler: async (ctx, args) => {
-    const limit = args.limit || 50;
-    
-    // Get users with their voting stats.
-    // Bounded read: capped so a growing users table can't blow Convex's read
-    // limits. Leaderboard is computed over the first 2000 users (currently the
-    // whole table); behavior is identical for those users.
-    const users = await ctx.db.query("users").take(2000);
-    const userStats = await Promise.all(
-      users.map(async (user) => {
-        // Get user's votes
-        const votes = await ctx.db
-          .query("votes")
-          .withIndex("by_user", (q) => q.eq("userId", user._id))
-          .collect();
-        
-        const totalVotes = votes.length;
-        const accurateVotes = votes.filter(v => v.voteType === "accurate").length;
-        const accuracyPercentage = totalVotes > 0 ? (accurateVotes / totalVotes) * 100 : 0;
-        
-        // Get user's setlists
-        const setlists = await ctx.db
-          .query("setlists")
-          .withIndex("by_user", (q) => q.eq("userId", user._id))
-          .collect();
-        
-        // Calculate score: accuracy weight + activity weight
-        const activityScore = Math.min(50, totalVotes * 2); // Max 50 points for activity
-        const accuracyScore = totalVotes >= 5 ? accuracyPercentage * 0.5 : 0; // Only count accuracy after 5+ votes
-        const setlistScore = Math.min(25, setlists.length * 5); // Max 25 points for setlists
-        const score = Math.round(activityScore + accuracyScore + setlistScore);
-        
-        return {
-          userId: user._id,
-          username: user.username,
-          totalVotes,
-          accurateVotes,
-          accuracyPercentage: Math.round(accuracyPercentage),
-          totalSetlists: setlists.length,
-          score,
-        };
-      })
-    );
-    
-    // Sort by score and add ranks
-    const sortedStats = userStats
-      .filter(stat => stat.totalVotes > 0) // Only include users who have voted
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit)
-      .map((stat, index) => ({
-        ...stat,
-        rank: index + 1,
-      }));
-    
-    return sortedStats;
+    const limit = Math.max(1, Math.min(args.limit ?? 50, 50));
+    const votes = await ctx.db.query("songVotes").withIndex("by_created_at").order("desc").take(250);
+    const setlists = await ctx.db.query("setlists").order("desc").take(250);
+    const userIds = [...new Set(votes.map(vote => vote.userId))];
+    const rows = [];
+    for (const candidate of userIds) {
+      const userId = ctx.db.normalizeId("users", candidate);
+      if (!userId) continue;
+      const user = await ctx.db.get(userId);
+      if (!user) continue;
+      const ownVotes = votes.filter(vote => vote.userId === userId);
+      const stats = await getUserPredictionStats(ctx, ownVotes);
+      rows.push({
+        scope: "recent_250_votes" as const,
+        userId, username: user.username, totalVotes: ownVotes.length,
+        accurateVotes: stats.correct, evaluatedVotes: stats.evaluated,
+        accuracyPercentage: stats.accuracy === null ? null : Math.round(stats.accuracy * 100),
+        totalSetlists: setlists.filter(list => list.userId === userId).length,
+        score: Math.round(Math.min(50, ownVotes.length * 2) + (stats.evaluated >= 5 ? (stats.accuracy ?? 0) * 50 : 0)),
+      });
+    }
+    return rows.sort((a, b) => b.score - a.score).slice(0, limit).map((row, index) => ({ ...row, rank: index + 1 }));
   },
 });
 

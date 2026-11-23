@@ -103,7 +103,7 @@ export const blogQueries = {
   }`,
 
   // Get single post by slug
-  postBySlug: `*[_type == "post" && slug.current == $slug][0] {
+  postBySlug: `*[_type == "post" && publishedAt < now() && !(_id in path("drafts.**")) && slug.current == $slug][0] {
     _id,
     title,
     slug,

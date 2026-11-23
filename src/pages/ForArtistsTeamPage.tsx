@@ -63,8 +63,8 @@ export function ForArtistsTeamPage() {
   if (!artistId) {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-10">
-          <MagicCard className="p-8 text-center">
+        <div className="public-page account-page">
+          <MagicCard className="p-4 sm:p-6 text-center">
             <p className="text-muted-foreground">Missing artist ID.</p>
             <Button variant="outline" onClick={() => navigate("/for-artists")} className="mt-4">
               Back to Artists
@@ -81,7 +81,7 @@ export function ForArtistsTeamPage() {
     <ErrorBoundary>
       <AuthGuard>
         <AppLayout>
-          <div className="container mx-auto px-4 sm:px-6 py-6 space-y-6">
+          <div className="public-page account-page space-y-6">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <Button
                 variant="ghost"
@@ -95,7 +95,7 @@ export function ForArtistsTeamPage() {
 
             <MagicCard className="p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-[5px] bg-secondary flex items-center justify-center">
                   <Users className="h-5 w-5 text-primary" />
                 </div>
                 <div>
@@ -107,7 +107,7 @@ export function ForArtistsTeamPage() {
               </div>
 
               {!isOwner && (
-                <div className="rounded-xl border border-border bg-card/40 p-4 mb-6 flex items-start gap-3">
+                <div className="rounded-[5px] border border-border bg-card/40 p-4 mb-6 flex items-start gap-3">
                   <Shield className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div className="text-sm text-muted-foreground">
                     Only <span className="text-foreground font-medium">owners</span> can manage team access.
@@ -116,24 +116,25 @@ export function ForArtistsTeamPage() {
               )}
 
               {isOwner && (
-                <div className="rounded-xl border border-border bg-card/40 p-4 mb-6">
+                <div className="rounded-[5px] border border-border bg-card/40 p-4 mb-6">
                   <div className="font-semibold mb-2 flex items-center gap-2">
                     <Mail className="h-4 w-4" />
                     Invite a Team Member
                   </div>
                   <div className="flex flex-col md:flex-row gap-3">
-                    <input
+                    <input type="email" aria-label="Team member email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="email@domain.com"
-                      className="flex-1 h-10 rounded-lg bg-secondary border border-border px-3 text-sm text-foreground"
+                      className="flex-1 h-10 rounded-[5px] bg-secondary border border-border px-3 text-sm text-foreground"
                       inputMode="email"
                       autoComplete="email"
                     />
                     <select
+                      aria-label="Invitation role"
                       value={role}
                       onChange={(e) => setRole(e.target.value as any)}
-                      className="h-10 rounded-lg bg-secondary border border-border px-3 text-sm text-foreground md:w-44"
+                      className="h-10 rounded-[5px] bg-secondary border border-border px-3 text-sm text-foreground md:w-44"
                     >
                       <option value="manager">Manager</option>
                       <option value="viewer">Viewer</option>
@@ -189,9 +190,9 @@ export function ForArtistsTeamPage() {
                   </p>
 
                   {lastInviteUrl && (
-                    <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                    <div className="mt-4 p-3 rounded-[5px] bg-green-500/10 border border-green-500/30">
                       <div className="flex items-center gap-2 mb-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <CheckCircle className="h-4 w-4 text-green-700 dark:text-green-500" />
                         <span className="text-sm font-medium text-green-600 dark:text-green-400">Secure invite link</span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -228,7 +229,7 @@ export function ForArtistsTeamPage() {
                     {pendingInvites.map((invite: any) => (
                       <div
                         key={invite._id}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-card/20 p-3"
+                        className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-3 rounded-[5px] border border-border/50 bg-card/20 p-3"
                       >
                         <div className="min-w-0 flex-1">
                           <div className="font-medium truncate text-sm">{invite.email}</div>
@@ -311,7 +312,7 @@ export function ForArtistsTeamPage() {
                     return (
                       <div
                         key={m._id}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/40 p-4"
+                        className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-3 rounded-[5px] border border-border bg-card/40 p-4"
                       >
                         <div className="min-w-0">
                           <div className="font-medium truncate">{m.user?.name || m.user?.email || "Team member"}</div>
@@ -319,11 +320,12 @@ export function ForArtistsTeamPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           {m.role === "owner" ? (
-                            <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">
+                            <span className="text-xs px-2 py-1 rounded-full bg-secondary text-primary font-medium">
                               owner
                             </span>
                           ) : (
                             <select
+                              aria-label={`Role for ${m.user?.name || m.user?.email || "team member"}`}
                               value={m.role}
                               disabled={!canEdit}
                               onChange={async (e) => {
@@ -350,7 +352,7 @@ export function ForArtistsTeamPage() {
                                   toast.error("Role update failed", { description: err?.message || "Unknown error" });
                                 }
                               }}
-                              className="h-9 rounded-lg bg-secondary border border-border px-3 text-sm text-foreground"
+                              className="h-9 rounded-[5px] bg-secondary border border-border px-3 text-sm text-foreground"
                             >
                               <option value="manager">Manager</option>
                               <option value="viewer">Viewer</option>
