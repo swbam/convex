@@ -1,8 +1,61 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internalRef } from "./adminHelpers";
+import { appShell } from "../shared/appShell";
+import { renderSeoDocument } from "./seoHtml";
+import { resolveSeoPage } from "./seoRoutes";
 
 const http = httpRouter();
+const catalogShell = appShell("/app/main.js", "/app/main.css");
+
+function catalogResponse(body: string, status: number, type: string, robots: string, ttl: number) {
+  return new Response(body, { status, headers: {
+    "Content-Type": type,
+    "X-Robots-Tag": robots,
+    "Cache-Control": "public, max-age=0, must-revalidate",
+    "Vercel-CDN-Cache-Control": `public, max-age=${ttl}, stale-while-revalidate=3600`,
+  } });
+}
+
+http.route({ pathPrefix: "/catalog-html/", method: "GET", handler: httpAction(async (ctx, request) => {
+  const path = new URL(request.url).pathname.slice("/catalog-html".length).replace(/\/+$/, "") || "/";
+  if (path !== "/" && !/^\/(?:artists|shows|festivals)(?:\/[^/]{1,540})?$|^\/venues\/[^/]{1,540}$/.test(path)) {
+    return new Response("Not found", { status: 404 });
+  }
+  try {
+    // A cache miss may read the catalog. It must never fetch Vercel or start a provider sync.
+    const result = await resolveSeoPage({ runQuery: ctx.runQuery.bind(ctx) }, path);
+    if (result.redirect) return new Response(null, { status: result.status, headers: {
+      Location: result.redirect, "Cache-Control": "public, max-age=300",
+    } });
+    return catalogResponse(renderSeoDocument(catalogShell, result.page, path), result.status,
+      "text/html; charset=utf-8", result.page.robots, result.status === 404 ? 300 : 21600);
+  } catch (error) {
+    console.error("Public catalog unavailable", error instanceof Error ? error.message : "Unknown error");
+    return new Response("Catalog temporarily unavailable", { status: 503, headers: {
+      "Cache-Control": "no-store", "Retry-After": "60",
+    } });
+  }
+}) });
+
+http.route({ pathPrefix: "/catalog-map/", method: "GET", handler: httpAction(async (ctx, request) => {
+  const name = new URL(request.url).pathname.slice("/catalog-map/".length);
+  let xml: string | null;
+  if (name === "index.xml") {
+    const snapshot = await ctx.runQuery(internalRef.sitemaps.index, {});
+    if (!snapshot.ready) return new Response("Sitemap is being prepared", { status: 503, headers: {
+      "Cache-Control": "no-store", "Retry-After": "300",
+    } });
+    xml = snapshot.xml;
+  } else {
+    const match = /^(artists|shows|venues|festivals)-(0|[1-9][0-9]{0,4})\.xml$/.exec(name);
+    if (!match) return new Response("Not found", { status: 404 });
+    xml = await ctx.runQuery(internalRef.sitemaps.publishedFile, { kind: match[1], part: Number(match[2]) });
+  }
+  return catalogResponse(xml || "Not found", xml ? 200 : 404,
+    xml ? "application/xml; charset=utf-8" : "text/plain", "noindex, follow", xml ? 21600 : 300);
+}) });
+
 const closed = httpAction(async () => new Response("Gone", {
   status: 410,
   headers: { "Cache-Control": "public, max-age=86400", "X-Robots-Tag": "noindex, nofollow" },

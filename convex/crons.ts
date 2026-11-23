@@ -57,4 +57,7 @@ crons.interval("backfill-venue-slugs", { minutes: 30 }, internalRef.venues.backf
 // - setlistfm-scan (scanPendingImports) - duplicated work
 // - process-setlist-queue (processSetlistImportQueue) - unnecessary queue layer
 
+// Refresh the stable sitemap from database records once a week, independently of page traffic.
+crons.cron("weekly-catalog-sitemap", "0 4 * * 0", internalRef.sitemaps.refresh, {});
+
 export default crons;

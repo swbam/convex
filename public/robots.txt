@@ -1,2 +1,20 @@
+User-agent: Googlebot
+Allow: /$
+Allow: /artists$
+Allow: /artists/
+Allow: /shows$
+Allow: /shows/
+Allow: /venues/
+Allow: /festivals$
+Allow: /festivals/
+Allow: /sitemap.xml$
+Allow: /sitemaps/
+Allow: /assets/
+Allow: /app/
+Allow: /og-preview.png$
+Disallow: /
+
 User-agent: *
 Disallow: /
+
+Sitemap: https://www.setlists.live/sitemap.xml

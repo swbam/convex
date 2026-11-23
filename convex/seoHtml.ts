@@ -216,12 +216,12 @@ export function buildSeoPage(data: any, now = Date.now()): SeoPage {
 }
 
 function replaceMeta(html: string, selector: RegExp, tag: string) {
-  if (selector.test(html)) return html.replace(selector, tag);
-  return html.replace("</head>", `  ${tag}\n</head>`);
+  if (selector.test(html)) return html.replace(selector, () => tag);
+  return html.replace("</head>", () => `  ${tag}\n</head>`);
 }
 
 export function renderSeoDocument(shell: string, page: SeoPage, path = new URL(page.canonical).pathname) {
-  let html = shell.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(page.title)}</title>`);
+  let html = shell.replace(/<title>[\s\S]*?<\/title>/i, () => `<title>${escapeHtml(page.title)}</title>`);
   const meta = [
     [/\s*<meta\s+name=["']description["'][^>]*>/i, `<meta name="description" content="${escapeHtml(page.description)}" />`],
     [/\s*<meta\s+name=["']robots["'][^>]*>/i, `<meta name="robots" content="${page.robots}" />`],
@@ -253,12 +253,12 @@ export function renderSeoDocument(shell: string, page: SeoPage, path = new URL(p
   html = html.replace(/<script[^>]*id=["']seo-(?:jsonld|data)["'][^>]*>[\s\S]*?<\/script>/gi, "");
   html = html.replace(
     "</head>",
-    `  <script id="seo-data" type="application/json">${safeJson({ path, page: { ...page, body: "" } })}</script>\n` +
+    () => `  <script id="seo-data" type="application/json">${safeJson({ path, page: { ...page, body: "" } })}</script>\n` +
     `  <script id="seo-jsonld" type="application/ld+json">${jsonLd}</script>\n` +
       `  <style id="seo-prerender-style">.seo-prerender{max-width:72rem;min-height:100vh;margin:0 auto;padding:4rem 1rem;color:hsl(var(--foreground,0 0% 96%));background:hsl(var(--background,0 0% 4%));font-family:Overpass,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.seo-prerender h1{font-size:clamp(1.75rem,4vw,3rem);line-height:1.15;letter-spacing:-.025em;margin:.5rem 0 1rem}.seo-prerender h2{font-size:1.25rem;margin:2rem 0 .75rem}.seo-prerender p,.seo-prerender li{color:hsl(var(--muted-foreground,0 0% 64%));line-height:1.6}.seo-prerender a{color:inherit;text-decoration:underline}.seo-prerender nav{display:flex;flex-wrap:wrap;gap:.5rem;font-size:.875rem;margin-bottom:1rem}.seo-prerender section{border-top:1px solid hsl(var(--border,0 0% 16%));margin-top:2rem}.seo-eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:.72rem}${APP_STARTUP_STYLES}</style>\n` +
       `  <script id="app-startup-script">${APP_STARTUP_SCRIPT}</script>\n</head>`,
   );
-  return html.replace(/<div\s+id=["']root["']\s*><\/div>/i, `${APP_STARTUP_MARKUP}<div id="root">${page.body}</div>`);
+  return html.replace(/<div\s+id=["']root["']\s*><\/div>/i, () => `${APP_STARTUP_MARKUP}<div id="root">${page.body}</div>`);
 }
 
 export function renderNotFoundDocument(shell: string) {
