@@ -11,7 +11,7 @@ The platform features a sophisticated multi-phase data synchronization system th
 
 The frontend uses Vite and React Router. Vercel caches catalog HTML, and Convex renders cache misses from stored records. Verified Google Search can discover eligible shows, artists, venues and festivals. [SEO and indexing](docs/SEO.md)
 
-Public show links identify the exact performance, including when two performances share a date and venue. Links from an artist dashboard carry an artist-team referral, and public share buttons carry a fan referral. Eligible US Ticketmaster links can pass that source, show ID and button placement to Impact when an approved tracking link is configured. A ticket click measures interest. The affiliate network confirms purchases and earnings. [Ticket measurement](docs/analytics.md#ticket-share-attribution)
+Public show links identify the exact performance, including when two performances share a date and venue. Links from an artist dashboard carry an artist-team referral, and public share buttons carry a fan referral. In production, Buy Tickets buttons for eligible U.S. Ticketmaster events use the Impact tracking link configured in Vercel through `VITE_TICKETMASTER_US_IMPACT_LINK`. Each button directs fans to the specific event and includes the referral source, show ID when available, and button placement. Newly synced shows use the same configuration automatically. Impact reports qualifying purchases and commissions. [Ticket measurement](docs/analytics.md#ticket-share-attribution)
 
 Current operating documentation lives in the [documentation index](docs/README.md).
 Feature work is not complete until its user flows, permissions, operations,
